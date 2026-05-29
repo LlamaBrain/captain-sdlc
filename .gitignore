@@ -5,6 +5,12 @@
 # Local tooling state
 .claude/
 
+# Work-in-flight register — kept local, not published. The design set (ADRs,
+# roadmap, vision, seams, glossary) is the public face; scratch.md is the
+# intraday handoff register and stays out of the public tree (OSS boundary
+# decision, 2026-05-29). The /scratch skill still maintains it locally.
+scratch.md
+
 # OS cruft
 .DS_Store
 Thumbs.db
