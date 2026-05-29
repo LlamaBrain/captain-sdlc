@@ -1,5 +1,5 @@
 # M2 — TRACE_SCHEMA_FIRST_EMITTER
-Status: In Progress
+Status: Shipped
 Last Updated: 2026-05-29
 
 ## Theme
@@ -36,12 +36,18 @@ turns the schema from a planning doc into a substrate the downstream seams
   (mirrors the `AthStateDispatcher` split). No Newtonsoft dependency.
 - [x] `ath-smoke-fullloop` SKILL calls the emitter as its final step, on **both**
   pass and fail, before PlayMode exit.
-- [ ] **Live-verified in a Unity editor:** running the smoke against a host
+- [x] **Live-verified in a Unity editor:** running the smoke against a host
   project (BeforeTheShade) writes a well-formed line to the day's file for both
   a pass and a forced fail; the JSON parses and validates against the envelope.
-  *(Close-out gate — requires the editor; cannot be verified headless.)*
-- [ ] Unity-generated `.meta` files for the three new `.cs` files and the new doc
-  committed alongside source.
+  *(Verified 2026-05-29 against BeforeTheShade @ `303588f` — smoke-driven pass
+  `b08cc7b4` + synthetic fail `9c29ccc4` in `.captain-sdlc/trace/2026-05-29.jsonl`;
+  both validate against the envelope; `tool_version` pinned `0.2.0`; the fail
+  record carries non-null `failed_step` and a non-empty `artifacts` array.)*
+- [x] Unity-generated `.meta` files for the three new `.cs` files and the new doc
+  committed alongside source. *(Verified tracked in `ai-test-harness`:
+  `AthTraceWriter.cs` / `AthTraceEmitter.cs` / `Tool_AthTraceEmit.cs` + `.meta`
+  siblings; `trace-events.md` sits under `Documentation~/` so correctly has no
+  meta.)*
 
 ## Targeted
 **In scope (this milestone):** the `ath.smoke.completed` envelope + payload, a
@@ -64,11 +70,11 @@ single emitter (ATH), the trace storage location, and the protective
 ## Blockers & Dependencies
 - **M1_CONVENTIONS_ESTABLISHED** — the `.captain-sdlc/` layout and
   `schema_version` policy. Satisfied.
-- **Live verification** depends on a Unity editor with a registered host adapter
-  (BTS or dirigible). This is the one open DoD item.
-- **Emitter-placement decision is ADR-worthy** — "tools own trace-record
-  correctness via an editor MCP tool" sets precedent for every future tool's
-  emitter. File as an ADR before a second tool emits.
+- **Live verification** depended on a Unity editor with a registered host adapter
+  (BTS or dirigible). Resolved 2026-05-29 — verified against BeforeTheShade.
+- **Emitter-placement decision** — "tools own trace-record correctness via an
+  editor MCP tool" sets precedent for every future tool's emitter. Filed as
+  ADR-0013 before a second tool emits.
 
 ## References
 - `../trace-schema.md` — canonical event envelope (Seam 1).

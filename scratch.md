@@ -2,40 +2,30 @@
 
 Register of work in flight. Triage on each session: remove completed entries, defer non-active items to `Roadmap/` or `candidates.md`, keep and trim active ones. New session prepends a dated section above prior ones.
 
-## 2026-05-28 — handoff from long Captain SDLC session
-
-### Active — interrogate
-
-- **Re-run `/claude-interrogate:roadmap` on `captain-sdlc/`** (maintenance mode) with `kind: "release-candidate"` on `M27_DEFINITION_OF_DONE_END_TO_END`. Renames the placeholder to `MRC1_DEFINITION_OF_DONE_END_TO_END` in a `.draft.md` sibling; review, replace original. Requires `/plugin update claude-interrogate` first to pull v0.1.7. ~5 min.
-
-### Active — claude-release
-
-- **v0.4.0 — version-surface drift check.** Mechanically diff every JSON/YAML/text file in the repo for version-shaped strings; fail if they disagree. Would have caught the marketplace.json oversight from v0.3.1. Memory `project_publish_discipline_pattern.md` is the design brief — convert it into a check script. Modest scope (~30 min once the discipline is committed in code).
-- **Hardcoded version path in `commands/release.md`.** Refers to `cache/llamabrain-release/claude-release/0.2.0/lib/build-manifest.js` literally. Should be relative or env-resolved so command markdown survives version bumps. Caught in the v0.1.0 release flow when the cached 0.2.0 command was being read despite v0.3.2 being live.
-
-### Active — interrogate (smaller)
-
-- **Migration tool for old roadmaps** (`/migrate-roadmap` flow). Pre-existing roadmaps using SemVer-shaped IDs (`0_8_0_QUESTS`) or M-only prefix won't round-trip cleanly against v0.1.6+'s milestone format or v0.1.7+'s MRC notation. No external users yet so non-urgent. Flagged in v0.1.6 CHANGELOG.
-- **Preset system** — `roadmap.preset: "indie-game"` opt-in that restores Wishlist/EA/Launch waypoints + game-dev reserved slots. Flagged in ADR-0007. Optional.
-
-### Active — Captain SDLC project work
-
-- **M2 — TRACE_SCHEMA_FIRST_EMITTER.** First real Captain SDLC milestone. Scope: ATH emits one `ath.smoke.completed` event to `.captain-sdlc/trace/YYYY-MM-DD.jsonl` during a smoke run, matching `trace-schema.md`'s envelope. Smallest viable instance of the whole pipeline shape. Worth a fresh session — full context window matters for the first emitter design.
-- **M5 — RELEASE_GATES_MINIMAL.** The MIN PLAY waypoint. Depends on M2. Two gates: `smoke_results_pass` + `dependency_audit`. First end-to-end demonstration of idea→plan→verify→release loop. Per `seam-release-gates.md`.
-
-### Maintenance / cleanup
-
-- **`doc:` → `docs:` for future commits.** Two ATH commits in the v0.1.0 range used non-canonical `doc:`. Not blocking, but the canonical Conventional Commits type going forward is `docs:` (plural).
-- **Verify the `scratch.md` + scratch SKILL files** that landed in interrogate v0.1.7 via `git add -A` are intentional. They were untracked when the session started; if they were experimental and shouldn't have shipped, that's a v0.1.8 fix (the v0.1.7 tag is now immutable).
-- **interrogate v0.1.7 partial work that committed cleanly** — the MRC notation refactor landed end-to-end (data model, ID generation, filename rendering, parser, table output, RC stub headers, one focused test). 85/85 tests pass against the new code paths.
+## 2026-05-29 — triage + in-repo cleanup
 
 ### Done this session (drops out next triage)
+- ✓ **TD-001 resolved** — `captain-sdlc/` extracted to its own repo (`LlamaBrain/captain-sdlc`); no longer ships inside the ATH Unity package. `tech-debt.md` created.
+- ✓ **M2 SHIPPED** — TRACE_SCHEMA_FIRST_EMITTER, the first real Captain SDLC milestone. All 9 DoD met: `ath-trace-emit` MCP tool, `AthTraceWriter`/`AthTraceEmitter` split, lazy `.captain-sdlc/.gitignore`, `ath-smoke-fullloop` Step 8 wiring (source in `ai-test-harness`); ADR-0013 filed; **live-verified against BeforeTheShade** — smoke-driven pass `b08cc7b4` + synthetic fail `9c29ccc4` in `2026-05-29.jsonl`, both validate against the envelope (`tool_version` `0.2.0`; fail record carries non-null `failed_step` + non-empty `artifacts`). Stub + roadmap table flipped to Shipped.
+- ✓ **ADRs 0010–0013 filed** (MToolKit runtime blade; test-support home-then-promote; human-owns-taste; tools-own-trace-correctness).
+- ✓ **Promoted M5 + M11 taskout drafts** over their stubs; removed the `.draft.md` siblings.
 
-- ✓ ATH v0.1.0 (graduated from preview series; tagged + pushed)
-- ✓ Captain SDLC docs committed (17 docs + 9 ADRs + roadmap.md + 27 RC stubs)
-- ✓ claude-release v0.3.1 (bundle fix) + v0.3.2 (marketplace.json sync)
-- ✓ claude-interrogate v0.1.4 / v0.1.5 / v0.1.6 / v0.1.7
-- ✓ ADR-0001 through ADR-0009 filed in `captain-sdlc/ADR/`
-- ✓ Memory entries for goal/mission/principle/pattern/outcome/packaging/origin-story/role-assignments/publish-discipline/ADR-trigger
-- ✓ `v0.1.0-preview.2` backfilled as a tag on ATH commit `b420db8`
-- ✓ `.claude/` added to `.gitignore`
+### Active — Captain SDLC critical path (M5 next)
+- **M5 — RELEASE_GATES_MINIMAL** (the MIN PLAY waypoint) — now the front of the critical path; **M2 shipped, so M5's hard upstream is cleared.** Taskout complete (DoD + per-gate targeted scoped). Implementation lives in the **claude-release** repo. Gates: `smoke_results_pass` (reads the `ath.smoke.completed` trace M2 now emits, via direct file read) + `dependency_audit`, plus `--force-release --override gate:"reason"` with a required recorded reason. Gate-event emission (`release.gate.summary`/`override`) rides M2 when wired.
+- **M2 shipping also cleared the DAG prereq for** M7 BASELINE_REGRESSION_ENVELOPE, M9 DETERMINISTIC_REPLAY, M13 CONTRACT_TESTING_MECHANISM_A, M16 BETWEEN_RELEASE_ARTIFACT_DIFF, M19 MARKETING_SCREENSHOT_HARVESTING — all listed M2 as upstream.
+
+### Active — claude-release (separate repo)
+- **v0.4.0 — version-surface drift check.** Diff every JSON/YAML/text file for version-shaped strings; fail on disagreement. Would have caught the `marketplace.json` v0.3.1 oversight. Design brief: memory `project_publish_discipline_pattern.md`. ~30 min once the discipline is committed in code.
+- **Hardcoded version path in `commands/release.md`** — literal `cache/.../0.2.0/lib/build-manifest.js`; make relative / env-resolved so command markdown survives version bumps.
+
+### Active — claude-interrogate (separate repo)
+- **M27 → MRC1 rename** — re-run `/claude-interrogate:roadmap` in maintenance mode with `kind: "release-candidate"` on `M27_DEFINITION_OF_DONE_END_TO_END`; writes a `.draft.md`, review + replace. Needs `/plugin update claude-interrogate` → v0.1.7 first. ~5 min.
+- **Verify the `scratch.md` + scratch SKILL files** shipped in interrogate v0.1.7 via `git add -A` were intentional; if experimental, that's a v0.1.8 fix (the v0.1.7 tag is immutable).
+- **Migration tool for old roadmaps** (`/migrate-roadmap`) — SemVer-shaped IDs (`0_8_0_QUESTS`) / M-only prefixes won't round-trip against v0.1.6+'s milestone format or v0.1.7+'s MRC notation. No external users → non-urgent.
+- **Preset system** — `roadmap.preset: "indie-game"` opt-in restoring Wishlist/EA/Launch waypoints + game-dev reserved slots. Flagged in ADR-0007. Optional.
+
+### Maintenance / cleanup
+- **`doc:` → `docs:`** for future commits — two ATH commits in the v0.1.0 range used non-canonical `doc:`. Canonical Conventional Commits type going forward is `docs:` (plural).
+
+### Open question raised this session
+- **Status vocabulary gap.** RC files use only `Shipped / In Progress / Stub`. A milestone that's been taskout'd but not started (M5 and M11 now) has no distinct status — it sits at `Stub` despite carrying a full DoD. Consider a `Scoped` / `Planned` value? Design call, not mechanical cleanup — left for you to decide.
