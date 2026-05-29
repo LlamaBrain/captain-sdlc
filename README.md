@@ -132,6 +132,10 @@ If you're picking this up cold and you want to:
 - **Find out what's committed cross-tool** → read `roadmap.md` once it exists.
 - **Polish all of the above** → run interrogate's `audit-docs` / `redress` against this repo.
 
+## Contact
+
+Built by Michael Tiller. Questions, ideas, or issues — [contact@michaeltiller.com](mailto:contact@michaeltiller.com), or open an issue on the relevant tool's repo under [github.com/LlamaBrain](https://github.com/LlamaBrain).
+
 ## Cross-References
 
 - [Captain SDLC — Candidates](./candidates.md)
