@@ -11,8 +11,10 @@ Register of work in flight. Triage on each session: remove completed entries, de
 - ✓ **Promoted M5 + M11 taskout drafts** over their stubs; removed the `.draft.md` siblings.
 - ✓ **M5 implemented (phases 1–3) + committed** in claude-release @ `349d57d` — `smoke_results_pass` + `dependency_audit` gates, `evaluate-gates.js`, `--force-release`/`--override`, wired into `release.md` (Step 3.5 + `Gate-override` footer), bundled + `check:release` green, 56 tests; verified against the real BTS trace. Milestone left **In Progress** (no release cut yet).
 
-### Active — Captain SDLC critical path (M5 next)
-- **M5 — RELEASE_GATES_MINIMAL** (the MIN PLAY waypoint) — **implemented + committed** in claude-release @ `349d57d` (phases 1–3: gates, evaluator, release.md wiring; bundled; 56 tests; verified vs the real BTS trace). **Status: In Progress** — closes when claude-release cuts a release through the gate. Remaining: (1) dogfood `/release` to 0.4.0 — needs a `.captain-sdlc/release-gates.yaml` disabling `smoke_results_pass` for this non-ATH repo; (2) the `release.gate.summary`/`override` trace-emit fast-follow (claude-release's first emitter, now unblocked by M2); (3) CVE-block tested against a live advisory (currently logic-verified only).
+### Active — Captain SDLC critical path (MIN PLAY reached; M5 shipped)
+- ✓ **M5 — RELEASE_GATES_MINIMAL SHIPPED** (the MIN PLAY waypoint) — claude-release cut **v0.4.0 through its own gate** (`09d77a2`, tag `v0.4.0`, pushed). The `/release` run fired Step 3.5, read `.captain-sdlc/release-gates.yaml` (smoke disabled, `dependency_audit` soft), ran `npm audit`, returned proceed — *then* committed. First in-vivo crossing. Also fixed the stale smoke-test imports (`742b825`) en route.
+  - **Follow-ons (not M5 scope):** trace-emit fast-follow (`release.gate.summary`/`override` — claude-release's first emitter); live-CVE block test (CVE-block is logic-verified only); exercise the `Gate-override` footer (v0.4.0 needed no override).
+  - **To use 0.4.0 from the installed plugin:** `/plugin update claude-release` (origin now has v0.4.0 + marketplace.json 0.4.0, so the update will take).
 - **M2 shipping also cleared the DAG prereq for** M7 BASELINE_REGRESSION_ENVELOPE, M9 DETERMINISTIC_REPLAY, M13 CONTRACT_TESTING_MECHANISM_A, M16 BETWEEN_RELEASE_ARTIFACT_DIFF, M19 MARKETING_SCREENSHOT_HARVESTING — all listed M2 as upstream.
 
 ### Active — claude-release (separate repo)

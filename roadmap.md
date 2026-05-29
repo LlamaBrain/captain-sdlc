@@ -20,6 +20,8 @@ Two orthogonal axes (ADR-0002 — *SemVer is process, milestones are design*):
 Captain SDLC is a series of independently-versioned tools — like a swiss army knife — that enable creatives to smooth away the processy bits of solo Unity game development that do matter (SemVer maintenance, roadmaps, mechanical QA, contract enforcement) but don't deserve human attention. Each tool bridges idea-space to plan-space via Socratic interview. Tools eat the process; the human eats the design. — anchor: `./README.md`
 
 ## MIN PLAY Waypoint
+**Substantially reached 2026-05-29.** M5 shipped: claude-release cut **v0.4.0 through its own gate** (`09d77a2`, tag `v0.4.0`) — Step 3.5 read `.captain-sdlc/release-gates.yaml`, ran the dependency audit, and returned proceed before committing. The refusal path, per-gate override (reason in commit message), and per-project config are live; the **trace half** of the criterion (`release.gate.summary`/`override` events) lands with the trace-emit fast-follow. First proof of the idea→plan→mechanical-verify→gated-release chain on a real release.
+
 RC: M5_RELEASE_GATES_MINIMAL. Criterion: claude-release refuses to publish a release when configured ATH smokes fail or the dependency audit reports any blocking CVE, with override recorded in commit message and trace. Proves the idea-to-plan-to-mechanical-verify-to-gated-release chain on the lightest possible payload.
 
 In the orthogonal model this is the first release milestone — the MVP-equivalent push. Further release milestones (the MRC ladder, likely MVP → Alpha → Beta → Release) are added as MRC-prefixed rows in the milestone table below once their scope firms up; per ADR-0002, build (M) and release (MRC) milestones share that one table, distinguished by prefix.
@@ -56,7 +58,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M2 | TRACE_SCHEMA_FIRST_EMITTER | Shipped | trace-schema.md | — |
 | M3 | CODE_READING_TIER_1 | Stub | code-reading-capability.md | — |
 | M4 | PRIVACY_FRAMEWORK_ACTIVATED | Stub | privacy-framework.md | — |
-| M5 | RELEASE_GATES_MINIMAL | In Progress | seam-release-gates.md | — |
+| M5 | RELEASE_GATES_MINIMAL | Shipped | seam-release-gates.md | — |
 | M6 | DEPENDENCY_AUDIT | Stub | candidates.md | — |
 | M7 | BASELINE_REGRESSION_ENVELOPE | Stub | candidates.md | — |
 | M8 | EDITOR_PERF_INSTRUMENTATION | Stub | candidates.md | — |

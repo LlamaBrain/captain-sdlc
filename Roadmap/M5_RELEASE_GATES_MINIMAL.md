@@ -1,5 +1,5 @@
 # M5 — RELEASE_GATES_MINIMAL
-Status: In Progress
+Status: Shipped
 Last Updated: 2026-05-29
 
 ## Definition of Done
@@ -19,16 +19,21 @@ bundled and self-contained (`check:release` green). 56 unit assertions, and the
 correct decision/exit on every path: proceed (0), blocked (1), override→proceed (0),
 usage error (2).
 
-Status is **In Progress, not Shipped** — the milestone closes when claude-release
-actually *cuts a release* through this path. Open before Shipped:
-- A live `/release` exercises the Step-3.5 orchestration and writes the `Gate-override`
-  footer (verified as wired into the command, not yet run live).
-- `dependency_audit`'s CVE-block is verified at the logic level (unit), not against a
-  live high/critical advisory.
-- Dogfooding claude-release's own release needs a `.captain-sdlc/release-gates.yaml`
-  disabling `smoke_results_pass` for this non-ATH repo (no smokes emit there).
-- Trace emission (`release.gate.summary`/`override`) — the deliberate fast-follow, now
-  unblocked by M2.
+**Shipped 2026-05-29** — claude-release cut **v0.4.0 through this gate.** The
+`/release` run fired Step 3.5 against `.captain-sdlc/release-gates.yaml` (smoke
+disabled for this non-ATH repo, `dependency_audit` soft), the gate returned
+proceed, and the release commit `09d77a2 chore(release): v0.4.0` (tag `v0.4.0`,
+pushed to origin, `check:release` consistent at 0.4.0) landed — the first release
+claude-release gated on its own upstream signals. The `release-gates.yaml` + the
+Windows `npm audit` fix shipped in `1524d52`.
+
+Follow-ons (not M5 scope; tracked separately):
+- **Trace emission** (`release.gate.summary`/`override`) — claude-release's first
+  emitter; the deliberate fast-follow, now unblocked by M2.
+- **Live-CVE check** — exercise `dependency_audit`'s block against a real
+  high/critical advisory (currently logic-verified).
+- **`Gate-override` footer** — wired in `release.md`; not yet exercised live (the
+  v0.4.0 cut needed no override).
 
 ## Theme
 claude-release stops being a trust-based ceremony and becomes assertive: it refuses to publish a release when the lightest upstream signals (ATH smokes, dependency audit) are inconsistent with what is shipping. This is the pipeline's MVP / MIN PLAY — idea -> plan -> mechanical-verify -> gated-release proven end-to-end on the smallest payload. The human still presses release; the gate only stops accidental inconsistent ships, with explicit recorded overrides.
