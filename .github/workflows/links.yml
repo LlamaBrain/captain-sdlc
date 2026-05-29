@@ -1,0 +1,31 @@
+name: Docs
+
+# Mechanical QA for the nerve center: verifies every internal cross-reference
+# resolves. Offline mode checks that each relative link points at a file that
+# exists and skips ALL network requests — so no flaky external-URL failures, no
+# secrets/token needed, fully deterministic. Archive/ is intentionally frozen
+# (its relative links predate the extraction), so it's excluded.
+#
+# This is the project eating its own dogfood: link rot is exactly the kind of
+# mechanical correctness a tool should own, not the human.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check relative cross-references (offline)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --exclude-path Archive "./**/*.md"
+          fail: true
