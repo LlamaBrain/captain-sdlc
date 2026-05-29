@@ -56,7 +56,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M2 | TRACE_SCHEMA_FIRST_EMITTER | Shipped | trace-schema.md | — |
 | M3 | CODE_READING_TIER_1 | Stub | code-reading-capability.md | — |
 | M4 | PRIVACY_FRAMEWORK_ACTIVATED | Stub | privacy-framework.md | — |
-| M5 | RELEASE_GATES_MINIMAL | Stub | seam-release-gates.md | — |
+| M5 | RELEASE_GATES_MINIMAL | In Progress | seam-release-gates.md | — |
 | M6 | DEPENDENCY_AUDIT | Stub | candidates.md | — |
 | M7 | BASELINE_REGRESSION_ENVELOPE | Stub | candidates.md | — |
 | M8 | EDITOR_PERF_INSTRUMENTATION | Stub | candidates.md | — |
