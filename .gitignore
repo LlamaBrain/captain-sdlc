@@ -1,0 +1,10 @@
+# captain-sdlc is a documentation repo, not a Unity project — never track .meta
+# (Unity only stamped these when the docs lived inside the ATH package; see TD-001.)
+*.meta
+
+# Local tooling state
+.claude/
+
+# OS cruft
+.DS_Store
+Thumbs.db
