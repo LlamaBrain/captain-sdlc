@@ -4,6 +4,11 @@ Prototype tooling for the cross-tool layer. The nerve-center repo owns these
 until that layer graduates into its own tool (see `../trace-schema.md` open
 question #1).
 
+## hooks/
+
+The fleet-wide Claude Code harness hooks (protect-files, compact-anchor,
+verify-gate) — see [hooks/README.md](hooks/README.md) and ADR-0016.
+
 ## captain-trace
 
 The minimal Seam-1 trace **consumer** (the schema's "minimal first cut"). Reads a
