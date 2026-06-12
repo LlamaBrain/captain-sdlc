@@ -1,6 +1,6 @@
 # Captain SDLC
-Updated: 2026-05-29
-Version: 0.1.5
+Updated: 2026-04-08
+Version: 0.1.7
 
 Created: 2026-04-08
 
@@ -154,6 +154,8 @@ Built by Michael Tiller. Questions, ideas, or issues — [contact@michaeltiller.
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -165,6 +167,8 @@ Built by Michael Tiller. Questions, ideas, or issues — [contact@michaeltiller.
 
 ## Version History
 
+- 0.1.7 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.6 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.5 (2026-05-28): Added MToolKit as a runtime blade of the knife (ADR-0010); documented the two-class runtime/process blade model.
 - 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

@@ -1,6 +1,6 @@
 # Captain SDLC — Privacy Policy (Aspirational)
 Updated: 2026-04-08
-Version: 0.1.3
+Version: 0.1.5
 
 Created: 2026-05-28
 
@@ -271,6 +271,8 @@ Until then it's a sketch. Once any trigger fires, the corresponding section gets
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -284,6 +286,8 @@ Until then it's a sketch. Once any trigger fires, the corresponding section gets
 
 ## Version History
 
+- 0.1.5 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

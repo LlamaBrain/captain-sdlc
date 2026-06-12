@@ -1,4 +1,9 @@
 # Roadmap
+Updated: 2026-04-08
+Version: 0.1.1
+
+Created: 2026-04-08
+
 Last Updated: 2026-05-29
 
 ## Planning Model
@@ -129,3 +134,20 @@ Parallel track, keyed to MRC release milestones (not their own versions). None c
 - `open-questions.md` — Living cross-doc open-questions rollup.
 - `privacy-policy-aspirational.md` — Aspirational companion to privacy-framework (M4); activates per trigger.
 
+## Cross-References
+
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
+
+## Resolved Decisions
+
+- No resolved decisions captured yet.
+
+## Open Questions
+
+- None.
+
+## Version History
+
+- 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.0 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

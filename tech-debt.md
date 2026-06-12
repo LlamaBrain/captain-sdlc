@@ -1,5 +1,6 @@
 # Captain SDLC — Technical Debt
-Updated: 2026-05-29
+Updated: 2026-04-08
+Version: 0.1.1
 Created: 2026-05-29
 
 Durable ledger of known structural debt — issues we've consciously deferred,
@@ -62,8 +63,24 @@ question on `captain-sdlc/` sharing ATH's version/tag.
 ---
 
 ## Cross-References
+
 - [Captain SDLC](./README.md)
 - [Captain SDLC — Roadmap](./roadmap.md)
 - [Captain SDLC — Open Questions Rollup](./open-questions.md)
 - [Captain SDLC — Candidates](./candidates.md)
 - [ADR Index](./ADR/index.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
+
+## Resolved Decisions
+
+- No resolved decisions captured yet.
+
+## Open Questions
+
+- None.
+
+## Version History
+
+- 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.0 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

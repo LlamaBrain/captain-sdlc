@@ -13,3 +13,5 @@
 - [ADR-0011: Shared test-support lives in the template until a second consumer](0011-test-support-home-template-then-promote.md)
 - [ADR-0012: The human owns taste; the tools own correctness](0012-human-owns-taste-tools-own-correctness.md)
 - [ADR-0013: Tools emit their own trace records; correctness lives in the tool](0013-tools-own-trace-record-correctness.md)
+- [ADR-0014: ATH footage capture — stills always-on, Recorder an opt-in soft dependency](0014-ath-footage-capture-recorder-soft-dependency.md)
+- [ADR-0015: Interrogate keys as canonical task identity](0015-interrogate-keys-are-task-ids.md)

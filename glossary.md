@@ -1,6 +1,6 @@
 # Captain SDLC — Glossary
 Updated: 2026-04-08
-Version: 0.1.4
+Version: 0.1.6
 
 Created: 2026-05-28
 
@@ -136,6 +136,8 @@ The boundary between the two is an open scoping question — see `candidates.md`
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -147,6 +149,8 @@ The boundary between the two is an open scoping question — see `candidates.md`
 
 ## Version History
 
+- 0.1.6 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.5 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

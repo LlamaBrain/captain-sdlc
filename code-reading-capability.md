@@ -1,6 +1,6 @@
 # Captain SDLC — Code-Reading Capability
 Updated: 2026-04-08
-Version: 0.1.2
+Version: 0.1.4
 
 Created: 2026-05-28
 
@@ -173,6 +173,8 @@ Tier promotion isn't a single "done" — it's a per-tier ship event. Each tier i
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -187,6 +189,8 @@ Tier promotion isn't a single "done" — it's a per-tier ship event. Each tier i
 
 ## Version History
 
+- 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.0 (2026-05-28): Initial planning doc for the shared code-reading capability across Seams 2, 4, 6.

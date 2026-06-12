@@ -1,6 +1,6 @@
 # Captain SDLC — Cross-tool Trace Schema
 Updated: 2026-04-08
-Version: 0.1.4
+Version: 0.1.6
 
 Created: 2026-04-08
 
@@ -51,7 +51,7 @@ Every event is one JSON object with this shape:
     "commit": "26e6d1a",
     "release": null,
     "design_doc": "docs/canonical/death-rewind.md",
-    "task_id": "BTS-142"
+    "task_id": "MRC1_LAUNCH#auth-hardening#a1b2c3d4e5f6"
   },
   "parents": ["6f1a..."],
   "links": [
@@ -82,6 +82,15 @@ Every event is one JSON object with this shape:
 | `links` | `{event_id, relation}[]` | Typed cross-references. Many-to-many, labelled. |
 | `payload` | object | Kind-specific structured data. Schema per kind in the emitting tool's docs. |
 
+### `refs.task_id` format (Seam 7)
+
+Task identity is the interrogate key, as emitted by claude-interrogate's `design_taskout_export` (>= 0.1.8). No other id space exists — no minting service, no mapping table (see `seam-task-identity.md`, ADR-0015):
+
+- **Epic key:** `{rcId}#{heading-slug}` — slug is lowercased, non-alphanumerics collapsed to `-`; duplicate heading slugs get deterministic `-2`/`-3` suffixes by order of appearance; punctuation-only headings fall back to `section`.
+- **Item key:** `{epicKey}#{12-hex sha1}` — hashed over the NFKC/whitespace-normalized item text, a NUL delimiter, and a 0-based occurrence counter for duplicate text under one heading.
+
+Keys are content-derived: rewording an item retires its key and creates a new one (retire-and-create lifecycle, not an identity mutation). Old events keep old keys — append-only tolerates this; external-tracker walkback goes through the retired entries in the committed tracker map sidecar.
+
 ## Event kinds (initial taxonomy)
 
 Namespaced by phase. Additive — new kinds don't bump `schema_version`.
@@ -96,7 +105,7 @@ Namespaced by phase. Additive — new kinds don't bump `schema_version`.
 - `design.gap.exposed`
 
 ### Code (claude-release at commit time)
-- `code.commit.created` — emitted as part of commit finalization. Links to implemented tasks via `links[]` with relation `implements`.
+- `code.commit.created` — emitted as part of commit finalization. Links to tasks via `links[]` with relations `implements` / `completes` / `needs-qa`, mapped 1:1 from the commit's status footers (Seam 7).
 
 ### QA (ATH)
 - `ath.smoke.started`
@@ -178,8 +187,13 @@ Conventions:
 | `triggers` | Live ops event triggered a backlog task. |
 | `replaces` | Updated design doc replaces a prior version. |
 | `fixes` | Commit fixes a prior crash / regression event. |
+| `completes` | Commit completes a task (maps from the `Completes:` commit footer — Seam 7). |
+| `needs-qa` | Commit routes a task to QA (maps from the `Needs-QA:` commit footer — Seam 7). |
 
-Tools may introduce new relations. Consumers tolerate unknown relations.
+Tools may introduce new relations. Consumers tolerate unknown relations. The three
+status footer verbs (`Implements:` / `Completes:` / `Needs-QA:`, see
+`seam-task-identity.md`) map 1:1 onto the `implements` / `completes` / `needs-qa`
+relations on `code.commit.created`.
 
 ## Identity and provenance
 
@@ -276,6 +290,8 @@ Per-tool docs should link back to this one as the canonical envelope reference.
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -287,6 +303,8 @@ Per-tool docs should link back to this one as the canonical envelope reference.
 
 ## Version History
 
+- 0.1.6 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.5 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

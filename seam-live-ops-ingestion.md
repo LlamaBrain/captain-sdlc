@@ -1,6 +1,6 @@
 # Captain SDLC — Seam 5: Live Ops Ingestion
 Updated: 2026-04-08
-Version: 0.1.3
+Version: 0.1.5
 
 Created: 2026-05-28
 
@@ -211,6 +211,8 @@ Definition of done covers the *seam's contract*. The full channel catalog (Steam
 - [Captain SDLC — Seam 4: Cross-Tool Contract Testing](./seam-contract-testing.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -225,6 +227,8 @@ Definition of done covers the *seam's contract*. The full channel catalog (Steam
 
 ## Version History
 
+- 0.1.5 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.

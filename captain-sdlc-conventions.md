@@ -1,6 +1,6 @@
 # Captain SDLC — Conventions
 Updated: 2026-04-08
-Version: 0.1.2
+Version: 0.1.4
 
 Created: 2026-05-28
 
@@ -30,7 +30,8 @@ A per-project state directory at the repo root, holding Captain SDLC's persisten
 ├── liveops-routing.yaml              # Per-channel Live Ops routing (see seam-live-ops-ingestion.md)
 ├── dedup-config.yaml                 # Cross-channel dedup config (see cross-channel-dedup.md)
 ├── contracts.yaml                    # Contract testing config (see seam-contract-testing.md)
-└── privacy-config.yaml               # Privacy framework toggles (see privacy-framework.md)
+├── privacy-config.yaml               # Privacy framework toggles (see privacy-framework.md)
+└── flay-state.json                   # Active flay task state (see flay-task-harness.md)
 ```
 
 Subdirectories and files appear only when the corresponding tool/feature is wired up. A minimal Captain SDLC project may have only `trace/` and one or two config files.
@@ -45,7 +46,19 @@ Recommended `.gitignore` snippet for the directory itself:
 ```
 .captain-sdlc/trace/
 .captain-sdlc/side-store/
+.captain-sdlc/flay-state.json
 ```
+
+**`flay-state.json`** is the one gitignored JSON file at the directory root: a
+single object (`schema_version: 1`) recording the currently flayed task —
+`task_id` (interrogate key per Seam 7), `rcId`, `taskText`, `mode` (`hitl`|`auto`),
+`phase` (`assigned → planning → plan-approved → implementing → verifying →
+committing → done`), timestamps, and a phase `history[]`. Written by interrogate's
+flay skill at every phase transition; deleted on done/abandon. Gitignored because
+it is churning local state, like `trace/`. Holding a single object (not an array)
+is deliberate: a WIP limit of 1, enforced by structure. Consumers
+(claude-interrogate-clickup ≥ 0.2.1, claude-release-clickup ≥ 0.1.2) read it
+advisorily and never act destructively on stale state.
 
 ### Ownership
 
@@ -62,6 +75,7 @@ Every machine-readable config file and structured artifact in Captain SDLC carri
 - `.captain-sdlc/dedup-config.yaml`
 - `.captain-sdlc/contracts.yaml`
 - `.captain-sdlc/privacy-config.yaml`
+- `.captain-sdlc/flay-state.json`
 - Trace event envelope (each event carries it inline)
 - Gate verdict shape
 - Drift report shape
@@ -160,6 +174,8 @@ Future seams that need suppression files inherit this convention. The wrapper is
 - [Captain SDLC — Seam 5: Live Ops Ingestion](./seam-live-ops-ingestion.md)
 - [Captain SDLC — Seam 6: Constitution Enforcement](./seam-constitution-enforcement.md)
 - [Captain SDLC — Vision](./vision.md)
+- [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
+- [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
 
 ## Resolved Decisions
 
@@ -174,6 +190,8 @@ Future seams that need suppression files inherit this convention. The wrapper is
 
 ## Version History
 
+- 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+- 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.0 (2026-05-28): Initial conventions doc. Consolidates `.captain-sdlc/` layout, `schema_version` policy, and fenced-block convention.
