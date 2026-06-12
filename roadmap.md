@@ -4,7 +4,7 @@ Version: 0.1.1
 
 Created: 2026-04-08
 
-Last Updated: 2026-05-29
+Last Updated: 2026-06-11
 
 ## Planning Model
 Two orthogonal axes (ADR-0002 — *SemVer is process, milestones are design*):
@@ -86,6 +86,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M25 | LIVE_OPS_PERF_SAMPLES_TO_BASELINE | Stub | seam-live-ops-ingestion.md | — |
 | M26 | CROSS_CHANNEL_DEDUP_CLASS_A | Stub | cross-channel-dedup.md | — |
 | M27 | DEFINITION_OF_DONE_END_TO_END | Stub | Inline | — |
+| M28 | FLAY_QUEUE | Stub | flay-task-harness.md | — |
 
 ## Prerequisite Chain
 - M1_CONVENTIONS_ESTABLISHED → M2_TRACE_SCHEMA_FIRST_EMITTER (Trace storage needs the .captain-sdlc/ layout and schema_version policy.)
@@ -121,6 +122,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 - M13_CONTRACT_TESTING_MECHANISM_A → M27_DEFINITION_OF_DONE_END_TO_END (DoD requires contract testing shipped.)
 - M22_CICD_DISTRIBUTION_DEPLOYMENT → M27_DEFINITION_OF_DONE_END_TO_END (DoD requires CICD deployment shipped.)
 - M26_CROSS_CHANNEL_DEDUP_CLASS_A → M27_DEFINITION_OF_DONE_END_TO_END (DoD includes baseline Live Ops dedup.)
+- M1_CONVENTIONS_ESTABLISHED → M28_FLAY_QUEUE (Queue extends the flay-state.json convention registered under .captain-sdlc/; assignment-is-human boundary (ADR-0012) holds — the human batches the keys, the loop only conducts. Gated informally on live-fire trust in single-task flay first.)
 
 ## Marketing Waypoints
 Parallel track, keyed to MRC release milestones (not their own versions). None configured yet.
