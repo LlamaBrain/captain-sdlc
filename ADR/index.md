@@ -16,3 +16,4 @@
 - [ADR-0014: ATH footage capture — stills always-on, Recorder an opt-in soft dependency](0014-ath-footage-capture-recorder-soft-dependency.md)
 - [ADR-0015: Interrogate keys as canonical task identity](0015-interrogate-keys-are-task-ids.md)
 - [ADR-0016: Claude Code harness layer lives in the nerve-center repo](0016-claude-code-harness-layer-in-nerve-center.md)
+- [ADR-0017: Git branching model — work off main, squash to main, scaled by project size](0017-git-branching-model-squash-to-main.md)
