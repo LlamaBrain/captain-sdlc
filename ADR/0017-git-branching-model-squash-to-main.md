@@ -32,6 +32,14 @@ is conditional: delete the head only when it is a `feature/*` branch
 (`gh pr merge --squash --delete-branch`), never for `dev`/`main`
 (`--delete-branch=false`).
 
+**Resync `dev` after a squash to `main`.** Squash-merging the long-lived `dev`
+into `main` permanently diverges their *history* (`main` gets a new squash commit
+`dev` never sees), so the next `dev`→`main` PR reports a phantom conflict unless
+`dev` is caught up. Because `prot dev` forbids force-push (`non_fast_forward`,
+no bypass), you cannot reset `dev` to `main` — instead `git merge origin/main`
+into `dev` (a merge-back) right after each squash, making `main` an ancestor
+again. The merge-back commits live only on `dev`; `main` stays linear.
+
 **The invariant** — every change lands on `main` as a squash, linear, behind a
 passing check, via PR — is held by three layers, ordered by how portable they
 are:
