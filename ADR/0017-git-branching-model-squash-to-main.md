@@ -1,4 +1,4 @@
-# ADR-0017: Git branching model — work off `main`, squash to `main`, scaled by project size
+# ADR-0017: Git branching model — work off `dev`, squash to `main`, scaled by project size
 
 **Date:** 2026-06-14
 

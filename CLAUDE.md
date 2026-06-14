@@ -13,8 +13,9 @@ MToolKit). Mostly markdown; `tools/` holds prototype cross-tool scripts
   Alternatives. Add every new ADR to `ADR/index.md`.
 - **Milestones:** `Roadmap/M<n>_NAME.md`; milestone identity and SemVer are
   separate axes (ADR-0002).
-- **Branching (ADR-0017):** work off `main`, never on it — small repos via
-  `dev`, big ones via `feature/*`→`dev`; always **squash** to `main` via PR.
+- **Branching (ADR-0017):** work off `dev`, never commit to `main` directly —
+  small repos on `dev`, big ones via `feature/*`→`dev`; always **squash** to
+  `main` via PR.
   `main`/`dev` are long-lived (don't delete); delete `feature/*` after merge.
   Enforced by the GitHub ruleset (where set) and the `protect-branch.js` hook
   (everywhere).
