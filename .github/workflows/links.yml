@@ -4,7 +4,8 @@ name: Docs
 # resolves. Offline mode checks that each relative link points at a file that
 # exists and skips ALL network requests — so no flaky external-URL failures, no
 # secrets/token needed, fully deterministic. Archive/ is intentionally frozen
-# (its relative links predate the extraction), so it's excluded.
+# (its relative links predate the extraction), so it's excluded. scratch.md is
+# gitignored by design (local-only dropfile), so links to it are excluded too.
 #
 # This is the project eating its own dogfood: link rot is exactly the kind of
 # mechanical correctness a tool should own, not the human.
@@ -27,5 +28,5 @@ jobs:
       - name: Check relative cross-references (offline)
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --offline --exclude-path Archive "./**/*.md"
+          args: --offline --exclude-path Archive --exclude 'scratch\.md' "./**/*.md"
           fail: true
