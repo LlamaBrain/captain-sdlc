@@ -1,6 +1,6 @@
 # Captain SDLC — Technical Debt
-Updated: 2026-04-08
-Version: 0.1.1
+Updated: 2026-06-14
+Version: 0.1.2
 Created: 2026-05-29
 
 Durable ledger of known structural debt — issues we've consciously deferred,
@@ -62,6 +62,77 @@ question on `captain-sdlc/` sharing ATH's version/tag.
 
 ---
 
+## TD-002 — Ruleset normalization is manual, not enforced on-touch
+**Status:** Open · **Discovered:** 2026-06-14 (git-hygiene canon work)
+
+**Problem.** Public repos carry the branch rulesets under inconsistent names
+(`Protect Main`, `protect-main`, `Main`, …) and possibly drifted rules vs the
+`tools/git-hygiene/` canon. The decided strategy is normalize-on-touch,
+forward-first (ADR-0017, git-hygiene README), but there is no forcing function —
+normalization relies on an agent remembering to audit the repo it works in.
+
+**Why it's debt.** "Captain owns correctness" is the premise, yet ruleset drift
+is caught only by human diligence; until automated, repos silently stay
+non-conforming.
+
+**Fix options (decide later):**
+1. A SessionStart advisory hook that diffs the current repo's rulesets against the
+   canon templates and nags + offers the apply (forward mechanism; pays a
+   per-session `gh`/network cost).
+2. A `tools/git-hygiene/audit` command, run on demand or in the release flow.
+3. Fold the check into Seam 8's release-land step.
+
+**Blast radius:** a new hook under `tools/hooks/` (fleet-wide) or a script under
+`tools/git-hygiene/`; needs `gh` auth.
+
+**Related:** ADR-0017, `tools/git-hygiene/`, Seam 8.
+
+---
+
+## TD-003 — Seam 8 release-merge coordinator is designed but unbuilt
+**Status:** Open · **Discovered:** 2026-06-14
+
+**Problem.** Seam 8 / ADR-0018 specify claude-release as the stack-agnostic
+release-merge coordinator (gates → footered commit on `dev` → squash PR to
+`main` → tag), but claude-release still stops at "single commit, no push."
+Releases still land by hand, and the footer-aggregation edge (a squash collapses
+the Seam-7 footers into one `main` commit) is unhandled.
+
+**Why it's debt.** The design exists; the behavior does not, so the friction that
+motivated the seam persists.
+
+**Fix options:** implement the release-land step in claude-release per Seam 8 —
+default stage + hand back + offer, opt-in execute with rights. Start with the
+minimal first cut (squash + tag + footer aggregation, HITL).
+
+**Blast radius:** the claude-release repo (separate); reads Seam 3 gates and
+Seam 7 footers.
+
+**Related:** Seam 8 (`seam-release-merge.md`), ADR-0018, Seam 3, Seam 7.
+
+---
+
+## TD-004 — `main`'s required approval is satisfied only by admin bypass
+**Status:** Open · **Discovered:** 2026-06-14
+
+**Problem.** The canonical `prot main` ruleset requires one approving review, but
+a solo maintainer can't self-approve, so every merge to `main` uses
+`gh pr merge --squash --admin` to bypass the gate.
+
+**Why it's debt.** The approval gate isn't real — it's routinely bypassed, so it
+adds friction and a standing admin-override habit while providing no review value.
+
+**Fix options:** (1) wire CodeRabbit (or similar) as an automated reviewer so
+approvals are genuine and `--admin` becomes the exception; (2) set
+`required_approving_review_count: 0` and lean on status checks (drops the second
+pair of eyes). Leaning 1.
+
+**Blast radius:** per-repo ruleset config + a GitHub App install + `.coderabbit.yaml`.
+
+**Related:** ADR-0017, ADR-0018, `tools/git-hygiene/prot-main.json`.
+
+---
+
 ## Cross-References
 
 - [Captain SDLC](./README.md)
@@ -82,5 +153,6 @@ question on `captain-sdlc/` sharing ATH's version/tag.
 
 ## Version History
 
+- 0.1.2 (2026-06-14): Added TD-002–004 — git-hygiene deferred work (on-touch ruleset normalization, Seam 8 implementation, approval-gate / CodeRabbit).
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.0 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
