@@ -30,3 +30,17 @@ Repos without these server-side rules (private, free, or not-yet-set-up) still
 get the same hygiene locally from the `protect-branch.js` hook (`../hooks`),
 which denies commits straight to a protected branch. Server rules are the
 stronger tier; the hook is the portable one.
+
+## Normalization: lazy, on-touch, forward-first
+
+Existing repos carry these rulesets under inconsistent names (`Protect Main`,
+`protect-main`, `Main`, …) and possibly drifted rules. They are **not** fixed by
+a one-time retroactive sweep. Instead, **normalize on touch**: when Captain next
+works in a repo, it audits that repo against this canon and normalizes the drift
+(HITL) as part of the engagement — replacing a non-conforming ruleset with
+`prot main` / `prot dev` from the templates above. **Forward first:** new and
+actively-worked repos converge on the canon; dormant ones wait until touched.
+
+A big-bang sweep was rejected — it's an outward, destructive multi-repo change
+with no forcing function, whereas on-touch normalization is incremental and
+always keeps a human in the loop for the repo actually being worked.
