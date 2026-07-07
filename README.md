@@ -10,7 +10,7 @@ The nerve-center documentation for **Captain SDLC**.
 
 ## What it is
 
-A series of tools — like a swiss army knife — that enable creatives to smooth away the processy bits of software development that *do matter* (SemVer maintenance, roadmaps, mechanical QA validation, contract enforcement) but don't deserve human attention. The work still happens; the human doesn't have to do it. Each tool is independent in versioning, distribution, and adoption; they share *conventions* (trace schemas, classification primitives, fenced-block format) but not *code*. You can pick up one tool without committing to the whole pipeline.
+A series of tools — like a swiss army knife — that enable creatives to smooth away the processy bits of software development that *do matter* (SemVer maintenance, roadmaps, mechanical QA validation, contract enforcement) but don't deserve human attention. The work still happens; the human doesn't have to do it. Each tool is independent in versioning, distribution, and adoption; they share *conventions* (trace schemas, classification primitives, fenced-block format) but not *code*. You can pick up one tool without committing to the whole pipeline. The orchestration layer adds an optional driver around those tools: manual deterministic runs first, automated queue-driving when desired.
 
 ## Mission
 
@@ -76,6 +76,8 @@ The nerve center stays tool-agnostic — it owns the seams; each tool implements
 
 Other items in `candidates.md` may also condense into new tools — Live Ops ingestion and marketing pipeline ops are the current candidates. The cross-tool seams themselves (pipeline trace, contract testing, etc.) are **not** a separate tool; their schemas live in this nerve-center repo and their implementations are distributed across the emitting tools.
 
+**Orchestration products.** Captain Core, Captain Orchestrator, Captain Tool Adapters, Captain Review Surface, and Captain Daemon are an added driver layer around the blades. Core has real functionality (record validation, config loading, routing policy, terminal states, evidence packets). The orchestrator starts as a deterministic CLI runner in `captain-orchestrator`. The daemon comes later as the optional resident service that wakes and supervises already-working orchestrator runs.
+
 **Two classes of blade.** The first four are *process* blades — they automate SDLC process around any project. MToolKit is a *runtime* blade — the canonical foundation substantial projects are built on. The classes compose: the more of the runtime blade a project adopts, the cheaper each process blade becomes, because MToolKit canonizes the very structures the process blades operate on (save migration, localization, the architectural constitution). Process blades never *require* MToolKit — they detect it and degrade gracefully on projects that don't use it (ADR-0010). MToolKit is opt-in by project scale: it's the foundation for substantial projects (Dirigible), and deliberately skipped on small ones (BeforeTheShade).
 
 ## Operating philosophy
@@ -87,6 +89,7 @@ Rules the tools and docs follow internally — extensions of the mission above:
 - **Mechanical reuse over generation.** QA screenshots become marketing assets. Smoke transcripts become bug reports. Changelogs become patch notes. The pipeline reshapes existing artifacts; it doesn't generate new creative ones.
 - **Cuts preserve reasoning.** `candidates.md` and `expose.md` record what was rejected and why, so cuts don't get re-litigated and so reversals are informed.
 - **Tools, not modules.** Each tool ships independently. Conventions are shared, code is not.
+- **Automation is opt-in.** The same path must work as a manual CLI run before heartbeat is allowed to drive it unattended.
 
 ## What's in this repo
 
@@ -100,6 +103,7 @@ Rules the tools and docs follow internally — extensions of the mission above:
 - `captain-sdlc-conventions.md` — `.captain-sdlc/` directory layout, `schema_version` policy, fenced-block convention, suppression file convention.
 - `code-reading-capability.md` — three-tier capability (grep → tree-sitter → Roslyn) shared by Seams 2, 4, 6.
 - `trace-schema.md` — pipeline trace event schema (Seam 1's planning doc).
+- `captain-orchestration-layer.md` — added Core/Orchestrator/Adapters/Review/Daemon layer for deterministic and optionally automated runs.
 
 **The seam planning docs:**
 - `seam-design-code-drift.md` (Seam 2)
@@ -139,6 +143,7 @@ Built by Michael Tiller. Questions, ideas, or issues — [contact@michaeltiller.
 ## Cross-References
 
 - [Captain SDLC — Candidates](./candidates.md)
+- [Captain SDLC - Orchestration Layer](./captain-orchestration-layer.md)
 - [Captain SDLC — Code-Reading Capability](./code-reading-capability.md)
 - [Captain SDLC — Conventions](./captain-sdlc-conventions.md)
 - [Captain SDLC — Cross-Channel Deduplication](./cross-channel-dedup.md)

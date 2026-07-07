@@ -4,6 +4,7 @@
 
 # Local tooling state
 .claude/
+.tmp/
 
 # Work-in-flight register — kept local, not published. The design set (ADRs,
 # roadmap, vision, seams, glossary) is the public face; scratch.md is the
@@ -14,3 +15,7 @@ scratch.md
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# .NET build outputs
+bin/
+obj/

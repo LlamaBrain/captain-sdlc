@@ -31,3 +31,14 @@ Pairs with ATH's `ath-trace-emit` (the first emitter, milestone M2). `walk`'s
 claude-release `code.commit.created`) populates them; today's
 `ath.smoke.completed` events have no parents yet, so `walk` shows just the one
 event.
+
+## Captain implementation repos
+
+Executable Core/Orchestrator code now lives in
+`https://github.com/LlamaBrain/captain-orchestrator`.
+
+Resident service planning now lives in
+`https://github.com/LlamaBrain/captain-daemon`.
+
+This `captain-sdlc` repo keeps the docs/ADR/roadmap source of truth; those repos
+own code, packaging, and releases.

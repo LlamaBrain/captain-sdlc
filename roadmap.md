@@ -87,6 +87,11 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M26 | CROSS_CHANNEL_DEDUP_CLASS_A | Stub | cross-channel-dedup.md | — |
 | M27 | DEFINITION_OF_DONE_END_TO_END | Stub | Inline | — |
 | M28 | FLAY_QUEUE | Stub | flay-task-harness.md | — |
+| M29 | CAPTAIN_CORE_RUNTIME | In Progress | captain-orchestration-layer.md | — |
+| M30 | CAPTAIN_ORCHESTRATOR_CLI | In Progress | captain-orchestration-layer.md | — |
+| M31 | CAPTAIN_TOOL_ADAPTERS | In Progress | captain-orchestration-layer.md | — |
+| M32 | CAPTAIN_REVIEW_SURFACE | Stub | captain-orchestration-layer.md | — |
+| M33 | CAPTAIN_DAEMON_HEARTBEAT | Stub | captain-orchestration-layer.md | — |
 
 ## Prerequisite Chain
 - M1_CONVENTIONS_ESTABLISHED → M2_TRACE_SCHEMA_FIRST_EMITTER (Trace storage needs the .captain-sdlc/ layout and schema_version policy.)
@@ -123,6 +128,16 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 - M22_CICD_DISTRIBUTION_DEPLOYMENT → M27_DEFINITION_OF_DONE_END_TO_END (DoD requires CICD deployment shipped.)
 - M26_CROSS_CHANNEL_DEDUP_CLASS_A → M27_DEFINITION_OF_DONE_END_TO_END (DoD includes baseline Live Ops dedup.)
 - M1_CONVENTIONS_ESTABLISHED → M28_FLAY_QUEUE (Queue extends the flay-state.json convention registered under .captain-sdlc/; assignment-is-human boundary (ADR-0012) holds — the human batches the keys, the loop only conducts. Gated informally on live-fire trust in single-task flay first.)
+- M1_CONVENTIONS_ESTABLISHED → M29_CAPTAIN_CORE_RUNTIME (Core operationalizes existing .captain-sdlc/, schema_version, task identity, trace, and verdict conventions.)
+- M2_TRACE_SCHEMA_FIRST_EMITTER → M29_CAPTAIN_CORE_RUNTIME (Run records and evidence packets align with trace rather than inventing a second observability channel.)
+- M27_DEFINITION_OF_DONE_END_TO_END → M29_CAPTAIN_CORE_RUNTIME (Core's terminal states and evidence packets are shaped around the end-to-end definition.)
+- M29_CAPTAIN_CORE_RUNTIME → M30_CAPTAIN_ORCHESTRATOR_CLI (The deterministic runner consumes Core records, config, routing policy, terminal states, and evidence packets.)
+- M29_CAPTAIN_CORE_RUNTIME → M31_CAPTAIN_TOOL_ADAPTERS (Adapters normalize tool outputs into Core records.)
+- M31_CAPTAIN_TOOL_ADAPTERS → M30_CAPTAIN_ORCHESTRATOR_CLI (The CLI calls workers through adapters, not direct tool-specific code.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M32_CAPTAIN_REVIEW_SURFACE (Review packages are generated from completed CLI/orchestrator run records.)
+- M31_CAPTAIN_TOOL_ADAPTERS → M32_CAPTAIN_REVIEW_SURFACE (Review reports include normalized adapter evidence.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M33_CAPTAIN_DAEMON_HEARTBEAT (The daemon only schedules and supervises already-working orchestrator runs.)
+- M32_CAPTAIN_REVIEW_SURFACE → M33_CAPTAIN_DAEMON_HEARTBEAT (Automated driving must still stop at the manual review/approval gate.)
 
 ## Marketing Waypoints
 Parallel track, keyed to MRC release milestones (not their own versions). None configured yet.
@@ -140,6 +155,7 @@ Parallel track, keyed to MRC release milestones (not their own versions). None c
 
 - [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
 - [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
+- [Captain SDLC - Orchestration Layer](./captain-orchestration-layer.md)
 
 ## Resolved Decisions
 
