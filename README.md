@@ -68,15 +68,23 @@ The nerve center stays tool-agnostic — it owns the seams; each tool implements
 
 | Tool | Repo | Role |
 |---|---|---|
-| **interrogate** | `claude-interrogate-src` | Front end: Socratic design interview, scope decomposition, docs auditing |
-| **ATH** (AI Test Harness) | `ai-test-harness` | Middle: drives Unity playmode, asserts behavior via MCP-attached smokes |
-| **claude-release** | `claude-release` | Back end: commit finalization, changelog, version bump, release |
+| **interrogate** | [`claude-interrogate-src`](https://github.com/LlamaBrain/claude-interrogate-src) | Front end: Socratic design interview, scope decomposition, docs auditing |
+| **ATH** (AI Test Harness) | [`ai-test-harness`](https://github.com/LlamaBrain/ai-test-harness) | Middle: drives Unity playmode, asserts behavior via MCP-attached smokes |
+| **claude-release** | [`claude-release`](https://github.com/LlamaBrain/claude-release) | Back end: commit finalization, changelog, version bump, release |
 | **CICD layer** *(tentative)* | TBD | Build automation, artifact storage, distribution pipeline orchestration |
-| **MToolKit** | `MToolKit` | Runtime blade *(distinct class)*: canonical "sane C# Unity" foundation — DI, forward save migration, Unity Localization, structured logging, analytics. Opt-in for substantial projects; process blades detect it and lean on it when present (ADR-0010). |
+| **MToolKit** | [`MToolKit`](https://github.com/LlamaBrain/MToolKit) | Runtime blade *(distinct class)*: canonical "sane C# Unity" foundation — DI, forward save migration, Unity Localization, structured logging, analytics. Opt-in for substantial projects; process blades detect it and lean on it when present (ADR-0010). |
 
 Other items in `candidates.md` may also condense into new tools — Live Ops ingestion and marketing pipeline ops are the current candidates. The cross-tool seams themselves (pipeline trace, contract testing, etc.) are **not** a separate tool; their schemas live in this nerve-center repo and their implementations are distributed across the emitting tools.
 
 **Orchestration products.** Captain Core, Captain Orchestrator, Captain Tool Adapters, Captain Review Surface, and Captain Daemon are an added driver layer around the blades. Core has real functionality (record validation, config loading, routing policy, terminal states, evidence packets). The orchestrator starts as a deterministic CLI runner in `captain-orchestrator`. The daemon comes later as the optional resident service that wakes and supervises already-working orchestrator runs.
+
+| Product | Repo | Role |
+|---|---|---|
+| **Captain Core** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Typed runtime contracts, validation, routing policy, terminal states, evidence packets, config loading |
+| **Captain Orchestrator** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Deterministic one-shot CLI runner and non-resident run coordinator |
+| **Captain Tool Adapters** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Adapter contracts plus first git/test/task/classifier adapter slice |
+| **Captain Review Surface** | TBD | PR generation, diff summary, evidence report, terminal-state report, manual approval gate |
+| **Captain Daemon** | [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon) | Resident scheduler/supervisor host; heartbeat/tick is the first role |
 
 **Two classes of blade.** The first four are *process* blades — they automate SDLC process around any project. MToolKit is a *runtime* blade — the canonical foundation substantial projects are built on. The classes compose: the more of the runtime blade a project adopts, the cheaper each process blade becomes, because MToolKit canonizes the very structures the process blades operate on (save migration, localization, the architectural constitution). Process blades never *require* MToolKit — they detect it and degrade gracefully on projects that don't use it (ADR-0010). MToolKit is opt-in by project scale: it's the foundation for substantial projects (Dirigible), and deliberately skipped on small ones (BeforeTheShade).
 
@@ -132,7 +140,7 @@ If you're picking this up cold and you want to:
 
 - **Understand the pipeline at a glance** → read `vision.md`.
 - **See the full backlog including cuts** → read `candidates.md`.
-- **Find out what's actually committed for ATH** → read `ROADMAP.md` in the `ai-test-harness` repo.
+- **Find out what's actually committed for ATH** → read `ROADMAP.md` in the [`ai-test-harness`](https://github.com/LlamaBrain/ai-test-harness) repo.
 - **Find out what's committed cross-tool** → read `roadmap.md` once it exists.
 - **Polish all of the above** → run interrogate's `audit-docs` / `redress` against this repo.
 
