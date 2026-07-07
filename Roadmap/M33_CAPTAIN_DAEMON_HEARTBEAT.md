@@ -1,19 +1,31 @@
 # M33 - CAPTAIN_DAEMON_HEARTBEAT
-Status: Stub
+Status: In Progress
 Last Updated: 2026-07-07
 
 ## Definition of Done
-- [ ] `captain-daemon` has a resident process shell with explicit start/stop semantics.
-- [ ] The first role is heartbeat/tick scheduling for already-working `captain-orchestrator` CLI runs.
-- [ ] Daemon reads queue policy and assigned work without inventing task scope or task ids.
-- [ ] Daemon claims/leases eligible work through Captain Core-compatible run state.
-- [ ] Daemon prevents duplicate runs using run identity and lease/claim data.
-- [ ] Daemon wakes `captain-orchestrator run ...` as a child process rather than calling worker adapters directly.
-- [ ] Daemon tracks child process completion, timeout, cancellation, and crash evidence.
-- [ ] Daemon enforces configured budgets and records budget exhaustion as a terminal state.
+- [x] `captain-daemon` has a resident process shell with explicit start/stop semantics.
+- [x] The first role is heartbeat/tick scheduling for already-working `captain-orchestrator` CLI runs.
+- [x] Daemon reads queue policy and assigned work without inventing task scope or task ids.
+- [x] Daemon claims/leases eligible work through Captain Core-compatible run state.
+- [x] Daemon prevents duplicate runs using run identity and lease/claim data.
+- [x] Daemon wakes `captain-orchestrator run ...` as a child process rather than calling worker adapters directly.
+- [x] Daemon tracks child process completion, timeout, cancellation, and crash evidence.
+- [x] Daemon enforces configured budgets and records budget exhaustion as a terminal state.
 - [ ] Daemon detects stale claims and abandoned worktrees according to policy.
 - [ ] Daemon surfaces `needs_human` / review-required states without continuing automatically.
-- [ ] Daemon can be disabled without breaking manual CLI orchestration.
+- [x] Daemon can be disabled without breaking manual CLI orchestration.
+
+### Verification (2026-07-07)
+First executable heartbeat implemented in C# in
+`https://github.com/LlamaBrain/captain-daemon`:
+- `captain-daemon tick` runs one deterministic heartbeat.
+- `captain-daemon serve` runs the resident loop with Ctrl+C stop behavior.
+- The daemon uses a soft command contract to wake `captain-orchestrator`.
+- End-to-end smoke produced one daemon event, one orchestrator run record, and five evidence packets.
+
+Still open for daemon hardening:
+- Stale-claim/worktree janitor behavior is split out as M38.
+- Review/approval notifier behavior is split out as M39.
 
 ## Theme
 Captain Daemon is the resident service host. Heartbeat/tick is its first role:

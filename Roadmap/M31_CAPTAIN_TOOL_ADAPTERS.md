@@ -21,6 +21,8 @@ Still open for M31 completion:
 - Expand `GitAdapter` to diff capture, branch state, and commit/PR preconditions.
 - Add interrogate task metadata resolution.
 - Choose and wire the first real worker adapter beyond git/test runner: flay, OpenCode, local Qwen, frontier, or Inquisitor.
+- Route-selected worker dispatch is tracked in M34.
+- Command-backed local/frontier worker adapters are tracked in M35.
 
 ## Theme
 Adapters let the orchestration layer coordinate existing blades without absorbing their code. Each adapter is a boundary contract: call the tool, collect evidence, normalize result.
@@ -43,6 +45,8 @@ Adapters let the orchestration layer coordinate existing blades without absorbin
 ## Blockers & Dependencies
 - **Upstream**: M29_CAPTAIN_CORE_RUNTIME.
 - **Consumer**: M30_CAPTAIN_ORCHESTRATOR_CLI.
+- **Consumer**: M34_CAPTAIN_ROUTE_SELECTED_WORKERS.
+- **Consumer**: M35_CAPTAIN_COMMAND_WORKER_ADAPTERS.
 
 ## References
 - `../captain-orchestration-layer.md`

@@ -6,7 +6,7 @@ Last Updated: 2026-07-07
 - [x] A deterministic CLI command starts one orchestrator run for an already-assigned task.
 - [x] The CLI reads Captain Core config and refuses invalid or unknown schema versions.
 - [x] The CLI selects the task from an explicit human assignment or queue entry, not from taste-bearing inference.
-- [ ] The CLI invokes classification, chooses a route from routing policy, creates an isolated worktree, calls workers through adapters, runs verification, and records every phase.
+- [x] The CLI invokes classification, chooses a route from routing policy, creates an isolated worktree, calls workers through adapters, runs verification, and records every phase.
 - [x] The CLI writes a complete Core run record and evidence packets.
 - [x] The CLI exits with a normalized terminal state and non-zero status for blocking failures.
 - [x] The CLI works without Captain Daemon or any always-online service.
@@ -24,7 +24,7 @@ Verified:
 - CLI smoke against a throwaway nested git repo under `.tmp/`, including real `git worktree add` and verification command.
 
 Still open for M30 completion:
-- Add the classifier invocation as a distinct adapter/phase instead of treating route evaluation as the only pre-route decision.
+- Route-selected worker dispatch is split out as M34 because the current runner records route selection but still uses one injected worker adapter.
 
 ## Theme
 Prove orchestration as a repeatable one-shot runner before adding scheduling. The CLI is the first executable spine: it consumes Core records, uses adapters for tool calls, and produces reviewable evidence.
@@ -42,6 +42,9 @@ Prove orchestration as a repeatable one-shot runner before adding scheduling. Th
 - Worker invocation protocol through adapters.
 - Verification phase and result evaluation.
 - Escalation path when classification, routing, worker output, or verification cannot produce a safe terminal state.
+- Route-selected worker execution is tracked in M34.
+- Autonomous TDD iteration is tracked in M36.
+- Local-to-frontier escalation policy is tracked in M37.
 
 ## Blockers & Dependencies
 - **Upstream**: M29_CAPTAIN_CORE_RUNTIME.
