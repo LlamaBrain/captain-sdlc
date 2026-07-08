@@ -89,7 +89,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M28 | FLAY_QUEUE | Stub | flay-task-harness.md | — |
 | M29 | CAPTAIN_CORE_RUNTIME | In Progress | captain-orchestration-layer.md | — |
 | M30 | CAPTAIN_ORCHESTRATOR_CLI | In Progress | captain-orchestration-layer.md | — |
-| M31 | CAPTAIN_TOOL_ADAPTERS | In Progress | captain-orchestration-layer.md | — |
+| M31 | CAPTAIN_TOOL_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
 | M32 | CAPTAIN_REVIEW_SURFACE | Shipped | captain-orchestration-layer.md | — |
 | M33 | CAPTAIN_DAEMON_HEARTBEAT | In Progress | captain-orchestration-layer.md | — |
 | M34 | CAPTAIN_ROUTE_SELECTED_WORKERS | Shipped | captain-orchestration-layer.md | — |

@@ -1,12 +1,12 @@
 # M31 - CAPTAIN_TOOL_ADAPTERS
-Status: In Progress
+Status: Shipped
 Last Updated: 2026-07-08
 
 ## Definition of Done
 - [x] Adapter interface maps invocation, outputs, failures, evidence, and terminal states into Captain Core records.
-- [ ] Git adapter supports worktree creation, diff capture, branch state, and commit/PR preconditions needed by the CLI runner.
+- [x] Git adapter supports worktree creation, diff capture, branch state, and commit/PR preconditions needed by the CLI runner.
 - [x] Test runner adapter supports configured verification commands and evidence capture.
-- [ ] Interrogate adapter resolves task identity and task metadata from existing roadmap/taskout sources.
+- [x] Interrogate adapter resolves task identity and task metadata from existing roadmap/taskout sources.
 - [x] At least one worker adapter beyond git/test runner is wired for dogfood: flay, OpenCode, local Qwen, frontier, or Inquisitor.
 - [x] Adapter failures are normalized and never leak as unstructured tool prose only.
 
@@ -17,11 +17,11 @@ First adapter slice implemented for M30:
 - `TestRunnerAdapter` runs configured verification commands and maps failures to `verification_failed`.
 - `NoopWorkerAdapter` provides an executable worker slot for the deterministic spine until a real worker adapter is selected.
 
-Still open for M31 completion:
-- Expand `GitAdapter` to diff capture, branch state, and commit/PR preconditions.
-- Add interrogate task metadata resolution.
-- Route-selected worker dispatch is tracked in M34.
-- Command-backed local/frontier worker adapters are tracked in M35.
+Completed in later adapter slices:
+- `GitAdapter` captures branch/head/status/remote preconditions for commit/PR readiness.
+- `JsonTaskResolver` resolves roadmap markdown sources into interrogate-key-compatible task records.
+- Route-selected worker dispatch shipped in M34.
+- Command-backed local/frontier worker adapters shipped in M35.
 
 Additional verification (2026-07-07):
 - `CommandWorkerAdapter` wires soft local/frontier command workers without linking to a model SDK or tool package.
@@ -30,6 +30,12 @@ Additional verification (2026-07-07):
 
 Implementation evidence (2026-07-08):
 - `captain-orchestrator` commit `043b56c` adds route-selected command worker adapters and tests.
+- `captain-orchestrator` commit `1936d2d` adds git commit/PR precondition evidence and roadmap markdown task metadata resolution.
+
+Final verification (2026-07-08):
+- `dotnet build Captain.Orchestrator.sln --no-restore`
+- `dotnet run --project tests\Captain.Core.Tests\Captain.Core.Tests.csproj --no-build`
+- `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
 
 ## Theme
 Adapters let the orchestration layer coordinate existing blades without absorbing their code. Each adapter is a boundary contract: call the tool, collect evidence, normalize result.
