@@ -1,16 +1,42 @@
 # M36 - CAPTAIN_TDD_LOOP
-Status: Stub
-Last Updated: 2026-07-07
+Status: In Progress
+Last Updated: 2026-07-08
 
 ## Definition of Done
 - [ ] The orchestrator can run worker -> verify -> revise attempts until success, budget exhaustion, escalation, or manual stop.
-- [ ] Each attempt records worker evidence, diff evidence, verification evidence, elapsed time, and terminal classification.
-- [ ] Verification failure feeds the next worker attempt as structured context, not only as console text.
-- [ ] Attempt count, wall-clock budget, and per-route/model budgets are enforced.
-- [ ] The loop stops at `success`, `needs_human`, `budget_exhausted`, `verification_failed`, or `worker_failed` according to policy.
-- [ ] The loop never commits or opens a PR directly; review remains a separate gate.
-- [ ] Tests prove pass-on-first-attempt, fail-then-pass, repeated verification failure, budget exhaustion, and worker failure.
-- [ ] Daemon can fire-and-forget a queued task and observe the terminal run record without owning loop logic.
+- [x] Each attempt records worker evidence, diff evidence, verification evidence, elapsed time, and terminal classification.
+- [x] Verification failure feeds the next worker attempt as structured context, not only as console text.
+- [x] Attempt count, wall-clock budget, and per-route/model budgets are enforced.
+- [x] The loop stops at `success`, `needs_human`, `budget_exhausted`, `verification_failed`, or `worker_failed` according to policy.
+- [x] The loop never commits or opens a PR directly; review remains a separate gate.
+- [x] Tests prove pass-on-first-attempt, fail-then-pass, repeated verification failure, budget exhaustion, and worker failure.
+- [x] Daemon can fire-and-forget a queued task and observe the terminal run record without owning loop logic.
+
+### Progress (2026-07-08)
+Implemented in `captain-orchestrator`:
+- `OrchestratorRunner` supports bounded worker -> diff -> verify -> revise attempts.
+- CLI adds `--max-attempts` and `--max-wall-clock-seconds`.
+- `RouteRuleContext` carries attempt index plus previous verification summary/evidence id into the next worker attempt.
+- Worker/diff/verification attempts record evidence id, attempt index, elapsed time, and terminal classification.
+
+Implemented in `captain-daemon`:
+- Queue items pass `worker_commands`, `worker_timeout_seconds`, `max_attempts`, and `max_wall_clock_seconds` through to `captain-orchestrator`.
+- The daemon still only wakes and observes the child process; it does not own loop logic.
+
+Verified:
+- `dotnet build Captain.Orchestrator.sln --no-restore`
+- `dotnet run --project tests\Captain.Core.Tests\Captain.Core.Tests.csproj --no-build`
+- `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
+- `dotnet build Captain.Daemon.sln --no-restore`
+- `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj`
+
+Implementation evidence:
+- `captain-orchestrator` commit `d3aecdc` adds the bounded TDD attempt loop.
+- `captain-daemon` commit `aceee05` passes TDD loop controls through queued heartbeat runs.
+
+Still open for M36 completion:
+- Escalation handoff behavior lands with M37.
+- Explicit manual-stop terminal handling still needs a first-class path.
 
 ## Theme
 This is the production version of the agent loop: act, test, observe, revise,
