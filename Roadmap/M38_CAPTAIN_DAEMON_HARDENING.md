@@ -1,16 +1,31 @@
 # M38 - CAPTAIN_DAEMON_HARDENING
-Status: Stub
-Last Updated: 2026-07-07
+Status: Shipped
+Last Updated: 2026-07-08
 
 ## Definition of Done
-- [ ] Daemon handles stale leases according to explicit policy.
-- [ ] Daemon detects and reports abandoned worktrees without deleting uncertain state.
-- [ ] Daemon enforces one active run per task/project invariant.
-- [ ] Queue polling, idle detection, backoff, pause, disable, and shutdown behavior are configured and tested.
-- [ ] Daemon records child process crash, timeout, cancellation, and restart decisions as daemon events.
-- [ ] Daemon can run as a resident process while preserving deterministic `tick` behavior.
-- [ ] Tests prove duplicate prevention, stale lease handling, disabled mode, pause behavior, and crash evidence.
-- [ ] Daemon still does not route, call workers, evaluate output, or bypass review gates.
+- [x] Daemon handles stale leases according to explicit policy.
+- [x] Daemon detects and reports abandoned worktrees without deleting uncertain state.
+- [x] Daemon enforces one active run per task/project invariant.
+- [x] Queue polling, idle detection, backoff, pause, disable, and shutdown behavior are configured and tested.
+- [x] Daemon records child process crash, timeout, cancellation, and restart decisions as daemon events.
+- [x] Daemon can run as a resident process while preserving deterministic `tick` behavior.
+- [x] Tests prove duplicate prevention, stale lease handling, disabled mode, pause behavior, and crash evidence.
+- [x] Daemon still does not route, call workers, evaluate output, or bypass review gates.
+
+### Verification (2026-07-08)
+Implemented in `captain-daemon`:
+- Stale `claimed` leases expire to `stale_claim` with daemon event evidence and restart decision.
+- Possible abandoned worktrees are reported as `abandoned` events and are not deleted.
+- Active leases prevent duplicate runs for both the same task and the same project.
+- `tick` supports idle, disabled, and paused states; `serve` keeps deterministic tick behavior with interval/backoff and Ctrl+C shutdown.
+- Child timeout, cancellation, crash/failure, and restart decision are recorded as daemon events.
+
+Verified:
+- `dotnet build Captain.Daemon.sln --no-restore`
+- `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj`
+
+Implementation evidence:
+- `captain-daemon` commit `ad99f34` hardens heartbeat supervision.
 
 ## Theme
 The daemon becomes safe to leave running. It is the resident supervisor for the
