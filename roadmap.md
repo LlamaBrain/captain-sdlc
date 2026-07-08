@@ -90,14 +90,14 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M29 | CAPTAIN_CORE_RUNTIME | In Progress | captain-orchestration-layer.md | — |
 | M30 | CAPTAIN_ORCHESTRATOR_CLI | In Progress | captain-orchestration-layer.md | — |
 | M31 | CAPTAIN_TOOL_ADAPTERS | In Progress | captain-orchestration-layer.md | — |
-| M32 | CAPTAIN_REVIEW_SURFACE | Stub | captain-orchestration-layer.md | — |
+| M32 | CAPTAIN_REVIEW_SURFACE | Shipped | captain-orchestration-layer.md | — |
 | M33 | CAPTAIN_DAEMON_HEARTBEAT | In Progress | captain-orchestration-layer.md | — |
-| M34 | CAPTAIN_ROUTE_SELECTED_WORKERS | Stub | captain-orchestration-layer.md | — |
-| M35 | CAPTAIN_COMMAND_WORKER_ADAPTERS | Stub | captain-orchestration-layer.md | — |
+| M34 | CAPTAIN_ROUTE_SELECTED_WORKERS | Shipped | captain-orchestration-layer.md | — |
+| M35 | CAPTAIN_COMMAND_WORKER_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
 | M36 | CAPTAIN_TDD_LOOP | Stub | captain-orchestration-layer.md | — |
 | M37 | CAPTAIN_ESCALATION_POLICY | Stub | captain-orchestration-layer.md | — |
 | M38 | CAPTAIN_DAEMON_HARDENING | Stub | captain-orchestration-layer.md | — |
-| M39 | CAPTAIN_REVIEW_AND_PR_GATE | Stub | captain-orchestration-layer.md | — |
+| M39 | CAPTAIN_REVIEW_AND_PR_GATE | In Progress | captain-orchestration-layer.md | — |
 
 ## Prerequisite Chain
 - M1_CONVENTIONS_ESTABLISHED → M2_TRACE_SCHEMA_FIRST_EMITTER (Trace storage needs the .captain-sdlc/ layout and schema_version policy.)

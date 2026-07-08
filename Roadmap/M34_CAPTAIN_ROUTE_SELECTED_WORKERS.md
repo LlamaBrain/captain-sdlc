@@ -1,16 +1,34 @@
 # M34 - CAPTAIN_ROUTE_SELECTED_WORKERS
-Status: Stub
+Status: Shipped
 Last Updated: 2026-07-07
 
 ## Definition of Done
-- [ ] `captain-orchestrator` has a worker adapter registry keyed by route adapter name.
-- [ ] The orchestrator selects the worker from `RoutingPolicy` / `RouteRule.Adapter`, not from one injected worker instance.
-- [ ] The selected adapter name is recorded in run phases, worker attempts, and evidence.
-- [ ] Missing or disabled adapters stop safely with a normalized terminal state and reviewable evidence.
-- [ ] Tests prove route `noop` invokes the no-op worker.
-- [ ] Tests prove route `local-qwen` can select a local worker adapter without invoking a frontier route.
-- [ ] Tests prove route `frontier` can select a frontier worker adapter when policy matches complexity.
-- [ ] Daemon behavior is unchanged: it wakes the orchestrator and does not choose workers.
+- [x] `captain-orchestrator` has a worker adapter registry keyed by route adapter name.
+- [x] The orchestrator selects the worker from `RoutingPolicy` / `RouteRule.Adapter`, not from one injected worker instance.
+- [x] The selected adapter name is recorded in run phases, worker attempts, and evidence.
+- [x] Missing or disabled adapters stop safely with a normalized terminal state and reviewable evidence.
+- [x] Tests prove route `noop` invokes the no-op worker.
+- [x] Tests prove route `local-qwen` can select a local worker adapter without invoking a frontier route.
+- [x] Tests prove route `frontier` can select a frontier worker adapter when policy matches complexity.
+- [x] Daemon behavior is unchanged: it wakes the orchestrator and does not choose workers.
+
+### Verification (2026-07-07)
+First route-selected dispatch slice implemented in `captain-orchestrator`:
+- `IWorkerAdapterRegistry` and `WorkerAdapterRegistry` select workers by `RouteRule.Adapter`.
+- The CLI uses the default registry with `noop`.
+- Missing adapters record evidence and end as `needs_human`.
+- Tests cover route-selected `local-qwen` dispatch and missing `frontier` adapter safety.
+- Command-worker tests cover positive `frontier` selection.
+- Daemon tests assert heartbeat wakes `captain-orchestrator run ...` without choosing worker commands, local workers, or frontier workers.
+
+Verified:
+- `dotnet build Captain.Orchestrator.sln --no-restore`
+- `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
+- `dotnet build Captain.Daemon.sln --no-restore`
+- `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj --no-build`
+
+Still open for M34 completion:
+- None for this milestone slice. Real frontier command configuration and escalation policy continue in M35/M37.
 
 ## Theme
 Route policy becomes executable. The orchestrator must not merely record a route;

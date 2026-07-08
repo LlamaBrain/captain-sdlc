@@ -11,8 +11,8 @@ Last Updated: 2026-07-07
 - [x] Daemon wakes `captain-orchestrator run ...` as a child process rather than calling worker adapters directly.
 - [x] Daemon tracks child process completion, timeout, cancellation, and crash evidence.
 - [x] Daemon enforces configured budgets and records budget exhaustion as a terminal state.
-- [ ] Daemon detects stale claims and abandoned worktrees according to policy.
-- [ ] Daemon surfaces `needs_human` / review-required states without continuing automatically.
+- [x] Daemon detects stale claims and abandoned worktrees according to policy.
+- [x] Daemon surfaces `needs_human` / review-required states without continuing automatically.
 - [x] Daemon can be disabled without breaking manual CLI orchestration.
 
 ### Verification (2026-07-07)
@@ -24,8 +24,13 @@ First executable heartbeat implemented in C# in
 - End-to-end smoke produced one daemon event, one orchestrator run record, and five evidence packets.
 
 Still open for daemon hardening:
-- Stale-claim/worktree janitor behavior is split out as M38.
-- Review/approval notifier behavior is split out as M39.
+- Stale claims are now stopped as `stale_claim` daemon events. Possible abandoned worktrees are reported but not deleted.
+- `needs_human` / `review_required` leases and child-process output now stop automatic continuation.
+- Deeper janitor policy, pause/disable/backoff, crash restart policy, and notifier behavior remain split out as M38/M39.
+
+Additional verification (2026-07-07):
+- `dotnet build Captain.Daemon.sln --no-restore`
+- `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj --no-build`
 
 ## Theme
 Captain Daemon is the resident service host. Heartbeat/tick is its first role:

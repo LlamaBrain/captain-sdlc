@@ -7,7 +7,7 @@ Last Updated: 2026-07-07
 - [ ] Git adapter supports worktree creation, diff capture, branch state, and commit/PR preconditions needed by the CLI runner.
 - [x] Test runner adapter supports configured verification commands and evidence capture.
 - [ ] Interrogate adapter resolves task identity and task metadata from existing roadmap/taskout sources.
-- [ ] At least one worker adapter beyond git/test runner is wired for dogfood: flay, OpenCode, local Qwen, frontier, or Inquisitor.
+- [x] At least one worker adapter beyond git/test runner is wired for dogfood: flay, OpenCode, local Qwen, frontier, or Inquisitor.
 - [x] Adapter failures are normalized and never leak as unstructured tool prose only.
 
 ### Verification (2026-07-07)
@@ -20,9 +20,13 @@ First adapter slice implemented for M30:
 Still open for M31 completion:
 - Expand `GitAdapter` to diff capture, branch state, and commit/PR preconditions.
 - Add interrogate task metadata resolution.
-- Choose and wire the first real worker adapter beyond git/test runner: flay, OpenCode, local Qwen, frontier, or Inquisitor.
 - Route-selected worker dispatch is tracked in M34.
 - Command-backed local/frontier worker adapters are tracked in M35.
+
+Additional verification (2026-07-07):
+- `CommandWorkerAdapter` wires soft local/frontier command workers without linking to a model SDK or tool package.
+- `dotnet build Captain.Orchestrator.sln --no-restore`
+- `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
 
 ## Theme
 Adapters let the orchestration layer coordinate existing blades without absorbing their code. Each adapter is a boundary contract: call the tool, collect evidence, normalize result.
