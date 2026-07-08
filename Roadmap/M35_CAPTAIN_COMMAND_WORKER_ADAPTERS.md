@@ -1,6 +1,6 @@
 # M35 - CAPTAIN_COMMAND_WORKER_ADAPTERS
 Status: Shipped
-Last Updated: 2026-07-07
+Last Updated: 2026-07-08
 
 ## Definition of Done
 - [x] A command-backed worker adapter can run a configured local command in the orchestrator worktree.
@@ -23,6 +23,9 @@ Implemented in `captain-orchestrator`:
 Verified:
 - `dotnet build Captain.Orchestrator.sln --no-restore`
 - `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
+
+Implementation evidence (2026-07-08):
+- `captain-orchestrator` commit `043b56c` adds `CommandWorkerAdapter`, repeated `--worker-command <adapter=command>` CLI wiring, `--worker-timeout-seconds`, route `timeout_seconds` override, command evidence capture, and command success/failure/timeout tests.
 
 Example route policy:
 

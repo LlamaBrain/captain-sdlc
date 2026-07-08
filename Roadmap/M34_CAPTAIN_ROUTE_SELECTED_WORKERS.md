@@ -1,6 +1,6 @@
 # M34 - CAPTAIN_ROUTE_SELECTED_WORKERS
 Status: Shipped
-Last Updated: 2026-07-07
+Last Updated: 2026-07-08
 
 ## Definition of Done
 - [x] `captain-orchestrator` has a worker adapter registry keyed by route adapter name.
@@ -26,6 +26,9 @@ Verified:
 - `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
 - `dotnet build Captain.Daemon.sln --no-restore`
 - `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj --no-build`
+
+Implementation evidence (2026-07-08):
+- `captain-orchestrator` commit `043b56c` adds `IWorkerAdapterRegistry` / `WorkerAdapterRegistry`, route adapter lookup, missing-adapter `needs_human` evidence, and route-selected worker tests.
 
 Still open for M34 completion:
 - None for this milestone slice. Real frontier command configuration and escalation policy continue in M35/M37.

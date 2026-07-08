@@ -1,6 +1,6 @@
 # M31 - CAPTAIN_TOOL_ADAPTERS
 Status: In Progress
-Last Updated: 2026-07-07
+Last Updated: 2026-07-08
 
 ## Definition of Done
 - [x] Adapter interface maps invocation, outputs, failures, evidence, and terminal states into Captain Core records.
@@ -27,6 +27,9 @@ Additional verification (2026-07-07):
 - `CommandWorkerAdapter` wires soft local/frontier command workers without linking to a model SDK or tool package.
 - `dotnet build Captain.Orchestrator.sln --no-restore`
 - `dotnet run --project tests\Captain.Orchestrator.Tests\Captain.Orchestrator.Tests.csproj --no-build`
+
+Implementation evidence (2026-07-08):
+- `captain-orchestrator` commit `043b56c` adds route-selected command worker adapters and tests.
 
 ## Theme
 Adapters let the orchestration layer coordinate existing blades without absorbing their code. Each adapter is a boundary contract: call the tool, collect evidence, normalize result.
