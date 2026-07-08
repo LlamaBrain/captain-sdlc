@@ -91,7 +91,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M30 | CAPTAIN_ORCHESTRATOR_CLI | In Progress | captain-orchestration-layer.md | — |
 | M31 | CAPTAIN_TOOL_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
 | M32 | CAPTAIN_REVIEW_SURFACE | Shipped | captain-orchestration-layer.md | — |
-| M33 | CAPTAIN_DAEMON_HEARTBEAT | In Progress | captain-orchestration-layer.md | — |
+| M33 | CAPTAIN_DAEMON_HEARTBEAT | Shipped | captain-orchestration-layer.md | — |
 | M34 | CAPTAIN_ROUTE_SELECTED_WORKERS | Shipped | captain-orchestration-layer.md | — |
 | M35 | CAPTAIN_COMMAND_WORKER_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
 | M36 | CAPTAIN_TDD_LOOP | Shipped | captain-orchestration-layer.md | — |

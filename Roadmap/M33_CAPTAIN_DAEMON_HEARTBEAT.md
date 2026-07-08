@@ -1,6 +1,6 @@
 # M33 - CAPTAIN_DAEMON_HEARTBEAT
-Status: In Progress
-Last Updated: 2026-07-07
+Status: Shipped
+Last Updated: 2026-07-08
 
 ## Definition of Done
 - [x] `captain-daemon` has a resident process shell with explicit start/stop semantics.
@@ -23,14 +23,20 @@ First executable heartbeat implemented in C# in
 - The daemon uses a soft command contract to wake `captain-orchestrator`.
 - End-to-end smoke produced one daemon event, one orchestrator run record, and five evidence packets.
 
-Still open for daemon hardening:
+Daemon hardening follow-through:
 - Stale claims are now stopped as `stale_claim` daemon events. Possible abandoned worktrees are reported but not deleted.
 - `needs_human` / `review_required` leases and child-process output now stop automatic continuation.
-- Deeper janitor policy, pause/disable/backoff, crash restart policy, and notifier behavior remain split out as M38/M39.
+- Deeper janitor policy, pause/disable/backoff, and crash restart policy shipped in M38.
+- Notifier/review handoff behavior remains tracked in M39.
 
 Additional verification (2026-07-07):
 - `dotnet build Captain.Daemon.sln --no-restore`
 - `dotnet run --project tests\Captain.Daemon.Tests\Captain.Daemon.Tests.csproj --no-build`
+
+Completion evidence (2026-07-08):
+- `captain-daemon` commit `3312c8c` added the heartbeat daemon runtime.
+- `captain-daemon` commit `aceee05` added TDD loop passthrough without moving loop logic into the daemon.
+- `captain-daemon` commit `ad99f34` hardened heartbeat supervision and completed stale/abandoned/disable/pause/crash evidence.
 
 ## Theme
 Captain Daemon is the resident service host. Heartbeat/tick is its first role:
