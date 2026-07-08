@@ -97,7 +97,7 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M36 | CAPTAIN_TDD_LOOP | Shipped | captain-orchestration-layer.md | — |
 | M37 | CAPTAIN_ESCALATION_POLICY | Shipped | captain-orchestration-layer.md | — |
 | M38 | CAPTAIN_DAEMON_HARDENING | Shipped | captain-orchestration-layer.md | — |
-| M39 | CAPTAIN_REVIEW_AND_PR_GATE | In Progress | captain-orchestration-layer.md | — |
+| M39 | CAPTAIN_REVIEW_AND_PR_GATE | Shipped | captain-orchestration-layer.md | — |
 
 ## Prerequisite Chain
 - M1_CONVENTIONS_ESTABLISHED → M2_TRACE_SCHEMA_FIRST_EMITTER (Trace storage needs the .captain-sdlc/ layout and schema_version policy.)
