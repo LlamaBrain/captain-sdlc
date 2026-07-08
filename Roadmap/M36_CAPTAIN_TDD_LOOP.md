@@ -1,9 +1,9 @@
 # M36 - CAPTAIN_TDD_LOOP
-Status: In Progress
+Status: Shipped
 Last Updated: 2026-07-08
 
 ## Definition of Done
-- [ ] The orchestrator can run worker -> verify -> revise attempts until success, budget exhaustion, escalation, or manual stop.
+- [x] The orchestrator can run worker -> verify -> revise attempts until success, budget exhaustion, escalation, or manual stop.
 - [x] Each attempt records worker evidence, diff evidence, verification evidence, elapsed time, and terminal classification.
 - [x] Verification failure feeds the next worker attempt as structured context, not only as console text.
 - [x] Attempt count, wall-clock budget, and per-route/model budgets are enforced.
@@ -18,6 +18,7 @@ Implemented in `captain-orchestrator`:
 - CLI adds `--max-attempts` and `--max-wall-clock-seconds`.
 - `RouteRuleContext` carries attempt index plus previous verification summary/evidence id into the next worker attempt.
 - Worker/diff/verification attempts record evidence id, attempt index, elapsed time, and terminal classification.
+- `captain-orchestrator run --manual-stop [--manual-stop-reason <reason>]` records a `manual_stop` phase, writes `human_decision` evidence, and stops before route/worker execution as `needs_human`.
 
 Implemented in `captain-daemon`:
 - Queue items pass `worker_commands`, `worker_timeout_seconds`, `max_attempts`, and `max_wall_clock_seconds` through to `captain-orchestrator`.
@@ -32,11 +33,8 @@ Verified:
 
 Implementation evidence:
 - `captain-orchestrator` commit `d3aecdc` adds the bounded TDD attempt loop.
+- `captain-orchestrator` commit `18ba5db` adds explicit manual-stop handling.
 - `captain-daemon` commit `aceee05` passes TDD loop controls through queued heartbeat runs.
-
-Still open for M36 completion:
-- Escalation handoff behavior lands with M37.
-- Explicit manual-stop terminal handling still needs a first-class path.
 
 ## Theme
 This is the production version of the agent loop: act, test, observe, revise,
