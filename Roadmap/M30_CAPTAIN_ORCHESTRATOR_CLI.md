@@ -1,6 +1,6 @@
 # M30 - CAPTAIN_ORCHESTRATOR_CLI
-Status: In Progress
-Last Updated: 2026-07-07
+Status: Shipped
+Last Updated: 2026-07-09
 
 ## Definition of Done
 - [x] A deterministic CLI command starts one orchestrator run for an already-assigned task.

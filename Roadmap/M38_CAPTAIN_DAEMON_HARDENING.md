@@ -1,6 +1,6 @@
 # M38 - CAPTAIN_DAEMON_HARDENING
 Status: Shipped
-Last Updated: 2026-07-08
+Last Updated: 2026-07-09
 
 ## Definition of Done
 - [x] Daemon handles stale leases according to explicit policy.
@@ -26,6 +26,17 @@ Verified:
 
 Implementation evidence:
 - `captain-daemon` commit `ad99f34` hardens heartbeat supervision.
+
+### Follow-up (2026-07-09)
+Supervision now extends to local model infrastructure (`captain-daemon` commit
+`d6f3425`): a model in `route-config.json` may declare
+`local_server {health_url, start_command, startup_timeout_seconds}`; before
+dispatching a run on that model the daemon curl-checks the health URL, fires
+the (non-blocking) start command when the server is down, and polls until
+healthy. A server that never comes up parks the task `needs_human` with an
+explicit reason instead of burning the worker timeout. Found while dogfooding:
+an idle LlamaCPP server made `opencode` hang silently for the full 600s worker
+budget.
 
 ## Theme
 The daemon becomes safe to leave running. It is the resident supervisor for the

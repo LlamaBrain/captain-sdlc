@@ -87,8 +87,8 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M26 | CROSS_CHANNEL_DEDUP_CLASS_A | Stub | cross-channel-dedup.md | — |
 | M27 | DEFINITION_OF_DONE_END_TO_END | Stub | Inline | — |
 | M28 | FLAY_QUEUE | Stub | flay-task-harness.md | — |
-| M29 | CAPTAIN_CORE_RUNTIME | In Progress | captain-orchestration-layer.md | — |
-| M30 | CAPTAIN_ORCHESTRATOR_CLI | In Progress | captain-orchestration-layer.md | — |
+| M29 | CAPTAIN_CORE_RUNTIME | Shipped | captain-orchestration-layer.md | — |
+| M30 | CAPTAIN_ORCHESTRATOR_CLI | Shipped | captain-orchestration-layer.md | — |
 | M31 | CAPTAIN_TOOL_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
 | M32 | CAPTAIN_REVIEW_SURFACE | Shipped | captain-orchestration-layer.md | — |
 | M33 | CAPTAIN_DAEMON_HEARTBEAT | Shipped | captain-orchestration-layer.md | — |

@@ -1,6 +1,6 @@
 # M39 - CAPTAIN_REVIEW_AND_PR_GATE
 Status: Shipped
-Last Updated: 2026-07-08
+Last Updated: 2026-07-09
 
 ## Definition of Done
 - [x] Completed orchestrator runs produce a review package with diff summary, evidence report, terminal state report, and budget/escalation summary.
@@ -29,6 +29,17 @@ Evidence commits:
   and budget exhaustion.
 - `captain-daemon`: review-command handoff and heartbeat smoke proving
   queue item -> daemon -> orchestrator -> review gate.
+
+### Follow-up (2026-07-09)
+The gate now has its closing half: `captain-orchestrator approve --run-id`
+(commit `dd9b6ce`) is the manual approval action — it commits the run worktree
+to `captain/<run-id>` with `Implements:`/`Captain-Run:` footers, pushes, opens
+a PR via `gh` with `review.md` as the body, and records the grant + PR URL back
+into `approval-gate.json` plus an evidence packet. On the daemon side
+(`captain-daemon` commits `227b626`, `768a453`), succeeded runs now park their
+lease as `review_required` so ticks hold the task at the gate instead of
+re-running it, and daemon-built orchestrator commands survive Windows cmd.exe
+quoting.
 
 ## Theme
 Automation may drive the work, but review is where evidence becomes a human

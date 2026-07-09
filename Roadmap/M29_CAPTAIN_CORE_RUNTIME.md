@@ -1,6 +1,6 @@
 # M29 - CAPTAIN_CORE_RUNTIME
-Status: In Progress
-Last Updated: 2026-07-07
+Status: Shipped
+Last Updated: 2026-07-09
 
 ## Definition of Done
 - [x] Core exposes validated task records keyed by interrogate task id.

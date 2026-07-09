@@ -83,8 +83,8 @@ Other items in `candidates.md` may also condense into new tools — Live Ops ing
 | **Captain Core** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Typed runtime contracts, validation, routing policy, terminal states, evidence packets, config loading |
 | **Captain Orchestrator** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Deterministic one-shot CLI runner and non-resident run coordinator |
 | **Captain Tool Adapters** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Adapter contracts plus first git/test/task/classifier adapter slice |
-| **Captain Review Surface** | TBD | PR generation, diff summary, evidence report, terminal-state report, manual approval gate |
-| **Captain Daemon** | [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon) | Resident scheduler/supervisor host; heartbeat/tick is the first role |
+| **Captain Review Surface** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Review package generation, PR policy gate, diff summary, evidence report, terminal-state report, manual approval gate |
+| **Captain Daemon** | [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon) | Resident scheduler/supervisor host; heartbeat/tick and review-gate handoff are the first roles |
 
 **Two classes of blade.** The first four are *process* blades — they automate SDLC process around any project. MToolKit is a *runtime* blade — the canonical foundation substantial projects are built on. The classes compose: the more of the runtime blade a project adopts, the cheaper each process blade becomes, because MToolKit canonizes the very structures the process blades operate on (save migration, localization, the architectural constitution). Process blades never *require* MToolKit — they detect it and degrade gracefully on projects that don't use it (ADR-0010). MToolKit is opt-in by project scale: it's the foundation for substantial projects (Dirigible), and deliberately skipped on small ones (BeforeTheShade).
 
@@ -143,6 +143,104 @@ If you're picking this up cold and you want to:
 - **Find out what's actually committed for ATH** → read `ROADMAP.md` in the [`ai-test-harness`](https://github.com/LlamaBrain/ai-test-harness) repo.
 - **Find out what's committed cross-tool** → read `roadmap.md` once it exists.
 - **Polish all of the above** → run interrogate's `audit-docs` / `redress` against this repo.
+
+## Orchestration Quickstart
+
+The M31-M39 orchestration path is implemented across
+[`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator)
+and [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon).
+
+Manual path:
+
+```powershell
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- run `
+  --project-root <repo> `
+  --task <task.json-or-roadmap.md> `
+  --policy <routing-policy.json> `
+  --worker-command "<adapter>=<command>" `
+  --verify "<verification command>" `
+  --max-attempts 3
+
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- review `
+  --project-root <repo> `
+  --run-id <run-id>
+
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- approve `
+  --project-root <repo> `
+  --run-id <run-id>
+```
+
+The `<adapter>` key must match the `adapter` of the route the task selects in
+`routing-policy.json`. The command runs inside the run's worktree with
+`CAPTAIN_*` env vars set (task file, run id, attempt index, previous
+verification feedback), so any headless agent works as a worker, e.g.
+`"worker=opencode run \"implement the task in CAPTAIN_TASK_FILE\""`.
+
+`approve` is the manual gate decision: it commits the run worktree to
+`captain/<run-id>` (with `Implements:` / `Captain-Run:` footers), pushes, and
+opens a PR via `gh` whose body is the review package — the artifacts of proof.
+`--skip-push` keeps the decision local for repos without a remote.
+
+Daemon path:
+
+```powershell
+dotnet run --project <captain-daemon>\src\Captain.Daemon.Cli -- tick `
+  --queue <queue.json> `
+  --orchestrator-command "dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli --" `
+  --review-command "dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli --"
+```
+
+Each queue item carries the run parameters (`worker_commands`, `verify`,
+`max_attempts`, `max_seconds`, …):
+
+```json
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "task_id": "M39#first-dogfood-daemon#def456abc123",
+      "project_root": "<repo>",
+      "task_file": "<repo>/task.json",
+      "policy_file": "<repo>/routing-policy.json",
+      "verify": "<verification command>",
+      "worker_commands": ["<adapter>=<command>"],
+      "max_attempts": 3
+    }
+  ]
+}
+```
+
+The output chain is:
+
+```text
+queue item -> daemon -> orchestrator -> worker loop -> verification -> review package -> approval gate
+```
+
+Run/evidence/review artifacts are written under `.captain-sdlc/` in the target
+project. PR creation is blocked by default in `approval-gate.json` unless the
+review command is explicitly run with policy allowing no-manual-approval PR
+creation. A task whose run succeeds is parked at the review gate: its daemon
+lease flips to `review_required` and further ticks hold it (`needs_human`)
+until a human clears the lease — normally by running `approve`, which opens
+the PR.
+
+When `route-config.json` is present the daemon also routes models by score,
+budget, and work mode (`--mode planning|feature-dev|refactor|bughunt|staging`).
+A model backed by a local server (LlamaCPP or similar) can declare it in its
+route-config entry; the daemon health-checks the server before dispatch and
+starts it when it is down:
+
+```json
+{
+  "id": "local-qwen",
+  "provider": "local",
+  "local_server": {
+    "health_url": "http://127.0.0.1:8131/health",
+    "start_command": "start \"\" E:\\LlamaCPP\\run-server.BAT",
+    "startup_timeout_seconds": 120
+  }
+}
+```
 
 ## Contact
 
