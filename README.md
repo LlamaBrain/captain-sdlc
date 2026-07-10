@@ -174,7 +174,10 @@ The `<adapter>` key must match the `adapter` of the route the task selects in
 `routing-policy.json`. The command runs inside the run's worktree with
 `CAPTAIN_*` env vars set (task file, run id, attempt index, previous
 verification feedback), so any headless agent works as a worker, e.g.
-`"worker=opencode run \"implement the task in CAPTAIN_TASK_FILE\""`.
+`"worker=opencode run --dir \"%CAPTAIN_WORKTREE_PATH%\" \"implement the task in CAPTAIN_TASK_FILE\""`.
+Pin the agent's project directory to the worktree (opencode: `--dir`) —
+agents that auto-detect a project root can walk up past the worktree's
+`.git` file and write to the parent repo instead.
 
 `approve` is the manual gate decision: it commits the run worktree to
 `captain/<run-id>` (with `Implements:` / `Captain-Run:` footers), pushes, and
