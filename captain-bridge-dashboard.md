@@ -52,15 +52,52 @@ Not-ready evidence:
 
 One local process, `captain-bridge serve`, default `localhost` only:
 
-1. **Host:** .NET 8 minimal API in a new `LlamaBrain/captain-bridge` repo,
-   referencing `Captain.Core` and `Captain.Daemon` record types so parsing is
-   the same code the tools use. `FileSystemWatcher` (debounced) over each
-   registered project's `.captain-sdlc/`; changes push to the UI over SSE.
-2. **UI:** a single static page served by the host — no build chain. Fleet
-   status strip (daemon state, model-server health, budgets), project lanes
-   of run cards (phase pills, route/model chips, elapsed, live log tail),
-   review queue rail (Approve / Reject), and an evidence drawer that renders
-   `review.md` and the linked packets for any run.
+1. **Host: a local TypeScript/Node server** in a new
+   `LlamaBrain/captain-bridge` repo — chosen over a .NET host because
+   configurability is the product: flow definitions, picker commands, worker
+   templates, and feed behavior all live in `bridge.config.json` (or `.ts`)
+   that the user owns and hacks, not in compiled code. The disk records are
+   stable snake_case JSON with integer `schema_version`, so the TS host
+   types them directly; drift is caught by the same refuse-unknown rule Core
+   uses. File watching (debounced) over each registered project's
+   `.captain-sdlc/`; changes push to the UI over SSE. **Custom flows are
+   config, not features:** a flow entry is a name + command template +
+   target kind (project / milestone / task) + gate policy — interviews,
+   smoke passes, roadmap automation, and anything invented later are all the
+   same registry shape.
+2. **UI — a work feed, a composer, and an autopilot.** The interaction model
+   is Claude/ChatGPT-web, not a status board. Task identity (the interrogate
+   key) remains the spine; runs, interviews, and loop batches are work items
+   attached to it.
+   - **Feed (the sidebar):** one chronological list of work items across the
+     fleet — in-flight pinned on top, then recently completed, sorted by
+     date. An item is a run, an interview session, a smoke pass, or a loop
+     iteration. Selecting an item opens it in the main pane: decision cards
+     (diff summary, verify verdict, Approve → PR / Reject) for gated work,
+     live log tails for running work, evidence reports for finished work.
+   - **Composer ("Start work"):** the top-of-feed affordance. Pick a flow —
+     **Interview** (interrogate/reinterrogate/roadmap/taskout), **Run task**,
+     **Smoke pass** (verify-only run), **Automate** (queue a roadmap slice or
+     a single task) — pick a target (project → milestone → task), and add
+     steer text. Interviews spawn the configured interactive agent in a
+     terminal; Bridge launches and then watches the docs change — it never
+     hosts the chat (see rejection above). Everything else appends to
+     `queue.json` and lets the daemon drive.
+   - **Autopilot (Boris-style loop):** a per-project toggle. While on, when
+     the queue is empty the daemon invokes the configured picker — Inquisitor
+     — to select the next auto-pickable task from the existing
+     roadmap/taskout backlog and queue it. The loop *selects from
+     human-authorized work; it never invents scope* (the standing
+     orchestration constraint), and every result still parks at the review
+     gate. Autopilot state and each pick's rationale render in the feed.
+   - **Steers are files, not chat.** A steer note is human-owned config at
+     `.captain-sdlc/steer/<task-key>.md`. Bridge edits it; the orchestrator
+     hands it to workers (`CAPTAIN_STEER_FILE` env, same contract as
+     `CAPTAIN_TASK_FILE`) so every attempt — and every revise loop — reads
+     the human's current guidance. Requires a small captain-orchestrator
+     addition (env var + evidence of which steer version a run saw).
+     Daemon-side, Autopilot needs a `picker_command` in config — the second
+     small tool addition this design depends on.
 3. **Actions:** spawn the configured CLIs with the run's own paths; stream
    the child's stdout into the UI; disable a run's buttons while a CLI child
    or active lease exists for it (same duplicate-prevention the daemon uses).
@@ -121,13 +158,19 @@ Rejected:
   state.
 - 2026-07-09 - Human-owned config files (queue, routing policy, route config)
   are editable through Bridge; tool-written state is read-only glass.
+- 2026-07-09 - Navigation spine is task identity (interrogate keys);
+  interviews launch the configured agent externally; steers are per-task
+  files workers read via `CAPTAIN_STEER_FILE`, not chat messages.
+- 2026-07-09 - Interaction model is a chronological work feed + composer +
+  per-project Autopilot (Inquisitor as picker), not a status board. Autopilot
+  selects from human-authorized backlog only; gates unchanged.
 
 ## Open Questions
 
 - Repo home confirmed as new `LlamaBrain/captain-bridge`, or incubate in
   `captain-orchestrator` like the review surface did?
-- SPA flavor: hand-rolled vanilla + SSE, or htmx-style partials from the
-  host?
+- TS stack flavor: bare `node:http` + SSE, or a micro-framework (Hono/
+  Fastify)? Frontend: no-build vanilla, or Vite when the UI grows?
 - Does Bridge also render trace events (`trace-schema.md`) in v1, or is that
   a later lens?
 - Remote/multi-machine fleets: registry entries pointing at network shares,
