@@ -181,6 +181,12 @@ verification feedback), so any headless agent works as a worker, e.g.
 opens a PR via `gh` whose body is the review package — the artifacts of proof.
 `--skip-push` keeps the decision local for repos without a remote.
 
+Runs are observable while they execute: the CLI reports phase transitions
+(claimed → routing → attempt → verification) on stderr, and each worker
+attempt streams its output to `.captain-sdlc/logs/<run-id>-attempt-<n>-<adapter>.log`
+— `tail -f` it to watch the worker think. The same output lands in the
+attempt's evidence packet.
+
 Daemon path:
 
 ```powershell

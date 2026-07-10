@@ -43,6 +43,7 @@ An optional driver layer around the existing blades. This does not split or abso
 | Captain Tool Adapters | Accepted | Interrogate, Inquisitor, flay, test runner, git, OpenCode, frontier, and local Qwen boundaries. Normalize invocation, outputs, failures, evidence, and terminal states. |
 | Captain Review Surface | Accepted | PR generation, diff summary, evidence report, terminal state report, and manual approval gate. |
 | Captain Daemon heartbeat | Accepted, sequenced later | Optional resident driver. Schedules, wakes, watches queues, prevents duplicate runs, enforces budgets, and supervises idle/blocked runs. Does not contain core orchestration logic. Implementation home: `captain-daemon`. |
+| Captain Dashboard | Stub | Live observability surface over what already exists on disk: run records, phase history, evidence packets, daemon events/leases, budgets, and the streaming worker logs under `.captain-sdlc/logs/`. Read-only renderer — it must not become a second orchestrator. Sequenced after the dogfood loop proves the artifact shapes. |
 
 ---
 
