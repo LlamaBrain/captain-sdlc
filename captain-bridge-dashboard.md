@@ -69,6 +69,11 @@ One local process, `captain-bridge serve`, default `localhost` only:
 
 Rejected:
 
+- **Baking into Claude Code** (plugin, extension, or statusline). Bridge's
+  subject is the *multi-agent* workflow: opencode, claude, local Qwen, flay,
+  and future workers running in parallel across projects. Claude Code is one
+  worker adapter among many — the cockpit cannot live inside one of its own
+  workers. "Claude-Code-like" describes the interaction feel, not the host.
 - **Terminal TUI.** One pane, poor multi-flow density; the CLI already covers
   the single-flow case.
 - **HTTP server inside captain-daemon.** The daemon stays
@@ -127,6 +132,11 @@ Rejected:
   a later lens?
 - Remote/multi-machine fleets: registry entries pointing at network shares,
   or a Bridge-to-Bridge federation later?
+- Fleet concurrency policy: today the daemon holds one active run per
+  project and a local model server realistically serves one worker at a
+  time. True multi-agent parallelism needs a daemon-side policy (max
+  concurrent runs fleet-wide, per worker adapter, per model/server slot) —
+  that belongs in captain-daemon, and Bridge only renders it.
 
 ## Version History
 
