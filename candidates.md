@@ -32,6 +32,21 @@ The connective tissue between the tools. These are **not** owned by a separate "
 
 ---
 
+## Captain orchestration layer (new added products)
+
+An optional driver layer around the existing blades. This does not split or absorb interrogate, ATH, claude-release, flay, or future tools; it gives Captain SDLC functional Core records, a deterministic runner, adapter boundaries, a review surface, and later heartbeat automation.
+
+| Item | Status | Notes |
+|---|---|---|
+| Captain Core runtime | Accepted | Proper functionality, not just schemas: task records, run records, routing policy, terminal states, evidence packets, config loading, validation, and duplicate-run primitives. Credits existing `.captain-sdlc/`, trace, task identity, flay-state, and gate-verdict work. Implementation home: `captain-orchestrator`. |
+| Captain Orchestrator CLI | Accepted | Deterministic one-shot runner first. Selects human-assigned work, classifies, routes, creates worktree, calls adapters, verifies, evaluates, escalates, and writes Core records. No always-online dependency. Implementation home: `captain-orchestrator`. |
+| Captain Tool Adapters | Accepted | Interrogate, Inquisitor, flay, test runner, git, OpenCode, frontier, and local Qwen boundaries. Normalize invocation, outputs, failures, evidence, and terminal states. |
+| Captain Review Surface | Accepted | PR generation, diff summary, evidence report, terminal state report, and manual approval gate. |
+| Captain Daemon heartbeat | Accepted, sequenced later | Optional resident driver. Schedules, wakes, watches queues, prevents duplicate runs, enforces budgets, and supervises idle/blocked runs. Does not contain core orchestration logic. Implementation home: `captain-daemon`. |
+| Captain Bridge (dashboard) | Proposed | Fleet cockpit for watching/operating multiple agentic flows at once. Renderer + command launcher over the disk contract and existing CLIs — never a second orchestrator. Design: [captain-bridge-dashboard.md](./captain-bridge-dashboard.md). |
+
+---
+
 ## ATH (this repo)
 
 | Item | Status | Notes |
@@ -156,6 +171,8 @@ These need decisions before items can be properly sequenced into a roadmap:
 5. **Single Captain SDLC roadmap vs per-tool roadmaps.** Cross-tool seams definitely need a Captain SDLC home; per-tool items might stay in their per-tool ROADMAP.md files, or might be mirrored here for visibility.
 6. **Constitution layer as separate item vs subsumed into design-code drift.** Currently split into two items in this list; could be folded into one if the analyzer can be shared.
 7. **Where does the boundary between "captured by ATH at runtime" and "captured by CICD between builds" land for artifact diff?** Same primitive, two consumers; boundary affects ownership.
+8. **First worker adapter.** After git/test runner/interrogate, choose whether dogfood starts with flay, OpenCode, local Qwen, frontier, or Inquisitor.
+9. **Daemon role split.** Decide which resident roles ship in M33 versus later daemon milestones: notifier, janitor, trace/evidence tailer, config reload watcher, child-process supervisor.
 
 ## Reference projects for dogfooding
 
@@ -164,6 +181,7 @@ These need decisions before items can be properly sequenced into a roadmap:
 ## Cross-References
 
 - [Captain SDLC](./README.md)
+- [Captain SDLC - Orchestration Layer](./captain-orchestration-layer.md)
 - [Captain SDLC — Code-Reading Capability](./code-reading-capability.md)
 - [Captain SDLC — Conventions](./captain-sdlc-conventions.md)
 - [Captain SDLC — Cross-Channel Deduplication](./cross-channel-dedup.md)

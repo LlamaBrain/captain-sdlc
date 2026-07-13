@@ -10,7 +10,7 @@ The nerve-center documentation for **Captain SDLC**.
 
 ## What it is
 
-A series of tools — like a swiss army knife — that enable creatives to smooth away the processy bits of software development that *do matter* (SemVer maintenance, roadmaps, mechanical QA validation, contract enforcement) but don't deserve human attention. The work still happens; the human doesn't have to do it. Each tool is independent in versioning, distribution, and adoption; they share *conventions* (trace schemas, classification primitives, fenced-block format) but not *code*. You can pick up one tool without committing to the whole pipeline.
+A series of tools — like a swiss army knife — that enable creatives to smooth away the processy bits of software development that *do matter* (SemVer maintenance, roadmaps, mechanical QA validation, contract enforcement) but don't deserve human attention. The work still happens; the human doesn't have to do it. Each tool is independent in versioning, distribution, and adoption; they share *conventions* (trace schemas, classification primitives, fenced-block format) but not *code*. You can pick up one tool without committing to the whole pipeline. The orchestration layer adds an optional driver around those tools: manual deterministic runs first, automated queue-driving when desired.
 
 ## Mission
 
@@ -68,13 +68,23 @@ The nerve center stays tool-agnostic — it owns the seams; each tool implements
 
 | Tool | Repo | Role |
 |---|---|---|
-| **interrogate** | `claude-interrogate-src` | Front end: Socratic design interview, scope decomposition, docs auditing |
-| **ATH** (AI Test Harness) | `ai-test-harness` | Middle: drives Unity playmode, asserts behavior via MCP-attached smokes |
-| **claude-release** | `claude-release` | Back end: commit finalization, changelog, version bump, release |
+| **interrogate** | [`claude-interrogate-src`](https://github.com/LlamaBrain/claude-interrogate-src) | Front end: Socratic design interview, scope decomposition, docs auditing |
+| **ATH** (AI Test Harness) | [`ai-test-harness`](https://github.com/LlamaBrain/ai-test-harness) | Middle: drives Unity playmode, asserts behavior via MCP-attached smokes |
+| **claude-release** | [`claude-release`](https://github.com/LlamaBrain/claude-release) | Back end: commit finalization, changelog, version bump, release |
 | **CICD layer** *(tentative)* | TBD | Build automation, artifact storage, distribution pipeline orchestration |
-| **MToolKit** | `MToolKit` | Runtime blade *(distinct class)*: canonical "sane C# Unity" foundation — DI, forward save migration, Unity Localization, structured logging, analytics. Opt-in for substantial projects; process blades detect it and lean on it when present (ADR-0010). |
+| **MToolKit** | [`MToolKit`](https://github.com/LlamaBrain/MToolKit) | Runtime blade *(distinct class)*: canonical "sane C# Unity" foundation — DI, forward save migration, Unity Localization, structured logging, analytics. Opt-in for substantial projects; process blades detect it and lean on it when present (ADR-0010). |
 
 Other items in `candidates.md` may also condense into new tools — Live Ops ingestion and marketing pipeline ops are the current candidates. The cross-tool seams themselves (pipeline trace, contract testing, etc.) are **not** a separate tool; their schemas live in this nerve-center repo and their implementations are distributed across the emitting tools.
+
+**Orchestration products.** Captain Core, Captain Orchestrator, Captain Tool Adapters, Captain Review Surface, and Captain Daemon are an added driver layer around the blades. Core has real functionality (record validation, config loading, routing policy, terminal states, evidence packets). The orchestrator starts as a deterministic CLI runner in `captain-orchestrator`. The daemon comes later as the optional resident service that wakes and supervises already-working orchestrator runs.
+
+| Product | Repo | Role |
+|---|---|---|
+| **Captain Core** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Typed runtime contracts, validation, routing policy, terminal states, evidence packets, config loading |
+| **Captain Orchestrator** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Deterministic one-shot CLI runner and non-resident run coordinator |
+| **Captain Tool Adapters** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Adapter contracts plus first git/test/task/classifier adapter slice |
+| **Captain Review Surface** | [`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator) | Review package generation, PR policy gate, diff summary, evidence report, terminal-state report, manual approval gate |
+| **Captain Daemon** | [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon) | Resident scheduler/supervisor host; heartbeat/tick and review-gate handoff are the first roles |
 
 **Two classes of blade.** The first four are *process* blades — they automate SDLC process around any project. MToolKit is a *runtime* blade — the canonical foundation substantial projects are built on. The classes compose: the more of the runtime blade a project adopts, the cheaper each process blade becomes, because MToolKit canonizes the very structures the process blades operate on (save migration, localization, the architectural constitution). Process blades never *require* MToolKit — they detect it and degrade gracefully on projects that don't use it (ADR-0010). MToolKit is opt-in by project scale: it's the foundation for substantial projects (Dirigible), and deliberately skipped on small ones (BeforeTheShade).
 
@@ -87,6 +97,7 @@ Rules the tools and docs follow internally — extensions of the mission above:
 - **Mechanical reuse over generation.** QA screenshots become marketing assets. Smoke transcripts become bug reports. Changelogs become patch notes. The pipeline reshapes existing artifacts; it doesn't generate new creative ones.
 - **Cuts preserve reasoning.** `candidates.md` and `expose.md` record what was rejected and why, so cuts don't get re-litigated and so reversals are informed.
 - **Tools, not modules.** Each tool ships independently. Conventions are shared, code is not.
+- **Automation is opt-in.** The same path must work as a manual CLI run before heartbeat is allowed to drive it unattended.
 
 ## What's in this repo
 
@@ -100,6 +111,7 @@ Rules the tools and docs follow internally — extensions of the mission above:
 - `captain-sdlc-conventions.md` — `.captain-sdlc/` directory layout, `schema_version` policy, fenced-block convention, suppression file convention.
 - `code-reading-capability.md` — three-tier capability (grep → tree-sitter → Roslyn) shared by Seams 2, 4, 6.
 - `trace-schema.md` — pipeline trace event schema (Seam 1's planning doc).
+- `captain-orchestration-layer.md` — added Core/Orchestrator/Adapters/Review/Daemon layer for deterministic and optionally automated runs.
 
 **The seam planning docs:**
 - `seam-design-code-drift.md` (Seam 2)
@@ -128,9 +140,116 @@ If you're picking this up cold and you want to:
 
 - **Understand the pipeline at a glance** → read `vision.md`.
 - **See the full backlog including cuts** → read `candidates.md`.
-- **Find out what's actually committed for ATH** → read `ROADMAP.md` in the `ai-test-harness` repo.
+- **Find out what's actually committed for ATH** → read `ROADMAP.md` in the [`ai-test-harness`](https://github.com/LlamaBrain/ai-test-harness) repo.
 - **Find out what's committed cross-tool** → read `roadmap.md` once it exists.
 - **Polish all of the above** → run interrogate's `audit-docs` / `redress` against this repo.
+
+## Orchestration Quickstart
+
+The M31-M39 orchestration path is implemented across
+[`captain-orchestrator`](https://github.com/LlamaBrain/captain-orchestrator)
+and [`captain-daemon`](https://github.com/LlamaBrain/captain-daemon).
+
+Manual path:
+
+```powershell
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- run `
+  --project-root <repo> `
+  --task <task.json-or-roadmap.md> `
+  --policy <routing-policy.json> `
+  --worker-command "<adapter>=<command>" `
+  --verify "<verification command>" `
+  --max-attempts 3
+
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- review `
+  --project-root <repo> `
+  --run-id <run-id>
+
+dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli -- approve `
+  --project-root <repo> `
+  --run-id <run-id>
+```
+
+The `<adapter>` key must match the `adapter` of the route the task selects in
+`routing-policy.json`. The command runs inside the run's worktree with
+`CAPTAIN_*` env vars set (task file, run id, attempt index, previous
+verification feedback), so any headless agent works as a worker, e.g.
+`"worker=opencode run --dir \"%CAPTAIN_WORKTREE_PATH%\" \"implement the task in CAPTAIN_TASK_FILE\""`.
+Pin the agent's project directory to the worktree (opencode: `--dir`) —
+agents that auto-detect a project root can walk up past the worktree's
+`.git` file and write to the parent repo instead.
+
+`approve` is the manual gate decision: it commits the run worktree to
+`captain/<run-id>` (with `Implements:` / `Captain-Run:` footers), pushes, and
+opens a PR via `gh` whose body is the review package — the artifacts of proof.
+`--skip-push` keeps the decision local for repos without a remote.
+
+Runs are observable while they execute: the CLI reports phase transitions
+(claimed → routing → attempt → verification) on stderr, and each worker
+attempt streams its output to `.captain-sdlc/logs/<run-id>-attempt-<n>-<adapter>.log`
+— `tail -f` it to watch the worker think. The same output lands in the
+attempt's evidence packet.
+
+Daemon path:
+
+```powershell
+dotnet run --project <captain-daemon>\src\Captain.Daemon.Cli -- tick `
+  --queue <queue.json> `
+  --orchestrator-command "dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli --" `
+  --review-command "dotnet run --project <captain-orchestrator>\src\Captain.Orchestrator.Cli --"
+```
+
+Each queue item carries the run parameters (`worker_commands`, `verify`,
+`max_attempts`, `max_seconds`, …):
+
+```json
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "task_id": "M39#first-dogfood-daemon#def456abc123",
+      "project_root": "<repo>",
+      "task_file": "<repo>/task.json",
+      "policy_file": "<repo>/routing-policy.json",
+      "verify": "<verification command>",
+      "worker_commands": ["<adapter>=<command>"],
+      "max_attempts": 3
+    }
+  ]
+}
+```
+
+The output chain is:
+
+```text
+queue item -> daemon -> orchestrator -> worker loop -> verification -> review package -> approval gate
+```
+
+Run/evidence/review artifacts are written under `.captain-sdlc/` in the target
+project. PR creation is blocked by default in `approval-gate.json` unless the
+review command is explicitly run with policy allowing no-manual-approval PR
+creation. A task whose run succeeds is parked at the review gate: its daemon
+lease flips to `review_required` and further ticks hold it (`needs_human`)
+until a human clears the lease — normally by running `approve`, which opens
+the PR.
+
+When `route-config.json` is present the daemon also routes models by score,
+budget, and work mode (`--mode planning|feature-dev|refactor|bughunt|staging`).
+A model backed by a local server (LlamaCPP or similar) can declare it in its
+route-config entry; the daemon health-checks the server before dispatch and
+starts it when it is down:
+
+```json
+{
+  "id": "local-qwen",
+  "provider": "local",
+  "local_server": {
+    "health_url": "http://127.0.0.1:8131/health",
+    "start_command": "start \"\" E:\\LlamaCPP\\run-server.BAT",
+    "startup_timeout_seconds": 120
+  }
+}
+```
 
 ## Contact
 
@@ -139,6 +258,7 @@ Built by Michael Tiller. Questions, ideas, or issues — [contact@michaeltiller.
 ## Cross-References
 
 - [Captain SDLC — Candidates](./candidates.md)
+- [Captain SDLC - Orchestration Layer](./captain-orchestration-layer.md)
 - [Captain SDLC — Code-Reading Capability](./code-reading-capability.md)
 - [Captain SDLC — Conventions](./captain-sdlc-conventions.md)
 - [Captain SDLC — Cross-Channel Deduplication](./cross-channel-dedup.md)

@@ -87,6 +87,17 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 | M26 | CROSS_CHANNEL_DEDUP_CLASS_A | Stub | cross-channel-dedup.md | — |
 | M27 | DEFINITION_OF_DONE_END_TO_END | Stub | Inline | — |
 | M28 | FLAY_QUEUE | Stub | flay-task-harness.md | — |
+| M29 | CAPTAIN_CORE_RUNTIME | Shipped | captain-orchestration-layer.md | — |
+| M30 | CAPTAIN_ORCHESTRATOR_CLI | Shipped | captain-orchestration-layer.md | — |
+| M31 | CAPTAIN_TOOL_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
+| M32 | CAPTAIN_REVIEW_SURFACE | Shipped | captain-orchestration-layer.md | — |
+| M33 | CAPTAIN_DAEMON_HEARTBEAT | Shipped | captain-orchestration-layer.md | — |
+| M34 | CAPTAIN_ROUTE_SELECTED_WORKERS | Shipped | captain-orchestration-layer.md | — |
+| M35 | CAPTAIN_COMMAND_WORKER_ADAPTERS | Shipped | captain-orchestration-layer.md | — |
+| M36 | CAPTAIN_TDD_LOOP | Shipped | captain-orchestration-layer.md | — |
+| M37 | CAPTAIN_ESCALATION_POLICY | Shipped | captain-orchestration-layer.md | — |
+| M38 | CAPTAIN_DAEMON_HARDENING | Shipped | captain-orchestration-layer.md | — |
+| M39 | CAPTAIN_REVIEW_AND_PR_GATE | Shipped | captain-orchestration-layer.md | — |
 
 ## Prerequisite Chain
 - M1_CONVENTIONS_ESTABLISHED → M2_TRACE_SCHEMA_FIRST_EMITTER (Trace storage needs the .captain-sdlc/ layout and schema_version policy.)
@@ -123,6 +134,27 @@ Net: ~8–9 active novel milestones once back-tech is credited and the live-ops 
 - M22_CICD_DISTRIBUTION_DEPLOYMENT → M27_DEFINITION_OF_DONE_END_TO_END (DoD requires CICD deployment shipped.)
 - M26_CROSS_CHANNEL_DEDUP_CLASS_A → M27_DEFINITION_OF_DONE_END_TO_END (DoD includes baseline Live Ops dedup.)
 - M1_CONVENTIONS_ESTABLISHED → M28_FLAY_QUEUE (Queue extends the flay-state.json convention registered under .captain-sdlc/; assignment-is-human boundary (ADR-0012) holds — the human batches the keys, the loop only conducts. Gated informally on live-fire trust in single-task flay first.)
+- M1_CONVENTIONS_ESTABLISHED → M29_CAPTAIN_CORE_RUNTIME (Core operationalizes existing .captain-sdlc/, schema_version, task identity, trace, and verdict conventions.)
+- M2_TRACE_SCHEMA_FIRST_EMITTER → M29_CAPTAIN_CORE_RUNTIME (Run records and evidence packets align with trace rather than inventing a second observability channel.)
+- M27_DEFINITION_OF_DONE_END_TO_END → M29_CAPTAIN_CORE_RUNTIME (Core's terminal states and evidence packets are shaped around the end-to-end definition.)
+- M29_CAPTAIN_CORE_RUNTIME → M30_CAPTAIN_ORCHESTRATOR_CLI (The deterministic runner consumes Core records, config, routing policy, terminal states, and evidence packets.)
+- M29_CAPTAIN_CORE_RUNTIME → M31_CAPTAIN_TOOL_ADAPTERS (Adapters normalize tool outputs into Core records.)
+- M31_CAPTAIN_TOOL_ADAPTERS → M30_CAPTAIN_ORCHESTRATOR_CLI (The CLI calls workers through adapters, not direct tool-specific code.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M32_CAPTAIN_REVIEW_SURFACE (Review packages are generated from completed CLI/orchestrator run records.)
+- M31_CAPTAIN_TOOL_ADAPTERS → M32_CAPTAIN_REVIEW_SURFACE (Review reports include normalized adapter evidence.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M33_CAPTAIN_DAEMON_HEARTBEAT (The daemon only schedules and supervises already-working orchestrator runs.)
+- M32_CAPTAIN_REVIEW_SURFACE → M33_CAPTAIN_DAEMON_HEARTBEAT (Automated driving must still stop at the manual review/approval gate.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M34_CAPTAIN_ROUTE_SELECTED_WORKERS (The runner must select workers from route policy instead of using one injected worker.)
+- M31_CAPTAIN_TOOL_ADAPTERS → M34_CAPTAIN_ROUTE_SELECTED_WORKERS (Route-selected execution consumes adapter contracts.)
+- M34_CAPTAIN_ROUTE_SELECTED_WORKERS → M35_CAPTAIN_COMMAND_WORKER_ADAPTERS (Command adapters plug into the route-selected worker registry.)
+- M35_CAPTAIN_COMMAND_WORKER_ADAPTERS → M36_CAPTAIN_TDD_LOOP (The TDD loop needs executable local/frontier worker boundaries.)
+- M30_CAPTAIN_ORCHESTRATOR_CLI → M36_CAPTAIN_TDD_LOOP (The loop extends the deterministic one-shot runner; it does not replace it.)
+- M36_CAPTAIN_TDD_LOOP → M37_CAPTAIN_ESCALATION_POLICY (Escalation is based on recorded attempts, failures, complexity, and budgets.)
+- M34_CAPTAIN_ROUTE_SELECTED_WORKERS → M37_CAPTAIN_ESCALATION_POLICY (Escalation requires policy-addressable local and frontier routes.)
+- M33_CAPTAIN_DAEMON_HEARTBEAT → M38_CAPTAIN_DAEMON_HARDENING (Hardening extends the first resident heartbeat/serve cut.)
+- M37_CAPTAIN_ESCALATION_POLICY → M39_CAPTAIN_REVIEW_AND_PR_GATE (Review packages must explain local/frontier escalation and terminal state.)
+- M32_CAPTAIN_REVIEW_SURFACE → M39_CAPTAIN_REVIEW_AND_PR_GATE (The PR gate is the concrete review surface for autonomous runs.)
+- M38_CAPTAIN_DAEMON_HARDENING → M39_CAPTAIN_REVIEW_AND_PR_GATE (Fire-and-forget runs must stop cleanly at review/approval.)
 
 ## Marketing Waypoints
 Parallel track, keyed to MRC release milestones (not their own versions). None configured yet.
@@ -140,6 +172,7 @@ Parallel track, keyed to MRC release milestones (not their own versions). None c
 
 - [Captain SDLC — Seam 7: Task Identity & Commit Linking](./seam-task-identity.md)
 - [Captain SDLC — Flay: Task Execution Harness](./flay-task-harness.md)
+- [Captain SDLC - Orchestration Layer](./captain-orchestration-layer.md)
 
 ## Resolved Decisions
 
