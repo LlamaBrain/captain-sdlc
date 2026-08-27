@@ -108,6 +108,7 @@ Rules the tools and docs follow internally — extensions of the mission above:
 - `glossary.md` — shared terms across the docs set.
 
 **Cross-cutting conventions:**
+- `enforcement-contract.md` - executable verification, commit, evidence, and worktree invariants shared by Captain implementations.
 - `captain-sdlc-conventions.md` — `.captain-sdlc/` directory layout, `schema_version` policy, fenced-block convention, suppression file convention.
 - `code-reading-capability.md` — three-tier capability (grep → tree-sitter → Roslyn) shared by Seams 2, 4, 6.
 - `trace-schema.md` — pipeline trace event schema (Seam 1's planning doc).
