@@ -1,0 +1,19 @@
+{
+  "name": "captain-sdlc",
+  "version": "0.1.0",
+  "description": "Fail-closed Captain SDLC implementation lifecycle for Codex",
+  "author": {
+    "name": "LlamaBrain"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Captain SDLC",
+    "shortDescription": "Enforce governed implementation and proof.",
+    "longDescription": "Routes implementation requests through canonical worktrees, TDD red gates, atomic versioned commits, scoped smokes, builds, visual evidence, and green completion proof.",
+    "developerName": "LlamaBrain",
+    "category": "Productivity",
+    "capabilities": ["MCP tools", "skills", "lifecycle hooks"],
+    "defaultPrompt": "Implement this through the enforced Captain SDLC pipeline."
+  },
+  "mcpServers": "./.mcp.json"
+}

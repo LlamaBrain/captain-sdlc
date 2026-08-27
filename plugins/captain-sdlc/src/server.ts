@@ -1,0 +1,23 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { LifecycleStore } from "./lifecycle.js";
+import { commitAtomic, commitEvidence, ensureWorktree, gateRunner, loadPolicy, repositoryIdentity, sourceState } from "./workspace.js";
+const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.PLUGIN_DATA;
+if (!dataRoot) throw new Error("CAPTAIN_PLUGIN_DATA or PLUGIN_DATA is required");
+const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
+const server = new McpServer({ name: "captain-sdlc", version: "0.1.0" });
+const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
+const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
+server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates/owns a canonical repository worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string() } }, async (args) => guarded(async () => {
+  await store.validateIntent(args.intent_id, args.project_root); const repository = await repositoryIdentity(args.project_root); const policy = await loadPolicy(repository.projectRoot, repository.baseHead); const workspace = await ensureWorktree(repository.projectRoot, repository.baseHead, args.intent_id);
+  return store.begin({ intentId: args.intent_id, objective: args.objective, ...workspace, policy });
+}));
+server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: z.string() } }, async ({ intent_id }) => guarded(() => store.recordRed(intent_id)));
+server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: z.string(), scope: z.enum(["ticket", "feature-smoke", "affected-regression"]) } }, async ({ intent_id, scope }) => guarded(() => store.runCheck(intent_id, scope)));
+server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run.", inputSchema: { resume_intent_id: z.string() } }, async ({ resume_intent_id }) => guarded(() => store.resume(resume_intent_id)));
+server.registerTool("captain_commit", { description: "After explicit user approval, create the atomic Conventional Commit using argv execution rather than an injectable shell.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string() } }, async ({ intent_id, paths, subject }) => guarded(async () => { const run = await store.status(intent_id); await commitAtomic(run.worktreePath, paths, subject); return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead)); }));
+server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, and changelog boundary.", inputSchema: { intent_id: z.string() } }, async ({ intent_id }) => guarded(async () => { const run = await store.status(intent_id); return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead)); }));
+server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: z.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
+server.registerTool("captain_status", { description: "Return the authoritative lifecycle phase and evidence ledger.", inputSchema: { intent_id: z.string() } }, async ({ intent_id }) => guarded(() => store.status(intent_id)));
+await server.connect(new StdioServerTransport());

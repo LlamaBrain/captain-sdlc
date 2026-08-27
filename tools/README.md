@@ -1,5 +1,8 @@
 # Captain SDLC — Tools
 
+The distributable Codex integration lives at `plugins/captain-sdlc`. It combines
+an MCP lifecycle gateway, mandatory implementation skill, and fail-closed hooks.
+
 Prototype tooling for the cross-tool layer. The nerve-center repo owns these
 until that layer graduates into its own tool (see `../trace-schema.md` open
 question #1).

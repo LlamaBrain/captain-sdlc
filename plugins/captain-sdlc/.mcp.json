@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "captain-sdlc": {
+      "command": "node",
+      "args": ["-e", "import(require('node:url').pathToFileURL(require('node:path').join(process.env.PLUGIN_ROOT,'dist','server.js')).href)"]
+    }
+  }
+}

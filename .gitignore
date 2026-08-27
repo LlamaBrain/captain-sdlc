@@ -19,3 +19,6 @@ Thumbs.db
 # .NET build outputs
 bin/
 obj/
+node_modules/
+.captain-proof/
+node_modules/

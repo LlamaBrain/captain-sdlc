@@ -1,0 +1,17 @@
+{
+  "profile": "feature",
+  "profiles": ["feature", "pre-release"],
+  "visualRequired": false,
+  "commands": {
+    "build": "npm --prefix plugins/captain-sdlc run build",
+    "ticket": "npm --prefix plugins/captain-sdlc test",
+    "feature-smoke": "npm --prefix plugins/captain-sdlc run smoke",
+    "affected-regression": "npm --prefix plugins/captain-sdlc run typecheck",
+    "super-smoke": "npm --prefix plugins/captain-sdlc test && npm --prefix plugins/captain-sdlc run typecheck && npm --prefix plugins/captain-sdlc run smoke"
+  },
+  "artifactPaths": {
+    "build": "plugins/captain-sdlc/dist",
+    "smoke": "plugins/captain-sdlc/.captain-proof/smoke.json"
+  },
+  "redGate": { "expectedExitCodes": [1], "outputPattern": "(fail|failed|✖)" }
+}
