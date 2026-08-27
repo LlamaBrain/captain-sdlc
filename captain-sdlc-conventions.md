@@ -20,6 +20,9 @@ A per-project state directory at the repo root, holding Captain SDLC's persisten
 
 ```
 .captain-sdlc/
+â”œâ”€â”€ worktrees/                        # All Git worktrees owned by this repository
+â”‚   â””â”€â”€ <run-id-or-ticket>/           # One isolated checkout per governed unit of work
+â”œâ”€â”€ project-policy.json               # Commit/version/changelog enforcement contract
 ├── trace/                            # Pipeline trace events (see trace-schema.md)
 │   └── YYYY-MM-DD.jsonl              # One file per day, append-only
 ├── side-store/                       # personal/sensitive payloads (see privacy-framework.md)
@@ -36,6 +39,16 @@ A per-project state directory at the repo root, holding Captain SDLC's persisten
 
 Subdirectories and files appear only when the corresponding tool/feature is wired up. A minimal Captain SDLC project may have only `trace/` and one or two config files.
 
+### Worktree location invariant
+
+Every worktree owned by a repository lives at
+`<primary-repo>/.captain-sdlc/worktrees/<run-id-or-ticket>`. The primary repo is
+resolved from Git's absolute common directory, so invoking Captain from inside
+an existing worktree never creates a nested or sibling worktree. Absolute ad-hoc
+locations and cross-project worktree stores are invalid. Orchestrator constructs
+this path; the shell lifecycle hook rejects manual `git worktree add`/`move`
+commands whose destination escapes it.
+
 ### Git policy
 
 - **Trace and side-store: always `.gitignored`.** Local state. Cross-machine merging is a deferred concern (see `trace-schema.md`).
@@ -46,6 +59,7 @@ Recommended `.gitignore` snippet for the directory itself:
 ```
 .captain-sdlc/trace/
 .captain-sdlc/side-store/
+.captain-sdlc/worktrees/
 .captain-sdlc/flay-state.json
 ```
 
@@ -68,6 +82,7 @@ The directory and its layout are owned by this nerve-center docs set. Tools that
 
 Every machine-readable config file and structured artifact in Captain SDLC carries a top-level `schema_version` integer. This includes:
 
+- `.captain-sdlc/project-policy.json`
 - `.captain-sdlc/release-gates.yaml`
 - `.captain-sdlc/drift-suppressions.yaml`
 - `.captain-sdlc/constitution-suppressions.yaml`
