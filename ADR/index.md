@@ -20,3 +20,4 @@
 - [ADR-0018: claude-release owns the release-merge; CICD stays deferred](0018-claude-release-owns-release-merge.md)
 - [ADR-0019: ATH EXE remote-console harness — build-parity testing over a loopback socket](0019-ath-exe-remote-console-build-parity.md)
 - [ADR-0020: Substrate-fungible governed loop](0020-substrate-fungible-governed-loop.md)
+- [ADR-0021: Task capsules are the operational-memory boundary for resumable phases](0021-task-capsules-resumable-phases-operational-memory.md)

@@ -1,6 +1,6 @@
 # Captain SDLC — Conventions
-Updated: 2026-04-08
-Version: 0.1.4
+Updated: 2026-08-27
+Version: 0.1.5
 
 Created: 2026-05-28
 
@@ -35,6 +35,30 @@ A per-project state directory at the repo root, holding Captain SDLC's persisten
 ```
 
 Subdirectories and files appear only when the corresponding tool/feature is wired up. A minimal Captain SDLC project may have only `trace/` and one or two config files.
+
+### Task capsules
+
+ADR-0021 adds task-scoped operational memory under:
+
+```text
+.captain-sdlc/tasks/<sanitized-task-id>/
+  task.json
+  state.json
+  journal.md
+  checkpoint.json
+  evidence/
+  artifacts/
+```
+
+Task capsules are keyed by canonical task ID (ADR-0015), not by run, worktree, or agent session.
+They survive session changes and worktree cleanup so Stop/Resume can recover the exact phase, next
+action, blockers, decisions, and evidence. State files use atomic revisioned writes; journal entries
+append. A terminal task retains its capsule as archived operational memory for post-analysis.
+
+Active and archived capsules are `.gitignored` machine state by default because they may contain
+transient paths, provider/session IDs, and local evidence references. An explicit export may copy a
+sanitized final summary into committed project documentation; the capsule itself is not silently
+committed.
 
 ### Git policy
 
@@ -76,6 +100,9 @@ Every machine-readable config file and structured artifact in Captain SDLC carri
 - `.captain-sdlc/contracts.yaml`
 - `.captain-sdlc/privacy-config.yaml`
 - `.captain-sdlc/flay-state.json`
+- `.captain-sdlc/tasks/<task-id>/task.json`
+- `.captain-sdlc/tasks/<task-id>/state.json`
+- `.captain-sdlc/tasks/<task-id>/checkpoint.json`
 - Trace event envelope (each event carries it inline)
 - Gate verdict shape
 - Drift report shape
