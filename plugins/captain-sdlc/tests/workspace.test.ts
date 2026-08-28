@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, rename, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { abortMerge, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, reconcilePreparedMerge, repositoryIdentity, sourceState } from "../src/workspace.js";
+import { abortMerge, applyPreparedCommit, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState } from "../src/workspace.js";
 const exec = promisify(execFile);
 const runGit = (root: string, ...args: string[]) => exec("git", args, { cwd: root });
 async function repo() { const root = await mkdtemp(path.join(tmpdir(), "captain-workspace-")); await exec("git", ["init"], { cwd: root }); await exec("git", ["config", "user.name", "Captain Test"], { cwd: root }); await exec("git", ["config", "user.email", "captain@example.invalid"], { cwd: root }); await mkdir(path.join(root, ".captain-sdlc")); await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ profile: "feature", visualRequired: false, commands: { build: "build", ticket: "trusted", "feature-smoke": "smoke", "affected-regression": "affected" } })); await exec("git", ["add", "."], { cwd: root }); await exec("git", ["commit", "-m", "baseline"], { cwd: root }); return root; }
@@ -39,6 +39,49 @@ async function governedRepo() {
 test("trusted policy comes from captured base, not dirty working tree", async () => {
   const root = await repo(), identity = await repositoryIdentity(root); await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ commands: { ticket: "exit 0" } }));
   const policy = await loadPolicy(root, identity.baseHead); assert.equal(policy.commands.ticket, "trusted");
+});
+
+test("Git children ignore repository and configuration redirection environment", async () => {
+  const root = await repo(), hostile = await repo(), expectedHead = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  const previous = new Map<string, string | undefined>();
+  for (const [name, value] of Object.entries({ GIT_DIR: path.join(hostile, ".git"), GIT_WORK_TREE: hostile, GIT_INDEX_FILE: path.join(hostile, ".git", "index"), GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath", GIT_CONFIG_VALUE_0: hostile })) { previous.set(name, process.env[name]); process.env[name] = value; }
+  try { const identity = await repositoryIdentity(root); assert.equal(identity.projectRoot, path.resolve(root)); assert.equal(identity.baseHead, expectedHead); }
+  finally { for (const [name, value] of previous) if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+});
+
+test("commit preflight rejects command-bearing clean-filter attributes before git add", async () => {
+  const root = await governedRepo();
+  await writeFile(path.join(root, ".gitattributes"), "*.txt filter=hostile\n"); await runGit(root, "add", ".gitattributes"); await runGit(root, "commit", "-m", "add hostile filter fixture");
+  await runGit(root, "config", "filter.hostile.clean", "false"); await writeFile(path.join(root, "safe.txt"), "safe\n");
+  await assert.rejects(() => commitAtomic(root, ["safe.txt"], "fix(policy): reject filters (v1.0.1)"), /clean filters/);
+  assert.equal((await runGit(root, "diff", "--cached", "--name-only")).stdout.trim(), "");
+});
+
+test("Git children ignore GIT_ATTR_SOURCE attribute redirection", async () => {
+  const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
+  await runGit(root, "switch", "-c", "hostile-attribute-source"); await writeFile(path.join(root, ".gitattributes"), "*.txt filter=hostile\n"); await runGit(root, "add", ".gitattributes"); await runGit(root, "commit", "-m", "hostile attribute source");
+  const hostileSource = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(); await runGit(root, "switch", primary); await runGit(root, "config", "filter.hostile.clean", "false");
+  await writeFile(path.join(root, "safe.txt"), "safe\n"); await writeFile(path.join(root, "VERSION"), "1.0.1\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Ignore redirected attributes (v1.0.1)\n");
+  const previous = process.env.GIT_ATTR_SOURCE; process.env.GIT_ATTR_SOURCE = hostileSource;
+  try { await commitAtomic(root, ["safe.txt", "VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): ignore redirected attributes (v1.0.1)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy); }
+  finally { if (previous === undefined) delete process.env.GIT_ATTR_SOURCE; else process.env.GIT_ATTR_SOURCE = previous; }
+});
+
+test("commit preflight rejects common-info and ignored worktree attribute bypasses", async () => {
+  const root = await governedRepo(), infoAttributes = path.resolve(root, (await runGit(root, "rev-parse", "--git-path", "info/attributes")).stdout.trim());
+  await mkdir(path.dirname(infoAttributes), { recursive: true }); await writeFile(infoAttributes, "*.txt filter=hostile\n"); await runGit(root, "config", "filter.hostile.clean", "false"); await runGit(root, "config", "filter.hostile.required", "true"); await writeFile(path.join(root, "safe.txt"), "safe\n");
+  await assert.rejects(() => commitAtomic(root, ["safe.txt"], "fix(policy): reject info attributes (v1.0.1)"), /Git metadata attributes/);
+  await unlink(infoAttributes); await mkdir(path.join(root, "nested")); await writeFile(path.join(root, ".gitignore"), "nested/.gitattributes\n"); await writeFile(path.join(root, "nested", ".gitattributes"), "*.txt filter=hostile\n"); await writeFile(path.join(root, "nested", "safe.txt"), "safe\n");
+  await assert.rejects(() => commitAtomic(root, ["nested/safe.txt"], "fix(policy): reject ignored attributes (v1.0.1)"), /Git attributes/);
+  assert.equal((await runGit(root, "diff", "--cached", "--name-only")).stdout.trim(), "");
+});
+
+test("merge preparation rejects command-bearing merge-driver attributes before git merge", async () => {
+  const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
+  await runGit(root, "switch", "-c", "hostile-topic"); await writeFile(path.join(root, ".gitattributes"), "*.txt merge=hostile\n"); await writeFile(path.join(root, "topic.txt"), "topic\n"); await runGit(root, "add", "."); await runGit(root, "commit", "-m", "hostile merge fixture");
+  const target = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(); await runGit(root, "switch", primary); await runGit(root, "config", "merge.hostile.driver", "false");
+  await assert.rejects(() => prepareMerge(root, target), /merge drivers/);
+  await assert.rejects(() => runGit(root, "rev-parse", "--verify", "MERGE_HEAD"));
 });
 
 test("legacy default commit policy remains usable without an external project policy", async () => {
@@ -79,7 +122,7 @@ test("trusted repository policy rejects unknown schemas, unsafe regexes, and sou
   await writeFile(path.join(root, ".captain-sdlc", "project-policy.json"), JSON.stringify({ schema_version: 1, commit: repositoryCommitPolicy }));
   await mkdir(path.join(root, "src")); await writeFile(path.join(root, "src", "owned.ts"), "source\n"); await runGit(root, "add", "."); await runGit(root, "commit", "-m", "add unsafe exclusion fixture");
   head = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
-  await assert.rejects(() => loadPolicy(root, head), /generated-output root/);
+  await assert.rejects(() => loadPolicy(root, head), /generated-output/);
 });
 
 test("commit evidence validates first-parent integration commits and grandfathers imported side history", async () => {
@@ -118,6 +161,89 @@ test("source manifest excludes only trusted generated-output roots", async () =>
   assert.notEqual((await sourceState(root, policy)).manifest, before.manifest);
 });
 
+test("trusted source manifest policy excludes approved Unity outputs but still binds ignored inputs", async () => {
+  const root = await repo();
+  await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({
+    profile: "feature",
+    visualRequired: false,
+    sourceManifestExcludes: ["UserSettings", "dirigibles", "doxygen/dirigibles", "doxygen/doxygen_warnings.log", "Assets/packages-merged-link", "Assets/packages-merged-link.meta", "Assets/_Dirigible/Temp", "Assets/_Dirigible/Temp.meta"],
+    sourceManifestRootFileExcludes: ["*.csproj", "*.sln", "*.DotSettings", "doxygen_warnings.log"],
+    commands: { build: "build", ticket: "trusted", "feature-smoke": "smoke", "affected-regression": "affected" },
+  }));
+  await runGit(root, "add", ".captain-sdlc/codex-policy.json"); await runGit(root, "commit", "-m", "add Unity proof policy");
+  const head = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(), policy = await loadPolicy(root, head);
+  await mkdir(path.join(root, "UserSettings")); await writeFile(path.join(root, "UserSettings", "EditorUserSettings.asset"), "first");
+  await mkdir(path.join(root, "doxygen", "dirigibles"), { recursive: true }); await writeFile(path.join(root, "doxygen", "dirigibles", "index.html"), "first"); await writeFile(path.join(root, "doxygen", "doxygen_warnings.log"), "first");
+  await mkdir(path.join(root, "Assets", "packages-merged-link"), { recursive: true }); await writeFile(path.join(root, "Assets", "packages-merged-link", "link.xml"), "first");
+  await writeFile(path.join(root, "Assembly-CSharp.csproj"), "first"); await writeFile(path.join(root, "project.sln"), "first"); await writeFile(path.join(root, "project.csproj.DotSettings"), "first");
+  await mkdir(path.join(root, "IgnoredDependency")); await writeFile(path.join(root, "IgnoredDependency", "input.dll"), "first");
+  const before = await sourceState(root, policy);
+  await writeFile(path.join(root, "UserSettings", "EditorUserSettings.asset"), "second"); await writeFile(path.join(root, "doxygen", "dirigibles", "index.html"), "second"); await writeFile(path.join(root, "doxygen", "doxygen_warnings.log"), "second"); await writeFile(path.join(root, "Assets", "packages-merged-link", "link.xml"), "second"); await writeFile(path.join(root, "Assembly-CSharp.csproj"), "second");
+  assert.equal((await sourceState(root, policy)).manifest, before.manifest);
+  await writeFile(path.join(root, "IgnoredDependency", "input.dll"), "second");
+  assert.notEqual((await sourceState(root, policy)).manifest, before.manifest);
+});
+
+test("trusted source manifest policy rejects arbitrary output paths and root patterns", async () => {
+  const root = await repo();
+  const writePolicy = async (sourceManifestExcludes: string[], sourceManifestRootFileExcludes: string[]) => {
+    await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ profile: "feature", visualRequired: false, sourceManifestExcludes, sourceManifestRootFileExcludes, commands: { build: "build", ticket: "trusted", "feature-smoke": "smoke", "affected-regression": "affected" } }));
+    await runGit(root, "add", ".captain-sdlc/codex-policy.json"); await runGit(root, "commit", "-m", "replace source policy");
+    return (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  };
+  let head = await writePolicy(["Assets"], []); await assert.rejects(() => loadPolicy(root, head), /approved generated-output/);
+  head = await writePolicy([], ["*.txt"]); await assert.rejects(() => loadPolicy(root, head), /approved generated root-file pattern/);
+  await writeFile(path.join(root, "owned.csproj"), "tracked"); await runGit(root, "add", "-f", "owned.csproj"); await runGit(root, "commit", "-m", "add tracked generated-looking source");
+  head = await writePolicy([], ["*.csproj"]); await assert.rejects(() => loadPolicy(root, head), /tracked base file/);
+});
+
+test("generated path exclusions reject case-variant tracked base content", async () => {
+  const root = await repo(); await mkdir(path.join(root, "UserSettings")); await writeFile(path.join(root, "UserSettings", "Owned.asset"), "tracked"); await runGit(root, "add", "-f", "UserSettings/Owned.asset");
+  await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ profile: "feature", visualRequired: false, sourceManifestExcludes: ["usersettings"], commands: { build: "build", ticket: "trusted", "feature-smoke": "smoke", "affected-regression": "affected" } }));
+  await runGit(root, "add", ".captain-sdlc/codex-policy.json"); await runGit(root, "commit", "-m", "case variant fixture"); const head = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  await assert.rejects(() => loadPolicy(root, head), /tracked base files/);
+});
+
+test("target branch support adopts only a clean canonical existing worktree", async () => {
+  const root = await repo(), base = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  await runGit(root, "branch", "colony/spike", base);
+  const target = path.join(root, ".captain-sdlc", "worktrees", "colony-spike"); await mkdir(path.dirname(target), { recursive: true });
+  await runGit(root, "worktree", "add", target, "colony/spike");
+  const identity = await repositoryIdentity(root, "colony/spike", base); assert.equal(identity.baseHead, base);
+  const adopted = await ensureWorktree(root, identity.baseHead, "intent-x", "colony/spike");
+  assert.equal(path.resolve(adopted.worktreePath), path.resolve(target)); assert.equal(adopted.baseHead, base); assert.equal(adopted.branch, "colony/spike"); assert.match(adopted.gitDir, /worktrees/i);
+  await writeFile(path.join(target, "dirty.txt"), "dirty");
+  await assert.rejects(() => ensureWorktree(root, identity.baseHead, "intent-y", "colony/spike"), /clean/);
+});
+
+test("target branch support rejects unsafe names and noncanonical checked-out worktrees", async () => {
+  const root = await repo(), base = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  await assert.rejects(() => repositoryIdentity(root, "../colony", base), /target branch/);
+  await runGit(root, "branch", "colony/spike", base);
+  const outside = await mkdtemp(path.join(tmpdir(), "captain-outside-worktree-"));
+  await runGit(root, "worktree", "add", outside, "colony/spike");
+  await assert.rejects(() => ensureWorktree(root, base, "intent-x", "colony/spike"), /canonical worktree container/);
+});
+
+test("commit rejects a moved governed HEAD before staging selected paths", async () => {
+  const root = await governedRepo(), binding = await sourceState(root), expectedHead = binding.head;
+  await writeFile(path.join(root, "attacker.txt"), "advance\n"); await runGit(root, "add", "attacker.txt"); await runGit(root, "commit", "-m", "advance outside Captain");
+  await writeFile(path.join(root, "VERSION"), "1.0.1\n");
+  await assert.rejects(() => commitAtomic(root, ["VERSION"], "fix(policy): guarded commit (v1.0.1)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy, [], binding.branch, binding.commonGitDir, expectedHead, binding.gitDir), /binding/);
+  assert.equal((await runGit(root, "diff", "--cached", "--name-only")).stdout.trim(), "");
+  assert.notEqual((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), expectedHead);
+});
+
+test("merge rejects a moved governed HEAD before creating merge state", async () => {
+  const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
+  await runGit(root, "switch", "-c", "topic"); await writeFile(path.join(root, "topic.txt"), "topic\n"); await runGit(root, "add", "topic.txt"); await runGit(root, "commit", "-m", "topic");
+  const topic = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(); await runGit(root, "switch", primary);
+  const binding = await sourceState(root), expectedHead = binding.head;
+  await writeFile(path.join(root, "attacker.txt"), "advance\n"); await runGit(root, "add", "attacker.txt"); await runGit(root, "commit", "-m", "advance outside Captain");
+  await assert.rejects(() => prepareMerge(root, topic, "ort", undefined, undefined, binding.branch, binding.commonGitDir, expectedHead, binding.gitDir), /binding/);
+  await assert.rejects(() => runGit(root, "rev-parse", "--verify", "MERGE_HEAD"));
+});
+
 test("merge preparation pins a full commit oid and leaves an auditable no-commit merge", async () => {
   const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
   await runGit(root, "switch", "-c", "topic"); await writeFile(path.join(root, "topic.txt"), "topic\n"); await runGit(root, "add", "topic.txt"); await runGit(root, "commit", "-m", "legacy topic");
@@ -154,6 +280,22 @@ test("conflicted merge preparation verifies and can abort only the pinned merge 
   assert.equal((await runGit(root, "status", "--porcelain")).stdout.trim(), "");
 });
 
+test("failed merge cleanup retains signed authorization for explicit recovery", async () => {
+  const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
+  await runGit(root, "switch", "-c", "cleanup-topic"); await writeFile(path.join(root, "blocking.txt"), "topic\n"); await runGit(root, "add", "blocking.txt"); await runGit(root, "commit", "-m", "topic update"); const topic = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(); await runGit(root, "switch", primary);
+  let authorized = false, revoked = false;
+  await assert.rejects(() => prepareMerge(root, topic, "ort", async () => { authorized = true; await writeFile(path.join(root, "blocking.txt"), "local interruption\n"); }, async () => { revoked = true; }), /authorization was retained/);
+  assert.equal(authorized, true); assert.equal(revoked, false); assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), (await runGit(root, "rev-parse", primary)).stdout.trim());
+});
+
+test("merge cleanup retains authorization unless abort restores a clean pre-merge state", async () => {
+  const root = await governedRepo(), primary = (await runGit(root, "branch", "--show-current")).stdout.trim();
+  await runGit(root, "switch", "-c", "abort-cleanup-topic"); await writeFile(path.join(root, "topic.txt"), "topic\n"); await runGit(root, "add", "topic.txt"); await runGit(root, "commit", "-m", "topic update"); const topic = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(); await runGit(root, "switch", primary);
+  let revoked = false;
+  await assert.rejects(() => prepareMerge(root, topic, "ort", async () => {}, async () => { revoked = true; }, undefined, undefined, undefined, undefined, async () => { await writeFile(path.join(root, "abort-leftover.tmp"), "leftover\n"); throw new Error("interrupt after merge"); }), /authorization was retained/);
+  assert.equal(revoked, false); assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), (await runGit(root, "rev-parse", primary)).stdout.trim());
+});
+
 test("stale signed merge authorization can reconcile only a clean unchanged pre-merge state", async () => {
   const root = await governedRepo(), preMergeHead = (await runGit(root, "rev-parse", "HEAD")).stdout.trim(), prepared = { preMergeHead, targetOid: "d".repeat(40), strategy: "ort" as const };
   await reconcilePreparedMerge(root, prepared);
@@ -161,8 +303,8 @@ test("stale signed merge authorization can reconcile only a clean unchanged pre-
 });
 
 test("Captain commits ignore repository hooks and scrub authority paths", async () => {
-  const root = await governedRepo(), hooks = path.join(root, "hostile-hooks"), sentinel = path.join(root, "leaked-authority.txt");
-  await mkdir(hooks); const hook = path.join(hooks, "pre-commit");
+  const root = await governedRepo(), hooks = await mkdtemp(path.join(tmpdir(), "captain-hostile-hooks-")), sentinel = path.join(root, "leaked-authority.txt");
+  const hook = path.join(hooks, "pre-commit");
   await writeFile(hook, `#!/bin/sh\nprintf '%s' "$CAPTAIN_PLUGIN_DATA" > "${sentinel.replaceAll("\\", "/")}"\nexit 1\n`); await chmod(hook, 0o755);
   await runGit(root, "config", "core.hooksPath", hooks);
   await writeFile(path.join(root, "safe.txt"), "safe\n"); await writeFile(path.join(root, "VERSION"), "1.0.1\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Isolate Git children (v1.0.1)\n");
@@ -177,6 +319,32 @@ test("Captain preflights semantic commit policy before moving HEAD", async () =>
   await writeFile(path.join(root, "VERSION"), "1.1.0\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.1.0\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.1.0\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Wrong fix bump (v1.1.0)\n");
   await assert.rejects(() => commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): wrong bump (v1.1.0)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy), /preflight/);
   assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), head);
+});
+
+test("a post-CAS failure retains signed candidate evidence and reconciles after restart", async () => {
+  const root = await governedRepo(), state = await sourceState(root), dirty = path.join(root, "post-cas.tmp"); let prepared: any, revoked = false;
+  await writeFile(path.join(root, "VERSION"), "1.0.1\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Recover commit (v1.0.1)\n");
+  await assert.rejects(() => commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): recover commit (v1.0.1)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy, [], state.branch, state.commonGitDir, state.head, state.gitDir, async value => { prepared = value; }, async () => { revoked = true; }, async () => { await writeFile(dirty, "interrupt\n"); }), /diverged/);
+  assert.equal(revoked, false); assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), prepared.candidate);
+  await unlink(dirty); await reconcilePreparedCommit(root, prepared, state.branch!, state.commonGitDir!, state.gitDir!);
+  assert.equal((await commitEvidence(root, state.head, await loadPolicy(root, state.head), "COLONY-SPIKE")).phaseCommitsValid, true);
+});
+
+test("prepared pre-HEAD recovery applies only the already signed candidate object", async () => {
+  const root = await governedRepo(), state = await sourceState(root); let prepared: any, validations = 0;
+  await writeFile(path.join(root, "VERSION"), "1.0.1\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Apply signed candidate (v1.0.1)\n");
+  await assert.rejects(() => commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): apply signed candidate (v1.0.1)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy, [], state.branch, state.commonGitDir, state.head, state.gitDir, async value => { prepared = value; }, undefined, undefined, async () => { throw new Error("pause signed candidate before CAS"); }), /pause signed candidate/);
+  assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), state.head); await applyPreparedCommit(root, prepared, state.branch!, state.commonGitDir!, state.gitDir!, async value => { validations++; assert.deepEqual(value, prepared); });
+  assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), prepared.candidate); assert.equal((await runGit(root, "status", "--porcelain")).stdout.trim(), ""); assert.equal(validations, 1);
+});
+
+test("prepared commit authorization is retained when post-failure HEAD cannot be proven", async () => {
+  const root = await governedRepo(), hiddenGit = path.join(root, ".git-hidden"); let revoked = false;
+  await writeFile(path.join(root, "VERSION"), "1.0.1\n"); await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n"); await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n"); await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Retain unknown commit state (v1.0.1)\n");
+  try {
+    await assert.rejects(() => commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): retain unknown commit state (v1.0.1)", "Implements", "COLONY-SPIKE", repositoryCommitPolicy, [], undefined, undefined, undefined, undefined, async () => {}, async () => { revoked = true; }, async () => { await rename(path.join(root, ".git"), hiddenGit); throw new Error("interrupt with unavailable Git metadata"); }), /interrupt/);
+  } finally { if (await access(hiddenGit).then(() => true, () => false)) await rename(hiddenGit, path.join(root, ".git")); }
+  assert.equal(revoked, false);
 });
 
 test("Captain rejects multiline commit subjects before moving HEAD", async () => {

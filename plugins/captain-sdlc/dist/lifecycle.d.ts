@@ -1,4 +1,4 @@
-import type { PreparedMerge } from "./workspace.js";
+import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 export type Profile = "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
@@ -11,6 +11,11 @@ export type SourceState = {
     tree: string;
     status: string;
     manifest?: string;
+    branch?: string;
+    branchHead?: string;
+    commonGitDir?: string;
+    topLevel?: string;
+    gitDir?: string;
 };
 export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
 export type CommitPolicy = {
@@ -38,6 +43,7 @@ export type ProjectPolicy = {
     commitPolicySha256?: string;
     commit?: CommitPolicy;
     sourceManifestExcludes?: string[];
+    sourceManifestRootFileExcludes?: string[];
 };
 export type Intent = {
     intentId: string;
@@ -49,10 +55,102 @@ export type Intent = {
     capability?: string;
     consumed?: boolean;
     resumeOf?: string;
+    targetBranch?: string;
+    targetOid?: string;
+};
+export type BeginOperation = {
+    schemaVersion: 1;
+    intentId: string;
+    operationToken: string;
+    leaseToken: string;
+    runId: string;
+    startedAt: string;
+    sessionId: string;
+    turnId: string;
+    projectRoot: string;
+    objective: string;
+    taskId?: string;
+    targetBranch?: string;
+    targetOid?: string;
+};
+export type BeginRepository = {
+    schemaVersion: 1;
+    operationToken: string;
+    projectRoot: string;
+    baseHead: string;
+    commonGitDir: string;
+    policySha256: string;
+};
+export type BeginLease = {
+    schemaVersion: 1;
+    operationToken: string;
+    leaseId?: string;
+    leaseToken?: string;
+    commonGitDir?: string;
+    targetBranch?: string;
+    targetOid?: string;
+};
+export type BeginWorkspace = {
+    schemaVersion: 1;
+    operationToken: string;
+    projectRoot: string;
+    worktreePath: string;
+    baseHead: string;
+    branch: string;
+    commonGitDir: string;
+    gitDir: string;
+    targetBranch?: string;
+};
+export type ResumeOperation = {
+    schemaVersion: 1;
+    resumeIntentId: string;
+    operationToken: string;
+    intentId: string;
+    runId: string;
+    sessionId: string;
+    turnId: string;
+};
+export type CommitOperationRequest = {
+    paths: string[];
+    subject: string;
+    taskOutcome?: "Implements" | "Completes" | "Needs-QA";
+    final: boolean;
+};
+export type CommitOperation = {
+    leaseId: string;
+    leaseToken: string;
+    requestSha256: string;
+    stage: "reserved" | "authorized" | "prepared";
+};
+export type WorktreeMutationOperation = {
+    leaseId: string;
+    leaseToken: string;
+    kind: "commit" | "merge" | "abort" | "recovery";
+    requestSha256: string;
+    stage: "reserved" | "authorized";
+};
+export type PreparedCommit = PreparedCommitCore & {
+    paths: string[];
+    subject: string;
+    taskOutcome?: "Implements" | "Completes" | "Needs-QA";
+    final: boolean;
+};
+export type TerminalCommit = {
+    requestSha256: string;
+    commitLeaseId: string;
+    commitLeaseToken: string;
+    mutationOperation?: WorktreeMutationOperation;
+    candidate: string;
+    outcome: "committed";
+    final: boolean;
+    commit: CommitEvidence;
 };
 export type Run = {
     schemaVersion: 1;
+    revision: number;
+    previousRevisionSha256?: string;
     runId: string;
+    operationToken: string;
     intentId: string;
     sessionId: string;
     turnId: string;
@@ -61,6 +159,14 @@ export type Run = {
     projectRoot: string;
     worktreePath: string;
     baseHead: string;
+    branch: string;
+    targetBranch?: string;
+    commonGitDir: string;
+    gitDir: string;
+    leaseId?: string;
+    leaseToken?: string;
+    sessionLeaseId?: string;
+    sessionLeaseToken?: string;
     profile: Profile;
     visualRequired: boolean;
     startedAt: string;
@@ -68,10 +174,14 @@ export type Run = {
     status: "running" | "green" | "red";
     policy: ProjectPolicy;
     preparedMerges?: PreparedMerge[];
+    mutationOperation?: WorktreeMutationOperation;
+    commitOperation?: CommitOperation;
+    preparedCommit?: PreparedCommit;
+    terminalCommit?: TerminalCommit;
     committedState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
-export type BeginInput = Omit<Run, "schemaVersion" | "runId" | "sessionId" | "turnId" | "startedAt" | "phase" | "status" | "committedState" | "evidence" | "profile" | "visualRequired">;
+export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "mutationOperation" | "commitOperation" | "evidence" | "profile" | "visualRequired">;
 export type CommitEvidence = {
     head: string;
     tree?: string;
@@ -84,30 +194,101 @@ export type CommitEvidence = {
     versionSurfacesValid?: boolean;
     preparedMergesValid?: boolean;
     phaseCommitsValid?: boolean;
+    previousPhaseHead?: string;
+    previousPhaseRetained?: boolean;
+};
+export type LifecycleHooks = {
+    afterTerminalCommit?: (run: Run) => Promise<void>;
+    afterRunCompleted?: (run: Run) => Promise<void>;
+    afterResumeReserved?: (operation: ResumeOperation) => Promise<void>;
+    afterRunRevision?: (run: Run) => Promise<void>;
 };
 export declare class LifecycleStore {
     private readonly dataRoot;
     private readonly runner;
     private readonly probe?;
-    constructor(dataRoot: string, runner: GateRunner, probe?: StateProbe | undefined);
+    private readonly hooks?;
+    constructor(dataRoot: string, runner: GateRunner, probe?: StateProbe | undefined, hooks?: LifecycleHooks | undefined);
     markIntent(intent: Intent): Promise<void>;
     validateIntent(intentId: string, projectRoot: string): Promise<Intent>;
+    beginOperationFor(intentId: string): Promise<BeginOperation>;
+    activatedBeginRun(operation: BeginOperation): Promise<Run | undefined>;
+    reserveBegin(input: {
+        intentId: string;
+        objective: string;
+        projectRoot: string;
+        taskId?: string;
+        leaseToken?: string;
+    }): Promise<BeginOperation>;
+    checkpointBeginRepository(operation: BeginOperation, repository: {
+        projectRoot: string;
+        baseHead: string;
+        commonGitDir: string;
+    }, policy: ProjectPolicy): Promise<BeginRepository>;
+    ensureBeginTargetLease(operation: BeginOperation, repository: BeginRepository): Promise<{
+        leaseId: string;
+        leaseToken: string;
+    } | undefined>;
+    checkpointBeginLease(operation: BeginOperation, repository: BeginRepository, lease?: {
+        leaseId: string;
+        leaseToken: string;
+    }): Promise<BeginLease>;
+    checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken">): Promise<BeginWorkspace>;
+    checkpointBeginRun(operation: BeginOperation, policy: ProjectPolicy): Promise<Run>;
+    checkpointBeginPermit(operation: BeginOperation, run: Run): Promise<ReturnType<LifecycleStore["permit"]>>;
+    checkpointBeginActive(operation: BeginOperation): Promise<{
+        intentId: string;
+        operationToken: string;
+    }>;
+    checkpointBeginActivated(operation: BeginOperation): Promise<Run>;
     begin(input: BeginInput): Promise<Run>;
     resume(resumeIntentId: string): Promise<Run>;
     recordRed(intentId: string, command?: string): Promise<Run>;
     recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
-    recordCommit(intentId: string, commit: CommitEvidence): Promise<Run>;
+    acquireWorktreeMutation(intentId: string, kind: WorktreeMutationOperation["kind"], request: unknown): Promise<WorktreeMutationOperation>;
+    takeOverPreparedMergeForAbort(intentId: string, prepared: PreparedMerge, pinnedMergeStarted?: boolean): Promise<WorktreeMutationOperation>;
+    assertWorktreeMutation(intentId: string, operation: WorktreeMutationOperation): Promise<void>;
+    releaseWorktreeMutation(intentId: string, operation: WorktreeMutationOperation): Promise<Run>;
+    assertPreparedMergeAuthority(intentId: string, prepared: PreparedMerge, operation: WorktreeMutationOperation, expectedKind?: "merge" | "abort"): Promise<void>;
+    acquireCommitOperation(intentId: string, request: CommitOperationRequest): Promise<CommitOperation>;
+    reserveCommitOperation(intentId: string, request: CommitOperationRequest): Promise<CommitOperation>;
+    commitOperationFor(intentId: string, request: CommitOperationRequest): Promise<CommitOperation>;
+    assertPreparedCommitAuthority(intentId: string, prepared: PreparedCommitCore, operation: CommitOperation): Promise<void>;
+    discardCommitOperation(intentId: string, operation: CommitOperation): Promise<Run>;
+    recordPreparedCommit(intentId: string, prepared: PreparedCommit, operation: CommitOperation): Promise<Run>;
+    discardPreparedCommit(intentId: string, candidate: string): Promise<Run>;
+    recordCommit(intentId: string, commit: CommitEvidence, final?: boolean): Promise<Run>;
+    completedCommitFor(intentId: string, request: CommitOperationRequest): Promise<Run | undefined>;
+    finishTerminalCommit(intentId: string, requestSha256: string): Promise<Run>;
     runCheck(intentId: string, scope: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
     private proveAttempt;
     status(intentId: string): Promise<Run>;
+    acquireTargetLease(intentId: string, commonGitDir: string, targetBranch: string, targetOid: string): Promise<{
+        leaseId: string;
+        leaseToken: `${string}-${string}-${string}-${string}-${string}`;
+    }>;
+    releaseTargetLease(leaseId: string, intentId: string, leaseToken: string): Promise<void>;
     permitFor(sessionId: string, turnId: string): Promise<ReturnType<LifecycleStore["permit"]> | null>;
     private permit;
     private phase;
     private run;
     private update;
+    private writeRunWatermark;
+    private reconcileRunProjections;
+    private assertStableRun;
+    private project;
+    private assertBeginOperation;
+    private assertBeginReservation;
+    private authorizeCommitOperation;
     private assertCommitted;
+    private assertCommitOperation;
+    private assertSessionLease;
+    private finalizeCompletion;
+    private releaseCompletedLease;
+    private expectedHead;
+    private assertWorktreeBinding;
     private load;
     private save;
 }

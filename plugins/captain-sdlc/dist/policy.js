@@ -17,8 +17,10 @@ export function mutationDecision(input) {
     if (governed) {
         if (!input.intentId || input.intentId !== input.permit.intentId)
             return deny("governed tool intent does not match the active permit");
-        const expected = { record_red: "tdd_red", run_check: "implement", prepare_merge: "implement", abort_merge: "implement", commit: "implement", record_commit: "implement", prove: "prove" };
-        return input.permit.phase === expected[governed[1].toLowerCase()] ? { allow: true } : deny(`${governed[1]} is closed during ${input.permit.phase}`);
+        const operation = governed[1].toLowerCase(), expected = { record_red: "tdd_red", run_check: "implement", prepare_merge: "implement", abort_merge: "implement", commit: "implement", record_commit: "implement", prove: "prove" };
+        if (operation === "commit" && input.permit.phase === "prove")
+            return { allow: true };
+        return input.permit.phase === expected[operation] ? { allow: true } : deny(`${governed[1]} is closed during ${input.permit.phase}`);
     }
     const owned = path.resolve(input.permit.worktreePath);
     if (/^(apply_patch|Edit|Write)$/i.test(input.toolName)) {
@@ -27,6 +29,8 @@ export function mutationDecision(input) {
             return deny("mutation target could not be proven");
         if (targets.some(target => !inside(owned, target)))
             return deny(`mutation target escapes owned worktree ${owned}`);
+        if (targets.some(target => path.relative(owned, path.resolve(target)).replaceAll("\\", "/").split("/").some(segment => segment.toLowerCase() === ".git")))
+            return deny("Git metadata cannot be mutated through repository editing tools");
         if (input.permit.phase === "tdd_red" && targets.some(target => !isTestPath(path.relative(owned, path.resolve(target)))))
             return deny("before the red gate, only test/spec files may change");
         if (input.permit.phase !== "tdd_red" && input.permit.phase !== "implement")

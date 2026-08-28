@@ -17,6 +17,11 @@ test("read-only tools remain available before Captain begins", () => {
   assert.equal(mutationDecision({ toolName: "view_image", cwd: "C:/repo", sessionId: "s", permit: null }).allow, true);
 });
 
+test("denies direct or nested Git metadata mutation paths", () => {
+  const worktreePath = "C:/repo/.captain-sdlc/worktrees/x", permit = { sessionId: "s", worktreePath, phase: "implement" };
+  for (const target of [`${worktreePath}/.git`, `${worktreePath}/.git/config`, `${worktreePath}/src/.git/hooks/x`]) assert.equal(mutationDecision({ toolName: "apply_patch", cwd: worktreePath, sessionId: "s", permit, command: `*** Update File: ${target}` }).allow, false, target);
+});
+
 test("audited merge preparation is allowed only for an owned implementation permit", () => {
   const toolName = "mcp__captain-sdlc__captain_prepare_merge", worktreePath = "C:/repo/.captain-sdlc/worktrees/x";
   assert.equal(mutationDecision({ toolName, cwd: worktreePath, sessionId: "s", permit: null }).allow, false);
@@ -30,6 +35,13 @@ test("governed MCP mutations cannot target a different signed run", () => {
   for (const toolName of ["mcp__captain-sdlc__captain_record_red", "mcp__captain-sdlc__captain_run_check", "mcp__captain-sdlc__captain_prepare_merge", "mcp__captain-sdlc__captain_abort_merge", "mcp__captain-sdlc__captain_commit", "mcp__captain-sdlc__captain_record_commit", "mcp__captain-sdlc__captain_prove"]) {
     assert.equal(mutationDecision({ toolName, cwd: worktreePath, sessionId: "s", intentId: "other", permit }).allow, false, toolName);
   }
+});
+
+test("final commit recovery can enter during prove while other commit requests remain server-gated", () => {
+  const worktreePath = "C:/repo/.captain-sdlc/worktrees/x", permit = { sessionId: "s", worktreePath, phase: "prove", intentId: "owned" };
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_commit", cwd: worktreePath, sessionId: "s", intentId: "owned", permit }).allow, true);
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_commit", cwd: worktreePath, sessionId: "s", intentId: "other", permit }).allow, false);
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_prepare_merge", cwd: worktreePath, sessionId: "s", intentId: "owned", permit }).allow, false);
 });
 
 test("denies production edits before red, unknown tools, and multiline shell bypasses", () => {
