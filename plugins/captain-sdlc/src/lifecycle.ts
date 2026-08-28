@@ -2,16 +2,19 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { readAuthorized, writeAuthorized } from "./authority.js";
+import type { PreparedMerge } from "./workspace.js";
+import { compileSafeRegex, subjectVersion } from "./validation.js";
 export type Profile = "feature" | "pre-release";
 export type GateResult = { exitCode: number; stdout: string; stderr: string };
 export type GateRunner = (command: string, cwd: string) => Promise<GateResult>;
 export type SourceState = { head: string; tree: string; status: string; manifest?: string };
-export type StateProbe = (cwd: string) => Promise<SourceState>;
-export type ProjectPolicy = { profile: Profile; profiles?: Profile[]; visualRequired: boolean; commands: Record<string, string>; artifactPaths?: Record<string, string>; redGate?: { expectedExitCodes: number[]; outputPattern: string } };
+export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
+export type CommitPolicy = { conventional?: boolean; require_version_suffix?: boolean; require_task_trailer?: boolean; version_file: string; version_surfaces?: Array<{ path: string; pattern: string }>; changelog_files: string[] };
+export type ProjectPolicy = { profile: Profile; profiles?: Profile[]; visualRequired: boolean; commands: Record<string, string>; artifactPaths?: Record<string, string>; redGate?: { expectedExitCodes: number[]; outputPattern: string }; commitPolicyPath?: string; commitPolicySha256?: string; commit?: CommitPolicy; sourceManifestExcludes?: string[] };
 export type Intent = { intentId: string; sessionId: string; turnId: string; projectRoot: string; prompt: string; requestedProfile?: Profile; capability?: string; consumed?: boolean; resumeOf?: string };
-export type Run = { schemaVersion: 1; runId: string; intentId: string; sessionId: string; turnId: string; objective: string; projectRoot: string; worktreePath: string; baseHead: string; profile: Profile; visualRequired: boolean; startedAt: string; phase: "tdd_red" | "implement" | "prove" | "complete"; status: "running" | "green" | "red"; policy: ProjectPolicy; committedState?: SourceState; evidence: Array<Record<string, unknown>> };
+export type Run = { schemaVersion: 1; runId: string; intentId: string; sessionId: string; turnId: string; taskId?: string; objective: string; projectRoot: string; worktreePath: string; baseHead: string; profile: Profile; visualRequired: boolean; startedAt: string; phase: "tdd_red" | "implement" | "prove" | "complete"; status: "running" | "green" | "red"; policy: ProjectPolicy; preparedMerges?: PreparedMerge[]; committedState?: SourceState; evidence: Array<Record<string, unknown>> };
 export type BeginInput = Omit<Run, "schemaVersion" | "runId" | "sessionId" | "turnId" | "startedAt" | "phase" | "status" | "committedState" | "evidence" | "profile" | "visualRequired">;
-export type CommitEvidence = { head: string; tree?: string; commitCount: number; clean: boolean; subject: string; versionChanged: boolean; changelogChanged: boolean; phaseCommitsValid?: boolean };
+export type CommitEvidence = { head: string; tree?: string; commitCount: number; clean: boolean; subject: string; versionChanged: boolean; changelogChanged: boolean; taskTrailerValid?: boolean; versionSurfacesValid?: boolean; preparedMergesValid?: boolean; phaseCommitsValid?: boolean };
 export class LifecycleStore {
   constructor(private readonly dataRoot: string, private readonly runner: GateRunner, private readonly probe?: StateProbe) {}
   async markIntent(intent: Intent): Promise<void> { await this.save("intents", intent.intentId, intent); }
@@ -22,6 +25,7 @@ export class LifecycleStore {
     const canonical = path.join(path.resolve(input.projectRoot), ".captain-sdlc", "worktrees") + path.sep;
     if (!path.resolve(input.worktreePath).startsWith(canonical)) throw new Error("worktree is outside the canonical repository container");
     if (!/^[0-9a-f]{40,64}$/i.test(input.baseHead)) throw new Error("base HEAD must be a full object id");
+    if (input.policy.commit?.require_task_trailer && (!input.taskId || !/^[A-Za-z0-9._-]+$/.test(input.taskId))) throw new Error("trusted commit policy requires a safe task id");
     await this.save("intents", input.intentId, { ...intent, consumed: true });
     const profile = intent.requestedProfile ?? input.policy.profile; if (!(input.policy.profiles ?? [input.policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
     const run: Run = { schemaVersion: 1, runId: `codex-${randomUUID()}`, sessionId: intent.sessionId, turnId: intent.turnId, startedAt: new Date().toISOString(), phase: "tdd_red", status: "running", evidence: [], ...input, profile, visualRequired: input.policy.visualRequired };
@@ -38,17 +42,33 @@ export class LifecycleStore {
     const run = await this.run(intentId); this.phase(run, "tdd_red"); const configured = run.policy.commands.ticket;
     if (!configured || (command && command !== configured)) throw new Error("red test must use the trusted ticket command");
     const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
-    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !new RegExp(red.outputPattern, "i").test(`${result.stdout}\n${result.stderr}`)) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
+    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}\n${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
     return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(configured), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
+  }
+  async recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run> {
+    const run = await this.run(intentId); this.phase(run, "implement");
+    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preMergeHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.targetOid) || !["ort", "ours"].includes(prepared.strategy)) throw new Error("prepared merge binding is invalid");
+    if (run.preparedMerges?.some(value => value.preMergeHead === prepared.preMergeHead)) throw new Error("pre-merge HEAD already has a signed merge authorization");
+    return this.update({ ...run, preparedMerges: [...(run.preparedMerges ?? []), prepared], evidence: [...run.evidence, { kind: "merge_prepared", ...prepared }] });
+  }
+  async discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run> {
+    const run = await this.run(intentId); this.phase(run, "implement"); const values = run.preparedMerges ?? [], latest = values.at(-1);
+    if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared)) throw new Error("only the latest signed prepared merge can be discarded");
+    return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
   }
   async recordCommit(intentId: string, commit: CommitEvidence): Promise<Run> {
     const run = await this.run(intentId); this.phase(run, "implement");
     if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
-    if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(commit.subject)) throw new Error("commit must be Conventional Commit with SemVer suffix");
-    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update VERSION and CHANGELOG");
-    if (commit.commitCount > 1 && !commit.phaseCommitsValid) throw new Error("every repair phase commit must independently satisfy Conventional Commit, SemVer, VERSION, and CHANGELOG policy");
+    const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+    if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
+    if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
+    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update the configured version file and changelog");
+    if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
+    if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
+    if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
+    if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
     if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree)) throw new Error("commit tree must be captured");
-    if (!this.probe) throw new Error("source-state probe is required"); const committedState = await this.probe(run.worktreePath); if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
+    if (!this.probe) throw new Error("source-state probe is required"); const committedState = await this.probe(run.worktreePath, run.policy); if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
     return this.update({ ...run, phase: "prove", committedState, evidence: [...run.evidence, { kind: "commit", ...commit }] });
   }
   async runCheck(intentId: string, scope: string): Promise<Run> {
@@ -80,7 +100,7 @@ export class LifecycleStore {
   private phase(run: Run, expected: Run["phase"]) { if (run.phase !== expected) throw new Error(`expected ${expected} phase, found ${run.phase}`); }
   private async run(id: string) { return this.load<Run>("runs", id); }
   private async update(run: Run) { await this.save("runs", run.intentId, run); await this.save("permits", `${run.sessionId}-${run.turnId}`, this.permit(run)); return run; }
-  private async assertCommitted(run: Run) { const current = await this.probe!(run.worktreePath), expected = run.committedState!; if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest)) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }
+  private async assertCommitted(run: Run) { const current = await this.probe!(run.worktreePath, run.policy), expected = run.committedState!; if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest)) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }
   private async load<T>(bucket: string, id: string): Promise<T> { return readAuthorized<T>(this.dataRoot, bucket, safeId(id)); }
   private async save(bucket: string, id: string, value: unknown) { await writeAuthorized(this.dataRoot, bucket, safeId(id), value); }
 }

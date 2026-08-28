@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { readAuthorized, writeAuthorized } from "./authority.js";
+import { compileSafeRegex, subjectVersion } from "./validation.js";
 export class LifecycleStore {
     dataRoot;
     runner;
@@ -26,6 +27,8 @@ export class LifecycleStore {
             throw new Error("worktree is outside the canonical repository container");
         if (!/^[0-9a-f]{40,64}$/i.test(input.baseHead))
             throw new Error("base HEAD must be a full object id");
+        if (input.policy.commit?.require_task_trailer && (!input.taskId || !/^[A-Za-z0-9._-]+$/.test(input.taskId)))
+            throw new Error("trusted commit policy requires a safe task id");
         await this.save("intents", input.intentId, { ...intent, consumed: true });
         const profile = intent.requestedProfile ?? input.policy.profile;
         if (!(input.policy.profiles ?? [input.policy.profile]).includes(profile))
@@ -59,26 +62,52 @@ export class LifecycleStore {
         if (!configured || (command && command !== configured))
             throw new Error("red test must use the trusted ticket command");
         const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
-        if (!red || !red.expectedExitCodes.includes(result.exitCode) || !new RegExp(red.outputPattern, "i").test(`${result.stdout}\n${result.stderr}`))
+        if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}\n${result.stderr}`.slice(0, 1024 * 1024)))
             throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
         return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(configured), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
+    }
+    async recordPreparedMerge(intentId, prepared) {
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        if (!/^[0-9a-f]{40,64}$/i.test(prepared.preMergeHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.targetOid) || !["ort", "ours"].includes(prepared.strategy))
+            throw new Error("prepared merge binding is invalid");
+        if (run.preparedMerges?.some(value => value.preMergeHead === prepared.preMergeHead))
+            throw new Error("pre-merge HEAD already has a signed merge authorization");
+        return this.update({ ...run, preparedMerges: [...(run.preparedMerges ?? []), prepared], evidence: [...run.evidence, { kind: "merge_prepared", ...prepared }] });
+    }
+    async discardPreparedMerge(intentId, prepared) {
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        const values = run.preparedMerges ?? [], latest = values.at(-1);
+        if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared))
+            throw new Error("only the latest signed prepared merge can be discarded");
+        return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
     }
     async recordCommit(intentId, commit) {
         const run = await this.run(intentId);
         this.phase(run, "implement");
         if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead)
             throw new Error("commit gate requires at least one clean atomic phase commit after base");
-        if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(commit.subject))
-            throw new Error("commit must be Conventional Commit with SemVer suffix");
+        const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+        if ((run.policy.commit?.conventional ?? true) && !conventional)
+            throw new Error("commit must use a Conventional Commit subject");
+        if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject))
+            throw new Error("commit must include a strict SemVer suffix");
         if (!commit.versionChanged || !commit.changelogChanged)
-            throw new Error("commit must update VERSION and CHANGELOG");
-        if (commit.commitCount > 1 && !commit.phaseCommitsValid)
-            throw new Error("every repair phase commit must independently satisfy Conventional Commit, SemVer, VERSION, and CHANGELOG policy");
+            throw new Error("commit must update the configured version file and changelog");
+        if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid)
+            throw new Error("commit must include a configured task trailer");
+        if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid)
+            throw new Error("commit version surfaces must match the subject SemVer suffix");
+        if (!commit.preparedMergesValid)
+            throw new Error("commit parent vector does not match signed prepared merge state");
+        if (!commit.phaseCommitsValid)
+            throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
         if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree))
             throw new Error("commit tree must be captured");
         if (!this.probe)
             throw new Error("source-state probe is required");
-        const committedState = await this.probe(run.worktreePath);
+        const committedState = await this.probe(run.worktreePath, run.policy);
         if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "")
             throw new Error("commit evidence no longer matches the clean probed commit");
         return this.update({ ...run, phase: "prove", committedState, evidence: [...run.evidence, { kind: "commit", ...commit }] });
@@ -162,7 +191,7 @@ export class LifecycleStore {
         throw new Error(`expected ${expected} phase, found ${run.phase}`); }
     async run(id) { return this.load("runs", id); }
     async update(run) { await this.save("runs", run.intentId, run); await this.save("permits", `${run.sessionId}-${run.turnId}`, this.permit(run)); return run; }
-    async assertCommitted(run) { const current = await this.probe(run.worktreePath), expected = run.committedState; if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest))
+    async assertCommitted(run) { const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState; if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest))
         throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }
     async load(bucket, id) { return readAuthorized(this.dataRoot, bucket, safeId(id)); }
     async save(bucket, id, value) { await writeAuthorized(this.dataRoot, bucket, safeId(id), value); }

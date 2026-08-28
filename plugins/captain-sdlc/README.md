@@ -4,10 +4,10 @@ This plugin makes implementation intent executable policy rather than prose.
 
 - `UserPromptSubmit` classifies implementation requests and issues a one-time intent.
 - `PreToolUse` denies mutation until `captain_begin_implementation` owns a canonical worktree for the same session and turn.
-- MCP tools enforce the TDD red gate, atomic Conventional Commit + SemVer + changelog gate, trusted scoped proof commands, and required artifacts.
+- MCP tools enforce the TDD red gate, atomic Conventional Commit + SemVer + changelog gate, task-bound trailers, signed merge preparation/abort, trusted scoped proof commands, and required artifacts.
 - `Stop` continues incomplete governed turns and permits completion only after `complete/green` evidence.
 
-Each governed repository must commit `.captain-sdlc/codex-policy.json`. Proof commands come only from that trusted file; MCP callers cannot replace them with `exit 0`.
+Each governed repository must commit `.captain-sdlc/codex-policy.json`. When `commitPolicyPath` is configured, its schema-versioned repository policy is also loaded from the captured base. Proof commands and commit rules come only from that trusted state; MCP callers cannot replace them with `exit 0` or mutable working-tree policy.
 
 ## Local verification
 

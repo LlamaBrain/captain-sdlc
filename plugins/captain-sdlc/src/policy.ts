@@ -1,12 +1,17 @@
 import path from "node:path";
-export type Permit = { sessionId: string; worktreePath: string; phase: string; intentId?: string };
-export type MutationInput = { toolName: string; cwd: string; sessionId: string; permit: Permit | null; command?: string };
-const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_(begin_implementation|resume_implementation|record_red|run_check|commit|record_commit|prove|status))$/i;
+export type Permit = { sessionId: string; turnId?: string; worktreePath: string; phase: string; intentId?: string };
+export type MutationInput = { toolName: string; cwd: string; sessionId: string; permit: Permit | null; command?: string; intentId?: string };
+const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_status)$/i;
+const entryTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(begin_implementation|resume_implementation)$/i;
+const governedTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(record_red|run_check|prepare_merge|abort_merge|commit|record_commit|prove)$/i;
 export function mutationDecision(input: MutationInput): { allow: boolean; reason?: string } {
   if (readTools.test(input.toolName)) return { allow: true };
+  if (entryTools.test(input.toolName)) return { allow: true };
   if (/^(Bash|exec_command)$/i.test(input.toolName) && isStrictReadShell(input.command ?? "")) return { allow: true };
   if (!input.permit) return deny("mutation denied until captain_begin_implementation consumes this session's implementation intent");
   if (input.permit.sessionId !== input.sessionId) return deny("implementation permit belongs to another Codex session");
+  const governed = governedTools.exec(input.toolName);
+  if (governed) { if (!input.intentId || input.intentId !== input.permit.intentId) return deny("governed tool intent does not match the active permit"); const expected: Record<string, string> = { record_red: "tdd_red", run_check: "implement", prepare_merge: "implement", abort_merge: "implement", commit: "implement", record_commit: "implement", prove: "prove" }; return input.permit.phase === expected[governed[1].toLowerCase()] ? { allow: true } : deny(`${governed[1]} is closed during ${input.permit.phase}`); }
   const owned = path.resolve(input.permit.worktreePath);
   if (/^(apply_patch|Edit|Write)$/i.test(input.toolName)) {
     const targets = patchTargets(input.command ?? ""); if (targets.length === 0) return deny("mutation target could not be proven");

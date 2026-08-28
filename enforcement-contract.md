@@ -8,7 +8,7 @@ An implementation run cannot enter `success` without a configured verification c
 
 ## Atomic phase boundary
 
-Approval requires a clean worktree, a `HEAD` descended from the captured base, exactly one implementation commit in `base..HEAD`, passing verification for that exact `HEAD`, and a valid project commit contract. Approval never stages files or manufactures an aggregate implementation commit.
+Approval requires a clean worktree, a `HEAD` descended from the captured base, and one or more atomic first-parent implementation commits in `base..HEAD`. Every first-parent commit must independently satisfy the project commit contract. Imported side history is grandfathered only through a merge whose target object, pre-merge `HEAD`, and strategy were recorded in signed run state before the merge; Captain verifies the resulting parent vector. Approval never stages files or manufactures an aggregate implementation commit.
 
 ## Commit contract
 

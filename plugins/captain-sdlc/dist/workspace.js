@@ -1,63 +1,197 @@
 import { execFile } from "node:child_process";
-import { lstat, readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { lstat, mkdtemp, readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-const exec = promisify(execFile);
-export const gateRunner = async (command, cwd) => {
-    const env = { ...process.env };
-    delete env.PLUGIN_DATA;
-    delete env.CAPTAIN_PLUGIN_DATA;
-    try {
-        const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env, maxBuffer: 10 * 1024 * 1024 });
-        return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
-    }
-    catch (error) {
-        return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message };
-    }
-};
-export async function git(args, cwd) { return (await exec("git", args, { cwd })).stdout.trim(); }
+import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
+const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
+const defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
+let emptyHooksRoot;
+function scrubbedEnvironment() { const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1" }; delete env.PLUGIN_DATA; delete env.CAPTAIN_PLUGIN_DATA; delete env.GIT_EXTERNAL_DIFF; delete env.GIT_DIFF_OPTS; return env; }
+async function gitInvocation(args, cwd) { emptyHooksRoot ??= mkdtemp(path.join(tmpdir(), "captain-empty-hooks-")); const hooks = await emptyHooksRoot; return exec("git", ["-c", `core.hooksPath=${hooks}`, "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); }
+export const gateRunner = async (command, cwd) => { try {
+    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+    return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
+}
+catch (error) {
+    return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message };
+} };
+export async function git(args, cwd) { return (await gitInvocation(args, cwd)).stdout.trim(); }
 export async function loadPolicy(projectRoot, baseHead) {
-    const text = await git(["show", `${baseHead}:.captain-sdlc/codex-policy.json`], projectRoot);
-    const parsed = JSON.parse(text);
-    if (!parsed.profile || typeof parsed.visualRequired !== "boolean" || !parsed.commands?.build || !parsed.commands.ticket || !parsed.commands["feature-smoke"] || !parsed.commands["affected-regression"] || (parsed.visualRequired && !parsed.commands.visual))
-        throw new Error("trusted base policy is incomplete");
+    const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
+    if (profile !== "feature" && profile !== "pre-release")
+        throw new Error("trusted base policy has an invalid profile");
+    if (typeof raw.visualRequired !== "boolean")
+        throw new Error("trusted base policy must configure visualRequired");
+    const commands = stringRecord(raw.commands, "trusted policy commands");
+    for (const scope of ["build", "ticket", "feature-smoke", "affected-regression", ...(raw.visualRequired ? ["visual"] : [])])
+        if (!commands[scope])
+            throw new Error(`trusted base policy is missing ${scope}`);
+    const parsed = { profile, visualRequired: raw.visualRequired, commands };
+    if (raw.profiles !== undefined) {
+        if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "feature" && value !== "pre-release"))
+            throw new Error("trusted policy profiles are invalid");
+        parsed.profiles = [...new Set(raw.profiles)];
+    }
+    if (raw.artifactPaths !== undefined)
+        parsed.artifactPaths = stringRecord(raw.artifactPaths, "trusted artifact paths");
+    if (raw.redGate !== undefined) {
+        const red = objectValue(raw.redGate, "trusted red gate");
+        if (!Array.isArray(red.expectedExitCodes) || red.expectedExitCodes.length === 0 || red.expectedExitCodes.some((value) => !Number.isInteger(value)))
+            throw new Error("trusted red gate exit codes are invalid");
+        if (typeof red.outputPattern !== "string")
+            throw new Error("trusted red gate output pattern is invalid");
+        compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern");
+        parsed.redGate = { expectedExitCodes: red.expectedExitCodes, outputPattern: red.outputPattern };
+    }
+    if (raw.commitPolicyPath !== undefined && raw.commit !== undefined)
+        throw new Error("trusted policy cannot configure both inline and external commit policy");
+    if (raw.commitPolicyPath !== undefined) {
+        if (typeof raw.commitPolicyPath !== "string")
+            throw new Error("commit policy path must be a string");
+        parsed.commitPolicyPath = safeRepositoryPath(raw.commitPolicyPath, "commit policy");
+        const repositoryText = await boundedGitShow(projectRoot, `${baseHead}:${parsed.commitPolicyPath}`, "trusted repository policy"), repositoryPolicy = parseObject(repositoryText, "trusted repository policy");
+        if (repositoryPolicy.schema_version !== 1)
+            throw new Error("trusted repository policy schema_version must be 1");
+        parsed.commit = validateCommitPolicy(repositoryPolicy.commit);
+        parsed.commitPolicySha256 = digest(repositoryText);
+    }
+    else if (raw.commit !== undefined) {
+        parsed.commit = validateCommitPolicy(raw.commit);
+        parsed.commitPolicySha256 = digest(JSON.stringify(raw.commit));
+    }
+    if (raw.sourceManifestExcludes !== undefined && !Array.isArray(raw.sourceManifestExcludes))
+        throw new Error("source manifest exclusions must be an array");
+    parsed.sourceManifestExcludes = [];
+    for (const value of (raw.sourceManifestExcludes ?? [])) {
+        if (typeof value !== "string")
+            throw new Error("source manifest exclusion must be a string");
+        const relative = safeRepositoryPath(value, "source manifest exclusion");
+        if (relative.includes("/") || !/^(?:Library|Temp|Logs|Artifacts|Builds|obj|bin|dist|coverage|Generated|\.captain-proof)$/i.test(relative))
+            throw new Error(`${relative} is not an approved generated-output root`);
+        if (await git(["ls-tree", "-r", "--name-only", baseHead, "--", relative], projectRoot))
+            throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+        parsed.sourceManifestExcludes.push(relative);
+    }
     return parsed;
 }
-export async function repositoryIdentity(projectRoot) { const root = path.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)); return { projectRoot: root, baseHead: await git(["rev-parse", "HEAD"], root) }; }
-export async function ensureWorktree(projectRoot, baseHead, intentId) {
-    const root = path.resolve(projectRoot);
-    const safe = intentId.replace(/[^a-zA-Z0-9_-]/g, "");
-    const worktreePath = path.join(root, ".captain-sdlc", "worktrees", safe);
-    await rejectReparseAncestors(root, path.dirname(worktreePath));
+export async function repositoryIdentity(projectRoot) { const root = path.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)); return { projectRoot: root, baseHead: await git(["rev-parse", "--verify", "HEAD^{commit}"], root) }; }
+export async function ensureWorktree(projectRoot, baseHead, intentId) { const root = path.resolve(projectRoot), safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), worktreePath = path.join(root, ".captain-sdlc", "worktrees", safe); if (!safe)
+    throw new Error("intent id cannot produce an empty worktree name"); await rejectReparseAncestors(root, path.dirname(worktreePath)); try {
+    await lstat(worktreePath);
+    throw new Error(`canonical worktree path already exists: ${worktreePath}`);
+}
+catch (error) {
+    if (error.code !== "ENOENT")
+        throw error;
+} await git(["worktree", "add", worktreePath, "-b", `captain/${safe}`, baseHead], root); return { projectRoot: root, worktreePath, baseHead }; }
+export async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = []) {
+    const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+    const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
+    let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
+    const matchedPrepared = new Set();
+    for (const hash of hashes) {
+        const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
+        if (parents.length > 2) {
+            const index = preparedMerges.findIndex((prepared, candidate) => !matchedPrepared.has(candidate) && prepared.preMergeHead === parent && prepared.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : undefined, bookkeeping = new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map(surface => surface.path)]);
+            if (!prepared || parents.length !== 3 || (prepared.strategy === "ours" && phaseChanged.some(changedPath => !bookkeeping.has(changedPath))))
+                preparedMergesValid = false;
+            else
+                matchedPrepared.add(index);
+        }
+        if (parent !== expectedParent || !validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)))
+            phaseCommitsValid = false;
+        expectedParent = hash;
+    }
+    if (matchedPrepared.size !== preparedMerges.length)
+        preparedMergesValid = false;
+    phaseCommitsValid &&= preparedMergesValid;
+    const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
+    return { head, tree, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || hasTaskTrailer(trailers, taskId), versionSurfacesValid: await versionSurfacesMatch(worktree, head, subject, commitPolicy), preparedMergesValid, phaseCommitsValid };
+}
+export async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = []) {
+    if (!paths.length)
+        throw new Error("commit paths must be explicit safe repository-relative paths");
+    if (/\r|\n/.test(subject))
+        throw new Error("commit subject must be a single line");
+    const safePaths = paths.map(value => safeRepositoryPath(value, "commit"));
+    if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/")))
+        throw new Error("commit paths must be canonical safe repository-relative paths");
+    if (!validSubject(subject, commitPolicy))
+        throw new Error("commit subject does not satisfy repository policy");
+    const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : undefined;
+    if ((taskOutcome && !taskId) || (!taskOutcome && taskId && commitPolicy.require_task_trailer) || (taskTrailer && !hasTaskTrailer(taskTrailer, taskId)) || (commitPolicy.require_task_trailer && !taskTrailer))
+        throw new Error("commit must include the governed run task trailer");
+    await git(["add", "--", ...safePaths], worktree);
+    const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree));
+    if (!staged.length || staged.some(changed => !safePaths.some(selected => changed === selected || changed.startsWith(`${selected}/`))))
+        throw new Error("commit preflight found staged paths outside the explicit selection");
+    const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
+    if (mergeHead) {
+        if (splitLines(mergeHead).length !== 1)
+            throw new Error("commit preflight rejects octopus merge state");
+        candidateArgs.push("-p", mergeHead);
+    }
+    candidateArgs.push("-m", subject);
+    if (taskTrailer)
+        candidateArgs.push("-m", taskTrailer);
+    const candidate = await git(candidateArgs, worktree);
+    if (!(await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges)))
+        throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
+    if (await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== head || await git(["write-tree"], worktree) !== tree || (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree)) !== mergeHead)
+        throw new Error("commit preflight state changed before commit");
+    const args = ["commit", "--no-verify", "--no-gpg-sign", "-m", subject];
+    if (taskTrailer)
+        args.push("-m", taskTrailer);
+    await gitInvocation(args, worktree);
+    const actual = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
+    if (!(await candidateCommitValid(worktree, actual, head, commitPolicy, taskId, preparedMerges)) || await git(["rev-parse", `${actual}^{tree}`], worktree) !== tree)
+        throw new Error("created commit diverged from validated preflight evidence");
+}
+export async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, revoke) {
+    if (!/^[0-9a-f]{40,64}$/i.test(commitOid))
+        throw new Error("merge target must be a full commit object id");
+    if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree))
+        throw new Error("merge preparation refuses a preexisting merge state");
+    if (await git(["status", "--porcelain"], worktree))
+        throw new Error("merge preparation requires a clean worktree");
+    const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree);
+    if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit")
+        throw new Error("merge target is not the pinned commit object");
+    const prepared = { preMergeHead, targetOid: resolved, strategy };
+    if (authorize)
+        await authorize(prepared);
     try {
-        await lstat(worktreePath);
-        throw new Error(`canonical worktree path already exists: ${worktreePath}`);
+        await gitInvocation(["merge", "--no-ff", "--no-commit", ...(strategy === "ours" ? ["-s", "ours"] : []), resolved], worktree);
     }
     catch (error) {
-        if (error.code !== "ENOENT")
-            throw error;
+        const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), conflicts = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"], worktree));
+        if (mergeHead?.toLowerCase() === resolved.toLowerCase() && currentHead === preMergeHead && conflicts.length)
+            return { commitOid: resolved, preMergeHead, strategy, status: "conflicts", conflicts };
+        if (revoke)
+            await revoke(prepared);
+        throw error;
     }
-    await git(["worktree", "add", worktreePath, "-b", `captain/${safe}`, baseHead], root);
-    return { projectRoot: root, worktreePath, baseHead };
+    const mergeHead = await git(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
+    if (mergeHead.toLowerCase() !== resolved.toLowerCase() || currentHead !== preMergeHead)
+        throw new Error("prepared merge state does not match the pinned commit and pre-merge HEAD");
+    return { commitOid: resolved, preMergeHead, strategy, status: "ready", conflicts: [] };
 }
-export async function commitEvidence(worktree, baseHead) {
-    const head = await git(["rev-parse", "HEAD"], worktree), tree = await git(["rev-parse", "HEAD^{tree}"], worktree), count = Number(await git(["rev-list", "--count", `${baseHead}..HEAD`], worktree));
-    const status = await git(["status", "--porcelain"], worktree), subject = await git(["show", "-s", "--format=%s", "HEAD"], worktree);
-    const changed = (await git(["diff", "--name-only", `${baseHead}..HEAD`], worktree)).split(/\r?\n/);
-    const hashes = (await git(["rev-list", "--reverse", `${baseHead}..HEAD`], worktree)).split(/\r?\n/).filter(Boolean);
-    let phaseCommitsValid = true;
-    for (const hash of hashes) {
-        const phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseChanged = (await git(["diff-tree", "--no-commit-id", "--name-only", "-r", hash], worktree)).split(/\r?\n/);
-        if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(phaseSubject) || !phaseChanged.includes("VERSION") || !phaseChanged.includes("CHANGELOG.md"))
-            phaseCommitsValid = false;
-    }
-    return { head, tree, commitCount: count, clean: status === "", subject, versionChanged: changed.includes("VERSION"), changelogChanged: changed.includes("CHANGELOG.md"), phaseCommitsValid };
+export async function abortMerge(worktree, prepared) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead)
+    throw new Error("current merge state does not match the pinned prepared merge"); await gitInvocation(["merge", "--abort"], worktree); if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree))
+    throw new Error("audited merge abort did not restore the clean pre-merge state"); }
+export async function reconcilePreparedMerge(worktree, prepared) { if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree))
+    throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state"); }
+export async function sourceState(worktree, policy) { const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree); return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest }; }
+async function optionalGit(args, cwd) { try {
+    return await git(args, cwd);
 }
-export async function commitAtomic(worktree, paths, subject) { if (!paths.length || paths.some(value => path.isAbsolute(value) || value.startsWith("..") || !/^[A-Za-z0-9._/-]+$/.test(value)))
-    throw new Error("commit paths must be explicit safe repository-relative paths"); if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(subject))
-    throw new Error("commit subject must be Conventional Commit with SemVer suffix"); await git(["add", "--", ...paths], worktree); await exec("git", ["commit", "-m", subject], { cwd: worktree }); }
-export async function sourceState(worktree) { return { head: await git(["rev-parse", "HEAD"], worktree), tree: await git(["rev-parse", "HEAD^{tree}"], worktree), status: await git(["status", "--porcelain"], worktree), manifest: await sourceManifest(worktree) }; }
+catch {
+    return null;
+} }
+async function boundedGitShow(cwd, object, label) { const value = await git(["show", object], cwd); if (Buffer.byteLength(value) > maxPolicyInput)
+    throw new Error(`${label} exceeds the bounded input limit`); return value; }
 async function rejectReparseAncestors(root, target) { for (let cursor = path.resolve(target); cursor.startsWith(path.resolve(root)); cursor = path.dirname(cursor)) {
     try {
         if ((await lstat(cursor)).isSymbolicLink())
@@ -70,16 +204,91 @@ async function rejectReparseAncestors(root, target) { for (let cursor = path.res
     if (cursor === path.resolve(root))
         break;
 } }
-async function sourceManifest(root) { const lines = []; async function walk(dir) { for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+function safeRepositoryPath(value, label) { const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/"); if (path.isAbsolute(value) || segments.some(segment => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/-]+$/.test(value))
+    throw new Error(`${label} path must be a safe repository-relative path`); return normalized; }
+function objectValue(value, label) { if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} must be an object`); return value; }
+function parseObject(text, label) { try {
+    return objectValue(JSON.parse(text), label);
+}
+catch (error) {
+    if (error.message.includes(label))
+        throw error;
+    throw new Error(`${label} is not valid JSON`);
+} }
+function stringRecord(value, label) { const record = objectValue(value, label), result = {}; for (const [key, item] of Object.entries(record)) {
+    if (typeof item !== "string" || !item.trim())
+        throw new Error(`${label} must contain nonempty strings`);
+    result[key] = item;
+} return result; }
+function validateCommitPolicy(input) { const value = objectValue(input, "trusted repository commit policy"); for (const key of ["conventional", "require_version_suffix", "require_task_trailer"])
+    if (value[key] !== undefined && typeof value[key] !== "boolean")
+        throw new Error(`${key} must be boolean`); const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? true; if (!conventional && requireVersionSuffix)
+    throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types"); if (typeof value.version_file !== "string")
+    throw new Error("trusted repository commit policy must configure version_file"); const versionFile = safeRepositoryPath(value.version_file, "version file"); if (!Array.isArray(value.changelog_files) || value.changelog_files.length === 0 || value.changelog_files.some((item) => typeof item !== "string"))
+    throw new Error("trusted repository commit policy must configure changelog files"); const changelogFiles = value.changelog_files.map((item) => safeRepositoryPath(item, "changelog")); if (new Set(changelogFiles).size !== changelogFiles.length)
+    throw new Error("trusted changelog paths must be unique"); if (!Array.isArray(value.version_surfaces) || (requireVersionSuffix && value.version_surfaces.length === 0) || (!requireVersionSuffix && value.version_surfaces.length > 0))
+    throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required"); const versionSurfaces = value.version_surfaces.map((inputSurface) => { const surface = objectValue(inputSurface, "version surface"); if (typeof surface.path !== "string" || typeof surface.pattern !== "string")
+    throw new Error("version surface path and pattern are required"); const surfacePath = safeRepositoryPath(surface.path, "version surface"); compilePattern(surface.pattern); if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, "")))
+    throw new Error("version surface pattern must capture the version"); return { path: surfacePath, pattern: surface.pattern }; }); if (new Set(versionSurfaces.map((surface) => surface.path)).size !== versionSurfaces.length)
+    throw new Error("version surface paths must be unique"); if (requireVersionSuffix && !versionSurfaces.some((surface) => surface.path === versionFile))
+    throw new Error("version surfaces must include version_file"); return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles }; }
+function validSubject(subject, policy) { const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null; return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned); }
+function hasTaskTrailer(message, taskId) { if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId))
+    return false; const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map(match => match[1].trim()); return matches.length === 1 && matches[0] === taskId; }
+async function candidateCommitValid(worktree, hash, expectedParent, policy, taskId, preparedMerges) { const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree)); let mergeValid = parents.length === 2; if (parents.length === 3) {
+    const prepared = preparedMerges.find(value => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map(surface => surface.path)]);
+    mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every(changedPath => bookkeeping.has(changedPath)));
+} return parent === expectedParent && mergeValid && validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy); }
+function compilePattern(pattern) { const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern; return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern"); }
+async function versionSurfacesMatch(worktree, hash, subject, policy) { const surfaces = policy.version_surfaces ?? []; if (!surfaces.length)
+    return !(policy.require_version_suffix ?? true); const expected = subjectVersion(subject); if (!expected)
+    return false; for (const surface of surfaces) {
+    try {
+        const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+        if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected)
+            return false;
+    }
+    catch {
+        return false;
+    }
+} return true; }
+async function versionAt(worktree, hash, policy) { const values = []; for (const surface of policy.version_surfaces ?? []) {
+    try {
+        const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? (matches[0].groups?.version ?? matches[0][1]) : undefined;
+        if (!value || !parseStrictSemVer(value))
+            return null;
+        values.push(value);
+    }
+    catch {
+        return null;
+    }
+} return values.length > 0 && values.every(value => value === values[0]) ? values[0] : null; }
+async function versionTransitionValid(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
+    return true; const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject), beforeValue = await versionAt(worktree, parent, policy), afterValue = await versionAt(worktree, hash, policy); if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue)
+    return false; const before = parseStrictSemVer(beforeValue); if (parsedSubject[2]) {
+    if (before.major === Number.MAX_SAFE_INTEGER)
+        return false;
+    return afterValue === `${before.major + 1}.0.0`;
+} if (parsedSubject[1] === "feat") {
+    if (before.minor === Number.MAX_SAFE_INTEGER)
+        return false;
+    return afterValue === `${before.major}.${before.minor + 1}.0`;
+} if (before.patch === Number.MAX_SAFE_INTEGER)
+    return false; return afterValue === `${before.major}.${before.minor}.${before.patch + 1}`; }
+async function changelogAddsVersion(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
+    return true; const version = subjectVersion(subject); if (!version)
+    return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
+async function sourceManifest(root, configuredExcludes) { const lines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")); async function walk(dir) { for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
     const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
-    if (relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/") || relative === "dist" || relative.includes("/dist/"))
+    if (excludes.some(item => relative === item || relative.startsWith(`${item}/`)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
         continue;
-    const full = path.join(dir, entry.name);
-    const info = await lstat(full);
+    const full = path.join(dir, entry.name), info = await lstat(full);
     if (info.isSymbolicLink())
         throw new Error(`source manifest crosses reparse point: ${relative}`);
     if (info.isDirectory())
         await walk(full);
     else if (info.isFile())
         lines.push(`${relative}:${createHash("sha256").update(await readFile(full)).digest("hex")}`);
-} } await walk(root); return createHash("sha256").update(lines.join("\n")).digest("hex"); }
+} } await walk(root); return digest(lines.join("\n")); }
+const digest = (text) => createHash("sha256").update(text).digest("hex"), splitLines = (value) => value.split(/\r?\n/).filter(Boolean);

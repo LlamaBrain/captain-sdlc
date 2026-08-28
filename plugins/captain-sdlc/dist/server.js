@@ -21462,6 +21462,31 @@ var safe = (id) => {
   return id;
 };
 
+// src/validation.ts
+function compileSafeRegex(pattern, flags = "", label = "regular expression") {
+  if (typeof pattern !== "string" || pattern.length === 0 || pattern.length > 512) throw new Error(`${label} is empty or too long`);
+  const unsupported = /\\[1-9]|\\k<|\(\?(?:[=!]|<[=!])|\(\?>|\(\?\(|\([^)]*(?:\*|\+|\{\d+,?\d*\})[^)]*\)(?:\*|\+|\{\d+,?\d*\})|\.(?:\*|\+|\{\d+,?\d*\})/;
+  if (unsupported.test(pattern)) throw new Error(`${label} is an unsafe regular expression`);
+  const declarative = pattern.replace(/\(\?<[_A-Za-z][_A-Za-z0-9]*>/g, "(").replace(/\(\?:/g, "(");
+  for (let index = 0; index < declarative.length; index++) if ((declarative[index] === "|" || declarative[index] === "?") && (index === 0 || declarative[index - 1] !== "\\")) throw new Error(`${label} is an unsafe regular expression`);
+  try {
+    return new RegExp(pattern, flags);
+  } catch {
+    throw new Error(`${label} is not a valid regular expression`);
+  }
+}
+function parseStrictSemVer(value) {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value);
+  if (!match) return null;
+  const numbers = match.slice(1).map(Number);
+  if (numbers.some((number3) => !Number.isSafeInteger(number3))) return null;
+  return { major: numbers[0], minor: numbers[1], patch: numbers[2] };
+}
+function subjectVersion(subject) {
+  const value = subject.match(/\(v([^()]+)\)$/)?.[1];
+  return value && parseStrictSemVer(value) ? value : null;
+}
+
 // src/lifecycle.ts
 var LifecycleStore = class {
   constructor(dataRoot2, runner, probe) {
@@ -21485,6 +21510,7 @@ var LifecycleStore = class {
     const canonical = path2.join(path2.resolve(input.projectRoot), ".captain-sdlc", "worktrees") + path2.sep;
     if (!path2.resolve(input.worktreePath).startsWith(canonical)) throw new Error("worktree is outside the canonical repository container");
     if (!/^[0-9a-f]{40,64}$/i.test(input.baseHead)) throw new Error("base HEAD must be a full object id");
+    if (input.policy.commit?.require_task_trailer && (!input.taskId || !/^[A-Za-z0-9._-]+$/.test(input.taskId))) throw new Error("trusted commit policy requires a safe task id");
     await this.save("intents", input.intentId, { ...intent, consumed: true });
     const profile = intent.requestedProfile ?? input.policy.profile;
     if (!(input.policy.profiles ?? [input.policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
@@ -21513,21 +21539,40 @@ var LifecycleStore = class {
     const configured = run.policy.commands.ticket;
     if (!configured || command && command !== configured) throw new Error("red test must use the trusted ticket command");
     const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
-    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !new RegExp(red.outputPattern, "i").test(`${result.stdout}
-${result.stderr}`)) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
+    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
+${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
     return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(configured), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}
 ${result.stderr}`) }] });
+  }
+  async recordPreparedMerge(intentId, prepared) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preMergeHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.targetOid) || !["ort", "ours"].includes(prepared.strategy)) throw new Error("prepared merge binding is invalid");
+    if (run.preparedMerges?.some((value) => value.preMergeHead === prepared.preMergeHead)) throw new Error("pre-merge HEAD already has a signed merge authorization");
+    return this.update({ ...run, preparedMerges: [...run.preparedMerges ?? [], prepared], evidence: [...run.evidence, { kind: "merge_prepared", ...prepared }] });
+  }
+  async discardPreparedMerge(intentId, prepared) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    const values = run.preparedMerges ?? [], latest = values.at(-1);
+    if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared)) throw new Error("only the latest signed prepared merge can be discarded");
+    return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
   }
   async recordCommit(intentId, commit) {
     const run = await this.run(intentId);
     this.phase(run, "implement");
     if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
-    if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(commit.subject)) throw new Error("commit must be Conventional Commit with SemVer suffix");
-    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update VERSION and CHANGELOG");
-    if (commit.commitCount > 1 && !commit.phaseCommitsValid) throw new Error("every repair phase commit must independently satisfy Conventional Commit, SemVer, VERSION, and CHANGELOG policy");
+    const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+    if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
+    if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
+    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update the configured version file and changelog");
+    if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
+    if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
+    if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
+    if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
     if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree)) throw new Error("commit tree must be captured");
     if (!this.probe) throw new Error("source-state probe is required");
-    const committedState = await this.probe(run.worktreePath);
+    const committedState = await this.probe(run.worktreePath, run.policy);
     if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
     return this.update({ ...run, phase: "prove", committedState, evidence: [...run.evidence, { kind: "commit", ...commit }] });
   }
@@ -21613,7 +21658,7 @@ ${result.stderr}`) }] });
     return run;
   }
   async assertCommitted(run) {
-    const current = await this.probe(run.worktreePath), expected = run.committedState;
+    const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState;
     if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || expected.manifest && current.manifest !== expected.manifest) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
   }
   async load(bucket, id) {
@@ -21683,39 +21728,89 @@ async function assertImage(target) {
 
 // src/workspace.ts
 import { execFile } from "node:child_process";
-import { lstat as lstat2, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
 import { createHash as createHash2 } from "node:crypto";
+import { lstat as lstat2, mkdtemp, readFile as readFile3, readdir as readdir2 } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path3 from "node:path";
 import { promisify } from "node:util";
 var exec = promisify(execFile);
-var gateRunner = async (command, cwd) => {
-  const env = { ...process.env };
+var maxGitBuffer = 10 * 1024 * 1024;
+var maxPolicyInput = 1024 * 1024;
+var defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
+var emptyHooksRoot;
+function scrubbedEnvironment() {
+  const env = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1" };
   delete env.PLUGIN_DATA;
   delete env.CAPTAIN_PLUGIN_DATA;
+  delete env.GIT_EXTERNAL_DIFF;
+  delete env.GIT_DIFF_OPTS;
+  return env;
+}
+async function gitInvocation(args, cwd) {
+  emptyHooksRoot ??= mkdtemp(path3.join(tmpdir(), "captain-empty-hooks-"));
+  const hooks = await emptyHooksRoot;
+  return exec("git", ["-c", `core.hooksPath=${hooks}`, "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+}
+var gateRunner = async (command, cwd) => {
   try {
-    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env, maxBuffer: 10 * 1024 * 1024 });
+    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (error2) {
     return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
   }
 };
 async function git(args, cwd) {
-  return (await exec("git", args, { cwd })).stdout.trim();
+  return (await gitInvocation(args, cwd)).stdout.trim();
 }
 async function loadPolicy(projectRoot, baseHead) {
-  const text = await git(["show", `${baseHead}:.captain-sdlc/codex-policy.json`], projectRoot);
-  const parsed = JSON.parse(text);
-  if (!parsed.profile || typeof parsed.visualRequired !== "boolean" || !parsed.commands?.build || !parsed.commands.ticket || !parsed.commands["feature-smoke"] || !parsed.commands["affected-regression"] || parsed.visualRequired && !parsed.commands.visual) throw new Error("trusted base policy is incomplete");
+  const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
+  if (profile !== "feature" && profile !== "pre-release") throw new Error("trusted base policy has an invalid profile");
+  if (typeof raw.visualRequired !== "boolean") throw new Error("trusted base policy must configure visualRequired");
+  const commands = stringRecord(raw.commands, "trusted policy commands");
+  for (const scope of ["build", "ticket", "feature-smoke", "affected-regression", ...raw.visualRequired ? ["visual"] : []]) if (!commands[scope]) throw new Error(`trusted base policy is missing ${scope}`);
+  const parsed = { profile, visualRequired: raw.visualRequired, commands };
+  if (raw.profiles !== void 0) {
+    if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "feature" && value !== "pre-release")) throw new Error("trusted policy profiles are invalid");
+    parsed.profiles = [...new Set(raw.profiles)];
+  }
+  if (raw.artifactPaths !== void 0) parsed.artifactPaths = stringRecord(raw.artifactPaths, "trusted artifact paths");
+  if (raw.redGate !== void 0) {
+    const red = objectValue(raw.redGate, "trusted red gate");
+    if (!Array.isArray(red.expectedExitCodes) || red.expectedExitCodes.length === 0 || red.expectedExitCodes.some((value) => !Number.isInteger(value))) throw new Error("trusted red gate exit codes are invalid");
+    if (typeof red.outputPattern !== "string") throw new Error("trusted red gate output pattern is invalid");
+    compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern");
+    parsed.redGate = { expectedExitCodes: red.expectedExitCodes, outputPattern: red.outputPattern };
+  }
+  if (raw.commitPolicyPath !== void 0 && raw.commit !== void 0) throw new Error("trusted policy cannot configure both inline and external commit policy");
+  if (raw.commitPolicyPath !== void 0) {
+    if (typeof raw.commitPolicyPath !== "string") throw new Error("commit policy path must be a string");
+    parsed.commitPolicyPath = safeRepositoryPath(raw.commitPolicyPath, "commit policy");
+    const repositoryText = await boundedGitShow(projectRoot, `${baseHead}:${parsed.commitPolicyPath}`, "trusted repository policy"), repositoryPolicy = parseObject(repositoryText, "trusted repository policy");
+    if (repositoryPolicy.schema_version !== 1) throw new Error("trusted repository policy schema_version must be 1");
+    parsed.commit = validateCommitPolicy(repositoryPolicy.commit);
+    parsed.commitPolicySha256 = digest2(repositoryText);
+  } else if (raw.commit !== void 0) {
+    parsed.commit = validateCommitPolicy(raw.commit);
+    parsed.commitPolicySha256 = digest2(JSON.stringify(raw.commit));
+  }
+  if (raw.sourceManifestExcludes !== void 0 && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
+  parsed.sourceManifestExcludes = [];
+  for (const value of raw.sourceManifestExcludes ?? []) {
+    if (typeof value !== "string") throw new Error("source manifest exclusion must be a string");
+    const relative = safeRepositoryPath(value, "source manifest exclusion");
+    if (relative.includes("/") || !/^(?:Library|Temp|Logs|Artifacts|Builds|obj|bin|dist|coverage|Generated|\.captain-proof)$/i.test(relative)) throw new Error(`${relative} is not an approved generated-output root`);
+    if (await git(["ls-tree", "-r", "--name-only", baseHead, "--", relative], projectRoot)) throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+    parsed.sourceManifestExcludes.push(relative);
+  }
   return parsed;
 }
 async function repositoryIdentity(projectRoot) {
   const root = path3.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot));
-  return { projectRoot: root, baseHead: await git(["rev-parse", "HEAD"], root) };
+  return { projectRoot: root, baseHead: await git(["rev-parse", "--verify", "HEAD^{commit}"], root) };
 }
 async function ensureWorktree(projectRoot, baseHead, intentId) {
-  const root = path3.resolve(projectRoot);
-  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const worktreePath = path3.join(root, ".captain-sdlc", "worktrees", safe2);
+  const root = path3.resolve(projectRoot), safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), worktreePath = path3.join(root, ".captain-sdlc", "worktrees", safe2);
+  if (!safe2) throw new Error("intent id cannot produce an empty worktree name");
   await rejectReparseAncestors(root, path3.dirname(worktreePath));
   try {
     await lstat2(worktreePath);
@@ -21726,26 +21821,97 @@ async function ensureWorktree(projectRoot, baseHead, intentId) {
   await git(["worktree", "add", worktreePath, "-b", `captain/${safe2}`, baseHead], root);
   return { projectRoot: root, worktreePath, baseHead };
 }
-async function commitEvidence(worktree, baseHead) {
-  const head = await git(["rev-parse", "HEAD"], worktree), tree = await git(["rev-parse", "HEAD^{tree}"], worktree), count = Number(await git(["rev-list", "--count", `${baseHead}..HEAD`], worktree));
-  const status = await git(["status", "--porcelain"], worktree), subject = await git(["show", "-s", "--format=%s", "HEAD"], worktree);
-  const changed = (await git(["diff", "--name-only", `${baseHead}..HEAD`], worktree)).split(/\r?\n/);
-  const hashes = (await git(["rev-list", "--reverse", `${baseHead}..HEAD`], worktree)).split(/\r?\n/).filter(Boolean);
-  let phaseCommitsValid = true;
+async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = []) {
+  const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+  const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
+  let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
+  const matchedPrepared = /* @__PURE__ */ new Set();
   for (const hash of hashes) {
-    const phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseChanged = (await git(["diff-tree", "--no-commit-id", "--name-only", "-r", hash], worktree)).split(/\r?\n/);
-    if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(phaseSubject) || !phaseChanged.includes("VERSION") || !phaseChanged.includes("CHANGELOG.md")) phaseCommitsValid = false;
+    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
+    if (parents.length > 2) {
+      const index = preparedMerges.findIndex((prepared2, candidate) => !matchedPrepared.has(candidate) && prepared2.preMergeHead === parent && prepared2.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : void 0, bookkeeping = /* @__PURE__ */ new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map((surface) => surface.path)]);
+      if (!prepared || parents.length !== 3 || prepared.strategy === "ours" && phaseChanged.some((changedPath) => !bookkeeping.has(changedPath))) preparedMergesValid = false;
+      else matchedPrepared.add(index);
+    }
+    if (parent !== expectedParent || !validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)) phaseCommitsValid = false;
+    expectedParent = hash;
   }
-  return { head, tree, commitCount: count, clean: status === "", subject, versionChanged: changed.includes("VERSION"), changelogChanged: changed.includes("CHANGELOG.md"), phaseCommitsValid };
+  if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
+  phaseCommitsValid &&= preparedMergesValid;
+  const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
+  return { head, tree, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || hasTaskTrailer(trailers, taskId), versionSurfacesValid: await versionSurfacesMatch(worktree, head, subject, commitPolicy), preparedMergesValid, phaseCommitsValid };
 }
-async function commitAtomic(worktree, paths, subject) {
-  if (!paths.length || paths.some((value) => path3.isAbsolute(value) || value.startsWith("..") || !/^[A-Za-z0-9._/-]+$/.test(value))) throw new Error("commit paths must be explicit safe repository-relative paths");
-  if (!/^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+ \(v\d+\.\d+\.\d+\)$/.test(subject)) throw new Error("commit subject must be Conventional Commit with SemVer suffix");
-  await git(["add", "--", ...paths], worktree);
-  await exec("git", ["commit", "-m", subject], { cwd: worktree });
+async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = []) {
+  if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths");
+  if (/\r|\n/.test(subject)) throw new Error("commit subject must be a single line");
+  const safePaths = paths.map((value) => safeRepositoryPath(value, "commit"));
+  if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/"))) throw new Error("commit paths must be canonical safe repository-relative paths");
+  if (!validSubject(subject, commitPolicy)) throw new Error("commit subject does not satisfy repository policy");
+  const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : void 0;
+  if (taskOutcome && !taskId || !taskOutcome && taskId && commitPolicy.require_task_trailer || taskTrailer && !hasTaskTrailer(taskTrailer, taskId) || commitPolicy.require_task_trailer && !taskTrailer) throw new Error("commit must include the governed run task trailer");
+  await git(["add", "--", ...safePaths], worktree);
+  const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree));
+  if (!staged.length || staged.some((changed) => !safePaths.some((selected) => changed === selected || changed.startsWith(`${selected}/`)))) throw new Error("commit preflight found staged paths outside the explicit selection");
+  const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
+  if (mergeHead) {
+    if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state");
+    candidateArgs.push("-p", mergeHead);
+  }
+  candidateArgs.push("-m", subject);
+  if (taskTrailer) candidateArgs.push("-m", taskTrailer);
+  const candidate = await git(candidateArgs, worktree);
+  if (!await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges)) throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
+  if (await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== head || await git(["write-tree"], worktree) !== tree || await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) !== mergeHead) throw new Error("commit preflight state changed before commit");
+  const args = ["commit", "--no-verify", "--no-gpg-sign", "-m", subject];
+  if (taskTrailer) args.push("-m", taskTrailer);
+  await gitInvocation(args, worktree);
+  const actual = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
+  if (!await candidateCommitValid(worktree, actual, head, commitPolicy, taskId, preparedMerges) || await git(["rev-parse", `${actual}^{tree}`], worktree) !== tree) throw new Error("created commit diverged from validated preflight evidence");
 }
-async function sourceState(worktree) {
-  return { head: await git(["rev-parse", "HEAD"], worktree), tree: await git(["rev-parse", "HEAD^{tree}"], worktree), status: await git(["status", "--porcelain"], worktree), manifest: await sourceManifest(worktree) };
+async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, revoke) {
+  if (!/^[0-9a-f]{40,64}$/i.test(commitOid)) throw new Error("merge target must be a full commit object id");
+  if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree)) throw new Error("merge preparation refuses a preexisting merge state");
+  if (await git(["status", "--porcelain"], worktree)) throw new Error("merge preparation requires a clean worktree");
+  const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree);
+  if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit") throw new Error("merge target is not the pinned commit object");
+  const prepared = { preMergeHead, targetOid: resolved, strategy };
+  if (authorize) await authorize(prepared);
+  try {
+    await gitInvocation(["merge", "--no-ff", "--no-commit", ...strategy === "ours" ? ["-s", "ours"] : [], resolved], worktree);
+  } catch (error2) {
+    const mergeHead2 = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead2 = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), conflicts = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"], worktree));
+    if (mergeHead2?.toLowerCase() === resolved.toLowerCase() && currentHead2 === preMergeHead && conflicts.length) return { commitOid: resolved, preMergeHead, strategy, status: "conflicts", conflicts };
+    if (revoke) await revoke(prepared);
+    throw error2;
+  }
+  const mergeHead = await git(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
+  if (mergeHead.toLowerCase() !== resolved.toLowerCase() || currentHead !== preMergeHead) throw new Error("prepared merge state does not match the pinned commit and pre-merge HEAD");
+  return { commitOid: resolved, preMergeHead, strategy, status: "ready", conflicts: [] };
+}
+async function abortMerge(worktree, prepared) {
+  const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
+  if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead) throw new Error("current merge state does not match the pinned prepared merge");
+  await gitInvocation(["merge", "--abort"], worktree);
+  if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("audited merge abort did not restore the clean pre-merge state");
+}
+async function reconcilePreparedMerge(worktree, prepared) {
+  if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state");
+}
+async function sourceState(worktree, policy) {
+  const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
+  return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest };
+}
+async function optionalGit(args, cwd) {
+  try {
+    return await git(args, cwd);
+  } catch {
+    return null;
+  }
+}
+async function boundedGitShow(cwd, object3, label) {
+  const value = await git(["show", object3], cwd);
+  if (Buffer.byteLength(value) > maxPolicyInput) throw new Error(`${label} exceeds the bounded input limit`);
+  return value;
 }
 async function rejectReparseAncestors(root, target) {
   for (let cursor = path3.resolve(target); cursor.startsWith(path3.resolve(root)); cursor = path3.dirname(cursor)) {
@@ -21757,48 +21923,186 @@ async function rejectReparseAncestors(root, target) {
     if (cursor === path3.resolve(root)) break;
   }
 }
-async function sourceManifest(root) {
-  const lines = [];
+function safeRepositoryPath(value, label) {
+  const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/");
+  if (path3.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/-]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
+  return normalized;
+}
+function objectValue(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  return value;
+}
+function parseObject(text, label) {
+  try {
+    return objectValue(JSON.parse(text), label);
+  } catch (error2) {
+    if (error2.message.includes(label)) throw error2;
+    throw new Error(`${label} is not valid JSON`);
+  }
+}
+function stringRecord(value, label) {
+  const record2 = objectValue(value, label), result = {};
+  for (const [key2, item] of Object.entries(record2)) {
+    if (typeof item !== "string" || !item.trim()) throw new Error(`${label} must contain nonempty strings`);
+    result[key2] = item;
+  }
+  return result;
+}
+function validateCommitPolicy(input) {
+  const value = objectValue(input, "trusted repository commit policy");
+  for (const key2 of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key2] !== void 0 && typeof value[key2] !== "boolean") throw new Error(`${key2} must be boolean`);
+  const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? true;
+  if (!conventional && requireVersionSuffix) throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types");
+  if (typeof value.version_file !== "string") throw new Error("trusted repository commit policy must configure version_file");
+  const versionFile = safeRepositoryPath(value.version_file, "version file");
+  if (!Array.isArray(value.changelog_files) || value.changelog_files.length === 0 || value.changelog_files.some((item) => typeof item !== "string")) throw new Error("trusted repository commit policy must configure changelog files");
+  const changelogFiles = value.changelog_files.map((item) => safeRepositoryPath(item, "changelog"));
+  if (new Set(changelogFiles).size !== changelogFiles.length) throw new Error("trusted changelog paths must be unique");
+  if (!Array.isArray(value.version_surfaces) || requireVersionSuffix && value.version_surfaces.length === 0 || !requireVersionSuffix && value.version_surfaces.length > 0) throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required");
+  const versionSurfaces = value.version_surfaces.map((inputSurface) => {
+    const surface = objectValue(inputSurface, "version surface");
+    if (typeof surface.path !== "string" || typeof surface.pattern !== "string") throw new Error("version surface path and pattern are required");
+    const surfacePath = safeRepositoryPath(surface.path, "version surface");
+    compilePattern(surface.pattern);
+    if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, ""))) throw new Error("version surface pattern must capture the version");
+    return { path: surfacePath, pattern: surface.pattern };
+  });
+  if (new Set(versionSurfaces.map((surface) => surface.path)).size !== versionSurfaces.length) throw new Error("version surface paths must be unique");
+  if (requireVersionSuffix && !versionSurfaces.some((surface) => surface.path === versionFile)) throw new Error("version surfaces must include version_file");
+  return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles };
+}
+function validSubject(subject, policy) {
+  const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null;
+  return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned);
+}
+function hasTaskTrailer(message, taskId) {
+  if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId)) return false;
+  const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
+  return matches.length === 1 && matches[0] === taskId;
+}
+async function candidateCommitValid(worktree, hash, expectedParent, policy, taskId, preparedMerges) {
+  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
+  let mergeValid = parents.length === 2;
+  if (parents.length === 3) {
+    const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
+    mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every((changedPath) => bookkeeping.has(changedPath)));
+  }
+  return parent === expectedParent && mergeValid && validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy);
+}
+function compilePattern(pattern) {
+  const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern;
+  return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern");
+}
+async function versionSurfacesMatch(worktree, hash, subject, policy) {
+  const surfaces = policy.version_surfaces ?? [];
+  if (!surfaces.length) return !(policy.require_version_suffix ?? true);
+  const expected = subjectVersion(subject);
+  if (!expected) return false;
+  for (const surface of surfaces) {
+    try {
+      const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+      if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+async function versionAt(worktree, hash, policy) {
+  const values = [];
+  for (const surface of policy.version_surfaces ?? []) {
+    try {
+      const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      if (!value || !parseStrictSemVer(value)) return null;
+      values.push(value);
+    } catch {
+      return null;
+    }
+  }
+  return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
+}
+async function versionTransitionValid(worktree, parent, hash, subject, policy) {
+  if (!(policy.require_version_suffix ?? true)) return true;
+  const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject), beforeValue = await versionAt(worktree, parent, policy), afterValue = await versionAt(worktree, hash, policy);
+  if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
+  const before = parseStrictSemVer(beforeValue);
+  if (parsedSubject[2]) {
+    if (before.major === Number.MAX_SAFE_INTEGER) return false;
+    return afterValue === `${before.major + 1}.0.0`;
+  }
+  if (parsedSubject[1] === "feat") {
+    if (before.minor === Number.MAX_SAFE_INTEGER) return false;
+    return afterValue === `${before.major}.${before.minor + 1}.0`;
+  }
+  if (before.patch === Number.MAX_SAFE_INTEGER) return false;
+  return afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
+}
+async function changelogAddsVersion(worktree, parent, hash, subject, policy) {
+  if (!(policy.require_version_suffix ?? true)) return true;
+  const version2 = subjectVersion(subject);
+  if (!version2) return false;
+  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
+  return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
+}
+async function sourceManifest(root, configuredExcludes) {
+  const lines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, ""));
   async function walk(dir) {
     for (const entry of (await readdir2(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       const relative = path3.relative(root, path3.join(dir, entry.name)).replaceAll("\\", "/");
-      if (relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/") || relative === "dist" || relative.includes("/dist/")) continue;
-      const full = path3.join(dir, entry.name);
-      const info = await lstat2(full);
+      if (excludes.some((item) => relative === item || relative.startsWith(`${item}/`)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
+      const full = path3.join(dir, entry.name), info = await lstat2(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
       if (info.isDirectory()) await walk(full);
       else if (info.isFile()) lines.push(`${relative}:${createHash2("sha256").update(await readFile3(full)).digest("hex")}`);
     }
   }
   await walk(root);
-  return createHash2("sha256").update(lines.join("\n")).digest("hex");
+  return digest2(lines.join("\n"));
 }
+var digest2 = (text) => createHash2("sha256").update(text).digest("hex");
+var splitLines = (value) => value.split(/\r?\n/).filter(Boolean);
 
 // src/server.ts
 var dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.PLUGIN_DATA;
 if (!dataRoot) throw new Error("CAPTAIN_PLUGIN_DATA or PLUGIN_DATA is required");
 var store = new LifecycleStore(dataRoot, gateRunner, sourceState);
-var server = new McpServer({ name: "captain-sdlc", version: "0.1.0" });
+var server = new McpServer({ name: "captain-sdlc", version: "0.1.1" });
 var reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
 var guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
-server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates/owns a canonical repository worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string() } }, async (args) => guarded(async () => {
+server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates/owns a canonical repository worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional() } }, async (args) => guarded(async () => {
   await store.validateIntent(args.intent_id, args.project_root);
   const repository = await repositoryIdentity(args.project_root);
   const policy = await loadPolicy(repository.projectRoot, repository.baseHead);
   const workspace = await ensureWorktree(repository.projectRoot, repository.baseHead, args.intent_id);
-  return store.begin({ intentId: args.intent_id, objective: args.objective, ...workspace, policy });
+  return store.begin({ intentId: args.intent_id, taskId: args.task_id, objective: args.objective, ...workspace, policy });
 }));
 server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(() => store.recordRed(intent_id)));
 server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: external_exports.string(), scope: external_exports.enum(["ticket", "feature-smoke", "affected-regression"]) } }, async ({ intent_id, scope }) => guarded(() => store.runCheck(intent_id, scope)));
 server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run.", inputSchema: { resume_intent_id: external_exports.string() } }, async ({ resume_intent_id }) => guarded(() => store.resume(resume_intent_id)));
-server.registerTool("captain_commit", { description: "After explicit user approval, create the atomic Conventional Commit using argv execution rather than an injectable shell.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string() } }, async ({ intent_id, paths, subject }) => guarded(async () => {
+server.registerTool("captain_prepare_merge", { description: "Prepare an audited no-commit merge from one pinned full commit object id inside the owned worktree.", inputSchema: { intent_id: external_exports.string(), commit_oid: external_exports.string().regex(/^[0-9a-f]{40,64}$/i), strategy: external_exports.enum(["ort", "ours"]).default("ort") } }, async ({ intent_id, commit_oid, strategy }) => guarded(async () => {
   const run = await store.status(intent_id);
-  await commitAtomic(run.worktreePath, paths, subject);
-  return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead));
+  if (run.phase !== "implement") throw new Error(`merge preparation requires implement phase, found ${run.phase}`);
+  return prepareMerge(run.worktreePath, commit_oid, strategy, (prepared) => store.recordPreparedMerge(intent_id, prepared).then(() => void 0), (prepared) => store.discardPreparedMerge(intent_id, prepared).then(() => void 0));
 }));
-server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, and changelog boundary.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
+server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
+  const run = await store.status(intent_id), prepared = run.preparedMerges?.at(-1);
+  if (!prepared) throw new Error("no signed prepared merge is available to abort");
+  try {
+    await abortMerge(run.worktreePath, prepared);
+  } catch (error2) {
+    if (!String(error2.message).includes("current merge state")) throw error2;
+    await reconcilePreparedMerge(run.worktreePath, prepared);
+  }
+  return store.discardPreparedMerge(intent_id, prepared);
+}));
+server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create the atomic Conventional Commit using argv execution rather than an injectable shell.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string(), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional() } }, async ({ intent_id, paths, subject, task_outcome }) => guarded(async () => {
   const run = await store.status(intent_id);
-  return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead));
+  await commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges);
+  return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges));
+}));
+server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, changelog, task-trailer, and first-parent phase boundary.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
+  const run = await store.status(intent_id);
+  return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges));
 }));
 server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
 server.registerTool("captain_status", { description: "Return the authoritative lifecycle phase and evidence ledger.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(() => store.status(intent_id)));

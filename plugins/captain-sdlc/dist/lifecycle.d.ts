@@ -1,3 +1,4 @@
+import type { PreparedMerge } from "./workspace.js";
 export type Profile = "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
@@ -11,7 +12,18 @@ export type SourceState = {
     status: string;
     manifest?: string;
 };
-export type StateProbe = (cwd: string) => Promise<SourceState>;
+export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
+export type CommitPolicy = {
+    conventional?: boolean;
+    require_version_suffix?: boolean;
+    require_task_trailer?: boolean;
+    version_file: string;
+    version_surfaces?: Array<{
+        path: string;
+        pattern: string;
+    }>;
+    changelog_files: string[];
+};
 export type ProjectPolicy = {
     profile: Profile;
     profiles?: Profile[];
@@ -22,6 +34,10 @@ export type ProjectPolicy = {
         expectedExitCodes: number[];
         outputPattern: string;
     };
+    commitPolicyPath?: string;
+    commitPolicySha256?: string;
+    commit?: CommitPolicy;
+    sourceManifestExcludes?: string[];
 };
 export type Intent = {
     intentId: string;
@@ -40,6 +56,7 @@ export type Run = {
     intentId: string;
     sessionId: string;
     turnId: string;
+    taskId?: string;
     objective: string;
     projectRoot: string;
     worktreePath: string;
@@ -50,6 +67,7 @@ export type Run = {
     phase: "tdd_red" | "implement" | "prove" | "complete";
     status: "running" | "green" | "red";
     policy: ProjectPolicy;
+    preparedMerges?: PreparedMerge[];
     committedState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
@@ -62,6 +80,9 @@ export type CommitEvidence = {
     subject: string;
     versionChanged: boolean;
     changelogChanged: boolean;
+    taskTrailerValid?: boolean;
+    versionSurfacesValid?: boolean;
+    preparedMergesValid?: boolean;
     phaseCommitsValid?: boolean;
 };
 export declare class LifecycleStore {
@@ -74,6 +95,8 @@ export declare class LifecycleStore {
     begin(input: BeginInput): Promise<Run>;
     resume(resumeIntentId: string): Promise<Run>;
     recordRed(intentId: string, command?: string): Promise<Run>;
+    recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
+    discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     recordCommit(intentId: string, commit: CommitEvidence): Promise<Run>;
     runCheck(intentId: string, scope: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
