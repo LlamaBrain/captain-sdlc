@@ -19,3 +19,4 @@
 - [ADR-0017: Git branching model — work off dev, squash to main, scaled by project size](0017-git-branching-model-squash-to-main.md)
 - [ADR-0018: claude-release owns the release-merge; CICD stays deferred](0018-claude-release-owns-release-merge.md)
 - [ADR-0019: ATH EXE remote-console harness — build-parity testing over a loopback socket](0019-ath-exe-remote-console-build-parity.md)
+- [ADR-0020: Substrate-fungible governed loop](0020-substrate-fungible-governed-loop.md)
