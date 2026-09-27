@@ -1,6 +1,6 @@
 # Captain SDLC — Conventions
-Updated: 2026-08-27
-Version: 0.1.5
+Updated: 2026-09-26
+Version: 0.1.6
 
 Created: 2026-05-28
 
@@ -217,8 +217,38 @@ Future seams that need suppression files inherit this convention. The wrapper is
 
 ## Version History
 
+- 0.1.6 (2026-09-26): Freeze started scope, define concrete HITL goals, and preserve same-task continuation.
+
 - 0.1.4 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.3 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.2 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.0 (2026-05-28): Initial conventions doc. Consolidates `.captain-sdlc/` layout, `schema_version` policy, and fenced-block convention.
+
+## Approved scope and task continuity
+
+Updated by human decision on 2026-09-26; see [ADR-0022](ADR/0022-approved-scope-and-resumable-work.md).
+Once an approved plan enters implementation, agents cannot add work, acceptance criteria or
+blocking gates. Repair defects against original criterion IDs. Put new discoveries in the
+separate closeout record's non-blocking follow-ups for human review after completion; only
+the human can authorize subsequent work. Do not reopen the agreed scope automatically.
+
+Keep progress in one external closure record. Disclose effective gates before implementation,
+distinguish phase acceptance from integration/release proof, and retain evidence at its actual
+revision. Resume the same task, branch and worktree with its dirty work and signed handoff.
+Ordinary resume direction is sufficient; adapters manage intent tokens. Never silently replace
+a checkout or take over another active session. Retry failed operations only after a relevant
+input or cause changes. Disposable automation payloads belong in ignored task scratch storage.
+
+Plugin enforcement binds selected `plan_paths` and trusted `approvedPlanPaths` for new runs. Legacy unbound runs must
+be identified honestly; this decision does not silently migrate their signed state.
+
+Plan states are draft, ready, working, optional HITL review, and completed. Starting accepts
+approval; pausing leaves working scope frozen. Declare concrete HITL goals at start and group
+them at the end of a provable segment. See [Plan lifecycle](plan-lifecycle.md) for the required
+criterion, setup, human action, pass/fail expectation and evidence fields.
+
+Pending HITL retains the active run and worktree, including across pause/resume.
+Rejection repairs original criteria in that same run and requires fresh proof before review.
+Acceptance completes the run; new requirements remain separately authorized follow-ups.
+Identical same-turn intent requests reuse their signed receipt rather than minting new work.
