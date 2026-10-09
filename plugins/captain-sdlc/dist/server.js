@@ -23731,15 +23731,35 @@ var MergeWorkflowStore = class {
     this.session(args.session_id);
     const record2 = await this.read(safeId2(args.merge_id));
     this.match(record2, args);
+    const operation_lease = await this.operationLeaseStatus(record2);
     if (["ready", "integrating", "merged"].includes(record2.state)) {
       try {
         await this.assertReady(record2, await git(["rev-parse", "HEAD"], record2.target_worktree) === record2.ready_inputs?.source.head);
-        return this.output(record2, true);
+        return { ...this.output(record2, true), operation_lease };
       } catch (error2) {
-        return { ...this.output(record2, false), stale_reason: error2.message };
+        return { ...this.output(record2, false), stale_reason: error2.message, operation_lease };
       }
     }
-    return this.output(record2, false);
+    return { ...this.output(record2, false), operation_lease };
+  }
+  async operationLeaseStatus(record2) {
+    const leaseId = hash2(`merge-operation\0${record2.merge_id}`), operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);
+    if (!operation) return { state: "absent" };
+    const lease = operation.payload;
+    this.assertMergeLease(lease, record2.merge_id, record2.session_id, "integration");
+    const { owner, reason } = this.leaseOwnerStatus(lease);
+    if (operation.state === "released") return { state: "released", owner };
+    return {
+      state: "held",
+      owner,
+      recovery: {
+        next_tool: "captain_recover_merge_lease",
+        args: { merge_id: record2.merge_id, session_id: record2.session_id, source_worktree: record2.source_worktree, target_worktree: record2.target_worktree, target_branch: record2.target_branch, expected_revision: record2.revision, expected_lease_token: lease.leaseToken },
+        eligible: owner.state === "stopped" && !this.activeOperations.has(leaseId),
+        requires_owner_stop_verification: owner.state === "legacy",
+        reason: this.activeOperations.has(leaseId) ? "merge operation is active in this process; recovery is refused" : reason
+      }
+    };
   }
   async recoverStaleLease(args) {
     this.session(args.session_id);
@@ -23788,6 +23808,8 @@ var MergeWorkflowStore = class {
         if (fullOwner.sessionId !== args.session_id || !samePath2(fullOwner.worktreePath, record2.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
       }
     }
+    const targetIntegrated = !!record2.ready_inputs && await git(["rev-parse", "HEAD"], record2.target_worktree) === record2.ready_inputs.source.head;
+    await this.bindings(record2, targetIntegrated);
     const latest = await this.read(args.merge_id);
     this.match(latest, args);
     if (latest.revision !== args.expected_revision) throw new Error("signed merge revision changed during recovery; refresh status");
@@ -23799,18 +23821,22 @@ var MergeWorkflowStore = class {
     if (lease.intentId !== id || lease.sessionId !== session || lease.operation !== operation || typeof lease.leaseToken !== "string") throw new Error("merge lease generation owner or operation mismatch");
   }
   assertLeaseOwnerStopped(lease, confirmed) {
-    if (lease.ownerPid !== void 0) {
-      if (!Number.isSafeInteger(lease.ownerPid) || typeof lease.ownerHost !== "string") throw new Error("merge lease owner process metadata is invalid");
-      if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) throw new Error("merge lease owner is on another host and cannot be verified locally");
-      let ownerActive = true;
-      try {
-        process.kill(lease.ownerPid, 0);
-      } catch (error2) {
-        if (error2.code === "ESRCH") ownerActive = false;
-        else throw new Error("merge lease owner process state is unknown; recovery refused", { cause: error2 });
-      }
-      if (ownerActive) throw new Error("merge lease owner process is still active");
-    } else if (confirmed !== true) throw new Error("legacy merge lease has no process metadata; confirm that its owner is stopped");
+    const { owner, reason } = this.leaseOwnerStatus(lease);
+    if (owner.state === "stopped" || owner.state === "legacy" && confirmed === true) return;
+    throw new Error(reason);
+  }
+  leaseOwnerStatus(lease) {
+    const metadata = { ...typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}, ...typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {} };
+    if (lease.ownerPid === void 0 && lease.ownerHost === void 0) return { owner: { state: "legacy" }, reason: "legacy merge lease has no process metadata; independently verify and confirm that its owner is stopped" };
+    if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
+    if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
+    try {
+      process.kill(lease.ownerPid, 0);
+    } catch (error2) {
+      if (error2.code === "ESRCH") return { owner: { ...metadata, state: "stopped" }, reason: "merge lease owner process is stopped; owner verification permits recovery, which must still validate current worktree and resource bindings" };
+      return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process state is unknown; recovery refused" };
+    }
+    return { owner: { ...metadata, state: "live" }, reason: "merge lease owner process is still active; recovery refused" };
   }
   async readHeldLease(id) {
     try {
@@ -24236,9 +24262,17 @@ async function startCaptainMcp() {
   const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path6.join(process.env.CODEX_HOME || path6.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.2.0" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.2.1" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
+  const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {
+    const next_step = args.merge_id ? {
+      tool: "captain_merge_status",
+      arguments: { merge_id: args.merge_id, session_id: args.session_id },
+      guidance: "Read the signed source/target bindings and operation_lease recovery context. Repair the diagnosed cause and continue the same authorized operation; lease recovery is separate from abort/reset."
+    } : void 0;
+    return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...next_step ? { next_step } : {} } };
+  });
   server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
     const run = await captainBegin(store, args);
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
@@ -24267,17 +24301,17 @@ async function startCaptainMcp() {
     }
   };
   for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
-    server.registerTool(name, mergePrepConfig, async (args) => guarded(() => merges.prep(args)));
+    server.registerTool(name, mergePrepConfig, async (args) => guardedMerge(() => merges.prep(args), args));
   }
   const mergeBackConfig = {
     description: "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
     inputSchema: { merge_id: external_exports.string().min(1), session_id: external_exports.string().min(1).max(256), source_worktree: external_exports.string().optional(), target_worktree: external_exports.string().optional(), target_branch: external_exports.string().optional() }
   };
   for (const name of ["captain_merge_back", "captain_merge_finish"]) {
-    server.registerTool(name, mergeBackConfig, async (args) => guarded(() => merges.back(args)));
+    server.registerTool(name, mergeBackConfig, async (args) => guardedMerge(() => merges.back(args), args));
   }
   server.registerTool("captain_merge_status", {
-    description: "Read the signed Merge Prep/Back operation, prepared revisions, conflicts and retained gate evidence. Merge readiness and integration are separate from implementation complete/green.",
+    description: "Read the signed Merge Prep/Back operation, source/target bindings, retained gate evidence, and authenticated operation lease owner/recovery context. Use operation_lease.recovery.args for exact-generation recovery after verifying its owner is stopped; no internal storage inspection is needed. Merge readiness and integration are separate from implementation complete/green.",
     inputSchema: { merge_id: external_exports.string().min(1), session_id: external_exports.string().min(1).max(256), source_worktree: external_exports.string().optional(), target_worktree: external_exports.string().optional(), target_branch: external_exports.string().optional() }
   }, async (args) => guarded(() => merges.status(args)));
   server.registerTool("captain_recover_merge_lease", {
@@ -24292,7 +24326,7 @@ async function startCaptainMcp() {
       expected_lease_token: external_exports.string().min(1),
       confirm_owner_stopped: external_exports.boolean().optional()
     }
-  }, async (args) => guarded(() => merges.recoverStaleLease(args)));
+  }, async (args) => guardedMerge(() => merges.recoverStaleLease(args), args));
   server.registerTool("captain_prepare_merge", { description: "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.", inputSchema: { intent_id: external_exports.string(), commit_oid: external_exports.string().regex(/^[0-9a-f]{40,64}$/i), strategy: external_exports.enum(["ort", "ours"]).default("ort") } }, async (args) => guarded(() => captainPrepareMerge(store, args)));
   server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => captainAbortMerge(store, args)));
   server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string(), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainCommit(store, args)));

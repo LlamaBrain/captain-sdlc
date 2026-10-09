@@ -5,6 +5,8 @@
 # Local tooling state
 .claude/
 .tmp/
+/Temp/automation-scratch/
+/plugins/captain-sdlc/Temp/automation-scratch/
 
 # Work-in-flight register — kept local, not published. The design set (ADRs,
 # roadmap, vision, seams, glossary) is the public face; scratch.md is the

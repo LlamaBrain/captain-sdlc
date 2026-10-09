@@ -131,9 +131,17 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.2.0" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.2.1" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
+const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {
+  const next_step = args.merge_id ? {
+    tool: "captain_merge_status",
+    arguments: { merge_id: args.merge_id, session_id: args.session_id },
+    guidance: "Read the signed source/target bindings and operation_lease recovery context. Repair the diagnosed cause and continue the same authorized operation; lease recovery is separate from abort/reset.",
+  } : undefined;
+  return { isError: true, content: [{ type: "text" as const, text: error.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error.message, ...(next_step ? { next_step } : {}) } };
+});
 server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: z.array(z.string().min(1)).optional(), hitl_checks: z.array(z.object({ id: z.string().trim().min(1), criterionId: z.string().trim().min(1), setup: z.string().trim().min(1), action: z.string().trim().min(1), expected: z.string().trim().min(1), evidence: z.string().trim().min(1) })).optional() } }, async args => guarded(async () => { const run = await captainBegin(store, args); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
 server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
 server.registerTool("captain_user_authorization_status", { description: "Retrieve durable commit/merge approval and revocation receipts, including original user wording, source turn, repository, task and merge target. Reuse existing authorization for the same task; missing parser receipts never negate explicit conversational approval. This is evidence, not a new approval gate or a waiver of Git hygiene.", inputSchema: { project_root: z.string().min(1), session_id: z.string().optional(), intent_id: z.string().optional(), operation: z.enum(["commit", "merge"]).optional(), target_branch: z.string().optional() } }, async args => guarded(() => store.userAuthorizations({ projectRoot: args.project_root, sessionId: args.session_id, intentId: args.intent_id, operation: args.operation, targetBranch: args.target_branch })));
@@ -152,17 +160,17 @@ const mergePrepConfig = {
   }
 };
 for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
-  server.registerTool(name, mergePrepConfig, async args => guarded(() => merges.prep(args)));
+  server.registerTool(name, mergePrepConfig, async args => guardedMerge(() => merges.prep(args), args));
 }
 const mergeBackConfig = {
   description: "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
   inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().optional(), target_worktree: z.string().optional(), target_branch: z.string().optional() }
 };
 for (const name of ["captain_merge_back", "captain_merge_finish"]) {
-  server.registerTool(name, mergeBackConfig, async args => guarded(() => merges.back(args)));
+  server.registerTool(name, mergeBackConfig, async args => guardedMerge(() => merges.back(args), args));
 }
 server.registerTool("captain_merge_status", {
-  description: "Read the signed Merge Prep/Back operation, prepared revisions, conflicts and retained gate evidence. Merge readiness and integration are separate from implementation complete/green.",
+  description: "Read the signed Merge Prep/Back operation, source/target bindings, retained gate evidence, and authenticated operation lease owner/recovery context. Use operation_lease.recovery.args for exact-generation recovery after verifying its owner is stopped; no internal storage inspection is needed. Merge readiness and integration are separate from implementation complete/green.",
   inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().optional(), target_worktree: z.string().optional(), target_branch: z.string().optional() }
 }, async args => guarded(() => merges.status(args)));
 server.registerTool("captain_recover_merge_lease", {
@@ -171,7 +179,7 @@ server.registerTool("captain_recover_merge_lease", {
     merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1),
     expected_revision: z.number().int().nonnegative(), expected_lease_token: z.string().min(1), confirm_owner_stopped: z.boolean().optional()
   }
-}, async args => guarded(() => merges.recoverStaleLease(args)));
+}, async args => guardedMerge(() => merges.recoverStaleLease(args), args));
 server.registerTool("captain_prepare_merge", { description: "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.", inputSchema: { intent_id: z.string(), commit_oid: z.string().regex(/^[0-9a-f]{40,64}$/i), strategy: z.enum(["ort", "ours"]).default("ort") } }, async args => guarded(() => captainPrepareMerge(store, args)));
 server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: z.string() } }, async args => guarded(() => captainAbortMerge(store, args)));
 server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string(), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: z.boolean().default(true) } }, async args => guarded(() => captainCommit(store, args)));

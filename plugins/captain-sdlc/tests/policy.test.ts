@@ -51,6 +51,20 @@ test("standalone merge status is read-only without an implementation permit", ()
   assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_merge_status_write", cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
 });
 
+test("exact merge lease recovery enters its server checks without reopening implementation", () => {
+  for (const namespace of ["mcp__captain-sdlc__", "mcp__captain_sdlc__", "tools.captain-sdlc__", "captain-sdlc__"]) {
+    const toolName = `${namespace}captain_recover_merge_lease`;
+    for (const permit of [null, { sessionId: "s", worktreePath: "C:/repo/owned", phase: "complete", intentId: "completed-task" }]) {
+      assert.equal(mutationDecision({ toolName, cwd: "C:/repo/owned", sessionId: "s", permit }).allow, true, toolName);
+    }
+    for (const suffix of ["_force", "_write"]) {
+      assert.equal(mutationDecision({ toolName: `${toolName}${suffix}`, cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
+    }
+  }
+  assert.equal(mutationDecision({ toolName: "mcp__unknown__captain_recover_merge_lease", cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_abort_merge", cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
+});
+
 test("denies direct or nested Git metadata mutation paths", () => {
   const worktreePath = "C:/repo/.captain-sdlc/worktrees/x", permit = { sessionId: "s", worktreePath, phase: "implement" };
   for (const target of [`${worktreePath}/.git`, `${worktreePath}/.git/config`, `${worktreePath}/src/.git/hooks/x`]) assert.equal(mutationDecision({ toolName: "apply_patch", cwd: worktreePath, sessionId: "s", permit, command: `*** Update File: ${target}` }).allow, false, target);

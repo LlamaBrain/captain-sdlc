@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+- Expose signed merge lease recovery arguments and owner state through public MCP status, and guide rejected continuations back to that status.
+- Admit the exact recovery tool through governed hook routing while retaining session, token, revision, and worktree checks.
+- Carry existing authorization and named target bindings through recovery and Prep/Back sequencing; stop at readiness for Prep-only requests.
+- Let agents resume from ordinary wording and use the verified installed public transport when a conversation retains an older tool list, without requiring manual tokens or a thread restart.
+- Repair Captain's self-host red-test pattern without weakening its regex validator or changing its required gates.
+- Exercise public status-to-recovery continuation, stopped/live owners, generation changes, receipt paths containing spaces, and the self-host startup policy.
+
 ## 0.2.0
 - Add exact-generation recovery for orphaned Merge Prep/Back leases with owner verification, plus an MCP smoke test proving tool advertisement and recovery.
 - Expose audited Merge Prep, Merge Back, status, and Begin/Finish aliases with merge-specific authorization and skills.

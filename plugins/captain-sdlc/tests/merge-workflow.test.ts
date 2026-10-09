@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
+import { once } from "node:events";
 import path from "node:path";
 import { promisify } from "node:util";
-import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLease } from "../src/authority.js";
+import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLease, releaseAuthorizedLease } from "../src/authority.js";
 import { LifecycleStore } from "../src/lifecycle.js";
 import { assertWorktreeBinding, commitAtomic, loadPolicy } from "../src/workspace.js";
 import { MergeWorkflowStore } from "../src/merge-workflow.js";
@@ -114,6 +115,108 @@ test("stale merge lease recovery refuses an operation active in this process", a
   const leaseId = createHash("sha256").update(`merge-operation\0${status.merge_id}`).digest("hex"), lease = await readAuthorizedLease<any>(f.data, leaseId);
   await assert.rejects(() => store.recoverStaleLease({ merge_id: status.merge_id, session_id: f.args.session_id, source_worktree: f.source, target_worktree: f.target, target_branch: "main", expected_revision: status.revision, expected_lease_token: lease.leaseToken, confirm_owner_stopped: true }), /active in this process/);
   finish(); assert.equal((await prep).state, "ready");
+});
+
+async function abandonedMerge(owner: Record<string, unknown> = {}) {
+  const f = await fixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "task\n");
+  const ready = await store.prep(f.args), leaseId = createHash("sha256").update(`merge-operation\0${ready.merge_id}`).digest("hex");
+  const leaseToken = "fixture-abandoned-generation";
+  await acquireAuthorizedLease(f.data, leaseId, { intentId: ready.merge_id, sessionId: f.args.session_id, operation: "integration", leaseToken, ...owner });
+  return { ...f, store, ready, leaseId, leaseToken, gates, statusArgs: { merge_id: ready.merge_id, session_id: f.args.session_id } };
+}
+
+async function stoppedOwnerPid() {
+  const result = await exec(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { windowsHide: true });
+  return Number(result.stdout);
+}
+
+test("public recovery status discovers a stopped separate process and resumes without confirmation", async () => {
+  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(), ownerHost: hostname() });
+  const ledger = path.join(f.data, "merge-revisions", `${f.ready.merge_id}-${f.ready.revision}.json`), before = await readFile(ledger, "utf8");
+  const sourceHead = await git(f.source, "rev-parse", "HEAD"), targetHead = await git(f.target, "rev-parse", "HEAD");
+  const status = await f.store.status(f.statusArgs), lease = status.operation_lease!;
+  assert.equal(lease.state, "held"); assert.equal(lease.owner!.state, "stopped");
+  assert.equal(lease.owner!.host, hostname()); assert.equal(lease.recovery!.eligible, true);
+  assert.equal(lease.recovery!.next_tool, "captain_recover_merge_lease");
+  assert.equal(lease.recovery!.requires_owner_stop_verification, false);
+  assert.deepEqual(lease.recovery!.args, { ...f.args, merge_id: f.ready.merge_id, expected_revision: f.ready.revision, expected_lease_token: f.leaseToken });
+  assert.equal((await readAuthorizedLease<any>(f.data, f.leaseId)).leaseToken, f.leaseToken);
+  await f.store.recoverStaleLease(lease.recovery!.args);
+  assert.equal(await readFile(ledger, "utf8"), before);
+  assert.equal(await git(f.source, "rev-parse", "HEAD"), sourceHead); assert.equal(await git(f.target, "rev-parse", "HEAD"), targetHead);
+  assert.deepEqual(f.gates, ["trusted build"]);
+  assert.equal((await f.store.status(f.statusArgs)).operation_lease!.state, "released");
+  assert.equal((await f.store.prep({ ...f.args, merge_id: f.ready.merge_id })).revision, f.ready.revision);
+  assert.equal((await f.store.back(f.statusArgs)).state, "merged"); assert.deepEqual(f.gates, ["trusted build"]);
+});
+
+test("public recovery status protects a live separate owner process", async () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { windowsHide: true, stdio: "ignore" });
+  await once(child, "spawn");
+  try {
+    const f = await abandonedMerge({ ownerPid: child.pid, ownerHost: hostname() });
+    const lease = (await f.store.status(f.statusArgs)).operation_lease!;
+    assert.equal(lease.owner!.state, "live"); assert.equal(lease.recovery!.eligible, false);
+    assert.match(lease.recovery!.reason, /still active/);
+    await assert.rejects(() => f.store.recoverStaleLease({ ...lease.recovery!.args, confirm_owner_stopped: true }), /still active/);
+    assert.equal((await readAuthorizedLease<any>(f.data, f.leaseId)).leaseToken, f.leaseToken);
+  } finally { const closed = once(child, "close"); child.kill(); await closed; }
+});
+
+for (const [owner, state, reason] of [
+  [{}, "legacy", /independently verify/],
+  [{ ownerPid: 1, ownerHost: "another-host.invalid" }, "foreign_host", /another host/],
+  [{ ownerPid: -1, ownerHost: hostname() }, "unknown", /invalid/],
+] as const) test(`public recovery status reports ${state} owner without inventing verification`, async () => {
+  const f = await abandonedMerge(owner), lease = (await f.store.status(f.statusArgs)).operation_lease!;
+  assert.equal(lease.owner!.state, state); assert.equal(lease.recovery!.eligible, false);
+  assert.equal(lease.recovery!.requires_owner_stop_verification, state === "legacy");
+  assert.match(lease.recovery!.reason, reason); assert.equal(lease.recovery!.args.confirm_owner_stopped, undefined);
+  await assert.rejects(() => f.store.recoverStaleLease(lease.recovery!.args), /confirm|another host|invalid/);
+  assert.equal((await readAuthorizedLease<any>(f.data, f.leaseId)).leaseToken, f.leaseToken);
+  if (state === "legacy") await f.store.recoverStaleLease({ ...lease.recovery!.args, confirm_owner_stopped: true });
+});
+
+test("public recovery status refuses foreign sessions and source target identity mismatches", async () => {
+  const f = await abandonedMerge();
+  await assert.rejects(() => f.store.status({ ...f.statusArgs, session_id: "foreign" }), /session/);
+  await assert.rejects(() => f.store.status({ ...f.statusArgs, source_worktree: f.target }), /identity/);
+  const lease = (await f.store.status(f.statusArgs)).operation_lease!;
+  await assert.rejects(() => f.store.recoverStaleLease({ ...lease.recovery!.args, target_worktree: f.source, confirm_owner_stopped: true }), /identity/);
+  await releaseAuthorizedLease(f.data, f.leaseId, f.ready.merge_id, f.leaseToken);
+  await acquireAuthorizedLease(f.data, f.leaseId, { intentId: f.ready.merge_id, sessionId: "foreign", operation: "integration", leaseToken: "foreign-fixture-token" });
+  await assert.rejects(() => f.store.status(f.statusArgs), /owner|operation|session/);
+});
+
+test("public recovery status cannot release a rotated lease generation", async () => {
+  const f = await abandonedMerge(), args = (await f.store.status(f.statusArgs)).operation_lease!.recovery!.args;
+  await releaseAuthorizedLease(f.data, f.leaseId, f.ready.merge_id, f.leaseToken);
+  await acquireAuthorizedLease(f.data, f.leaseId, { intentId: f.ready.merge_id, sessionId: f.args.session_id, operation: "integration", leaseToken: "rotated-fixture-token" });
+  await assert.rejects(() => f.store.recoverStaleLease({ ...args, confirm_owner_stopped: true }), /generation|token/);
+  assert.equal((await readAuthorizedLease<any>(f.data, f.leaseId)).leaseToken, "rotated-fixture-token");
+});
+
+for (const changed of ["source-branch", "target-head"] as const) test(`public recovery checks actual ${changed} binding before releasing leases`, async () => {
+  const f = await abandonedMerge(), args = (await f.store.status(f.statusArgs)).operation_lease!.recovery!.args;
+  const target = f.ready.target_binding, branchLeaseId = createHash("sha256").update(`${path.resolve(target.commonGitDir)}\0refs/heads/${target.branch}`.toLowerCase()).digest("hex");
+  await acquireAuthorizedLease(f.data, branchLeaseId, { intentId: f.ready.merge_id, sessionId: f.args.session_id, operation: "integration-branch", leaseToken: "fixture-target-generation", commonGitDir: target.commonGitDir, targetBranch: target.branch, targetOid: target.head });
+  if (changed === "source-branch") await git(f.source, "switch", "-c", "replacement-source");
+  else await commit(f.target, "moved.txt", "foreign movement\n");
+  const ledger = path.join(f.data, "merge-revisions", `${f.ready.merge_id}-${f.ready.revision}.json`), before = await readFile(ledger, "utf8");
+  await assert.rejects(() => f.store.recoverStaleLease({ ...args, confirm_owner_stopped: true }), /binding|diverged/);
+  assert.equal((await readAuthorizedLease<any>(f.data, f.leaseId)).leaseToken, f.leaseToken);
+  assert.equal((await readAuthorizedLease<any>(f.data, branchLeaseId)).leaseToken, "fixture-target-generation");
+  assert.equal(await readFile(ledger, "utf8"), before); assert.deepEqual(f.gates, ["trusted build"]);
+});
+
+test("public recovery permits the exact already integrated target without repeating gates", async () => {
+  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(), ownerHost: hostname() });
+  await git(f.target, "merge", "--ff-only", f.ready.ready_inputs!.source.head);
+  const status = await f.store.status(f.statusArgs);
+  assert.equal(status.receipt_valid, true);
+  await f.store.recoverStaleLease(status.operation_lease!.recovery!.args);
+  assert.equal((await f.store.back(f.statusArgs)).state, "merged"); assert.deepEqual(f.gates, ["trusted build"]);
 });
 test("divergence prepares audited source merge and requires its explicit policy commit", async () => {
   const f = await fixture(), store = new MergeWorkflowStore(f.data, async () => ok); await commit(f.source, "task.txt", "task\n"); await commit(f.target, "target.txt", "target\n"); const targetHead = await git(f.target, "rev-parse", "HEAD");

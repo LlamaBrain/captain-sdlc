@@ -7,7 +7,8 @@ description: Mandatory implementation workflow. Use whenever the user asks to im
 
 The purpose is clean Git hygiene and preserving authorized work. Saying "commit" is explicit
 approval for the current task; "merge to X" approves that integration target. Preserve this
-authority across turns. Consult `captain_user_authorization_status` for original user receipts
+authority across turns, models and session handoffs for the same task and target. Consult
+`captain_user_authorization_status` and the conversation for original user instructions
 before claiming approval is absent. Missing parser receipts do not negate conversational
 authorization. Do not demand exact wording, repeated confirmation, or treat ordinary append-only
 commits as history rewrites. Commit/merge approval does not by itself authorize push or disabling
@@ -123,10 +124,32 @@ Start with a
 clean committed source and the existing source/target worktrees. Use
 [Merge Prep](../merge-prep/SKILL.md) and `captain_merge_prep` to pull the pinned target
 into that source, resolve conflicts/errors there, and run the captured merge checks;
-stop at `ready` with the target unchanged. Use [Merge Back](../merge-back/SKILL.md)
-and `captain_merge_back` only under matching integration authorization. Back consumes
+the Prep tool stops at `ready` with the target unchanged. When matching integration authority
+already applies, continue [Merge Back](../merge-back/SKILL.md) and `captain_merge_back` in the
+same turn without another permission request. A Prep-only or Begin-only instruction stops at
+readiness and does not grant Back authority. Back consumes
 the signed Prep receipt without repeating gates. Preserve proof at its actual revision
 and report integration readiness separately from implementation complete/green;
 integration does not reopen a completed plan or substitute for its signed proof.
+
+For existing merge operations, use the `captain_merge_status` source/target/branch bindings
+before considering checkout HEAD, ancestor branches or older handoffs. Preserve the selected
+target and task identity. For stale leases, read `operation_lease` status, verify the stopped
+owner, call `captain_recover_merge_lease` with its exact `recovery.args`, then continue the same
+authorized operation. This recovery preserves Git refs and readiness; do not ask for the same
+permission again, guess IDs, edit lease files, or substitute implementation `captain_abort_merge`.
+Active or foreign ownership remains protected by Captain's checks.
+
+After updating the installed plugin, a conversation may still expose an older MCP
+tool list. Check the installed package and its public `initialize`/`tools/list`
+responses. When the required tool exists in that installed runtime, use an MCP
+SDK stdio client to its `dist/server.js` with the installation's existing plugin
+data directory. Preserve the same session, task, merge ID and authority store;
+call the public tool with its published schema. Keep any client payloads in the
+project's ignored automation scratch directory. This uses the installed public
+transport and does not grant new authority. Do not make the human restart a
+thread, find IDs or reauthorize work to compensate for a stale tool inventory.
+Never bypass hook decisions or mark untrusted changed hooks as trusted. Actual
+Codex hook trust prompts still belong to the human.
 
 If the repository's committed `HEAD` lacks `.captain-sdlc/codex-policy.json`, Captain does not govern that repository yet; use its normal project workflow. This opt-in behavior allows a repository to bootstrap or repair its policy without deadlocking behind unavailable Captain entry points.

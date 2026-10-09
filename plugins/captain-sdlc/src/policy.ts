@@ -2,7 +2,7 @@ import path from "node:path";
 export type Permit = { sessionId: string; turnId?: string; worktreePath: string; phase: string; intentId?: string; frozenPlanPaths?: string[] };
 export type MutationInput = { toolName: string; cwd: string; sessionId: string; permit: Permit | null; command?: string; intentId?: string };
 const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_(?:status|user_authorization_status|merge_status|doctor))$/i;
-const entryTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(issue_intent|begin_implementation|resume_implementation|merge_prep|merge_back|merge_begin|merge_finish)$/i;
+const entryTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(issue_intent|begin_implementation|resume_implementation|merge_prep|merge_back|merge_begin|merge_finish|recover_merge_lease)$/i;
 const governedTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(record_red|run_check|prepare_merge|abort_merge|commit|record_commit|prove|migrate_plan_state|record_plan_review|record_hitl_feedback|pause_implementation)$/i;
 export function mutationDecision(input: MutationInput): { allow: boolean; reason?: string } {
   const frozenReason = frozenPlanMutationReason(input); if (frozenReason) return deny(frozenReason);

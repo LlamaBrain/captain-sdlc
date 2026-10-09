@@ -21,7 +21,13 @@ export type MergeRecord = {
   prepared_merge?: PreparedMerge; prepared_commit?: PreparedCommitCore; prepared_commit_request?: MergeCommitInput; conflicts: string[]; gates: GateEvidence[];
   attempted_inputs?: Inputs; ready_inputs?: Inputs; failure?: string; integrated_head?: string;
 };
-export type MergeStatus = MergeRecord & { receipt_valid?: boolean; stale_reason?: string; captain_green: false };
+export type MergeLeaseOwner = { pid?: number; host?: string; state: "stopped" | "live" | "foreign_host" | "unknown" | "legacy" };
+export type MergeOperationLeaseStatus = {
+  state: "absent" | "held" | "released";
+  owner?: MergeLeaseOwner;
+  recovery?: { next_tool: "captain_recover_merge_lease"; args: MergeLeaseRecoveryArgs; eligible: boolean; requires_owner_stop_verification: boolean; reason: string };
+};
+export type MergeStatus = MergeRecord & { receipt_valid?: boolean; stale_reason?: string; captain_green: false; operation_lease?: MergeOperationLeaseStatus };
 
 const hash = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 const digest = (value: unknown) => hash(JSON.stringify(value));
@@ -149,11 +155,31 @@ export class MergeWorkflowStore {
 
   async status(args: MergeBackArgs): Promise<MergeStatus> {
     this.session(args.session_id); const record = await this.read(safeId(args.merge_id)); this.match(record, args);
+    const operation_lease = await this.operationLeaseStatus(record);
     if (["ready", "integrating", "merged"].includes(record.state)) {
-      try { await this.assertReady(record, await git(["rev-parse", "HEAD"], record.target_worktree) === record.ready_inputs?.source.head); return this.output(record, true); }
-      catch (error) { return { ...this.output(record, false), stale_reason: (error as Error).message }; }
+      try { await this.assertReady(record, await git(["rev-parse", "HEAD"], record.target_worktree) === record.ready_inputs?.source.head); return { ...this.output(record, true), operation_lease }; }
+      catch (error) { return { ...this.output(record, false), stale_reason: (error as Error).message, operation_lease }; }
     }
-    return this.output(record, false);
+    return { ...this.output(record, false), operation_lease };
+  }
+
+  private async operationLeaseStatus(record: MergeRecord): Promise<MergeOperationLeaseStatus> {
+    const leaseId = hash(`merge-operation\0${record.merge_id}`), operation = await readAuthorizedLeaseState<Record<string, any> & { intentId: string; leaseToken: string }>(this.dataRoot, leaseId);
+    if (!operation) return { state: "absent" };
+    const lease = operation.payload;
+    this.assertMergeLease(lease, record.merge_id, record.session_id, "integration");
+    const { owner, reason } = this.leaseOwnerStatus(lease);
+    if (operation.state === "released") return { state: "released", owner };
+    return {
+      state: "held", owner,
+      recovery: {
+        next_tool: "captain_recover_merge_lease",
+        args: { merge_id: record.merge_id, session_id: record.session_id, source_worktree: record.source_worktree, target_worktree: record.target_worktree, target_branch: record.target_branch, expected_revision: record.revision, expected_lease_token: lease.leaseToken },
+        eligible: owner.state === "stopped" && !this.activeOperations.has(leaseId),
+        requires_owner_stop_verification: owner.state === "legacy",
+        reason: this.activeOperations.has(leaseId) ? "merge operation is active in this process; recovery is refused" : reason,
+      },
+    };
   }
 
   async recoverStaleLease(args: MergeLeaseRecoveryArgs) {
@@ -202,6 +228,8 @@ export class MergeWorkflowStore {
         if (fullOwner.sessionId !== args.session_id || !samePath(fullOwner.worktreePath, record.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
       }
     }
+    const targetIntegrated = !!record.ready_inputs && await git(["rev-parse", "HEAD"], record.target_worktree) === record.ready_inputs.source.head;
+    await this.bindings(record, targetIntegrated);
     const latest = await this.read(args.merge_id); this.match(latest, args);
     if (latest.revision !== args.expected_revision) throw new Error("signed merge revision changed during recovery; refresh status");
     for (const resource of resources) await releaseAuthorizedLease(this.dataRoot, resource.id, args.merge_id, resource.payload.leaseToken);
@@ -213,14 +241,21 @@ export class MergeWorkflowStore {
     if (lease.intentId !== id || lease.sessionId !== session || lease.operation !== operation || typeof lease.leaseToken !== "string") throw new Error("merge lease generation owner or operation mismatch");
   }
   private assertLeaseOwnerStopped(lease: Record<string, any>, confirmed?: boolean) {
-    if (lease.ownerPid !== undefined) {
-      if (!Number.isSafeInteger(lease.ownerPid) || typeof lease.ownerHost !== "string") throw new Error("merge lease owner process metadata is invalid");
-      if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) throw new Error("merge lease owner is on another host and cannot be verified locally");
-      let ownerActive = true;
-      try { process.kill(lease.ownerPid as number, 0); }
-      catch (error: any) { if (error.code === "ESRCH") ownerActive = false; else throw new Error("merge lease owner process state is unknown; recovery refused", { cause: error }); }
-      if (ownerActive) throw new Error("merge lease owner process is still active");
-    } else if (confirmed !== true) throw new Error("legacy merge lease has no process metadata; confirm that its owner is stopped");
+    const { owner, reason } = this.leaseOwnerStatus(lease);
+    if (owner.state === "stopped" || (owner.state === "legacy" && confirmed === true)) return;
+    throw new Error(reason);
+  }
+  private leaseOwnerStatus(lease: Record<string, any>): { owner: MergeLeaseOwner; reason: string } {
+    const metadata = { ...(typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}), ...(typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {}) };
+    if (lease.ownerPid === undefined && lease.ownerHost === undefined) return { owner: { state: "legacy" }, reason: "legacy merge lease has no process metadata; independently verify and confirm that its owner is stopped" };
+    if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
+    if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
+    try { process.kill(lease.ownerPid as number, 0); }
+    catch (error: any) {
+      if (error.code === "ESRCH") return { owner: { ...metadata, state: "stopped" }, reason: "merge lease owner process is stopped; owner verification permits recovery, which must still validate current worktree and resource bindings" };
+      return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process state is unknown; recovery refused" };
+    }
+    return { owner: { ...metadata, state: "live" }, reason: "merge lease owner process is still active; recovery refused" };
   }
   private async readHeldLease(id: string): Promise<(Record<string, any> & { intentId: string; leaseToken: string }) | undefined> {
     try { return await readAuthorizedLease(this.dataRoot, id); }

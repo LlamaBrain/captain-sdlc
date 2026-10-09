@@ -69,10 +69,27 @@ export type MergeRecord = {
     failure?: string;
     integrated_head?: string;
 };
+export type MergeLeaseOwner = {
+    pid?: number;
+    host?: string;
+    state: "stopped" | "live" | "foreign_host" | "unknown" | "legacy";
+};
+export type MergeOperationLeaseStatus = {
+    state: "absent" | "held" | "released";
+    owner?: MergeLeaseOwner;
+    recovery?: {
+        next_tool: "captain_recover_merge_lease";
+        args: MergeLeaseRecoveryArgs;
+        eligible: boolean;
+        requires_owner_stop_verification: boolean;
+        reason: string;
+    };
+};
 export type MergeStatus = MergeRecord & {
     receipt_valid?: boolean;
     stale_reason?: string;
     captain_green: false;
+    operation_lease?: MergeOperationLeaseStatus;
 };
 /** Independent integration ledger. Implementation run phases and proof are never rewritten. */
 export declare class MergeWorkflowStore {
@@ -83,6 +100,7 @@ export declare class MergeWorkflowStore {
     prep(args: MergePrepArgs): Promise<MergeStatus>;
     back(args: MergeBackArgs): Promise<MergeStatus>;
     status(args: MergeBackArgs): Promise<MergeStatus>;
+    private operationLeaseStatus;
     recoverStaleLease(args: MergeLeaseRecoveryArgs): Promise<{
         merge_id: string;
         released: boolean;
@@ -92,6 +110,7 @@ export declare class MergeWorkflowStore {
     }>;
     private assertMergeLease;
     private assertLeaseOwnerStopped;
+    private leaseOwnerStatus;
     private readHeldLease;
     private session;
     private match;

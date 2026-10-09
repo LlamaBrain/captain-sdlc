@@ -51,6 +51,15 @@ tools. Either spelling can continue an operation started with the other spelling
   Legacy leases require explicit confirmation that their owner stopped. Resume with the same
   `merge_id`; recovery leaves the merge ledger and Git refs unchanged.
 
+`captain_merge_status.operation_lease` reports signed owner metadata and the exact
+`recovery.args` for this operation. A stopped local process needs no confirmation;
+a legacy owner must be independently verified before setting `confirm_owner_stopped`.
+Live, foreign or unknown owners remain protected. Rejected continuations point back
+to status, so recovery can proceed without internal storage inspection or asking the
+human for identifiers. Keep the signed target and existing authorization. After Prep
+is ready, continue through Back when matching integration authority already applies;
+a Prep-only request stops at readiness.
+
 Merge readiness and Git integration are separate from signed implementation `complete/green`,
 human plan acceptance and release proof. A completed implementation run retains its original
 proof; integration has its own signed record. Caller-supplied commands cannot replace gates.
@@ -69,15 +78,25 @@ Captain includes an OpenCode plugin adapter at `opencode/captain-sdlc.mjs`. It d
 
 Captain owns operational work memory; repositories do not need custom `AGENTS.md` rules to hand work to another agent. Call `captain_pause_implementation` with a concise summary, completed and next steps, blockers, plan/phase, and any context worth preserving. Captain adds the signed run identity, canonical worktree/branch, current source state, and evidence ledger, releases the session lease, and returns a resume directive.
 
-Paste that exact directive into a later request:
+The human can say "continue" or "resume". The agent resolves the existing task
+through `captain_doctor` and its signed handoff, then issues a resume intent for
+that run and restores the same worktree. The handoff retains this internal handle:
 
 ```text
 [Captain resume: intent-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx]
 ```
 
-The prompt hook mints a fresh one-time resume token; the next agent calls `captain_resume_implementation` with that token before any mutation. A paused handoff may also include a blocker redirect prompt such as `[Captain plan: INPUTSYSTEM_FIX]`; start that governed blocker task first, then resume the original run when it is unblocked.
+The adapter mints a fresh one-time resume token; the agent calls
+`captain_resume_implementation` with that token before any mutation. The human
+does not need to reproduce the handle. If several tasks match, ask which task to
+continue. A paused handoff may identify a dependency task; preserve the original
+task's scope and authorization when resolving that dependency.
 
-If a Captain hook ever prevents recovery, use the installed plugin's `scripts/hook-control.mjs off`. Its status is stored in plugin data, bypasses all three Captain hooks, and is intentionally allowed by the mutation hook. Run `hook-control.mjs on` after recovery; `status` reports the current state. This replaces deleting hooks, worktrees, or repository files.
+Ordinary recovery uses the public recovery tools with controls enabled. Emergency
+hook control requires separate explicit human authorization. For that authorized
+case only, the installed `scripts/hook-control.mjs` exposes `status`, `off` and
+`on`; retain the prior state and restore it after recovery. Commit or merge
+authority alone does not authorize disabling hooks.
 
 ## Local verification
 
@@ -105,4 +124,11 @@ codex plugin marketplace add .
 codex plugin add captain-sdlc@personal
 ```
 
-Restart into a new Codex thread, review and trust the plugin hooks, then make an implementation request. Codex intentionally skips changed hooks until their new hash is trusted.
+Codex intentionally skips changed hooks until their new hash is trusted; review
+any actual hook trust prompt. A conversation's MCP inventory may retain an older
+tool list after installation. The agent can use the installed server's public MCP
+transport with the existing plugin data directory, verify its advertised version
+and tool schema, and continue the same authorized operation. A new thread is
+optional for refreshing the host's inventory, not a prerequisite for using the
+installed public tools. Preserve hook decisions and the original signed task
+and merge bindings.

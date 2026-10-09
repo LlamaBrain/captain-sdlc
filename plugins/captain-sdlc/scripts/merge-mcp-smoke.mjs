@@ -11,6 +11,7 @@ import { acquireAuthorizedLease } from "../dist/authority.js";
 // A fresh MCP process and real Git pair exercise the packaged transport and stop boundary.
 // Only disposable fixture repositories are integrated; production repositories are untouched.
 const pluginRoot = path.resolve(process.argv[2] || path.join(import.meta.dirname, ".."));
+const pluginVersion = JSON.parse(await readFile(path.join(pluginRoot, "package.json"), "utf8")).version;
 const evidenceRoot = path.resolve(process.argv[3] || path.join(pluginRoot, ".captain-proof"));
 const scratchRoot = path.resolve(process.argv[4] || path.join(pluginRoot, "Temp", "automation-scratch", "merge-mcp"));
 await mkdir(scratchRoot, { recursive: true });
@@ -28,7 +29,7 @@ await mkdir(path.join(target, ".captain-sdlc"));
 await writeFile(path.join(target, ".captain-sdlc", "codex-policy.json"), JSON.stringify({
   profile: "low", visualRequired: false,
   commands: { build: "node fixture-gate.cjs", ticket: "node fixture-gate.cjs", "feature-smoke": "node fixture-gate.cjs", "affected-regression": "node fixture-gate.cjs" },
-  sourceManifestExcludes: ["Temp"],
+  sourceManifestExcludes: ["Temp", "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset"],
   commit: { conventional: true, require_version_suffix: false, require_task_trailer: false, version_file: "VERSION", version_surfaces: [], changelog_files: ["CHANGELOG.md"] }
 }));
 await writeFile(path.join(target, ".captain-sdlc", "merge-policy.json"), JSON.stringify({ schema_version: 1, strictness: "low" }));
@@ -55,6 +56,7 @@ async function call(name, args, expectError = false) {
 }
 try {
   await client.connect(transport);
+  assert.equal(client.getServerVersion()?.version, pluginVersion, "MCP advertises the installed package version");
   const listed = (await client.listTools()).tools;
   const tools = listed.map(tool => tool.name);
   for (const name of ["captain_merge_prep", "captain_merge_begin", "captain_merge_back", "captain_merge_finish", "captain_merge_status", "captain_recover_merge_lease", "captain_prepare_merge", "captain_abort_merge", "captain_commit"]) assert.ok(tools.includes(name), `missing ${name}`);
@@ -73,7 +75,22 @@ try {
   assert.equal(status.receipt_valid, true);
   const leaseId = createHash("sha256").update(`merge-operation\0${ready.merge_id}`).digest("hex"), leaseToken = randomUUID();
   await acquireAuthorizedLease(env.CAPTAIN_PLUGIN_DATA, leaseId, { intentId: ready.merge_id, leaseToken, sessionId: session_id, operation: "integration" });
-  const recovery = { merge_id: ready.merge_id, session_id, source_worktree: source, target_worktree: target, target_branch: "main", expected_revision: ready.revision, expected_lease_token: leaseToken };
+  // The caller discovers every recovery binding through public MCP status, rather
+  // than digging into authority storage or asking the human for an identifier.
+  const orphaned = await call("captain_merge_status", { merge_id: ready.merge_id, session_id });
+  assert.equal(orphaned.operation_lease.state, "held");
+  assert.equal(orphaned.operation_lease.owner.state, "legacy");
+  assert.equal(orphaned.operation_lease.recovery.requires_owner_stop_verification, true);
+  assert.equal(orphaned.operation_lease.recovery.next_tool, "captain_recover_merge_lease");
+  const recovery = orphaned.operation_lease.recovery.args;
+  assert.equal(recovery.expected_revision, ready.revision);
+  assert.equal(recovery.source_worktree, source);
+  assert.equal(recovery.target_worktree, target);
+  assert.equal(recovery.target_branch, "main");
+  assert.equal(recovery.confirm_owner_stopped, undefined);
+  const blockedPrep = await call("captain_merge_prep", { ...args, merge_id: ready.merge_id }, true);
+  assert.equal(blockedPrep.structuredContent.next_step.tool, "captain_merge_status");
+  assert.deepEqual(blockedPrep.structuredContent.next_step.arguments, { merge_id: ready.merge_id, session_id });
   await call("captain_recover_merge_lease", { ...recovery, confirm_owner_stopped: false }, true);
   assert.equal((await call("captain_merge_status", { merge_id: ready.merge_id, session_id })).receipt_valid, true);
   const released = await call("captain_recover_merge_lease", { ...recovery, confirm_owner_stopped: true });
@@ -113,7 +130,7 @@ try {
   assert.equal(await git(target, "rev-parse", "HEAD"), resumed.ready_inputs.source.head);
   assert.equal(await readFile(path.join(source, "Temp", "gates.log"), "utf8"), "build\nbuild\n");
   await mkdir(evidenceRoot, { recursive: true });
-  const proof = { schema_version: 1, smoke: "mcp-merge-aliases", status: "green", created_at: new Date().toISOString(), plugin_root: pluginRoot, fixture: run, advertised_tools: tools.filter(name => /merge|commit/.test(name)), merge_ids: [ready.merge_id, resumed.merge_id], original_target: originalTarget, first_integrated_head: merged.integrated_head, second_prep_target_unchanged: pinnedTarget, second_integrated_head: secondMerged.integrated_head, alias_schema_equal: true, gates_run: 2, captain_green: false };
+  const proof = { schema_version: 1, smoke: "mcp-merge-aliases", status: "green", created_at: new Date().toISOString(), plugin_root: pluginRoot, plugin_version: pluginVersion, server_sha256: createHash("sha256").update(await readFile(path.join(pluginRoot, "dist", "server.js"))).digest("hex"), fixture: run, advertised_tools: tools.filter(name => /merge|commit/.test(name)), merge_ids: [ready.merge_id, resumed.merge_id], original_target: originalTarget, first_integrated_head: merged.integrated_head, second_prep_target_unchanged: pinnedTarget, second_integrated_head: secondMerged.integrated_head, alias_schema_equal: true, recovery_args_from_public_status: true, gates_run: 2, captain_green: false };
   await writeFile(path.join(evidenceRoot, "merge-mcp-smoke.json"), JSON.stringify(proof, null, 2) + "\n");
   process.stdout.write(`Captain MCP Merge Prep/Back: green (${pluginRoot})\n`);
 } finally { await client.close(); }
