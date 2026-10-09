@@ -145,6 +145,10 @@ export async function readAuthorizedLease(root, id) {
     }
     return current.payload;
 }
+export async function readAuthorizedLeaseState(root, id) {
+    const current = await leaseState(root, id);
+    return current && { state: current.state, payload: current.payload };
+}
 export async function ensureAuthorizedLease(root, id, payload) {
     for (let attempt = 0; attempt < 4; attempt++) {
         const current = await leaseState(root, id);

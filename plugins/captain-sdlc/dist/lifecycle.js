@@ -1,8 +1,44 @@
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, readFile, readdir } from "node:fs/promises";
+import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, releaseAuthorizedLease, writeAuthorized } from "./authority.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
+import { recordUserAuthorizations, userAuthorizationStatus } from "./user-authorization.js";
+export function approvedPlanDigest(content) { return digest(content.replaceAll("\r\n", "\n")); }
+export function proofScopes(run) { return [...(run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...(run.profile === "pre-release" ? ["super-smoke"] : [])]), ...(run.visualRequired ? ["visual"] : [])]; }
+export function executionHead(run) { return run.continuityState?.head ?? run.committedState?.head ?? run.baseHead; }
+export function isPendingPlanReview(run) {
+    if (run.phase === "hitl")
+        return true;
+    const lastReview = run.evidence.filter(item => item.kind === "plan_review").at(-1);
+    return run.phase === "complete" && run.status === "green" && Boolean(run.policy.hitlChecks?.length) && lastReview?.decision !== "accept";
+}
+export function effectiveGateDisclosure(run) {
+    const bindings = { build: "build", "feature-smoke": "smoke", visual: "visual" };
+    const planReview = run.evidence.filter(item => item.kind === "plan_review").at(-1);
+    const pendingReview = isPendingPlanReview(run);
+    const humanReview = run.evidence.filter(item => item.kind === "hitl_feedback").at(-1);
+    const reviewDecisions = new Map();
+    for (const item of run.evidence) {
+        if (!["hitl_feedback", "plan_review"].includes(String(item.kind)) || !["accept", "needs_changes"].includes(String(item.decision)) || !Array.isArray(item.checkIds))
+            continue;
+        for (const id of item.checkIds)
+            if (typeof id === "string")
+                reviewDecisions.set(id, String(item.decision));
+    }
+    const declaredIds = (run.policy.hitlChecks ?? []).map(check => check.id);
+    const humanReviewStatus = { acceptedCheckIds: declaredIds.filter(id => reviewDecisions.get(id) === "accept"), needsChangesCheckIds: declaredIds.filter(id => reviewDecisions.get(id) === "needs_changes"), unreviewedCheckIds: declaredIds.filter(id => !reviewDecisions.has(id)) };
+    return {
+        hitlChecks: run.policy.hitlChecks ?? [], planReview: planReview ?? null, humanReview: humanReview ?? null, humanReviewStatus,
+        planState: !run.policy.approvedPlans?.length ? "unbound" : pendingReview ? "hitl" : run.phase === "complete" && run.status === "green" ? "completed" : "working",
+        approvalAccepted: Boolean(run.policy.approvedPlans?.length), scopeBinding: run.policy.approvedPlans?.length ? "frozen" : "unbound",
+        approvedPlans: run.policy.approvedPlans ?? [], baseHead: run.baseHead, policySource: ".captain-sdlc/codex-policy.json",
+        progressLocation: "signed run evidence and pause handoffs; approved plans are immutable",
+        proofStatus: pendingReview ? { phase: "complete", status: "green" } : { phase: run.phase, status: run.status },
+        phaseAcceptance: humanReviewStatus.needsChangesCheckIds.length ? `human requested changes for ${humanReviewStatus.needsChangesCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : humanReviewStatus.acceptedCheckIds.length ? `human accepted ${humanReviewStatus.acceptedCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : pendingReview ? "awaiting declared human review" : "not inferred from proof status",
+        gates: proofScopes(run).map(scope => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
+    };
+}
 export class LifecycleStore {
     dataRoot;
     runner;
@@ -15,6 +51,47 @@ export class LifecycleStore {
         this.hooks = hooks;
     }
     async markIntent(intent) { await this.save("intents", intent.intentId, intent); }
+    async issueIdempotentIntent(request, factory) {
+        const normalized = JSON.parse(JSON.stringify({ ...request, projectRoot: path.resolve(request.projectRoot) }));
+        const id = digest(JSON.stringify([normalized.projectRoot, request.sessionId, request.turnId]));
+        let receipt;
+        try {
+            receipt = await this.load("intent-issuance", id);
+        }
+        catch (error) {
+            if (error.code !== "ENOENT")
+                throw error;
+        }
+        if (!receipt) {
+            const candidate = { request: normalized, intent: await factory() };
+            try {
+                receipt = await putAuthorizedOnceExact(this.dataRoot, "intent-issuance", id, candidate);
+            }
+            catch (error) {
+                try {
+                    receipt = await this.load("intent-issuance", id);
+                }
+                catch {
+                    throw error;
+                }
+            }
+        }
+        if (JSON.stringify(receipt.request) !== JSON.stringify(normalized))
+            throw new Error("intent issuance request changed within the same turn; use a new turn for a different request");
+        try {
+            const existing = await this.load("intents", receipt.intent.intentId);
+            if (JSON.stringify({ ...existing, consumed: undefined }) !== JSON.stringify({ ...receipt.intent, consumed: undefined }))
+                throw new Error("issued intent differs from its signed issuance receipt");
+        }
+        catch (error) {
+            if (error.code !== "ENOENT")
+                throw error;
+            await putAuthorizedOnceExact(this.dataRoot, "intents", receipt.intent.intentId, receipt.intent);
+        }
+        return receipt.intent;
+    }
+    async recordUserAuthorization(input) { return recordUserAuthorizations(this.dataRoot, input); }
+    async userAuthorizations(query) { return userAuthorizationStatus(this.dataRoot, query); }
     async validateIntent(intentId, projectRoot) { const intent = await this.load("intents", intentId); if (intent.consumed || intent.resumeOf)
         throw new Error("implementation intent is invalid or consumed"); if (path.resolve(intent.projectRoot) !== path.resolve(projectRoot))
         throw new Error("intent project root mismatch"); return intent; }
@@ -140,7 +217,7 @@ export class LifecycleStore {
             throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
         if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId)))
             throw new Error("trusted commit policy requires a safe task id");
-        const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, ...(operation.taskId ? { taskId: operation.taskId } : {}), objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...(operation.targetBranch ? { targetBranch: operation.targetBranch } : {}), commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...(lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}), profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
+        const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, ...(operation.taskId ? { taskId: operation.taskId } : {}), objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...(operation.targetBranch ? { targetBranch: operation.targetBranch } : {}), commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...(lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}), profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
         await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run);
         const authoritative = await this.run(operation.intentId);
         await this.reconcileRunProjections(authoritative);
@@ -210,6 +287,20 @@ export class LifecycleStore {
         const intent = await this.load("intents", safeId(resumeIntentId));
         if (!intent.resumeOf)
             throw new Error("resume intent is invalid or consumed");
+        await this.assertFrozenScope(intent.resumeOf);
+        let priorRun = await this.run(intent.resumeOf);
+        if (priorRun.phase === "complete" && isPendingPlanReview(priorRun)) {
+            if (!samePath(priorRun.projectRoot, intent.projectRoot))
+                throw new Error("unrelated run cannot be resumed");
+            if (priorRun.sessionLeaseId || priorRun.leaseId)
+                throw new Error("legacy review ownership must be finalized before resume");
+            if (this.probe)
+                this.assertWorktreeBinding(priorRun, await this.probe(priorRun.worktreePath, priorRun.policy), this.expectedHead(priorRun));
+            const targetLease = priorRun.targetBranch ? await this.acquireTargetLease(priorRun.intentId, priorRun.commonGitDir, priorRun.targetBranch, this.expectedHead(priorRun)) : undefined;
+            priorRun = await this.update({ ...priorRun, ...targetLease, phase: "hitl", status: "paused", evidence: [...priorRun.evidence, { kind: "review_resume_migration", resumeIntentId }] });
+        }
+        if (priorRun.status !== "paused" && priorRun.sessionId !== intent.sessionId)
+            throw new Error("active run belongs to another session; its owner must pause before transfer");
         let operation;
         try {
             operation = await this.load("resume-operations", resumeIntentId);
@@ -222,9 +313,10 @@ export class LifecycleStore {
             if (intent.consumed)
                 throw new Error("resume intent is invalid or consumed");
             const run = await this.run(intent.resumeOf);
-            if (run.status === "green" || run.sessionId !== intent.sessionId)
+            if (run.status === "green" || !samePath(run.projectRoot, intent.projectRoot))
                 throw new Error("completed or unrelated run cannot be resumed");
-            await this.assertSessionLease(run);
+            if (run.status !== "paused")
+                await this.assertSessionLease(run);
             operation = await putAuthorizedOnceExact(this.dataRoot, "resume-operations", resumeIntentId, { schemaVersion: 1, resumeIntentId, operationToken: randomUUID(), intentId: run.intentId, runId: run.runId, sessionId: intent.sessionId, turnId: intent.turnId });
         }
         if (operation.resumeIntentId !== resumeIntentId || operation.intentId !== intent.resumeOf || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId)
@@ -249,39 +341,114 @@ export class LifecycleStore {
         let run = await this.run(operation.intentId);
         if (run.runId !== operation.runId || run.status === "green")
             throw new Error("resume operation no longer matches an active run");
-        await this.assertSessionLease(run);
+        if (run.status !== "paused")
+            await this.assertSessionLease(run);
         if (this.probe) {
             const current = await this.probe(run.worktreePath, run.policy);
             this.assertWorktreeBinding(run, current);
-            if (run.preparedCommit ? ![run.preparedCommit.preCommitHead, run.preparedCommit.candidate].includes(current.head) : current.head !== this.expectedHead(run))
-                throw new Error("worktree branch binding diverged from the signed Captain run");
+            if (run.preparedCommit) {
+                if (![run.preparedCommit.preCommitHead, run.preparedCommit.candidate].includes(current.head))
+                    throw new Error("worktree branch binding diverged from the signed Captain run");
+            }
+            else if (current.head !== this.expectedHead(run)) {
+                const handoff = await this.resumeHandoff(run);
+                if (!handoff?.worktreeState || current.head !== handoff.worktreeState.head || current.tree !== handoff.worktreeState.tree)
+                    throw new Error("worktree branch binding diverged from the signed Captain run");
+                run = { ...run, continuityState: handoff.worktreeState, evidence: [...run.evidence, { kind: "resume_source_reconciled", pauseRevision: handoff.revision, previousExpectedHead: this.expectedHead(run), head: current.head, tree: current.tree, proofRecorded: false }] };
+            }
         }
-        if (run.turnId !== operation.turnId) {
-            try {
+        if (run.status !== "paused" && run.sessionId === operation.sessionId) {
+            if (run.turnId !== operation.turnId)
                 run = await this.update({ ...run, turnId: operation.turnId });
-            }
-            catch (error) {
-                run = await this.run(operation.intentId);
-                if (run.turnId !== operation.turnId)
-                    throw error;
-            }
         }
+        else {
+            const previousLease = run.status === "paused" ? undefined : { id: run.sessionLeaseId, token: run.sessionLeaseToken }, sessionLeaseId = digest(`session-active\0${operation.sessionId}`), sessionLeaseToken = operation.operationToken;
+            await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, { intentId: run.intentId, leaseToken: sessionLeaseToken, operationToken: operation.operationToken, runId: run.runId, sessionId: operation.sessionId, operation: "session-active" });
+            run = await this.update({ ...run, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, sessionLeaseId, sessionLeaseToken, status: "running" });
+            if (previousLease)
+                await releaseAuthorizedLease(this.dataRoot, previousLease.id, run.intentId, previousLease.token);
+        }
+        await this.project("active", operation.sessionId, { schemaVersion: 1, intentId: run.intentId, operationToken: run.activationToken ?? run.operationToken, runId: run.runId, sessionId: operation.sessionId, leaseId: run.sessionLeaseId, leaseToken: run.sessionLeaseToken });
+        const handoff = (await this.handoffs()).find(candidate => candidate.intentId === run.intentId && candidate.planPath);
+        if (handoff?.planPath)
+            await this.projectPlanState(run, handoff.planPath, { status: "in-progress", phase: handoff.phaseLabel ?? run.phase, handoff: "none", blocker: "none", next: handoff.nextSteps });
         await putAuthorizedOnceExact(this.dataRoot, "resume-runs", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, revision: run.revision, turnId: run.turnId });
         await putAuthorizedOnceExact(this.dataRoot, "resume-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, turnId: run.turnId });
         await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run));
         return run;
     }
+    async pause(intentId, input) {
+        const run = await this.run(intentId);
+        if (run.status === "green")
+            throw new Error("a completed Captain run cannot be paused");
+        await this.assertSessionLease(run);
+        const summary = input.summary.trim(), nextSteps = input.nextSteps.map(step => step.trim()).filter(Boolean), blockers = (input.blockers ?? []).map(blocker => blocker.trim()).filter(Boolean), completedSteps = (input.completedSteps ?? []).map(step => step.trim()).filter(Boolean), planPath = input.planPath?.trim() || undefined, phaseLabel = input.phaseLabel?.trim() || undefined, context = input.context?.trim() || undefined, redirectTask = input.redirectTask?.trim() || undefined;
+        if (!summary || !nextSteps.length)
+            throw new Error("pause handoff requires a summary and at least one next step");
+        const worktreeState = this.probe ? await this.probe(run.worktreePath, run.policy) : undefined;
+        if (worktreeState)
+            this.assertWorktreeBinding(run, worktreeState);
+        const paused = await this.update({ ...run, status: "paused", evidence: [...run.evidence, { kind: "pause", summarySha256: digest(summary), nextSteps, blockers, ...(planPath ? { planPath } : {}), ...(phaseLabel ? { phaseLabel } : {}) }] });
+        const handoff = { schemaVersion: 1, intentId: paused.intentId, runId: paused.runId, revision: paused.revision, sessionId: paused.sessionId, turnId: paused.turnId, projectRoot: paused.projectRoot, worktreePath: paused.worktreePath, branch: paused.branch, ...(paused.taskId ? { taskId: paused.taskId } : {}), objective: paused.objective, phase: paused.phase, status: paused.status, ...(planPath ? { planPath } : {}), ...(phaseLabel ? { phaseLabel } : {}), completedSteps, summary, nextSteps, blockers, ...(context ? { context } : {}), ...(worktreeState ? { worktreeState } : {}), evidence: paused.evidence, resumeDirective: `[Captain resume: ${paused.intentId}]`, ...(redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {}) };
+        const saved = await putAuthorizedOnceExact(this.dataRoot, "pause-handoffs", `${paused.intentId}-${paused.revision}`, handoff);
+        if (planPath)
+            await this.projectPlanState(paused, planPath, { status: blockers.length ? "blocked" : redirectTask ? "redirected" : "paused", phase: phaseLabel ?? paused.phase, handoff: `${paused.intentId}-${paused.revision}`, blocker: blockers.join("; ") || "none", next: nextSteps });
+        await releaseAuthorizedLease(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
+        return saved;
+    }
+    async handoffs() { let names = []; try {
+        names = await readdir(path.join(this.dataRoot, "pause-handoffs"));
+    }
+    catch (error) {
+        if (error.code !== "ENOENT")
+            throw error;
+    } return (await Promise.all(names.filter(name => name.endsWith(".json")).map(name => this.load("pause-handoffs", name.slice(0, -5))))).sort((left, right) => right.revision - left.revision); }
+    async linkBlocker(blockedIntentId, blockerIntentId) { const blocked = await this.run(blockedIntentId), blocker = await this.run(blockerIntentId); if (blocked.status !== "paused" || blocker.status === "green" || !samePath(blocked.projectRoot, blocker.projectRoot))
+        throw new Error("blocker link requires a paused parent and an active same-project blocker"); const candidate = { schemaVersion: 1, blockedIntentId: blocked.intentId, blockerIntentId: blocker.intentId, blockedRunId: blocked.runId, blockerRunId: blocker.runId, projectRoot: blocked.projectRoot, createdAt: new Date().toISOString() }, link = await putAuthorizedOnceExact(this.dataRoot, "blocker-links", `${blocked.intentId}-${blocker.intentId}`, candidate); const handoff = (await this.handoffs()).find(candidate => candidate.intentId === blocked.intentId && candidate.planPath); if (handoff?.planPath)
+        await this.projectPlanState(blocked, handoff.planPath, { status: "blocked", phase: handoff.phaseLabel ?? blocked.phase, handoff: `${handoff.intentId}-${handoff.revision}`, blocker: blockerIntentId, next: handoff.nextSteps }); return link; }
+    async doctor() { const handoffs = await this.handoffs(); let names = []; try {
+        names = await readdir(path.join(this.dataRoot, "run-revisions"));
+    }
+    catch (error) {
+        if (error.code !== "ENOENT")
+            throw error;
+    } const ids = [...new Set(names.map(name => /^(.*)-0\.json$/.exec(name)?.[1]).filter((value) => Boolean(value)))], runs = await Promise.all(ids.map(id => this.run(id))); return { pausedHandoffs: handoffs, activeRuns: runs.filter(run => run.status !== "green" || isPendingPlanReview(run)).map(run => ({ intentId: run.intentId, sessionId: run.sessionId, turnId: run.turnId, status: run.status, phase: run.phase, worktreePath: run.worktreePath, branch: run.branch })) }; }
+    async migratePlanState(intentId, planPaths) {
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        await this.assertSessionLease(run);
+        if (!planPaths.length)
+            throw new Error("select at least one Markdown plan to migrate");
+        const migrated = [];
+        for (const relative of planPaths) {
+            const normalized = this.safePlanPath(run, relative);
+            if (this.isFrozenPlan(run, normalized))
+                throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
+            const file = path.resolve(run.worktreePath, normalized);
+            const original = await readFile(file, "utf8");
+            if (/<!-- captain:work-state\r?\n[\s\S]*?-->/.test(original))
+                continue;
+            const heading = /^# .+\r?\n/.exec(original);
+            if (!heading)
+                throw new Error(`plan requires a level-one title before migration: ${relative}`);
+            const line = heading[0].includes("\r\n") ? "\r\n" : "\n", block = `${line}<!-- captain:work-state${line}status: in-progress${line}phase: unspecified${line}updated: ${new Date().toISOString()}${line}handoff: none${line}blocker: none${line}next: []${line}-->${line}`;
+            await writeFile(file, `${heading[0]}${block}${original.slice(heading[0].length)}`, "utf8");
+            migrated.push(normalized);
+        }
+        return migrated;
+    }
     async recordRed(intentId, command) {
+        await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "tdd_red");
         const configured = run.policy.commands.ticket;
         if (this.probe)
-            this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), run.baseHead);
+            this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
         if (!configured || (command && command !== configured))
             throw new Error("red test must use the trusted ticket command");
         const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
         if (this.probe)
-            this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), run.baseHead);
+            this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
         if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}\n${result.stderr}`.slice(0, 1024 * 1024)))
             throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
         return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(configured), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
@@ -310,6 +477,7 @@ export class LifecycleStore {
         return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
     }
     async acquireWorktreeMutation(intentId, kind, request) {
+        await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
         const requestSha256 = digest(JSON.stringify(request)), leaseId = digest(`worktree-mutation\0${run.runId}`);
@@ -384,6 +552,7 @@ export class LifecycleStore {
         return this.authorizeCommitOperation(run, operation);
     }
     async reserveCommitOperation(intentId, request) {
+        await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
         const requestSha256 = commitRequestSha256(request);
@@ -469,7 +638,39 @@ export class LifecycleStore {
         await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
         return discarded;
     }
+    async resumeTarget(resumeIntentId) {
+        const intent = await this.load("intents", safeId(resumeIntentId));
+        if (!intent.resumeOf)
+            throw new Error("resume intent is invalid or consumed");
+        const run = await this.run(intent.resumeOf);
+        if (!samePath(run.projectRoot, intent.projectRoot))
+            throw new Error("unrelated run cannot be resumed");
+        await this.assertFrozenScope(run.intentId);
+        return run;
+    }
+    async recoverAdvancedPreparedCommit(intentId, commit, firstParent, candidateVerification) {
+        const run = await this.run(intentId), prepared = run.preparedCommit, operation = run.commitOperation;
+        if (run.status !== "paused" || run.phase !== "implement" || !prepared || !operation || operation.stage !== "prepared")
+            throw new Error("advanced prepared commit recovery requires a paused prepared run");
+        await this.assertCommitOperation(run, operation);
+        if (candidateVerification.tree !== prepared.tree || candidateVerification.subject !== prepared.subject)
+            throw new Error("prepared candidate tree or subject diverged from signed authority");
+        if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length)
+            throw new Error("prepared candidate is not retained in the advanced first-parent history");
+        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.versionChanged || !commit.changelogChanged)
+            throw new Error("advanced commit history does not satisfy the signed commit policy");
+        if (!this.probe)
+            throw new Error("source-state probe is required");
+        const current = await this.probe(run.worktreePath, run.policy);
+        this.assertWorktreeBinding(run, current);
+        if (current.head !== commit.head || current.tree !== commit.tree)
+            throw new Error("advanced commit evidence changed during recovery");
+        const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...(run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}), candidate: prepared.candidate, outcome: "committed", final: prepared.final, commit };
+        await this.update({ ...run, committedState: current, continuityState: undefined, terminalCommit, evidence: [...run.evidence, { kind: "advanced_prepared_commit_recovered", candidate: prepared.candidate, head: commit.head, commitCount: commit.commitCount, firstParent, originalRequestSha256: operation.requestSha256, dirty: current.status !== "" }] });
+        return this.finishTerminalCommit(intentId, operation.requestSha256);
+    }
     async recordCommit(intentId, commit, final = true) {
+        await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
         const operation = run.commitOperation;
@@ -511,7 +712,7 @@ export class LifecycleStore {
             throw new Error("commit evidence no longer matches the clean probed commit");
         if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final))
             throw new Error("commit evidence does not match the signed prepared candidate");
-        const next = { ...run, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...(operation ? { operationLeaseId: operation.leaseId } : {}) }] };
+        const next = { ...run, continuityState: undefined, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...(operation ? { operationLeaseId: operation.leaseId } : {}) }] };
         if (!operation || !run.preparedCommit)
             return this.update({ ...next, commitOperation: undefined, preparedCommit: undefined });
         const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...(run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}), candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
@@ -560,6 +761,7 @@ export class LifecycleStore {
         return this.update({ ...run, commitOperation: undefined, preparedCommit: undefined, mutationOperation: undefined, terminalCommit: undefined, evidence: [...run.evidence, { kind: "commit_operation_finalized", requestSha256, candidate: terminal.candidate }] });
     }
     async runCheck(intentId, scope) {
+        await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
         if (run.preparedCommit)
@@ -575,7 +777,14 @@ export class LifecycleStore {
         return this.update({ ...run, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest(command), exitCode: result.exitCode }] });
     }
     async prove(intentId) {
+        await this.assertFrozenScope(intentId);
         const current = await this.run(intentId);
+        if (isPendingPlanReview(current)) {
+            if (!this.probe || !current.committedState)
+                throw new Error("HITL requires recorded source proof");
+            await this.assertCommitted(current);
+            return current;
+        }
         if (current.phase === "complete" && current.status === "green")
             return this.finalizeCompletion(intentId);
         try {
@@ -584,7 +793,7 @@ export class LifecycleStore {
         catch (error) {
             const latest = await this.run(intentId);
             if (latest.phase === "prove")
-                await this.update({ ...latest, phase: "implement", status: "red", evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest(String(error.message)) }] });
+                await this.update({ ...latest, evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest(String(error.message)) }] });
             throw error;
         }
     }
@@ -594,7 +803,7 @@ export class LifecycleStore {
         if (!this.probe || !run.committedState)
             throw new Error("source-state probe is required");
         await this.assertCommitted(run);
-        const scopes = run.profile === "pre-release" ? ["build", "ticket", "feature-smoke", "affected-regression", "super-smoke", ...(run.visualRequired ? ["visual"] : [])] : ["build", "ticket", "feature-smoke", "affected-regression", ...(run.visualRequired ? ["visual"] : [])];
+        const scopes = proofScopes(run);
         for (const scope of scopes)
             if (!run.policy.commands[scope])
                 throw new Error(`${scope} proof command is required`);
@@ -631,9 +840,75 @@ export class LifecycleStore {
             if (finalHash !== item.sha256)
                 throw new Error(`${role} artifact changed after its producing proof command`);
         }
-        const completed = await this.update({ ...run, phase: "complete", status: "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }] });
+        const awaitsReview = Boolean(run.policy.hitlChecks?.length);
+        const completed = await this.update({ ...run, phase: awaitsReview ? "hitl" : "complete", status: awaitsReview ? "running" : "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }, { kind: "proof_passed", head: run.committedState.head, tree: run.committedState.tree }] });
+        if (awaitsReview)
+            return completed;
         await this.hooks?.afterRunCompleted?.(completed);
         return this.finalizeCompletion(intentId);
+    }
+    isFrozenPlan(run, relative) { return (run.policy.approvedPlans ?? []).some(plan => plan.path.toLowerCase() === relative.replaceAll("\\", "/").toLowerCase()); }
+    async assertFrozenScope(intentId) {
+        const run = await this.run(intentId);
+        for (const plan of run.policy.approvedPlans ?? []) {
+            try {
+                const file = await safeArtifact(run.worktreePath, plan.path);
+                if (approvedPlanDigest(await readFile(file, "utf8")) !== plan.sha256)
+                    throw new Error("content changed");
+            }
+            catch (error) {
+                throw new Error(`frozen approved plan changed or is unavailable: ${plan.path}; restore the approved plan and keep progress and human closeout followups separate (${error.message})`);
+            }
+        }
+    }
+    async recordPlanReview(intentId, input) {
+        const run = await this.run(intentId);
+        if (!run.policy.hitlChecks?.length)
+            throw new Error("plan review requires declared HITL checks frozen at begin");
+        if (!["accept", "needs_changes"].includes(input.decision) || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12000)
+            throw new Error("plan review requires a valid decision and actual human feedback");
+        const lastReview = run.evidence.filter(item => item.kind === "plan_review").at(-1);
+        if (run.phase === "complete" && run.status === "green" && lastReview?.decision === "accept" && input.decision === "accept" && lastReview.humanFeedback === input.humanFeedback.trim())
+            return this.finalizeCompletion(intentId);
+        if (run.phase !== "hitl")
+            throw new Error("plan review requires green proof and the active HITL phase; resume legacy pending review first");
+        await this.assertSessionLease(run);
+        if (run.status === "paused")
+            throw new Error("resume the paused HITL before recording its decision");
+        await this.assertFrozenScope(intentId);
+        if (!this.probe || !run.committedState)
+            throw new Error("HITL requires recorded source proof");
+        if (input.decision === "accept")
+            await this.assertCommitted(run);
+        else
+            this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+        const review = { kind: "plan_review", decision: input.decision, humanFeedback: input.humanFeedback.trim(), recordedAt: new Date().toISOString(), proofHead: run.committedState.head, checkIds: run.policy.hitlChecks.map(check => check.id) };
+        if (input.decision === "needs_changes")
+            return this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, { ...review, nextAction: "Repair the unmet original criteria in this same run and worktree, then repeat their proof and declared HITL. New requirements remain separate human followups." }] });
+        const completed = await this.update({ ...run, phase: "complete", status: "green", evidence: [...run.evidence, review] });
+        await this.hooks?.afterRunCompleted?.(completed);
+        return this.finalizeCompletion(intentId);
+    }
+    async recordHitlFeedback(intentId, input) {
+        const run = await this.run(intentId);
+        if (run.status === "paused")
+            throw new Error("resume the paused run before recording HITL feedback");
+        await this.assertSessionLease(run);
+        await this.assertFrozenScope(intentId);
+        if (!run.policy.hitlChecks?.length || !Array.isArray(input.checkIds) || !input.checkIds.length || new Set(input.checkIds).size !== input.checkIds.length || input.checkIds.some(id => !run.policy.hitlChecks.some(check => check.id === id)))
+            throw new Error("feedback must reference declared HITL checks frozen at begin");
+        if (!["accept", "needs_changes"].includes(input.decision) || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12000 || !Array.isArray(input.evidenceReferences) || input.evidenceReferences.length > 50 || input.evidenceReferences.some(value => typeof value !== "string" || !value.trim() || value.length > 2000) || (input.reviewedRevision !== undefined && !/^[0-9a-f]{40,64}$/i.test(input.reviewedRevision)))
+            throw new Error("HITL feedback requires actual human feedback and valid evidence references");
+        if (!this.probe)
+            throw new Error("HITL feedback requires a source-state probe");
+        const recordedSource = await this.probe(run.worktreePath, run.policy);
+        this.assertWorktreeBinding(run, recordedSource, this.expectedHead(run));
+        const normalized = { decision: input.decision, humanFeedback: input.humanFeedback.trim(), checkIds: [...input.checkIds].sort(), evidenceReferences: input.evidenceReferences.map(value => value.trim()), ...(input.reviewedRevision ? { reviewedRevision: input.reviewedRevision } : {}) };
+        const prior = run.evidence.filter(item => item.kind === "hitl_feedback").at(-1);
+        if (prior && JSON.stringify({ decision: prior.decision, humanFeedback: prior.humanFeedback, checkIds: prior.checkIds, evidenceReferences: prior.evidenceReferences, ...(prior.reviewedRevision ? { reviewedRevision: prior.reviewedRevision } : {}) }) === JSON.stringify(normalized))
+            return run;
+        const review = { ...normalized, kind: "hitl_feedback", recordedAt: new Date().toISOString(), recordedSource };
+        return this.update({ ...run, evidence: [...run.evidence, review] });
     }
     async status(intentId) { const run = await this.run(intentId); await this.reconcileRunProjections(run); return run; }
     async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) { const leaseId = digest(`${path.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path.resolve(commonGitDir), targetBranch, targetOid }; try {
@@ -657,10 +932,16 @@ export class LifecycleStore {
         await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
         return { leaseId, leaseToken };
     } }
+    safePlanPath(run, relative) { const normalized = relative.replaceAll("\\", "/"); if (!normalized.endsWith(".md") || normalized.startsWith("/") || normalized.split("/").some(part => !part || part === "." || part === ".."))
+        throw new Error(`unsafe plan path: ${relative}`); const file = path.resolve(run.worktreePath, normalized), inside = path.relative(run.worktreePath, file); if (inside.startsWith("..") || path.isAbsolute(inside))
+        throw new Error(`plan path escapes owned worktree: ${relative}`); return normalized; }
+    async projectPlanState(run, relative, state) { if (this.isFrozenPlan(run, relative))
+        return false; const normalized = this.safePlanPath(run, relative), file = path.resolve(run.worktreePath, normalized), original = await readFile(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original); if (!match)
+        return false; const line = match[1], single = (value) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${new Date().toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`; await writeFile(file, `${original.slice(0, match.index)}${block}${original.slice(match.index + match[0].length)}`, "utf8"); return true; }
     async releaseTargetLease(leaseId, intentId, leaseToken) { await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken); }
     async permitFor(sessionId, turnId) { try {
-        const permit = await this.load("permits", `${sessionId}-${turnId}`), run = await this.run(permit.intentId), active = await this.load("active", sessionId), activated = await this.load("begin-activated", permit.operationToken);
-        if (run.status === "green" || run.sessionId !== sessionId || run.turnId !== turnId || run.revision !== permit.runRevision || run.operationToken !== permit.operationToken || active.operationToken !== permit.operationToken || activated.operationToken !== permit.operationToken)
+        const permit = await this.load("permits", `${sessionId}-${turnId}`), run = await this.run(permit.intentId), active = await this.load("active", sessionId), activationToken = run.activationToken ?? run.operationToken, activated = await this.load(activationToken === run.operationToken ? "begin-activated" : "resume-activated", activationToken);
+        if (run.status === "green" || run.sessionId !== sessionId || run.turnId !== turnId || run.revision !== permit.runRevision || run.operationToken !== permit.operationToken || permit.activationToken !== activationToken || active.operationToken !== activationToken || activated.operationToken !== activationToken)
             return null;
         await this.assertSessionLease(run);
         return permit;
@@ -668,7 +949,7 @@ export class LifecycleStore {
     catch {
         return null;
     } }
-    permit(run) { return { schemaVersion: 1, sessionId: run.sessionId, turnId: run.turnId, worktreePath: run.worktreePath, phase: run.phase, intentId: run.intentId, runId: run.runId, runRevision: run.revision, operationToken: run.operationToken, sessionLeaseId: run.sessionLeaseId, sessionLeaseToken: run.sessionLeaseToken, activated: true }; }
+    permit(run) { return { schemaVersion: 1, sessionId: run.sessionId, turnId: run.turnId, worktreePath: run.worktreePath, phase: run.phase, intentId: run.intentId, runId: run.runId, runRevision: run.revision, operationToken: run.operationToken, activationToken: run.activationToken ?? run.operationToken, sessionLeaseId: run.sessionLeaseId, sessionLeaseToken: run.sessionLeaseToken, frozenPlanPaths: run.policy.approvedPlans?.map(plan => plan.path) ?? [], activated: true }; }
     phase(run, expected) { if (run.phase !== expected)
         throw new Error(`expected ${expected} phase, found ${run.phase}`); }
     async run(id) { const safe = safeId(id), prefix = `${safe}-`; let names = []; try {
@@ -715,7 +996,7 @@ export class LifecycleStore {
             if (error.code !== "ENOENT" && !String(error.message).includes("not held"))
                 throw error;
         } }
-    assertStableRun(previous, current) { const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, sessionId: run.sessionId, taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir), gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy }); if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current)))
+    assertStableRun(previous, current) { const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir), gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy }); if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current)))
         throw new Error("signed run immutable binding changed across revisions"); }
     async project(bucket, id, value) { let failure; for (let attempt = 0; attempt < 3; attempt++)
         try {
@@ -740,13 +1021,13 @@ export class LifecycleStore {
     } if (operation.stage !== "reserved")
         throw new Error("prepared commit recovery must complete before a new commit operation"); const latest = await this.run(run.intentId); if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved")
         throw new Error("Captain commit operation changed during lease authorization"); const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] }); return updated.commitOperation; }
-    async assertCommitted(run) { const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState; this.assertWorktreeBinding(run, current, expected.head); if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest))
+    async assertCommitted(run) { await this.assertFrozenScope(run.intentId); const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState; this.assertWorktreeBinding(run, current, expected.head); if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest))
         throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }
     async assertCommitOperation(run, operation) { if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256)
         throw new Error("Captain commit operation lease ownership diverged from the signed run"); const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId); if (lease.intentId !== run.intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.requestSha256 !== operation.requestSha256 || lease.operation !== "prepared-commit")
         throw new Error("Captain commit operation lease ownership is invalid"); }
     async assertSessionLease(run) { if (!run.sessionLeaseId || !run.sessionLeaseToken)
-        throw new Error("Captain run has no active session ownership"); const lease = await readAuthorizedLease(this.dataRoot, run.sessionLeaseId); if (lease.intentId !== run.intentId || lease.leaseToken !== run.sessionLeaseToken || lease.operationToken !== run.operationToken || lease.runId !== run.runId || lease.sessionId !== run.sessionId || lease.operation !== "session-active")
+        throw new Error("Captain run has no active session ownership"); const lease = await readAuthorizedLease(this.dataRoot, run.sessionLeaseId), activationToken = run.activationToken ?? run.operationToken; if (lease.intentId !== run.intentId || lease.leaseToken !== run.sessionLeaseToken || lease.operationToken !== activationToken || lease.runId !== run.runId || lease.sessionId !== run.sessionId || lease.operation !== "session-active")
         throw new Error("Captain session active ownership is invalid"); }
     async finalizeCompletion(intentId) {
         let run = await this.run(intentId);
@@ -786,7 +1067,25 @@ export class LifecycleStore {
         }
         throw error;
     } }
-    expectedHead(run) { return run.committedState?.head ?? run.baseHead; }
+    async resumeHandoff(run) {
+        if (run.status !== "paused")
+            return undefined;
+        let handoff;
+        try {
+            handoff = await this.load("pause-handoffs", `${run.intentId}-${run.revision}`);
+        }
+        catch (error) {
+            if (error.code === "ENOENT")
+                return undefined;
+            throw error;
+        }
+        if (handoff.intentId !== run.intentId || handoff.runId !== run.runId || handoff.revision !== run.revision || handoff.status !== "paused" || handoff.branch !== run.branch || !samePath(handoff.projectRoot, run.projectRoot) || !samePath(handoff.worktreePath, run.worktreePath))
+            throw new Error("signed pause handoff binding diverged from the Captain run");
+        if (handoff.worktreeState)
+            this.assertWorktreeBinding(run, handoff.worktreeState);
+        return handoff;
+    }
+    expectedHead(run) { return executionHead(run); }
     assertWorktreeBinding(run, current, expectedHead) { const same = (left, right) => Boolean(left && right && path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase()); if (current.branch !== run.branch || current.branchHead !== current.head || !same(current.commonGitDir, run.commonGitDir) || !same(current.topLevel, run.worktreePath) || !same(current.gitDir, run.gitDir) || (expectedHead && current.head !== expectedHead))
         throw new Error("worktree branch binding diverged from the signed Captain run"); }
     async load(bucket, id) { return readAuthorized(this.dataRoot, bucket, safeId(id)); }

@@ -1,8 +1,26 @@
-const action = /\b(implement|integrate|merge|build|create|add|change|modify|update|fix|repair|refactor|remove|delete|migrate|ship|rename|replace|wire|support)\b/i;
-const goal = /\b(make|get)\b.{0,80}\b(work|working|support|handle|use)\b/i;
-export function classifyImplementationIntent(prompt) { const value = prompt.trim(); if (!value || /^(explain|review|inspect|analy[sz]e|diagnose|investigate|report|summari[sz]e|what|why|where|when|status)\b/i.test(value))
-    return false; if (/^how\s+(do|does|would|should)\b/i.test(value))
-    return false; return action.test(value) || goal.test(value); }
+export function classifyImplementationIntent(prompt) { return extractCaptainPlanTask(prompt) !== undefined || extractCaptainResumeIntent(prompt) !== undefined; }
+export function extractCaptainPlanTask(prompt) {
+    const directives = prompt.split(/\r?\n/).filter(line => /^\s*\[Captain plan:/i.test(line));
+    if (directives.length > 1)
+        throw new Error("Captain plan directive is ambiguous");
+    if (!directives.length)
+        return undefined;
+    const match = /^\s*\[Captain plan:\s*([A-Za-z0-9][A-Za-z0-9._#-]*)\]\s*$/i.exec(directives[0]);
+    if (!match || match[1].includes(".."))
+        throw new Error("Captain plan directive is invalid");
+    return match[1];
+}
+export function extractCaptainResumeIntent(prompt) {
+    const directives = prompt.split(/\r?\n/).filter(line => /^\s*\[Captain resume:/i.test(line));
+    if (directives.length > 1)
+        throw new Error("Captain resume directive is ambiguous");
+    if (!directives.length)
+        return undefined;
+    const match = /^\s*\[Captain resume:\s*(intent-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\s*$/i.exec(directives[0]);
+    if (!match)
+        throw new Error("Captain resume directive is invalid");
+    return match[1];
+}
 export function extractAuthorizedTargetBranch(prompt) {
     const directives = prompt.split(/\r?\n/).filter(line => /^\s*\[Captain target:/i.test(line));
     if (directives.length > 1)

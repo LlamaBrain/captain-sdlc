@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, mkdtemp, rename, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -36,10 +36,40 @@ async function governedRepo() {
   return root;
 }
 
+test("commit repairs stale parent companion versions using the configured canonical version", async () => {
+  const root = await governedRepo();
+  await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 0.9.0\n");
+  await runGit(root, "add", "doxygen/dirigible.Doxyfile"); await runGit(root, "commit", "-m", "stale documentation fixture");
+  const base = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  await writeFile(path.join(root, "VERSION"), "1.0.1\n");
+  await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n");
+  await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 1.0.1\n");
+  await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Repair stale companion (v1.0.1)\n");
+  await commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): repair stale companion (v1.0.1)", "Completes", "FOOD", repositoryCommitPolicy);
+  const evidence = await commitEvidence(root, base, { commit: repositoryCommitPolicy } as any, "FOOD");
+  assert.equal(evidence.phaseCommitsValid, true); assert.equal(evidence.versionSurfacesValid, true); assert.equal(evidence.clean, true);
+});
+
 test("trusted policy comes from captured base, not dirty working tree", async () => {
   const root = await repo(), identity = await repositoryIdentity(root); await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ commands: { ticket: "exit 0" } }));
   const policy = await loadPolicy(root, identity.baseHead); assert.equal(policy.commands.ticket, "trusted");
 });
+
+for (const defect of ["invalid-canonical-parent", "unsynchronized-candidate"]) {
+  test(`stale companion recovery still rejects ${defect}`, async () => {
+    const root = await governedRepo();
+    await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), "PROJECT_NUMBER = 0.9.0\n");
+    if (defect === "invalid-canonical-parent") await writeFile(path.join(root, "VERSION"), "not-a-version\n");
+    await runGit(root, "add", "VERSION", "doxygen/dirigible.Doxyfile"); await runGit(root, "commit", "-m", "invalid parent fixture");
+    const parent = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+    await writeFile(path.join(root, "VERSION"), "1.0.1\n");
+    await writeFile(path.join(root, "ProjectSettings", "ProjectSettings.asset"), "bundleVersion: 1.0.1\n");
+    await writeFile(path.join(root, "doxygen", "dirigible.Doxyfile"), `PROJECT_NUMBER = ${defect === "unsynchronized-candidate" ? "0.9.0" : "1.0.1"}\n`);
+    await writeFile(path.join(root, "Changelog", "SPIKE_COLONY_CHANGELOG.md"), "# Changelog\n- Candidate (v1.0.1)\n");
+    await assert.rejects(() => commitAtomic(root, ["VERSION", "ProjectSettings/ProjectSettings.asset", "doxygen/dirigible.Doxyfile", "Changelog/SPIKE_COLONY_CHANGELOG.md"], "fix(policy): candidate (v1.0.1)", "Completes", "FOOD", repositoryCommitPolicy), /preflight/);
+    assert.equal((await runGit(root, "rev-parse", "HEAD")).stdout.trim(), parent);
+  });
+}
 
 test("Git children ignore repository and configuration redirection environment", async () => {
   const root = await repo(), hostile = await repo(), expectedHead = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
@@ -161,6 +191,18 @@ test("source manifest excludes only trusted generated-output roots", async () =>
   assert.notEqual((await sourceState(root, policy)).manifest, before.manifest);
 });
 
+test("source manifest ignores untracked Unity meta sidecars but binds tracked meta files", async () => {
+  const root = await repo();
+  await writeFile(path.join(root, "tracked.asset.meta"), "tracked-first");
+  await runGit(root, "add", "tracked.asset.meta"); await runGit(root, "commit", "-m", "track meta sidecar");
+  await writeFile(path.join(root, "generated.asset.meta"), "generated-first");
+  const before = await sourceState(root);
+  await writeFile(path.join(root, "generated.asset.meta"), "generated-second");
+  assert.equal((await sourceState(root)).manifest, before.manifest);
+  await writeFile(path.join(root, "tracked.asset.meta"), "tracked-second");
+  assert.notEqual((await sourceState(root)).manifest, before.manifest);
+});
+
 test("trusted source manifest policy excludes approved Unity outputs but still binds ignored inputs", async () => {
   const root = await repo();
   await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({
@@ -182,6 +224,32 @@ test("trusted source manifest policy excludes approved Unity outputs but still b
   assert.equal((await sourceState(root, policy)).manifest, before.manifest);
   await writeFile(path.join(root, "IgnoredDependency", "input.dll"), "second");
   assert.notEqual((await sourceState(root, policy)).manifest, before.manifest);
+});
+
+test("trusted source policy approves ignored Addressables linker outputs", async () => {
+  const root = await repo();
+  const exclusions = [
+    "Temp",
+    "Assets/AddressableAssetsData/link.xml",
+    "Assets/AddressableAssetsData/link.xml.meta",
+    "Assets/AddressableAssetsData/Windows/addressables_content_state.bin",
+    "Assets/AddressableAssetsData/Windows/addressables_content_state.bin.meta",
+    "Assets/ThirdParty/GameAnalytics/Resources/GameAnalytics/Settings.asset",
+    "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset",
+  ];
+  await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({
+    profile: "low",
+    visualRequired: false,
+    sourceManifestExcludes: exclusions,
+    commands: { build: "build", ticket: "ticket", "feature-smoke": "smoke", "affected-regression": "affected" },
+  }));
+  await runGit(root, "add", ".captain-sdlc/codex-policy.json");
+  await runGit(root, "commit", "-m", "add generated Addressables policy");
+  const head = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+
+  const policy = await loadPolicy(root, head);
+
+  assert.deepEqual(policy.sourceManifestExcludes, exclusions);
 });
 
 test("trusted source manifest policy rejects arbitrary output paths and root patterns", async () => {
@@ -214,6 +282,34 @@ test("target branch support adopts only a clean canonical existing worktree", as
   assert.equal(path.resolve(adopted.worktreePath), path.resolve(target)); assert.equal(adopted.baseHead, base); assert.equal(adopted.branch, "colony/spike"); assert.match(adopted.gitDir, /worktrees/i);
   await writeFile(path.join(target, "dirty.txt"), "dirty");
   await assert.rejects(() => ensureWorktree(root, identity.baseHead, "intent-y", "colony/spike"), /clean/);
+});
+
+test("new worktree copies ignored Unity plugin roots and sibling metadata", async () => {
+  const root = await repo();
+  await writeFile(path.join(root, ".gitignore"), "Assets/Plugins/\nAssets/Plugins.meta\nPackages/com.example.plugin/\n");
+  await runGit(root, "add", ".gitignore"); await runGit(root, "commit", "-m", "ignore plugins");
+  await mkdir(path.join(root, "Assets", "Plugins", "Vendor"), { recursive: true });
+  await writeFile(path.join(root, "Assets", "Plugins", "Vendor", "plugin.dll"), "plugin");
+  await writeFile(path.join(root, "Assets", "Plugins", "Vendor.meta"), "nested meta");
+  await writeFile(path.join(root, "Assets", "Plugins.meta"), "root meta");
+  await mkdir(path.join(root, "Packages", "com.example.plugin"), { recursive: true });
+  await writeFile(path.join(root, "Packages", "com.example.plugin", "package.json"), "{}");
+  const base = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  const created = await ensureWorktree(root, base, "hydrate-plugins");
+  assert.equal(await readFile(path.join(created.worktreePath, "Assets", "Plugins", "Vendor", "plugin.dll"), "utf8"), "plugin");
+  assert.equal(await readFile(path.join(created.worktreePath, "Assets", "Plugins", "Vendor.meta"), "utf8"), "nested meta");
+  assert.equal(await readFile(path.join(created.worktreePath, "Assets", "Plugins.meta"), "utf8"), "root meta");
+  assert.equal(await readFile(path.join(created.worktreePath, "Packages", "com.example.plugin", "package.json"), "utf8"), "{}");
+  await writeFile(path.join(created.worktreePath, "Assets", "Plugins", "Vendor", "plugin.dll"), "worktree version");
+  await ensureWorktree(root, base, "hydrate-plugins");
+  assert.equal(await readFile(path.join(created.worktreePath, "Assets", "Plugins", "Vendor", "plugin.dll"), "utf8"), "worktree version");
+});
+test("ordinary begin adopts its exact canonical worktree after an interrupted creation", async () => {
+  const root = await repo(), identity = await repositoryIdentity(root), intentId = "intent-retry", expected = path.join(root, ".captain-sdlc", "worktrees", intentId);
+  await ensureWorktree(root, identity.baseHead, intentId);
+  const recovered = await ensureWorktree(root, identity.baseHead, intentId);
+  assert.equal(recovered.worktreePath, expected);
+  assert.equal(recovered.branch, `captain/${intentId}`);
 });
 
 test("target branch support rejects unsafe names and noncanonical checked-out worktrees", async () => {
@@ -391,4 +487,15 @@ test("task trailer evidence rejects a valid trailer for another run task", async
 test("preexisting canonical worktree collision is rejected", async () => {
   const root = await repo(), identity = await repositoryIdentity(root), target = path.join(root, ".captain-sdlc", "worktrees", "intent-x"); await mkdir(target, { recursive: true });
   await assert.rejects(() => ensureWorktree(root, identity.baseHead, "intent-x"));
+});
+
+test("trusted LOW profile loads from the committed policy", async () => {
+  const root = await repo();
+  await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ profile: "low", profiles: ["low", "feature", "pre-release"], visualRequired: false, commands: { build: "build", ticket: "ticket", "feature-smoke": "smoke", "affected-regression": "affected" } }));
+  await exec("git", ["add", ".captain-sdlc/codex-policy.json"], { cwd: root });
+  await exec("git", ["commit", "-m", "low policy"], { cwd: root });
+  const identity = await repositoryIdentity(root);
+  const policy = await loadPolicy(root, identity.baseHead);
+  assert.equal(policy.profile, "low");
+  assert.deepEqual(policy.profiles, ["low", "feature", "pre-release"]);
 });

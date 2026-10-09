@@ -1056,10 +1056,10 @@ var require_util = __commonJS({
     var codegen_1 = require_codegen();
     var code_1 = require_code();
     function toHash(arr) {
-      const hash = {};
+      const hash3 = {};
       for (const item of arr)
-        hash[item] = true;
-      return hash;
+        hash3[item] = true;
+      return hash3;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it, schema) {
@@ -2892,9 +2892,9 @@ var require_compile = __commonJS({
       if (_sch)
         return _sch;
       const rootId = (0, resolve_1.getFullPath)(this.opts.uriResolver, sch.root.baseId);
-      const { es5, lines } = this.opts.code;
+      const { es5, lines: lines2 } = this.opts.code;
       const { ownProperties } = this.opts;
-      const gen = new codegen_1.CodeGen(this.scope, { es5, lines, ownProperties });
+      const gen = new codegen_1.CodeGen(this.scope, { es5, lines: lines2, ownProperties });
       let _ValidationError;
       if (sch.$async) {
         _ValidationError = gen.scopeValue("Error", {
@@ -3116,14 +3116,14 @@ var require_utils = __commonJS({
         BYTE_HEX[i] = "%" + HEX_DIGITS[i >> 4] + HEX_DIGITS[i & 15];
       }
     }
-    function percentEncodeNonAscii(cp) {
-      if (cp < 2048) {
-        return BYTE_HEX[192 | cp >> 6] + BYTE_HEX[128 | cp & 63];
+    function percentEncodeNonAscii(cp2) {
+      if (cp2 < 2048) {
+        return BYTE_HEX[192 | cp2 >> 6] + BYTE_HEX[128 | cp2 & 63];
       }
-      if (cp < 65536) {
-        return BYTE_HEX[224 | cp >> 12] + BYTE_HEX[128 | cp >> 6 & 63] + BYTE_HEX[128 | cp & 63];
+      if (cp2 < 65536) {
+        return BYTE_HEX[224 | cp2 >> 12] + BYTE_HEX[128 | cp2 >> 6 & 63] + BYTE_HEX[128 | cp2 & 63];
       }
-      return BYTE_HEX[240 | cp >> 18] + BYTE_HEX[128 | cp >> 12 & 63] + BYTE_HEX[128 | cp >> 6 & 63] + BYTE_HEX[128 | cp & 63];
+      return BYTE_HEX[240 | cp2 >> 18] + BYTE_HEX[128 | cp2 >> 12 & 63] + BYTE_HEX[128 | cp2 >> 6 & 63] + BYTE_HEX[128 | cp2 & 63];
     }
     function stringArrayToHexStripped(input) {
       let acc = "";
@@ -3256,8 +3256,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path5) {
-      let input = path5;
+    function removeDotSegments(path7) {
+      let input = path7;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3487,8 +3487,8 @@ var require_utils = __commonJS({
     function encodeFragment(input) {
       return encodeComponent(input, isQueryFragmentCharacter);
     }
-    function isEscapeSafe(cp) {
-      return cp >= 48 && cp <= 57 || cp >= 65 && cp <= 90 || cp >= 97 && cp <= 122 || cp === 42 || cp === 43 || cp === 45 || cp === 46 || cp === 47 || cp === 64 || cp === 95;
+    function isEscapeSafe(cp2) {
+      return cp2 >= 48 && cp2 <= 57 || cp2 >= 65 && cp2 <= 90 || cp2 >= 97 && cp2 <= 122 || cp2 === 42 || cp2 === 43 || cp2 === 45 || cp2 === 46 || cp2 === 47 || cp2 === 64 || cp2 === 95;
     }
     function normalizeQueryFragmentEncoding(input) {
       let output = "";
@@ -3662,8 +3662,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path5 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path5 && path5 !== "/" ? path5 : void 0;
+        const path7 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path7 && path7 !== "/" ? path7 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -4333,8 +4333,8 @@ var require_core = __commonJS({
         this._loading = {};
         this._cache = /* @__PURE__ */ new Map();
         opts = this.opts = { ...opts, ...requiredOptions(opts) };
-        const { es5, lines } = this.opts.code;
-        this.scope = new codegen_2.ValueScope({ scope: {}, prefixes: EXT_SCOPE_NAMES, es5, lines });
+        const { es5, lines: lines2 } = this.opts.code;
+        this.scope = new codegen_2.ValueScope({ scope: {}, prefixes: EXT_SCOPE_NAMES, es5, lines: lines2 });
         this.logger = getLogger(opts.logger);
         const formatOpt = opts.validateFormats;
         opts.validateFormats = false;
@@ -7660,8 +7660,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path5, errorMaps, issueData } = params;
-  const fullPath = [...path5, ...issueData.path || []];
+  const { data, path: path7, errorMaps, issueData } = params;
+  const fullPath = [...path7, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7777,11 +7777,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path5, key2) {
+  constructor(parent, value, path7, key2) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path5;
+    this._path = path7;
     this._key = key2;
   }
   get path() {
@@ -11419,10 +11419,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path5) {
-  if (!path5)
+function getElementAtPath(obj, path7) {
+  if (!path7)
     return obj;
-  return path5.reduce((acc, key2) => acc?.[key2], obj);
+  return path7.reduce((acc, key2) => acc?.[key2], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11742,11 +11742,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path5, issues) {
+function prefixIssues(path7, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path5);
+    iss.path.unshift(path7);
     return iss;
   });
 }
@@ -12394,9 +12394,9 @@ var Doc = class {
       return;
     }
     const content = arg;
-    const lines = content.split("\n").filter((x) => x);
-    const minIndent = Math.min(...lines.map((x) => x.length - x.trimStart().length));
-    const dedented = lines.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
+    const lines2 = content.split("\n").filter((x) => x);
+    const minIndent = Math.min(...lines2.map((x) => x.length - x.trimStart().length));
+    const dedented = lines2.map((x) => x.slice(minIndent)).map((x) => " ".repeat(this.indent * 2) + x);
     for (const line of dedented) {
       this.content.push(line);
     }
@@ -12405,8 +12405,8 @@ var Doc = class {
     const F = Function;
     const args = this?.args;
     const content = this?.content ?? [``];
-    const lines = [...content.map((x) => `  ${x}`)];
-    return new F(...args, lines.join("\n"));
+    const lines2 = [...content.map((x) => `  ${x}`)];
+    return new F(...args, lines2.join("\n"));
   }
 };
 
@@ -15159,11 +15159,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path5) {
-  if (path5.length === 0) {
+function getDotPath(path7) {
+  if (path7.length === 0) {
     return "object root";
   }
-  return path5.reduce((acc, seg, index) => {
+  return path7.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -18699,13 +18699,13 @@ var zodToJsonSchema = (schema, options) => {
     }, true) ?? parseAnyDef(refs)
   }), {}) : void 0;
   const name = typeof options === "string" ? options : options?.nameStrategy === "title" ? void 0 : options?.name;
-  const main2 = parseDef(schema._def, name === void 0 ? refs : {
+  const main = parseDef(schema._def, name === void 0 ? refs : {
     ...refs,
     currentPath: [...refs.basePath, refs.definitionPath, name]
   }, false) ?? parseAnyDef(refs);
   const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
   if (title !== void 0) {
-    main2.title = title;
+    main.title = title;
   }
   if (refs.flags.hasReferencedOpenAiAnyType) {
     if (!definitions) {
@@ -18726,9 +18726,9 @@ var zodToJsonSchema = (schema, options) => {
     }
   }
   const combined = name === void 0 ? definitions ? {
-    ...main2,
+    ...main,
     [refs.definitionPath]: definitions
-  } : main2 : {
+  } : main : {
     $ref: [
       ...refs.$refStrategy === "relative" ? [] : refs.basePath,
       refs.definitionPath,
@@ -18736,7 +18736,7 @@ var zodToJsonSchema = (schema, options) => {
     ].join("/"),
     [refs.definitionPath]: {
       ...definitions,
-      [name]: main2
+      [name]: main
     }
   };
   if (refs.target === "jsonSchema7") {
@@ -21421,12 +21421,15 @@ var StdioServerTransport = class {
 
 // src/server.ts
 import { fileURLToPath } from "node:url";
-import path4 from "node:path";
+import os2 from "node:os";
+import path6 from "node:path";
+import { randomUUID as randomUUID3 } from "node:crypto";
 
-// src/lifecycle.ts
-import { createHash as createHash2, randomUUID } from "node:crypto";
-import { lstat, readFile as readFile2, readdir as readdir2 } from "node:fs/promises";
-import path2 from "node:path";
+// src/merge-workflow.ts
+import { createHash as createHash5, randomUUID as randomUUID2 } from "node:crypto";
+import os from "node:os";
+import { lstat as lstat3, readFile as readFile4, readdir as readdir5, realpath as realpath2 } from "node:fs/promises";
+import path5 from "node:path";
 
 // src/authority.ts
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -21559,6 +21562,10 @@ async function readAuthorizedLease(root, id) {
   }
   return current.payload;
 }
+async function readAuthorizedLeaseState(root, id) {
+  const current = await leaseState(root, id);
+  return current && { state: current.state, payload: current.payload };
+}
 async function ensureAuthorizedLease(root, id, payload) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const current = await leaseState(root, id);
@@ -21615,6 +21622,11 @@ var safe = (id) => {
   return id;
 };
 
+// src/lifecycle.ts
+import { createHash as createHash4, randomUUID } from "node:crypto";
+import { lstat as lstat2, readFile as readFile3, readdir as readdir4, writeFile as writeFile3 } from "node:fs/promises";
+import path4 from "node:path";
+
 // src/validation.ts
 function compileSafeRegex(pattern, flags = "", label = "regular expression") {
   if (typeof pattern !== "string" || pattern.length === 0 || pattern.length > 512) throw new Error(`${label} is empty or too long`);
@@ -21640,829 +21652,17 @@ function subjectVersion(subject) {
   return value && parseStrictSemVer(value) ? value : null;
 }
 
-// src/lifecycle.ts
-var LifecycleStore = class {
-  constructor(dataRoot, runner, probe, hooks) {
-    this.dataRoot = dataRoot;
-    this.runner = runner;
-    this.probe = probe;
-    this.hooks = hooks;
-  }
-  async markIntent(intent) {
-    await this.save("intents", intent.intentId, intent);
-  }
-  async validateIntent(intentId, projectRoot) {
-    const intent = await this.load("intents", intentId);
-    if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed");
-    if (path2.resolve(intent.projectRoot) !== path2.resolve(projectRoot)) throw new Error("intent project root mismatch");
-    return intent;
-  }
-  async beginOperationFor(intentId) {
-    return this.load("begin-operations", safeId(intentId));
-  }
-  async activatedBeginRun(operation) {
-    await this.assertBeginOperation(operation);
-    try {
-      const activated = await this.load("begin-activated", operation.operationToken);
-      if (activated.intentId !== operation.intentId || activated.runId !== operation.runId) throw new Error("activated begin checkpoint does not match its reservation");
-      const run = await this.run(operation.intentId);
-      await this.assertSessionLease(run);
-      const active = await this.load("begin-active", operation.operationToken);
-      await this.project("active", operation.sessionId, active);
-      await this.project("runs", operation.intentId, run);
-      await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run));
-      return run;
-    } catch (error2) {
-      if (error2.code === "ENOENT") return void 0;
-      throw error2;
-    }
-  }
-  async reserveBegin(input) {
-    const intent = await this.load("intents", safeId(input.intentId));
-    if (intent.resumeOf) throw new Error("resume intent cannot reserve a new implementation");
-    let existing;
-    try {
-      existing = await this.beginOperationFor(input.intentId);
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    if (existing) {
-      this.assertBeginReservation(existing, intent, input);
-      await putAuthorizedOnceExact(this.dataRoot, "begin-intent-consumed", existing.operationToken, { schemaVersion: 1, operationToken: existing.operationToken, intentId: existing.intentId });
-      if (!intent.consumed) await this.project("intents", input.intentId, { ...intent, consumed: true });
-      return existing;
-    }
-    if (intent.consumed) throw new Error("implementation intent is consumed without a signed begin reservation");
-    if (!samePath(intent.projectRoot, input.projectRoot)) throw new Error("intent project root mismatch");
-    const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path2.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
-    let operation;
-    try {
-      operation = await putAuthorizedOnceExact(this.dataRoot, "begin-operations", safeId(input.intentId), candidate);
-    } catch (error2) {
-      if (!String(error2.message).includes("checkpoint does not match")) throw error2;
-      operation = await this.beginOperationFor(input.intentId);
-    }
-    this.assertBeginReservation(operation, intent, input);
-    const current = await this.load("intents", input.intentId);
-    this.assertBeginReservation(operation, current, input);
-    await putAuthorizedOnceExact(this.dataRoot, "begin-intent-consumed", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId });
-    if (!current.consumed) await this.project("intents", input.intentId, { ...current, consumed: true });
-    return operation;
-  }
-  async checkpointBeginRepository(operation, repository, policy) {
-    await this.assertBeginOperation(operation);
-    const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path2.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path2.resolve(repository.commonGitDir), policySha256: digest2(JSON.stringify(policy)) };
-    if (!samePath(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || operation.targetOid && operation.targetOid !== value.baseHead) throw new Error("repository checkpoint does not match the signed begin reservation");
-    return putAuthorizedOnceExact(this.dataRoot, "begin-repositories", operation.operationToken, value);
-  }
-  async ensureBeginTargetLease(operation, repository) {
-    await this.assertBeginOperation(operation);
-    if (!operation.targetBranch || !operation.targetOid) return void 0;
-    const leaseId = digest2(`${path2.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path2.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
-    try {
-      await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
-    } catch (error2) {
-      if (!String(error2.message).includes("already leased")) throw error2;
-      const priorLease = await readAuthorizedLease(this.dataRoot, leaseId);
-      let prior;
-      try {
-        prior = await this.run(priorLease.intentId);
-      } catch {
-        throw error2;
-      }
-      if (prior.phase !== "complete" || prior.status !== "green" || prior.leaseId !== leaseId || prior.leaseToken !== priorLease.leaseToken) throw error2;
-      await releaseAuthorizedLease(this.dataRoot, leaseId, prior.intentId, priorLease.leaseToken);
-      await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
-    }
-    return { leaseId, leaseToken: operation.leaseToken };
-  }
-  async checkpointBeginLease(operation, repository, lease) {
-    await this.assertBeginOperation(operation);
-    const value = { schemaVersion: 1, operationToken: operation.operationToken, ...lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {} };
-    if (Boolean(operation.targetBranch) !== Boolean(lease) || lease && lease.leaseToken !== operation.leaseToken) throw new Error("target lease checkpoint does not match the signed begin reservation");
-    if (lease) {
-      const authorized = await readAuthorizedLease(this.dataRoot, lease.leaseId);
-      if (authorized.intentId !== operation.intentId || authorized.leaseToken !== operation.leaseToken || authorized.targetBranch !== operation.targetBranch || authorized.targetOid !== operation.targetOid || !samePath(authorized.commonGitDir, repository.commonGitDir)) throw new Error("target lease checkpoint does not match its signed authority");
-    }
-    return putAuthorizedOnceExact(this.dataRoot, "begin-leases", operation.operationToken, value);
-  }
-  async checkpointBeginWorkspace(operation, workspace) {
-    await this.assertBeginOperation(operation);
-    const value = { schemaVersion: 1, operationToken: operation.operationToken, ...workspace, projectRoot: path2.resolve(workspace.projectRoot), worktreePath: path2.resolve(workspace.worktreePath), commonGitDir: path2.resolve(workspace.commonGitDir), gitDir: path2.resolve(workspace.gitDir) };
-    const canonical = path2.join(operation.projectRoot, ".captain-sdlc", "worktrees") + path2.sep;
-    if (!value.worktreePath.startsWith(canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
-    return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
-  }
-  async checkpointBeginRun(operation, policy) {
-    await this.assertBeginOperation(operation);
-    const repository = await this.load("begin-repositories", operation.operationToken), lease = await this.load("begin-leases", operation.operationToken), workspace = await this.load("begin-workspaces", operation.operationToken);
-    if (repository.policySha256 !== digest2(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath(repository.commonGitDir, workspace.commonGitDir)) throw new Error("begin checkpoints diverged before run activation");
-    const profile = (await this.load("intents", operation.intentId)).requestedProfile ?? policy.profile;
-    if (!(policy.profiles ?? [policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
-    if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId))) throw new Error("trusted commit policy requires a safe task id");
-    const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, ...operation.taskId ? { taskId: operation.taskId } : {}, objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...operation.targetBranch ? { targetBranch: operation.targetBranch } : {}, commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}, profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
-    await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run);
-    const authoritative = await this.run(operation.intentId);
-    await this.reconcileRunProjections(authoritative);
-    return authoritative;
-  }
-  async checkpointBeginPermit(operation, run) {
-    await this.assertBeginOperation(operation);
-    let authoritative = await this.run(operation.intentId);
-    const activated = await this.load("begin-activated", operation.operationToken);
-    if (run.runId !== operation.runId || authoritative.runId !== operation.runId || activated.operationToken !== operation.operationToken) throw new Error("run checkpoint is not activated for permit publication");
-    let claimedTurn;
-    try {
-      claimedTurn = await this.load("begin-turn-resumes", operation.operationToken);
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    if (claimedTurn) {
-      if (claimedTurn.operationToken !== operation.operationToken || claimedTurn.intentId !== operation.intentId || claimedTurn.sessionId !== operation.sessionId || typeof claimedTurn.turnId !== "string") throw new Error("pending begin current-turn claim is invalid");
-      if (authoritative.turnId !== claimedTurn.turnId) authoritative = await this.update({ ...authoritative, turnId: claimedTurn.turnId });
-    }
-    await this.assertSessionLease(authoritative);
-    const permit = this.permit(authoritative);
-    await putAuthorizedOnceExact(this.dataRoot, "begin-permits", `${operation.operationToken}-${authoritative.turnId}`, permit);
-    await this.project("permits", `${operation.sessionId}-${authoritative.turnId}`, permit);
-    return permit;
-  }
-  async checkpointBeginActive(operation) {
-    await this.assertBeginOperation(operation);
-    let run = await this.run(operation.intentId);
-    const sessionLeaseId = digest2(`session-active\0${operation.sessionId}`), payload = { intentId: operation.intentId, leaseToken: operation.operationToken, operationToken: operation.operationToken, runId: operation.runId, sessionId: operation.sessionId, operation: "session-active" };
-    try {
-      await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, payload);
-    } catch (error2) {
-      if (!String(error2.message).includes("already leased")) throw error2;
-      const priorLease = await readAuthorizedLease(this.dataRoot, sessionLeaseId), prior = await this.run(priorLease.intentId);
-      if (prior.phase !== "complete" || prior.status !== "green" || prior.sessionLeaseId !== sessionLeaseId || prior.sessionLeaseToken !== priorLease.leaseToken) throw error2;
-      await releaseAuthorizedLease(this.dataRoot, sessionLeaseId, prior.intentId, priorLease.leaseToken);
-      await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, payload);
-    }
-    run = await this.run(operation.intentId);
-    if (run.sessionLeaseId !== sessionLeaseId || run.sessionLeaseToken !== operation.operationToken) {
-      try {
-        run = await this.update({ ...run, sessionLeaseId, sessionLeaseToken: operation.operationToken });
-      } catch (error2) {
-        run = await this.run(operation.intentId);
-        if (run.sessionLeaseId !== sessionLeaseId || run.sessionLeaseToken !== operation.operationToken) throw error2;
-      }
-    }
-    const active = { schemaVersion: 1, intentId: operation.intentId, operationToken: operation.operationToken, runId: operation.runId, sessionId: operation.sessionId, leaseId: sessionLeaseId, leaseToken: operation.operationToken };
-    await putAuthorizedOnceExact(this.dataRoot, "begin-active", operation.operationToken, active);
-    await this.project("active", operation.sessionId, active);
-    return active;
-  }
-  async checkpointBeginActivated(operation) {
-    await this.assertBeginOperation(operation);
-    const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken);
-    if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken) throw new Error("begin activation checkpoints are incomplete");
-    await this.assertSessionLease(run);
-    await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId });
-    await this.project("active", operation.sessionId, active);
-    return run;
-  }
-  async begin(input) {
-    const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
-    const activated = await this.activatedBeginRun(operation);
-    if (activated) return activated;
-    const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : void 0);
-    await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
-    const run = await this.checkpointBeginRun(operation, input.policy);
-    await this.checkpointBeginActive(operation);
-    const activatedRun = await this.checkpointBeginActivated(operation);
-    await this.checkpointBeginPermit(operation, activatedRun);
-    return this.status(operation.intentId);
-  }
-  async resume(resumeIntentId) {
-    const intent = await this.load("intents", safeId(resumeIntentId));
-    if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed");
-    let operation;
-    try {
-      operation = await this.load("resume-operations", resumeIntentId);
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    if (!operation) {
-      if (intent.consumed) throw new Error("resume intent is invalid or consumed");
-      const run2 = await this.run(intent.resumeOf);
-      if (run2.status === "green" || run2.sessionId !== intent.sessionId) throw new Error("completed or unrelated run cannot be resumed");
-      await this.assertSessionLease(run2);
-      operation = await putAuthorizedOnceExact(this.dataRoot, "resume-operations", resumeIntentId, { schemaVersion: 1, resumeIntentId, operationToken: randomUUID(), intentId: run2.intentId, runId: run2.runId, sessionId: intent.sessionId, turnId: intent.turnId });
-    }
-    if (operation.resumeIntentId !== resumeIntentId || operation.intentId !== intent.resumeOf || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId) throw new Error("resume retry does not match its signed operation");
-    await putAuthorizedOnceExact(this.dataRoot, "resume-intent-consumed", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, resumeIntentId });
-    if (!intent.consumed) await this.project("intents", resumeIntentId, { ...intent, consumed: true });
-    await this.hooks?.afterResumeReserved?.(operation);
-    try {
-      const activated = await this.load("resume-activated", operation.operationToken);
-      if (activated.intentId !== operation.intentId || activated.turnId !== operation.turnId) throw new Error("resume activation checkpoint is invalid");
-      const run2 = await this.run(operation.intentId);
-      await this.assertSessionLease(run2);
-      await this.project("permits", `${run2.sessionId}-${run2.turnId}`, this.permit(run2));
-      return run2;
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    let run = await this.run(operation.intentId);
-    if (run.runId !== operation.runId || run.status === "green") throw new Error("resume operation no longer matches an active run");
-    await this.assertSessionLease(run);
-    if (this.probe) {
-      const current = await this.probe(run.worktreePath, run.policy);
-      this.assertWorktreeBinding(run, current);
-      if (run.preparedCommit ? ![run.preparedCommit.preCommitHead, run.preparedCommit.candidate].includes(current.head) : current.head !== this.expectedHead(run)) throw new Error("worktree branch binding diverged from the signed Captain run");
-    }
-    if (run.turnId !== operation.turnId) {
-      try {
-        run = await this.update({ ...run, turnId: operation.turnId });
-      } catch (error2) {
-        run = await this.run(operation.intentId);
-        if (run.turnId !== operation.turnId) throw error2;
-      }
-    }
-    await putAuthorizedOnceExact(this.dataRoot, "resume-runs", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, revision: run.revision, turnId: run.turnId });
-    await putAuthorizedOnceExact(this.dataRoot, "resume-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, turnId: run.turnId });
-    await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run));
-    return run;
-  }
-  async recordRed(intentId, command) {
-    const run = await this.run(intentId);
-    this.phase(run, "tdd_red");
-    const configured = run.policy.commands.ticket;
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), run.baseHead);
-    if (!configured || command && command !== configured) throw new Error("red test must use the trusted ticket command");
-    const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), run.baseHead);
-    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
-${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
-    return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest2(configured), exitCode: result.exitCode, outputSha256: digest2(`${result.stdout}
-${result.stderr}`) }] });
-  }
-  async recordPreparedMerge(intentId, prepared) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), prepared.preMergeHead);
-    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preMergeHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.targetOid) || !["ort", "ours"].includes(prepared.strategy)) throw new Error("prepared merge binding is invalid");
-    const existing = run.preparedMerges?.find((value) => value.preMergeHead === prepared.preMergeHead);
-    if (existing) {
-      if (JSON.stringify(existing) === JSON.stringify(prepared)) return run;
-      throw new Error("pre-merge HEAD already has a signed merge authorization");
-    }
-    return this.update({ ...run, preparedMerges: [...run.preparedMerges ?? [], prepared], evidence: [...run.evidence, { kind: "merge_prepared", ...prepared }] });
-  }
-  async discardPreparedMerge(intentId, prepared) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    const values = run.preparedMerges ?? [], latest = values.at(-1);
-    if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared)) throw new Error("only the latest signed prepared merge can be discarded");
-    return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
-  }
-  async acquireWorktreeMutation(intentId, kind, request) {
-    let run = await this.run(intentId);
-    this.phase(run, "implement");
-    const requestSha256 = digest2(JSON.stringify(request)), leaseId = digest2(`worktree-mutation\0${run.runId}`);
-    if (run.mutationOperation) {
-      if (run.mutationOperation.kind !== kind || run.mutationOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation or worktree mutation is already active for this run");
-      await ensureAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken: run.mutationOperation.leaseToken, runId: run.runId, operation: "worktree-mutation" });
-      if (run.mutationOperation.stage === "authorized") {
-        await this.assertWorktreeMutation(intentId, run.mutationOperation);
-        return run.mutationOperation;
-      }
-      const authorized2 = { ...run.mutationOperation, stage: "authorized" };
-      run = await this.update({ ...run, mutationOperation: authorized2 });
-      return authorized2;
-    }
-    let stale;
-    try {
-      stale = await readAuthorizedLease(this.dataRoot, leaseId);
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    if (stale) {
-      if (stale.intentId !== intentId || stale.runId !== run.runId || stale.operation !== "worktree-mutation") throw new Error("another Captain worktree mutation operation is already active for this run");
-      await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
-    }
-    const operation = { leaseId, leaseToken: randomUUID(), kind, requestSha256, stage: "reserved" };
-    run = await this.update({ ...run, mutationOperation: operation, evidence: [...run.evidence, { kind: "worktree_mutation_reserved", mutationKind: kind, leaseId, requestSha256 }] });
-    await ensureAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken: operation.leaseToken, runId: run.runId, operation: "worktree-mutation" });
-    const latest = await this.run(intentId);
-    if (!latest.mutationOperation || latest.mutationOperation.leaseToken !== operation.leaseToken || latest.mutationOperation.stage !== "reserved") throw new Error("Captain worktree mutation operation changed during authorization");
-    const authorized = { ...operation, stage: "authorized" };
-    await this.update({ ...latest, mutationOperation: authorized, evidence: [...latest.evidence, { kind: "worktree_mutation_authorized", mutationKind: kind, leaseId }] });
-    return authorized;
-  }
-  async takeOverPreparedMergeForAbort(intentId, prepared, pinnedMergeStarted = false) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    const existing = run.mutationOperation, requestSha256 = digest2(JSON.stringify({ prepared, action: "abort" }));
-    if (!existing) return this.acquireWorktreeMutation(intentId, "abort", { prepared, action: "abort" });
-    if (existing.kind === "abort" && existing.requestSha256 === requestSha256) {
-      await this.assertWorktreeMutation(intentId, existing);
-      return existing;
-    }
-    if (existing.kind !== "merge" || prepared.operationToken !== existing.leaseToken || !run.preparedMerges?.some((value) => JSON.stringify(value) === JSON.stringify(prepared))) throw new Error("another Captain commit operation or worktree mutation is already active for this run");
-    if (!pinnedMergeStarted) throw new Error("the signed merge execution still owns the worktree fence; retry the exact prepare request from clean pre-merge state");
-    await this.assertWorktreeMutation(intentId, existing);
-    const taken = { ...existing, kind: "abort", requestSha256 };
-    const updated = await this.update({ ...run, mutationOperation: taken, evidence: [...run.evidence, { kind: "worktree_mutation_taken_over", from: "merge", to: "abort", leaseId: existing.leaseId }] });
-    return updated.mutationOperation;
-  }
-  async assertWorktreeMutation(intentId, operation) {
-    const run = await this.run(intentId);
-    if (!run.mutationOperation || JSON.stringify(run.mutationOperation) !== JSON.stringify(operation) || operation.stage !== "authorized") throw new Error("Captain worktree mutation authority changed before Git mutation");
-    const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId);
-    if (lease.intentId !== intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.operation !== "worktree-mutation") throw new Error("Captain worktree mutation lease ownership is invalid");
-  }
-  async releaseWorktreeMutation(intentId, operation) {
-    const run = await this.run(intentId);
-    if (!run.mutationOperation) {
-      try {
-        await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
-      } catch {
-      }
-      return run;
-    }
-    await this.assertWorktreeMutation(intentId, operation);
-    const released = await this.update({ ...run, mutationOperation: void 0, evidence: [...run.evidence, { kind: "worktree_mutation_released", mutationKind: operation.kind, leaseId: operation.leaseId }] });
-    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
-    return released;
-  }
-  async assertPreparedMergeAuthority(intentId, prepared, operation, expectedKind = "merge") {
-    const run = await this.run(intentId);
-    if (!run.preparedMerges?.some((value) => JSON.stringify(value) === JSON.stringify(prepared)) || expectedKind === "merge" && prepared.operationToken !== operation.leaseToken || operation.kind !== expectedKind) throw new Error("signed prepared merge authority changed before Git mutation");
-    await this.assertWorktreeMutation(intentId, operation);
-  }
-  async acquireCommitOperation(intentId, request) {
-    const operation = await this.reserveCommitOperation(intentId, request), run = await this.run(intentId);
-    return this.authorizeCommitOperation(run, operation);
-  }
-  async reserveCommitOperation(intentId, request) {
-    let run = await this.run(intentId);
-    this.phase(run, "implement");
-    const requestSha256 = commitRequestSha256(request);
-    if (run.preparedCommit && !run.commitOperation) throw new Error("signed prepared commit has no operation lease ownership");
-    if (run.commitOperation) {
-      if (run.commitOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation is already active for this run");
-      return run.commitOperation;
-    }
-    const leaseId = digest2(`prepared-commit\0${run.runId}`);
-    let stale;
-    try {
-      stale = await readAuthorizedLease(this.dataRoot, leaseId);
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    if (stale) {
-      if (stale.intentId !== intentId || stale.runId !== run.runId || stale.operation !== "prepared-commit") throw new Error("another Captain commit operation is already active for this run");
-      await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
-    }
-    const operation = { leaseId, leaseToken: randomUUID(), requestSha256, stage: "reserved" };
-    run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256 }] });
-    return run.commitOperation;
-  }
-  async commitOperationFor(intentId, request) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    const operation = run.commitOperation;
-    if (!operation || operation.stage !== "prepared" || operation.requestSha256 !== commitRequestSha256(request)) throw new Error("prepared commit recovery requires the exact approved commit request");
-    await this.assertCommitOperation(run, operation);
-    return operation;
-  }
-  async assertPreparedCommitAuthority(intentId, prepared, operation) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (!run.preparedCommit || JSON.stringify({ preCommitHead: run.preparedCommit.preCommitHead, candidate: run.preparedCommit.candidate, tree: run.preparedCommit.tree, ...run.preparedCommit.mergeHead ? { mergeHead: run.preparedCommit.mergeHead } : {} }) !== JSON.stringify(prepared) || operation.stage !== "prepared") throw new Error("signed prepared commit authority changed before Git mutation");
-    await this.assertCommitOperation(run, operation);
-  }
-  async discardCommitOperation(intentId, operation) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (run.preparedCommit) throw new Error("a signed prepared commit must use prepared recovery");
-    await this.assertCommitOperation(run, operation);
-    const discarded = await this.update({ ...run, commitOperation: void 0, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId }] });
-    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
-    return discarded;
-  }
-  async recordPreparedCommit(intentId, prepared, operation) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (run.preparedCommit) throw new Error("a signed prepared commit is already pending recovery");
-    if (operation.stage !== "authorized") throw new Error("prepared commit requires an authorized operation lease");
-    await this.assertCommitOperation(run, operation);
-    if (operation.requestSha256 !== commitRequestSha256(prepared)) throw new Error("prepared commit does not match its leased approved request");
-    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preCommitHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.candidate) || !/^[0-9a-f]{40,64}$/i.test(prepared.tree) || !prepared.paths.length || prepared.subject.includes("\n")) throw new Error("prepared commit binding is invalid");
-    if (prepared.preCommitHead !== this.expectedHead(run)) throw new Error("prepared commit does not extend the governed HEAD");
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), prepared.preCommitHead);
-    return this.update({ ...run, commitOperation: { ...operation, stage: "prepared" }, preparedCommit: prepared, evidence: [...run.evidence, { kind: "commit_prepared", preCommitHead: prepared.preCommitHead, candidate: prepared.candidate, tree: prepared.tree, final: prepared.final, operationLeaseId: operation.leaseId }] });
-  }
-  async discardPreparedCommit(intentId, candidate) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (!run.preparedCommit || run.preparedCommit.candidate !== candidate) throw new Error("signed prepared commit recovery binding does not match");
-    const operation = run.commitOperation;
-    if (!operation) throw new Error("signed prepared commit has no operation lease ownership");
-    await this.assertCommitOperation(run, operation);
-    const discarded = await this.update({ ...run, commitOperation: void 0, preparedCommit: void 0, evidence: [...run.evidence, { kind: "commit_preparation_discarded", candidate, operationLeaseId: operation.leaseId }] });
-    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
-    return discarded;
-  }
-  async recordCommit(intentId, commit, final = true) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    const operation = run.commitOperation;
-    if (run.targetBranch && (!run.preparedCommit || !operation)) throw new Error("governed target commit requires signed prepared operation ownership");
-    if (run.preparedCommit && !operation) throw new Error("signed prepared commit has no operation lease ownership");
-    if (operation) {
-      if (!run.preparedCommit || operation.stage !== "prepared") throw new Error("commit operation cannot finalize before signed candidate authorization");
-      await this.assertCommitOperation(run, operation);
-    }
-    if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
-    const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
-    if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
-    if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
-    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update the configured version file and changelog");
-    if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
-    if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
-    if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
-    if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
-    if (run.committedState && (commit.previousPhaseHead !== run.committedState.head || !commit.previousPhaseRetained || commit.commitCount <= Number(run.evidence.filter((value) => value.kind === "phase_commit" || value.kind === "commit").at(-1)?.commitCount ?? 0))) throw new Error("each atomic commit must extend the preceding phase commit without replacing history");
-    if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree)) throw new Error("commit tree must be captured");
-    if (!this.probe) throw new Error("source-state probe is required");
-    const committedState = await this.probe(run.worktreePath, run.policy);
-    this.assertWorktreeBinding(run, committedState, commit.head);
-    if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
-    if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final)) throw new Error("commit evidence does not match the signed prepared candidate");
-    const next = { ...run, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
-    if (!operation || !run.preparedCommit) return this.update({ ...next, commitOperation: void 0, preparedCommit: void 0 });
-    const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
-    const terminal = await this.update({ ...next, terminalCommit });
-    await this.hooks?.afterTerminalCommit?.(terminal);
-    return this.finishTerminalCommit(intentId, operation.requestSha256);
-  }
-  async completedCommitFor(intentId, request) {
-    const requestSha256 = commitRequestSha256(request), run = await this.run(intentId);
-    if (run.terminalCommit) {
-      if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit recovery requires the exact approved commit request");
-      return this.finishTerminalCommit(intentId, requestSha256);
-    }
-    try {
-      const outcome = await this.load("commit-outcomes", `${intentId}-${requestSha256}`);
-      if (outcome.intentId !== intentId || outcome.runId !== run.runId || outcome.requestSha256 !== requestSha256 || outcome.outcome !== "committed") throw new Error("signed terminal commit outcome is invalid");
-      return run;
-    } catch (error2) {
-      if (error2.code === "ENOENT") return void 0;
-      throw error2;
-    }
-  }
-  async finishTerminalCommit(intentId, requestSha256) {
-    let run = await this.run(intentId), terminal = run.terminalCommit;
-    if (!terminal) {
-      const outcome = await this.load("commit-outcomes", `${intentId}-${requestSha256}`);
-      if (outcome.intentId !== intentId || outcome.requestSha256 !== requestSha256) throw new Error("signed terminal commit outcome is invalid");
-      return run;
-    }
-    if (terminal.requestSha256 !== requestSha256) throw new Error("terminal commit recovery requires the exact approved commit request");
-    await putAuthorizedOnceExact(this.dataRoot, "commit-outcomes", `${intentId}-${requestSha256}`, { schemaVersion: 1, intentId, runId: run.runId, requestSha256, candidate: terminal.candidate, outcome: terminal.outcome, final: terminal.final, commit: terminal.commit });
-    await releaseAuthorizedLease(this.dataRoot, terminal.commitLeaseId, intentId, terminal.commitLeaseToken);
-    if (terminal.mutationOperation) await releaseAuthorizedLease(this.dataRoot, terminal.mutationOperation.leaseId, intentId, terminal.mutationOperation.leaseToken);
-    run = await this.run(intentId);
-    if (!run.terminalCommit) return run;
-    if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit authority changed during finalization");
-    return this.update({ ...run, commitOperation: void 0, preparedCommit: void 0, mutationOperation: void 0, terminalCommit: void 0, evidence: [...run.evidence, { kind: "commit_operation_finalized", requestSha256, candidate: terminal.candidate }] });
-  }
-  async runCheck(intentId, scope) {
-    const run = await this.run(intentId);
-    this.phase(run, "implement");
-    if (run.preparedCommit) throw new Error("prepared commit recovery must complete before iteration checks");
-    const command = run.policy.commands[scope];
-    if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope)) throw new Error("iteration check must be a trusted implementation scope");
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
-    const result = await this.runner(command, run.worktreePath);
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
-    return this.update({ ...run, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest2(command), exitCode: result.exitCode }] });
-  }
-  async prove(intentId) {
-    const current = await this.run(intentId);
-    if (current.phase === "complete" && current.status === "green") return this.finalizeCompletion(intentId);
-    try {
-      return await this.proveAttempt(intentId);
-    } catch (error2) {
-      const latest = await this.run(intentId);
-      if (latest.phase === "prove") await this.update({ ...latest, phase: "implement", status: "red", evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest2(String(error2.message)) }] });
-      throw error2;
-    }
-  }
-  async proveAttempt(intentId) {
-    const run = await this.run(intentId);
-    this.phase(run, "prove");
-    if (!this.probe || !run.committedState) throw new Error("source-state probe is required");
-    await this.assertCommitted(run);
-    const scopes = run.profile === "pre-release" ? ["build", "ticket", "feature-smoke", "affected-regression", "super-smoke", ...run.visualRequired ? ["visual"] : []] : ["build", "ticket", "feature-smoke", "affected-regression", ...run.visualRequired ? ["visual"] : []];
-    for (const scope of scopes) if (!run.policy.commands[scope]) throw new Error(`${scope} proof command is required`);
-    const bindings = { build: "build", "feature-smoke": "smoke", visual: "visual" }, before = {};
-    for (const [scope, role] of Object.entries(bindings)) if (scopes.includes(scope)) {
-      const relative = run.policy.artifactPaths?.[role];
-      if (!relative) throw new Error(`${role} artifact is required by trusted policy`);
-      before[role] = await optionalHash(run.worktreePath, relative);
-    }
-    const proof = [];
-    const artifacts = {};
-    for (const scope of scopes) {
-      const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath);
-      proof.push({ scope, commandSha256: digest2(command), exitCode: result.exitCode });
-      if (result.exitCode !== 0) {
-        await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
-        throw new Error(`${scope} proof failed; run returned to implement for repair`);
-      }
-      await this.assertCommitted(run);
-      const role = bindings[scope];
-      if (role) {
-        const relative = run.policy.artifactPaths[role];
-        const absolute = await safeArtifact(run.worktreePath, relative);
-        const after = await hashPath(absolute);
-        if (role === "visual") await assertImage(absolute);
-        artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope };
-      }
-    }
-    for (const [role, item] of Object.entries(artifacts)) {
-      const finalHash = await hashPath(await safeArtifact(run.worktreePath, item.path));
-      if (finalHash !== item.sha256) throw new Error(`${role} artifact changed after its producing proof command`);
-    }
-    const completed = await this.update({ ...run, phase: "complete", status: "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }] });
-    await this.hooks?.afterRunCompleted?.(completed);
-    return this.finalizeCompletion(intentId);
-  }
-  async status(intentId) {
-    const run = await this.run(intentId);
-    await this.reconcileRunProjections(run);
-    return run;
-  }
-  async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) {
-    const leaseId = digest2(`${path2.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path2.resolve(commonGitDir), targetBranch, targetOid };
-    try {
-      await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
-      return { leaseId, leaseToken };
-    } catch (error2) {
-      if (!String(error2.message).includes("already leased")) throw error2;
-      const lease = await readAuthorizedLease(this.dataRoot, leaseId);
-      let prior;
-      try {
-        prior = await this.run(lease.intentId);
-      } catch {
-        throw error2;
-      }
-      if (prior.phase !== "complete" || prior.status !== "green") throw error2;
-      await this.releaseTargetLease(leaseId, lease.intentId, lease.leaseToken);
-      await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
-      return { leaseId, leaseToken };
-    }
-  }
-  async releaseTargetLease(leaseId, intentId, leaseToken) {
-    await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
-  }
-  async permitFor(sessionId, turnId) {
-    try {
-      const permit = await this.load("permits", `${sessionId}-${turnId}`), run = await this.run(permit.intentId), active = await this.load("active", sessionId), activated = await this.load("begin-activated", permit.operationToken);
-      if (run.status === "green" || run.sessionId !== sessionId || run.turnId !== turnId || run.revision !== permit.runRevision || run.operationToken !== permit.operationToken || active.operationToken !== permit.operationToken || activated.operationToken !== permit.operationToken) return null;
-      await this.assertSessionLease(run);
-      return permit;
-    } catch {
-      return null;
-    }
-  }
-  permit(run) {
-    return { schemaVersion: 1, sessionId: run.sessionId, turnId: run.turnId, worktreePath: run.worktreePath, phase: run.phase, intentId: run.intentId, runId: run.runId, runRevision: run.revision, operationToken: run.operationToken, sessionLeaseId: run.sessionLeaseId, sessionLeaseToken: run.sessionLeaseToken, activated: true };
-  }
-  phase(run, expected) {
-    if (run.phase !== expected) throw new Error(`expected ${expected} phase, found ${run.phase}`);
-  }
-  async run(id) {
-    const safe2 = safeId(id), prefix = `${safe2}-`;
-    let names = [];
-    try {
-      names = await readdir2(path2.join(this.dataRoot, "run-revisions"));
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    const revisions = names.map((name) => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
-    if (!revisions.length) {
-      const legacy = await this.load("runs", safe2), normalized = { ...legacy, revision: legacy.revision ?? 0 };
-      await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${safe2}-0`, normalized);
-      await this.writeRunWatermark(normalized);
-      return normalized;
-    }
-    for (let index = 0; index < revisions.length; index++) if (revisions[index] !== index) throw new Error("signed run revision sequence is not contiguous");
-    let latest, previous;
-    for (const revision of revisions) {
-      latest = await this.load("run-revisions", `${safe2}-${revision}`);
-      if (latest.intentId !== id || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== void 0 : latest.previousRevisionSha256 !== digest2(JSON.stringify(previous)))) throw new Error("signed run revision binding is invalid");
-      if (previous) this.assertStableRun(previous, latest);
-      await this.writeRunWatermark(latest);
-      previous = latest;
-    }
-    let watermarkNames = [];
-    try {
-      watermarkNames = await readdir2(path2.join(this.dataRoot, "run-watermarks"));
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
-    }
-    const watermarks = watermarkNames.map((name) => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1]));
-    if (watermarks.some((revision) => revision > latest.revision)) throw new Error("signed run revision tail regressed behind its monotonic watermark");
-    return latest;
-  }
-  async update(run) {
-    const current = await this.run(run.intentId);
-    if (current.revision !== run.revision || current.runId !== run.runId) throw new Error("Captain run changed concurrently; retry from authoritative status");
-    const next = { ...run, revision: current.revision + 1, previousRevisionSha256: digest2(JSON.stringify(current)) };
-    const stored = await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${run.intentId}-${next.revision}`, next);
-    await this.writeRunWatermark(stored);
-    await this.hooks?.afterRunRevision?.(stored);
-    await this.reconcileRunProjections(await this.run(run.intentId));
-    return stored;
-  }
-  async writeRunWatermark(run) {
-    await putAuthorizedOnceExact(this.dataRoot, "run-watermarks", `${run.intentId}-${run.revision}`, { schemaVersion: 1, intentId: run.intentId, runId: run.runId, revision: run.revision, runSha256: digest2(JSON.stringify(run)), previousRevisionSha256: run.previousRevisionSha256 });
-  }
-  async reconcileRunProjections(run) {
-    const latest = await this.run(run.intentId);
-    await this.project("runs", latest.intentId, latest);
-    if (latest.status !== "green" && latest.sessionLeaseId && latest.sessionLeaseToken) try {
-      const activated = await this.load("begin-activated", latest.operationToken);
-      if (activated.operationToken === latest.operationToken) {
-        await this.assertSessionLease(latest);
-        await this.project("permits", `${latest.sessionId}-${latest.turnId}`, this.permit(latest));
-      }
-    } catch (error2) {
-      if (error2.code !== "ENOENT" && !String(error2.message).includes("not held")) throw error2;
-    }
-  }
-  assertStableRun(previous, current) {
-    const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, sessionId: run.sessionId, taskId: run.taskId, objective: run.objective, projectRoot: path2.resolve(run.projectRoot), worktreePath: path2.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path2.resolve(run.commonGitDir), gitDir: path2.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
-    if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current))) throw new Error("signed run immutable binding changed across revisions");
-  }
-  async project(bucket, id, value) {
-    let failure;
-    for (let attempt = 0; attempt < 3; attempt++) try {
-      await this.save(bucket, id, value);
-      return;
-    } catch (error2) {
-      failure = error2;
-      try {
-        if (JSON.stringify(await this.load(bucket, id)) === JSON.stringify(value)) return;
-      } catch {
-      }
-    }
-    throw failure;
-  }
-  async assertBeginOperation(operation) {
-    const signed = await this.beginOperationFor(operation.intentId);
-    if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged");
-  }
-  assertBeginReservation(operation, intent, input) {
-    if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath(operation.projectRoot, input.projectRoot) || !samePath(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || input.leaseToken && operation.leaseToken !== input.leaseToken) throw new Error("retry does not match the signed begin reservation");
-  }
-  async authorizeCommitOperation(run, operation) {
-    const payload = { intentId: run.intentId, leaseToken: operation.leaseToken, runId: run.runId, requestSha256: operation.requestSha256, operation: "prepared-commit" };
-    await ensureAuthorizedLease(this.dataRoot, operation.leaseId, payload);
-    if (operation.stage === "authorized") {
-      await this.assertCommitOperation(run, operation);
-      return operation;
-    }
-    if (operation.stage !== "reserved") throw new Error("prepared commit recovery must complete before a new commit operation");
-    const latest = await this.run(run.intentId);
-    if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved") throw new Error("Captain commit operation changed during lease authorization");
-    const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] });
-    return updated.commitOperation;
-  }
-  async assertCommitted(run) {
-    const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState;
-    this.assertWorktreeBinding(run, current, expected.head);
-    if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || expected.manifest && current.manifest !== expected.manifest) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
-  }
-  async assertCommitOperation(run, operation) {
-    if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256) throw new Error("Captain commit operation lease ownership diverged from the signed run");
-    const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId);
-    if (lease.intentId !== run.intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.requestSha256 !== operation.requestSha256 || lease.operation !== "prepared-commit") throw new Error("Captain commit operation lease ownership is invalid");
-  }
-  async assertSessionLease(run) {
-    if (!run.sessionLeaseId || !run.sessionLeaseToken) throw new Error("Captain run has no active session ownership");
-    const lease = await readAuthorizedLease(this.dataRoot, run.sessionLeaseId);
-    if (lease.intentId !== run.intentId || lease.leaseToken !== run.sessionLeaseToken || lease.operationToken !== run.operationToken || lease.runId !== run.runId || lease.sessionId !== run.sessionId || lease.operation !== "session-active") throw new Error("Captain session active ownership is invalid");
-  }
-  async finalizeCompletion(intentId) {
-    let run = await this.run(intentId);
-    if (run.phase !== "complete" || run.status !== "green") throw new Error("only a green completed run can finalize ownership release");
-    const released = [];
-    if (run.leaseId && run.leaseToken) {
-      await this.releaseCompletedLease(run.leaseId, run.intentId, run.leaseToken);
-      released.push({ kind: "target_lease_released", leaseId: run.leaseId });
-    }
-    if (run.sessionLeaseId && run.sessionLeaseToken) {
-      await this.releaseCompletedLease(run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
-      released.push({ kind: "session_lease_released", leaseId: run.sessionLeaseId });
-    }
-    if (run.leaseId || run.sessionLeaseId) run = await this.update({ ...run, leaseId: void 0, leaseToken: void 0, sessionLeaseId: void 0, sessionLeaseToken: void 0, evidence: [...run.evidence, ...released] });
-    try {
-      const active = await this.load("active", run.sessionId);
-      if (active.operationToken === run.operationToken) await this.project("active", run.sessionId, { intentId: "none", complete: true, operationToken: run.operationToken });
-    } catch {
-    }
-    return run;
-  }
-  async releaseCompletedLease(leaseId, intentId, leaseToken) {
-    try {
-      await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
-    } catch (error2) {
-      try {
-        const successor = await readAuthorizedLease(this.dataRoot, leaseId);
-        if (successor.intentId !== intentId || successor.leaseToken !== leaseToken) return;
-      } catch (read) {
-        if (read.code === "ENOENT") return;
-      }
-      throw error2;
-    }
-  }
-  expectedHead(run) {
-    return run.committedState?.head ?? run.baseHead;
-  }
-  assertWorktreeBinding(run, current, expectedHead) {
-    const same = (left, right) => Boolean(left && right && path2.resolve(left).toLowerCase() === path2.resolve(right).toLowerCase());
-    if (current.branch !== run.branch || current.branchHead !== current.head || !same(current.commonGitDir, run.commonGitDir) || !same(current.topLevel, run.worktreePath) || !same(current.gitDir, run.gitDir) || expectedHead && current.head !== expectedHead) throw new Error("worktree branch binding diverged from the signed Captain run");
-  }
-  async load(bucket, id) {
-    return readAuthorized(this.dataRoot, bucket, safeId(id));
-  }
-  async save(bucket, id, value) {
-    await writeAuthorized(this.dataRoot, bucket, safeId(id), value);
-  }
-};
-var safeId = (id) => {
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
-  return id;
-};
-var samePath = (left, right) => path2.resolve(left).toLowerCase() === path2.resolve(right).toLowerCase();
-var digest2 = (text) => createHash2("sha256").update(text).digest("hex");
-var commitRequestSha256 = (request) => digest2(JSON.stringify({ paths: request.paths, subject: request.subject, taskOutcome: request.taskOutcome ?? null, final: request.final }));
-async function safeArtifact(root, relative) {
-  if (path2.isAbsolute(relative)) throw new Error("artifact must be relative");
-  const full = path2.resolve(root, relative), prefix = path2.resolve(root) + path2.sep;
-  if (!full.startsWith(prefix)) throw new Error("artifact escapes worktree");
-  for (let cursor = full; cursor.startsWith(path2.resolve(root)); cursor = path2.dirname(cursor)) {
-    const info = await lstat(cursor);
-    if (info.isSymbolicLink()) throw new Error("artifact crosses a reparse point");
-    if (cursor === path2.resolve(root)) break;
-  }
-  return full;
-}
-async function hashPath(target) {
-  const info = await lstat(target);
-  if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
-  if (info.isFile()) return createHash2("sha256").update(await readFile2(target)).digest("hex");
-  const entries = await readdir2(target, { withFileTypes: true });
-  const lines = [];
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const child = path2.join(target, entry.name);
-    lines.push(`${entry.name}:${await hashPath(child)}`);
-  }
-  return digest2(lines.join("\n"));
-}
-async function optionalHash(root, relative) {
-  try {
-    return await hashPath(await safeArtifact(root, relative));
-  } catch (error2) {
-    if (error2.code === "ENOENT") return null;
-    throw error2;
-  }
-}
-async function assertImage(target) {
-  const bytes = await readFile2(target);
-  let valid = false;
-  if (bytes.length >= 45 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
-    const ihdr = bytes.toString("ascii", 12, 16) === "IHDR", width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20), iend = bytes.includes(Buffer.from("IEND"));
-    valid = ihdr && width > 0 && height > 0 && iend;
-  }
-  if (!valid && bytes.length >= 12 && bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217) {
-    for (let i = 2; i + 8 < bytes.length; ) {
-      if (bytes[i++] !== 255) continue;
-      const marker = bytes[i++], length = bytes.readUInt16BE(i);
-      if (length < 2 || i + length > bytes.length) break;
-      if ([192, 193, 194].includes(marker) && bytes.readUInt16BE(i + 3) > 0 && bytes.readUInt16BE(i + 5) > 0) {
-        valid = true;
-        break;
-      }
-      i += length;
-    }
-  }
-  if (!valid) throw new Error("visual artifact is not a structurally valid nonempty PNG or JPEG image");
-}
+// src/user-authorization.ts
+import { createHash as createHash3 } from "node:crypto";
+import { readdir as readdir3 } from "node:fs/promises";
+import path3 from "node:path";
 
 // src/workspace.ts
 import { execFile } from "node:child_process";
-import { createHash as createHash3 } from "node:crypto";
-import { lstat as lstat2, mkdtemp, readFile as readFile3, readdir as readdir3, realpath, writeFile as writeFile2 } from "node:fs/promises";
+import { createHash as createHash2 } from "node:crypto";
+import { cp, lstat, mkdtemp, readFile as readFile2, readdir as readdir2, realpath, writeFile as writeFile2 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import path3 from "node:path";
+import path2 from "node:path";
 import { promisify } from "node:util";
 var exec = promisify(execFile);
 var maxGitBuffer = 10 * 1024 * 1024;
@@ -22495,6 +21695,12 @@ var approvedGeneratedPaths = /* @__PURE__ */ new Set([
   "assets/_dirigible/temp.meta",
   "assets/streamingassets/dirigiblebuildprovenance.json",
   "assets/streamingassets/dirigiblebuildprovenance.json.meta",
+  "assets/addressableassetsdata/link.xml",
+  "assets/addressableassetsdata/link.xml.meta",
+  "assets/addressableassetsdata/windows/addressables_content_state.bin",
+  "assets/addressableassetsdata/windows/addressables_content_state.bin.meta",
+  "assets/thirdparty/gameanalytics/resources/gameanalytics/settings.asset",
+  "assets/textmesh pro/resources/fonts & materials/liberationsans sdf - fallback.asset",
   "assets/resources/performancetestruninfo.json",
   "assets/resources/performancetestrunsettings.json",
   ".captain-sdlc/unity-relaunch.log",
@@ -22510,19 +21716,19 @@ function scrubbedEnvironment() {
 }
 async function gitControls() {
   isolatedGitControlRoot ??= (async () => {
-    const root = await mkdtemp(path3.join(tmpdir(), "captain-git-controls-"));
-    await writeFile2(path3.join(root, "attributes"), "");
+    const root = await mkdtemp(path2.join(tmpdir(), "captain-git-controls-"));
+    await writeFile2(path2.join(root, "attributes"), "");
     return root;
   })();
   return isolatedGitControlRoot;
 }
 async function gitInvocation(args, cwd) {
   const controls = await gitControls();
-  return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path3.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+  return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path2.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
 }
 var gateRunner = async (command, cwd) => {
   try {
-    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (error2) {
     return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
@@ -22531,15 +21737,45 @@ var gateRunner = async (command, cwd) => {
 async function git(args, cwd) {
   return (await gitInvocation(args, cwd)).stdout.trim();
 }
-async function loadPolicy(projectRoot, baseHead) {
+async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
-  if (profile !== "feature" && profile !== "pre-release") throw new Error("trusted base policy has an invalid profile");
+  if (profile !== "low" && profile !== "feature" && profile !== "pre-release") throw new Error("trusted base policy has an invalid profile");
   if (typeof raw.visualRequired !== "boolean") throw new Error("trusted base policy must configure visualRequired");
   const commands = stringRecord(raw.commands, "trusted policy commands");
   for (const scope of ["build", "ticket", "feature-smoke", "affected-regression", ...raw.visualRequired ? ["visual"] : []]) if (!commands[scope]) throw new Error(`trusted base policy is missing ${scope}`);
   const parsed = { profile, visualRequired: raw.visualRequired, commands };
+  if (raw.hitlChecks !== void 0 || hitlChecks !== void 0) {
+    const checks = /* @__PURE__ */ new Map();
+    for (const source of [raw.hitlChecks ?? [], hitlChecks ?? []]) {
+      if (!Array.isArray(source)) throw new Error("HITL checks must be an array");
+      for (const check2 of source) {
+        const fields = ["id", "criterionId", "setup", "action", "expected", "evidence"];
+        if (!check2 || fields.some((field) => typeof check2[field] !== "string" || !check2[field].trim())) throw new Error("HITL checks require id, criterionId, setup, action, expected and evidence goals");
+        const normalized = Object.fromEntries(fields.map((field) => [field, check2[field]]));
+        if (checks.has(normalized.id) && JSON.stringify(checks.get(normalized.id)) !== JSON.stringify(normalized)) throw new Error(`conflicting frozen HITL check: ${normalized.id}`);
+        checks.set(normalized.id, normalized);
+      }
+    }
+    parsed.hitlChecks = [...checks.values()].sort((a, b) => a.id.localeCompare(b.id));
+  }
+  if (raw.approvedPlanPaths !== void 0 || planPaths !== void 0) {
+    if (raw.approvedPlanPaths !== void 0 && (!Array.isArray(raw.approvedPlanPaths) || raw.approvedPlanPaths.some((value) => typeof value !== "string")) || planPaths !== void 0 && (!Array.isArray(planPaths) || planPaths.some((value) => typeof value !== "string"))) throw new Error("approvedPlanPaths must be an array of repository paths");
+    parsed.approvedPlans = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const value of [...raw.approvedPlanPaths ?? [], ...planPaths ?? []]) {
+      const relative = safeRepositoryPath(value, "approved plan");
+      if (seen.has(relative.toLowerCase())) continue;
+      seen.add(relative.toLowerCase());
+      const mode = await git(["ls-tree", baseHead, "--", relative], projectRoot);
+      if (!/^100(?:644|755) blob /.test(mode)) throw new Error(`approved plan must be a tracked regular file: ${relative}`);
+      const result = await gitInvocation(["show", `${baseHead}:${relative}`], projectRoot);
+      if (Buffer.byteLength(result.stdout) > maxPolicyInput) throw new Error(`approved plan exceeds the bounded input limit: ${relative}`);
+      parsed.approvedPlans.push({ path: relative, sha256: approvedPlanDigest(result.stdout) });
+    }
+    parsed.approvedPlans.sort((a, b) => a.path.localeCompare(b.path));
+  }
   if (raw.profiles !== void 0) {
-    if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "feature" && value !== "pre-release")) throw new Error("trusted policy profiles are invalid");
+    if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "low" && value !== "feature" && value !== "pre-release")) throw new Error("trusted policy profiles are invalid");
     parsed.profiles = [...new Set(raw.profiles)];
   }
   if (raw.artifactPaths !== void 0) parsed.artifactPaths = stringRecord(raw.artifactPaths, "trusted artifact paths");
@@ -22557,10 +21793,10 @@ async function loadPolicy(projectRoot, baseHead) {
     const repositoryText = await boundedGitShow(projectRoot, `${baseHead}:${parsed.commitPolicyPath}`, "trusted repository policy"), repositoryPolicy = parseObject(repositoryText, "trusted repository policy");
     if (repositoryPolicy.schema_version !== 1) throw new Error("trusted repository policy schema_version must be 1");
     parsed.commit = validateCommitPolicy(repositoryPolicy.commit);
-    parsed.commitPolicySha256 = digest3(repositoryText);
+    parsed.commitPolicySha256 = digest2(repositoryText);
   } else if (raw.commit !== void 0) {
     parsed.commit = validateCommitPolicy(raw.commit);
-    parsed.commitPolicySha256 = digest3(JSON.stringify(raw.commit));
+    parsed.commitPolicySha256 = digest2(JSON.stringify(raw.commit));
   }
   const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
   if (raw.sourceManifestExcludes !== void 0 && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
@@ -22580,18 +21816,44 @@ async function loadPolicy(projectRoot, baseHead) {
     if (trackedRootFiles.some((file) => rootFilePatternMatches(file, value))) throw new Error(`${value} matches a tracked base file and cannot be excluded`);
     parsed.sourceManifestRootFileExcludes.push(value);
   }
+  if (parsed.hitlChecks?.length && !parsed.approvedPlans?.length) throw new Error("HITL checks require an approved plan selected at begin");
   return parsed;
 }
 async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
-  const root = path3.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path3.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
+  const root = path2.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path2.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
   if (targetBranch) await validateTargetBranch(root, targetBranch);
   const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root);
   if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase())) throw new Error("signed target branch oid does not match the current ref");
   await assertSafeGitAttributesAtCommit(root, baseHead);
   return { projectRoot: root, baseHead, commonGitDir };
 }
+async function hydrateIgnoredUnityPlugins(root, worktree) {
+  for (const parent of ["Assets", "Packages"]) {
+    const sourceParent = path2.join(root, parent);
+    let entries;
+    try {
+      entries = await readdir2(sourceParent, { withFileTypes: true });
+    } catch (error2) {
+      if (error2.code === "ENOENT") continue;
+      throw error2;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const relative = parent + "/" + entry.name;
+      if (await optionalGit(["check-ignore", "--", relative], root) === null) continue;
+      await cp(path2.join(sourceParent, entry.name), path2.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
+      const siblingMeta = relative + ".meta";
+      try {
+        const metadata = await lstat(path2.join(root, siblingMeta));
+        if (metadata.isFile()) await cp(path2.join(root, siblingMeta), path2.join(worktree, siblingMeta), { force: false, errorOnExist: false });
+      } catch (error2) {
+        if (error2.code !== "ENOENT") throw error2;
+      }
+    }
+  }
+}
 async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir) {
-  const root = path3.resolve(projectRoot), commonGitDir = path3.resolve(expectedCommonGitDir ?? await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path3.join(root, ".captain-sdlc", "worktrees"), proposedPath = path3.join(container, safe2);
+  const root = path2.resolve(projectRoot), commonGitDir = path2.resolve(expectedCommonGitDir ?? await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path2.join(root, ".captain-sdlc", "worktrees"), proposedPath = path2.join(container, safe2);
   if (!safe2) throw new Error("intent id cannot produce an empty worktree name");
   await assertSafeGitAttributesAtCommit(root, baseHead);
   await assertSafeGitMetadataAttributes(root);
@@ -22600,12 +21862,13 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
     await validateTargetBranch(root, targetBranch);
     const targetRef = `refs/heads/${targetBranch}`, resolved = await git(["rev-parse", "--verify", `${targetRef}^{commit}`], root);
     if (resolved !== baseHead) throw new Error("target branch moved after its base was captured");
-    const existing = (await worktreeEntries(root)).find((value) => value.branch === targetRef);
-    if (existing) {
-      const worktreePath = path3.resolve(existing.worktree);
+    const existing2 = (await worktreeEntries(root)).find((value) => value.branch === targetRef);
+    if (existing2) {
+      const worktreePath = path2.resolve(existing2.worktree);
       if (!isPathInside(container, worktreePath)) throw new Error("target branch is checked out outside the canonical worktree container");
       await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
       const binding3 = await assertWorktreeBinding(worktreePath, targetBranch, commonGitDir, baseHead, true);
+      await hydrateIgnoredUnityPlugins(root, worktreePath);
       return { projectRoot: root, worktreePath, baseHead, targetBranch, branch: binding3.branch, commonGitDir, gitDir: binding3.gitDir };
     }
     let binding2;
@@ -22614,6 +21877,7 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
       await git(["worktree", "add", proposedPath, targetBranch], root);
       await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
       binding2 = await assertWorktreeBinding(proposedPath, targetBranch, commonGitDir, baseHead, true);
+      await hydrateIgnoredUnityPlugins(root, proposedPath);
     } catch (error2) {
       try {
         await git(["worktree", "remove", "--force", proposedPath], root);
@@ -22623,11 +21887,19 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
     }
     return { projectRoot: root, worktreePath: proposedPath, baseHead, targetBranch, branch: binding2.branch, commonGitDir, gitDir: binding2.gitDir };
   }
-  const branch = `captain/${safe2}`;
+  const branch = `captain/${safe2}`, branchRef = `refs/heads/${branch}`, existing = (await worktreeEntries(root)).find((value) => path2.resolve(value.worktree) === path2.resolve(proposedPath));
+  if (existing) {
+    if (existing.branch !== branchRef) throw new Error("canonical worktree path belongs to a different branch");
+    await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
+    const binding2 = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
+    await hydrateIgnoredUnityPlugins(root, proposedPath);
+    return { projectRoot: root, worktreePath: proposedPath, baseHead, branch: binding2.branch, commonGitDir, gitDir: binding2.gitDir };
+  }
   await assertMissingWorktreePath(proposedPath);
   await git(["worktree", "add", proposedPath, "-b", branch, baseHead], root);
   await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
   const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
+  await hydrateIgnoredUnityPlugins(root, proposedPath);
   return { projectRoot: root, worktreePath: proposedPath, baseHead, branch, commonGitDir, gitDir: binding.gitDir };
 }
 async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = [], previousPhaseHead) {
@@ -22635,15 +21907,15 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
   let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
   const matchedPrepared = /* @__PURE__ */ new Set();
-  for (const hash of hashes) {
-    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
+  for (const hash3 of hashes) {
+    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash3], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash3], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash3], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash3], worktree));
     if (parents.length > 2) {
       const index = preparedMerges.findIndex((prepared2, candidate) => !matchedPrepared.has(candidate) && prepared2.preMergeHead === parent && prepared2.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : void 0, bookkeeping = /* @__PURE__ */ new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map((surface) => surface.path)]);
       if (!prepared || parents.length !== 3 || prepared.strategy === "ours" && phaseChanged.some((changedPath) => !bookkeeping.has(changedPath))) preparedMergesValid = false;
       else matchedPrepared.add(index);
     }
-    if (parent !== expectedParent || !validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)) phaseCommitsValid = false;
-    expectedParent = hash;
+    if (parent !== expectedParent || !validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !await versionSurfacesMatch(worktree, hash3, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash3, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash3, phaseSubject, commitPolicy)) phaseCommitsValid = false;
+    expectedParent = hash3;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
   phaseCommitsValid &&= preparedMergesValid;
@@ -22778,20 +22050,21 @@ async function preparedMergeState(worktree, prepared) {
 async function reconcilePreparedMerge(worktree, prepared) {
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state");
 }
+var normalizeSourceStatus = (status) => status.split(/\r?\n/).filter((line) => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
 async function sourceState(worktree, policy) {
-  const topLevel = path3.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path3.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path3.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
+  const topLevel = path2.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path2.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path2.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
   return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
 async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) {
-  const real = await realpath(worktree), owned = path3.resolve(worktree);
-  if (path3.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
-  const topLevel = path3.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
+  const real = await realpath(worktree), owned = path2.resolve(worktree);
+  if (path2.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
+  const topLevel = path2.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
   if (topLevel.toLowerCase() !== owned.toLowerCase()) throw new Error("Git top-level does not match the owned worktree");
   const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree);
   if (!branch || expectedBranch && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path3.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path3.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
-  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path3.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
-  if (expectedGitDir && gitDir.toLowerCase() !== path3.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
+  const commonGitDir = path2.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path2.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
+  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path2.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
+  if (expectedGitDir && gitDir.toLowerCase() !== path2.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
   const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branchHead = await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree);
   if (head !== branchHead || expectedHead && head !== expectedHead) throw new Error("worktree target branch ref binding diverged");
   if (requireClean && await git(["status", "--porcelain"], worktree)) throw new Error("target branch worktree must be clean before Captain uses it");
@@ -22825,12 +22098,12 @@ async function worktreeEntries(root) {
   return result;
 }
 function isPathInside(parent, candidate) {
-  const relative = path3.relative(path3.resolve(parent), path3.resolve(candidate));
-  return relative !== "" && !relative.startsWith(`..${path3.sep}`) && relative !== ".." && !path3.isAbsolute(relative);
+  const relative = path2.relative(path2.resolve(parent), path2.resolve(candidate));
+  return relative !== "" && !relative.startsWith(`..${path2.sep}`) && relative !== ".." && !path2.isAbsolute(relative);
 }
 async function assertMissingWorktreePath(worktreePath) {
   try {
-    await lstat2(worktreePath);
+    await lstat(worktreePath);
     throw new Error(`canonical worktree path already exists: ${worktreePath}`);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -22848,11 +22121,11 @@ async function assertSafeGitAttributesAtCommit(cwd, commit) {
   }
 }
 async function assertSafeGitMetadataAttributes(cwd) {
-  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path3.resolve(cwd, raw);
+  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path2.resolve(cwd, raw);
   try {
-    const info = await lstat2(file);
+    const info = await lstat(file);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file");
-    const content = await readFile3(file, "utf8");
+    const content = await readFile2(file, "utf8");
     if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers");
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -22867,42 +22140,42 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
   const collect = async (target) => {
     let info;
     try {
-      info = await lstat2(target);
+      info = await lstat(target);
     } catch (error2) {
       if (error2.code === "ENOENT") return;
       throw error2;
     }
     if (info.isSymbolicLink()) return;
     if (info.isFile()) {
-      if (path3.basename(target).toLowerCase() === ".gitattributes") files.add(target);
+      if (path2.basename(target).toLowerCase() === ".gitattributes") files.add(target);
       return;
     }
     if (!info.isDirectory()) return;
-    for (const entry of await readdir3(target, { withFileTypes: true })) {
+    for (const entry of await readdir2(target, { withFileTypes: true })) {
       if (entry.name.toLowerCase() === ".git") continue;
-      const child = path3.join(target, entry.name);
+      const child = path2.join(target, entry.name);
       if (entry.name.toLowerCase() === ".gitattributes") files.add(child);
       else if (entry.isDirectory()) await collect(child);
     }
   };
   for (const selected of selectedPaths.length ? selectedPaths : ["."]) {
     const segments = selected.replaceAll("\\", "/").split("/").filter((value) => value && value !== ".");
-    files.add(path3.join(cwd, ".gitattributes"));
-    for (let index = 1; index < segments.length; index++) files.add(path3.join(cwd, ...segments.slice(0, index), ".gitattributes"));
-    const target = path3.resolve(cwd, selected);
+    files.add(path2.join(cwd, ".gitattributes"));
+    for (let index = 1; index < segments.length; index++) files.add(path2.join(cwd, ...segments.slice(0, index), ".gitattributes"));
+    const target = path2.resolve(cwd, selected);
     try {
-      if ((await lstat2(target)).isDirectory()) await collect(target);
+      if ((await lstat(target)).isDirectory()) await collect(target);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
   for (const file of files) {
     try {
-      const info = await lstat2(file);
-      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path3.relative(cwd, file)}`);
-      const content = await readFile3(file, "utf8");
-      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path3.relative(cwd, file)}`);
-      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path3.relative(cwd, file)}`);
+      const info = await lstat(file);
+      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path2.relative(cwd, file)}`);
+      const content = await readFile2(file, "utf8");
+      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path2.relative(cwd, file)}`);
+      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path2.relative(cwd, file)}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
@@ -22915,18 +22188,18 @@ function hasExecutableGitAttributes(content) {
   });
 }
 async function rejectReparseAncestors(root, target) {
-  for (let cursor = path3.resolve(target); cursor.startsWith(path3.resolve(root)); cursor = path3.dirname(cursor)) {
+  for (let cursor = path2.resolve(target); cursor.startsWith(path2.resolve(root)); cursor = path2.dirname(cursor)) {
     try {
-      if ((await lstat2(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
+      if ((await lstat(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
-    if (cursor === path3.resolve(root)) break;
+    if (cursor === path2.resolve(root)) break;
   }
 }
 function safeRepositoryPath(value, label) {
   const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/");
-  if (path3.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/-]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
+  if (path2.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
   return normalized;
 }
 function objectValue(value, label) {
@@ -22981,27 +22254,27 @@ function hasTaskTrailer(message, taskId) {
   const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
   return matches.length === 1 && matches[0] === taskId;
 }
-async function candidateCommitValid(worktree, hash, expectedParent, policy, taskId, preparedMerges) {
-  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
+async function candidateCommitValid(worktree, hash3, expectedParent, policy, taskId, preparedMerges) {
+  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash3], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash3], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash3], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash3], worktree));
   let mergeValid = parents.length === 2;
   if (parents.length === 3) {
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy);
+  return parent === expectedParent && mergeValid && validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && await versionSurfacesMatch(worktree, hash3, subject, policy) && await versionTransitionValid(worktree, parent, hash3, subject, policy) && await changelogAddsVersion(worktree, parent, hash3, subject, policy);
 }
 function compilePattern(pattern) {
   const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern;
   return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern");
 }
-async function versionSurfacesMatch(worktree, hash, subject, policy) {
+async function versionSurfacesMatch(worktree, hash3, subject, policy) {
   const surfaces = policy.version_surfaces ?? [];
   if (!surfaces.length) return !(policy.require_version_suffix ?? true);
   const expected = subjectVersion(subject);
   if (!expected) return false;
   for (const surface of surfaces) {
     try {
-      const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+      const content = await boundedGitShow(worktree, `${hash3}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
       if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false;
     } catch {
       return false;
@@ -23009,11 +22282,11 @@ async function versionSurfacesMatch(worktree, hash, subject, policy) {
   }
   return true;
 }
-async function versionAt(worktree, hash, policy) {
+async function versionAt(worktree, hash3, policy) {
   const values = [];
   for (const surface of policy.version_surfaces ?? []) {
     try {
-      const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      const content = await boundedGitShow(worktree, `${hash3}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
       if (!value || !parseStrictSemVer(value)) return null;
       values.push(value);
     } catch {
@@ -23022,59 +22295,1803 @@ async function versionAt(worktree, hash, policy) {
   }
   return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
 }
-async function versionTransitionValid(worktree, parent, hash, subject, policy) {
+async function versionTransitionValid(worktree, parent, hash3, subject, policy) {
   if (!(policy.require_version_suffix ?? true)) return true;
-  const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject), beforeValue = await versionAt(worktree, parent, policy), afterValue = await versionAt(worktree, hash, policy);
+  const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
+  const canonical = policy.version_surfaces?.filter((surface) => surface.path === policy.version_file) ?? [];
+  const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
+  const afterValue = await versionAt(worktree, hash3, policy);
   if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
   const before = parseStrictSemVer(beforeValue);
-  if (parsedSubject[2]) {
-    if (before.major === Number.MAX_SAFE_INTEGER) return false;
-    return afterValue === `${before.major + 1}.0.0`;
-  }
-  if (parsedSubject[1] === "feat") {
-    if (before.minor === Number.MAX_SAFE_INTEGER) return false;
-    return afterValue === `${before.major}.${before.minor + 1}.0`;
-  }
-  if (before.patch === Number.MAX_SAFE_INTEGER) return false;
-  return afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
+  if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
+  if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
+  return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }
-async function changelogAddsVersion(worktree, parent, hash, subject, policy) {
+async function changelogAddsVersion(worktree, parent, hash3, subject, policy) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const version2 = subjectVersion(subject);
   if (!version2) return false;
-  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
+  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash3, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
   return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
 }
 async function sourceManifest(root, configuredExcludes, rootFileExcludes) {
-  const lines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, ""));
+  const lines2 = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map((item) => item.replaceAll("\\", "/")));
   async function walk(dir) {
-    for (const entry of (await readdir3(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const relative = path3.relative(root, path3.join(dir, entry.name)).replaceAll("\\", "/");
-      if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
-      const full = path3.join(dir, entry.name), info = await lstat2(full);
+    for (const entry of (await readdir2(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const relative = path2.relative(root, path2.join(dir, entry.name)).replaceAll("\\", "/");
+      if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative.toLowerCase().endsWith(".meta") && !tracked.has(relative) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
+      const full = path2.join(dir, entry.name), info = await lstat(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
       if (info.isDirectory()) await walk(full);
-      else if (info.isFile()) lines.push(`${relative}:${createHash3("sha256").update(await readFile3(full)).digest("hex")}`);
+      else if (info.isFile()) lines2.push(`${relative}:${createHash2("sha256").update(await readFile2(full)).digest("hex")}`);
     }
   }
   await walk(root);
-  return digest3(lines.join("\n"));
+  return digest2(lines2.join("\n"));
 }
 function rootFilePatternMatches(file, pattern) {
   const lower = file.toLowerCase(), expected = pattern.toLowerCase();
   return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected;
 }
-var digest3 = (text) => createHash3("sha256").update(text).digest("hex");
+var digest2 = (text) => createHash2("sha256").update(text).digest("hex");
 var splitLines = (value) => value.split(/\r?\n/).filter(Boolean);
+
+// src/user-authorization.ts
+var guidance = "Receipts preserve the user's original authorization for the same task. Honor later revocations and the recorded operation/target; a commit receipt does not authorize push, merge, or disabling controls. Check Git hygiene, then act without asking again. Missing parser receipts do not negate authorization already present in the conversation.";
+var hash = (value) => createHash3("sha256").update(JSON.stringify(value)).digest("hex");
+var pathKey = (value) => process.platform === "win32" ? path3.resolve(value).toLowerCase() : path3.resolve(value);
+function parseUserAuthorizations(prompt) {
+  const result = [];
+  let fence;
+  for (const raw of prompt.split(/\r?\n/)) {
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(raw);
+    if (fence) {
+      if (marker && marker[1][0] === fence.character && marker[1].length >= fence.length && !marker[2].trim()) fence = void 0;
+      continue;
+    }
+    if (marker) {
+      if (marker[1][0] === "~" || !marker[2].includes("`")) fence = { character: marker[1][0], length: marker[1].length };
+      continue;
+    }
+    if (/^(?: {4}| {0,3}\t)/.test(raw)) continue;
+    const quote = raw.trim();
+    if (/^[>"'`]/.test(quote)) continue;
+    const text = quote.replace(/[.!]+$/, "").replace(/^(?:please\s+|go ahead and\s+)/i, "");
+    const negative = /^(?:do not|don't|stop|cancel)\s+/i.test(text);
+    const action = negative ? text.replace(/^(?:do not|don't|stop|cancel)\s+/i, "") : text.replace(/^(?:approve|authorize)\s+(?:the\s+)?/i, "");
+    const decision = negative ? "revoke" : "approve";
+    if (/^commit(?:ting)?(?:\s+(?:it|this|that|the changes|these changes|your work|the work))?(?:\s+(?:now|already|please))?$/i.test(action)) {
+      result.push({ operation: "commit", decision, quote });
+      continue;
+    }
+    const mergeBack = /^(?:(revoke)\s+(?:the\s+)?)?merge(?:\s+(?:back|finish)|-(?:back|finish))(?:\s+(?:it|this|that|the changes|these changes))?(?:\s+(?:to|into)\s+([A-Za-z0-9_][A-Za-z0-9._/-]*))?$/i.exec(action);
+    if (mergeBack) {
+      result.push({ operation: "merge", decision: mergeBack[1] ? "revoke" : decision, ...mergeBack[2] ? { targetBranch: mergeBack[2] } : {}, quote });
+      continue;
+    }
+    const merge2 = /^merge(?:\s+(?:it|this|that|the changes|these changes))?\s+(?:to|into)\s+([A-Za-z0-9_][A-Za-z0-9._/-]*)$/i.exec(action);
+    if (merge2) result.push({ operation: "merge", decision, targetBranch: merge2[1], quote });
+  }
+  return result;
+}
+async function repositoryScope(root) {
+  const [projectRoot, commonGitDir, sourceBranch] = await Promise.all([
+    git(["rev-parse", "--show-toplevel"], root),
+    git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root),
+    git(["branch", "--show-current"], root)
+  ]);
+  return { projectRoot: path3.resolve(projectRoot), commonGitDir: path3.resolve(commonGitDir), sourceBranch };
+}
+async function recordUserAuthorizations(data, input) {
+  const events = parseUserAuthorizations(input.prompt);
+  if (!events.length) return [];
+  if (!input.sessionId || !input.turnId) throw new Error("User authorization needs its source session and turn");
+  const scope = await repositoryScope(input.projectRoot), receipts = [];
+  for (const [instructionIndex, event] of events.entries()) {
+    if (event.targetBranch) await git(["check-ref-format", "--branch", event.targetBranch], scope.projectRoot);
+    const binding = { ...event, ...scope, sessionId: input.sessionId, turnId: input.turnId, instructionIndex, ...input.intentId ? { intentId: input.intentId } : {}, ...input.taskId ? { taskId: input.taskId } : {}, source: input.source };
+    const id = hash(binding);
+    try {
+      receipts.push(await readAuthorized(data, "user-authorizations", id));
+      continue;
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const receipt = { schemaVersion: 1, id, ...binding, recordedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    try {
+      receipts.push(await putAuthorizedOnceExact(data, "user-authorizations", id, receipt));
+    } catch (error2) {
+      const existing = await readAuthorized(data, "user-authorizations", id);
+      const { schemaVersion, id: existingId, recordedAt, ...existingBinding } = existing;
+      if (schemaVersion !== 1 || existingId !== id || hash(existingBinding) !== id) throw error2;
+      receipts.push(existing);
+    }
+  }
+  return receipts;
+}
+async function userAuthorizationStatus(data, query) {
+  if (!query.sessionId && !query.intentId) throw new Error("Select a source session or governed intent for authorization lookup");
+  let names;
+  try {
+    names = await readdir3(path3.join(data, "user-authorizations"));
+  } catch (error2) {
+    if (error2.code === "ENOENT") return { receipts: [], guidance };
+    throw error2;
+  }
+  const scope = await repositoryScope(query.projectRoot), receipts = [];
+  for (const name of names.filter((value) => /^[a-f0-9]{64}\.json$/.test(value))) {
+    const receipt = await readAuthorized(data, "user-authorizations", name.slice(0, -5));
+    if (receipt.schemaVersion !== 1 || pathKey(receipt.commonGitDir) !== pathKey(scope.commonGitDir)) continue;
+    if (query.intentId ? receipt.intentId !== query.intentId : receipt.sessionId !== query.sessionId || receipt.sourceBranch !== scope.sourceBranch) continue;
+    if (query.operation && receipt.operation !== query.operation) continue;
+    if (query.targetBranch && receipt.targetBranch !== query.targetBranch) continue;
+    receipts.push(receipt);
+  }
+  receipts.sort((a, b) => a.sessionId === b.sessionId && a.turnId === b.turnId ? a.instructionIndex - b.instructionIndex || a.id.localeCompare(b.id) : a.recordedAt.localeCompare(b.recordedAt) || a.id.localeCompare(b.id));
+  return { receipts, guidance };
+}
+
+// src/lifecycle.ts
+function approvedPlanDigest(content) {
+  return digest3(content.replaceAll("\r\n", "\n"));
+}
+function proofScopes(run) {
+  return [...run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...run.profile === "pre-release" ? ["super-smoke"] : []], ...run.visualRequired ? ["visual"] : []];
+}
+function executionHead(run) {
+  return run.continuityState?.head ?? run.committedState?.head ?? run.baseHead;
+}
+function isPendingPlanReview(run) {
+  if (run.phase === "hitl") return true;
+  const lastReview = run.evidence.filter((item) => item.kind === "plan_review").at(-1);
+  return run.phase === "complete" && run.status === "green" && Boolean(run.policy.hitlChecks?.length) && lastReview?.decision !== "accept";
+}
+function effectiveGateDisclosure(run) {
+  const bindings = { build: "build", "feature-smoke": "smoke", visual: "visual" };
+  const planReview = run.evidence.filter((item) => item.kind === "plan_review").at(-1);
+  const pendingReview = isPendingPlanReview(run);
+  const humanReview = run.evidence.filter((item) => item.kind === "hitl_feedback").at(-1);
+  const reviewDecisions = /* @__PURE__ */ new Map();
+  for (const item of run.evidence) {
+    if (!["hitl_feedback", "plan_review"].includes(String(item.kind)) || !["accept", "needs_changes"].includes(String(item.decision)) || !Array.isArray(item.checkIds)) continue;
+    for (const id of item.checkIds) if (typeof id === "string") reviewDecisions.set(id, String(item.decision));
+  }
+  const declaredIds = (run.policy.hitlChecks ?? []).map((check2) => check2.id);
+  const humanReviewStatus = { acceptedCheckIds: declaredIds.filter((id) => reviewDecisions.get(id) === "accept"), needsChangesCheckIds: declaredIds.filter((id) => reviewDecisions.get(id) === "needs_changes"), unreviewedCheckIds: declaredIds.filter((id) => !reviewDecisions.has(id)) };
+  return {
+    hitlChecks: run.policy.hitlChecks ?? [],
+    planReview: planReview ?? null,
+    humanReview: humanReview ?? null,
+    humanReviewStatus,
+    planState: !run.policy.approvedPlans?.length ? "unbound" : pendingReview ? "hitl" : run.phase === "complete" && run.status === "green" ? "completed" : "working",
+    approvalAccepted: Boolean(run.policy.approvedPlans?.length),
+    scopeBinding: run.policy.approvedPlans?.length ? "frozen" : "unbound",
+    approvedPlans: run.policy.approvedPlans ?? [],
+    baseHead: run.baseHead,
+    policySource: ".captain-sdlc/codex-policy.json",
+    progressLocation: "signed run evidence and pause handoffs; approved plans are immutable",
+    proofStatus: pendingReview ? { phase: "complete", status: "green" } : { phase: run.phase, status: run.status },
+    phaseAcceptance: humanReviewStatus.needsChangesCheckIds.length ? `human requested changes for ${humanReviewStatus.needsChangesCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : humanReviewStatus.acceptedCheckIds.length ? `human accepted ${humanReviewStatus.acceptedCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : pendingReview ? "awaiting declared human review" : "not inferred from proof status",
+    gates: proofScopes(run).map((scope) => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
+  };
+}
+var LifecycleStore = class {
+  constructor(dataRoot, runner, probe, hooks) {
+    this.dataRoot = dataRoot;
+    this.runner = runner;
+    this.probe = probe;
+    this.hooks = hooks;
+  }
+  async markIntent(intent) {
+    await this.save("intents", intent.intentId, intent);
+  }
+  async issueIdempotentIntent(request, factory) {
+    const normalized = JSON.parse(JSON.stringify({ ...request, projectRoot: path4.resolve(request.projectRoot) }));
+    const id = digest3(JSON.stringify([normalized.projectRoot, request.sessionId, request.turnId]));
+    let receipt;
+    try {
+      receipt = await this.load("intent-issuance", id);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (!receipt) {
+      const candidate = { request: normalized, intent: await factory() };
+      try {
+        receipt = await putAuthorizedOnceExact(this.dataRoot, "intent-issuance", id, candidate);
+      } catch (error2) {
+        try {
+          receipt = await this.load("intent-issuance", id);
+        } catch {
+          throw error2;
+        }
+      }
+    }
+    if (JSON.stringify(receipt.request) !== JSON.stringify(normalized)) throw new Error("intent issuance request changed within the same turn; use a new turn for a different request");
+    try {
+      const existing = await this.load("intents", receipt.intent.intentId);
+      if (JSON.stringify({ ...existing, consumed: void 0 }) !== JSON.stringify({ ...receipt.intent, consumed: void 0 })) throw new Error("issued intent differs from its signed issuance receipt");
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      await putAuthorizedOnceExact(this.dataRoot, "intents", receipt.intent.intentId, receipt.intent);
+    }
+    return receipt.intent;
+  }
+  async recordUserAuthorization(input) {
+    return recordUserAuthorizations(this.dataRoot, input);
+  }
+  async userAuthorizations(query) {
+    return userAuthorizationStatus(this.dataRoot, query);
+  }
+  async validateIntent(intentId, projectRoot) {
+    const intent = await this.load("intents", intentId);
+    if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed");
+    if (path4.resolve(intent.projectRoot) !== path4.resolve(projectRoot)) throw new Error("intent project root mismatch");
+    return intent;
+  }
+  async beginOperationFor(intentId) {
+    return this.load("begin-operations", safeId(intentId));
+  }
+  async activatedBeginRun(operation) {
+    await this.assertBeginOperation(operation);
+    try {
+      const activated = await this.load("begin-activated", operation.operationToken);
+      if (activated.intentId !== operation.intentId || activated.runId !== operation.runId) throw new Error("activated begin checkpoint does not match its reservation");
+      const run = await this.run(operation.intentId);
+      await this.assertSessionLease(run);
+      const active = await this.load("begin-active", operation.operationToken);
+      await this.project("active", operation.sessionId, active);
+      await this.project("runs", operation.intentId, run);
+      await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run));
+      return run;
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+  }
+  async reserveBegin(input) {
+    const intent = await this.load("intents", safeId(input.intentId));
+    if (intent.resumeOf) throw new Error("resume intent cannot reserve a new implementation");
+    let existing;
+    try {
+      existing = await this.beginOperationFor(input.intentId);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (existing) {
+      this.assertBeginReservation(existing, intent, input);
+      await putAuthorizedOnceExact(this.dataRoot, "begin-intent-consumed", existing.operationToken, { schemaVersion: 1, operationToken: existing.operationToken, intentId: existing.intentId });
+      if (!intent.consumed) await this.project("intents", input.intentId, { ...intent, consumed: true });
+      return existing;
+    }
+    if (intent.consumed) throw new Error("implementation intent is consumed without a signed begin reservation");
+    if (!samePath(intent.projectRoot, input.projectRoot)) throw new Error("intent project root mismatch");
+    const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path4.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
+    let operation;
+    try {
+      operation = await putAuthorizedOnceExact(this.dataRoot, "begin-operations", safeId(input.intentId), candidate);
+    } catch (error2) {
+      if (!String(error2.message).includes("checkpoint does not match")) throw error2;
+      operation = await this.beginOperationFor(input.intentId);
+    }
+    this.assertBeginReservation(operation, intent, input);
+    const current = await this.load("intents", input.intentId);
+    this.assertBeginReservation(operation, current, input);
+    await putAuthorizedOnceExact(this.dataRoot, "begin-intent-consumed", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId });
+    if (!current.consumed) await this.project("intents", input.intentId, { ...current, consumed: true });
+    return operation;
+  }
+  async checkpointBeginRepository(operation, repository, policy) {
+    await this.assertBeginOperation(operation);
+    const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path4.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path4.resolve(repository.commonGitDir), policySha256: digest3(JSON.stringify(policy)) };
+    if (!samePath(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || operation.targetOid && operation.targetOid !== value.baseHead) throw new Error("repository checkpoint does not match the signed begin reservation");
+    return putAuthorizedOnceExact(this.dataRoot, "begin-repositories", operation.operationToken, value);
+  }
+  async ensureBeginTargetLease(operation, repository) {
+    await this.assertBeginOperation(operation);
+    if (!operation.targetBranch || !operation.targetOid) return void 0;
+    const leaseId = digest3(`${path4.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path4.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
+    try {
+      await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
+    } catch (error2) {
+      if (!String(error2.message).includes("already leased")) throw error2;
+      const priorLease = await readAuthorizedLease(this.dataRoot, leaseId);
+      let prior;
+      try {
+        prior = await this.run(priorLease.intentId);
+      } catch {
+        throw error2;
+      }
+      if (prior.phase !== "complete" || prior.status !== "green" || prior.leaseId !== leaseId || prior.leaseToken !== priorLease.leaseToken) throw error2;
+      await releaseAuthorizedLease(this.dataRoot, leaseId, prior.intentId, priorLease.leaseToken);
+      await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
+    }
+    return { leaseId, leaseToken: operation.leaseToken };
+  }
+  async checkpointBeginLease(operation, repository, lease) {
+    await this.assertBeginOperation(operation);
+    const value = { schemaVersion: 1, operationToken: operation.operationToken, ...lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {} };
+    if (Boolean(operation.targetBranch) !== Boolean(lease) || lease && lease.leaseToken !== operation.leaseToken) throw new Error("target lease checkpoint does not match the signed begin reservation");
+    if (lease) {
+      const authorized = await readAuthorizedLease(this.dataRoot, lease.leaseId);
+      if (authorized.intentId !== operation.intentId || authorized.leaseToken !== operation.leaseToken || authorized.targetBranch !== operation.targetBranch || authorized.targetOid !== operation.targetOid || !samePath(authorized.commonGitDir, repository.commonGitDir)) throw new Error("target lease checkpoint does not match its signed authority");
+    }
+    return putAuthorizedOnceExact(this.dataRoot, "begin-leases", operation.operationToken, value);
+  }
+  async checkpointBeginWorkspace(operation, workspace) {
+    await this.assertBeginOperation(operation);
+    const value = { schemaVersion: 1, operationToken: operation.operationToken, ...workspace, projectRoot: path4.resolve(workspace.projectRoot), worktreePath: path4.resolve(workspace.worktreePath), commonGitDir: path4.resolve(workspace.commonGitDir), gitDir: path4.resolve(workspace.gitDir) };
+    const canonical = path4.join(operation.projectRoot, ".captain-sdlc", "worktrees") + path4.sep;
+    if (!value.worktreePath.startsWith(canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
+    return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
+  }
+  async checkpointBeginRun(operation, policy) {
+    await this.assertBeginOperation(operation);
+    const repository = await this.load("begin-repositories", operation.operationToken), lease = await this.load("begin-leases", operation.operationToken), workspace = await this.load("begin-workspaces", operation.operationToken);
+    if (repository.policySha256 !== digest3(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath(repository.commonGitDir, workspace.commonGitDir)) throw new Error("begin checkpoints diverged before run activation");
+    const profile = (await this.load("intents", operation.intentId)).requestedProfile ?? policy.profile;
+    if (!(policy.profiles ?? [policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
+    if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId))) throw new Error("trusted commit policy requires a safe task id");
+    const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, ...operation.taskId ? { taskId: operation.taskId } : {}, objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...operation.targetBranch ? { targetBranch: operation.targetBranch } : {}, commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}, profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
+    await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run);
+    const authoritative = await this.run(operation.intentId);
+    await this.reconcileRunProjections(authoritative);
+    return authoritative;
+  }
+  async checkpointBeginPermit(operation, run) {
+    await this.assertBeginOperation(operation);
+    let authoritative = await this.run(operation.intentId);
+    const activated = await this.load("begin-activated", operation.operationToken);
+    if (run.runId !== operation.runId || authoritative.runId !== operation.runId || activated.operationToken !== operation.operationToken) throw new Error("run checkpoint is not activated for permit publication");
+    let claimedTurn;
+    try {
+      claimedTurn = await this.load("begin-turn-resumes", operation.operationToken);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (claimedTurn) {
+      if (claimedTurn.operationToken !== operation.operationToken || claimedTurn.intentId !== operation.intentId || claimedTurn.sessionId !== operation.sessionId || typeof claimedTurn.turnId !== "string") throw new Error("pending begin current-turn claim is invalid");
+      if (authoritative.turnId !== claimedTurn.turnId) authoritative = await this.update({ ...authoritative, turnId: claimedTurn.turnId });
+    }
+    await this.assertSessionLease(authoritative);
+    const permit = this.permit(authoritative);
+    await putAuthorizedOnceExact(this.dataRoot, "begin-permits", `${operation.operationToken}-${authoritative.turnId}`, permit);
+    await this.project("permits", `${operation.sessionId}-${authoritative.turnId}`, permit);
+    return permit;
+  }
+  async checkpointBeginActive(operation) {
+    await this.assertBeginOperation(operation);
+    let run = await this.run(operation.intentId);
+    const sessionLeaseId = digest3(`session-active\0${operation.sessionId}`), payload = { intentId: operation.intentId, leaseToken: operation.operationToken, operationToken: operation.operationToken, runId: operation.runId, sessionId: operation.sessionId, operation: "session-active" };
+    try {
+      await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, payload);
+    } catch (error2) {
+      if (!String(error2.message).includes("already leased")) throw error2;
+      const priorLease = await readAuthorizedLease(this.dataRoot, sessionLeaseId), prior = await this.run(priorLease.intentId);
+      if (prior.phase !== "complete" || prior.status !== "green" || prior.sessionLeaseId !== sessionLeaseId || prior.sessionLeaseToken !== priorLease.leaseToken) throw error2;
+      await releaseAuthorizedLease(this.dataRoot, sessionLeaseId, prior.intentId, priorLease.leaseToken);
+      await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, payload);
+    }
+    run = await this.run(operation.intentId);
+    if (run.sessionLeaseId !== sessionLeaseId || run.sessionLeaseToken !== operation.operationToken) {
+      try {
+        run = await this.update({ ...run, sessionLeaseId, sessionLeaseToken: operation.operationToken });
+      } catch (error2) {
+        run = await this.run(operation.intentId);
+        if (run.sessionLeaseId !== sessionLeaseId || run.sessionLeaseToken !== operation.operationToken) throw error2;
+      }
+    }
+    const active = { schemaVersion: 1, intentId: operation.intentId, operationToken: operation.operationToken, runId: operation.runId, sessionId: operation.sessionId, leaseId: sessionLeaseId, leaseToken: operation.operationToken };
+    await putAuthorizedOnceExact(this.dataRoot, "begin-active", operation.operationToken, active);
+    await this.project("active", operation.sessionId, active);
+    return active;
+  }
+  async checkpointBeginActivated(operation) {
+    await this.assertBeginOperation(operation);
+    const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken);
+    if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken) throw new Error("begin activation checkpoints are incomplete");
+    await this.assertSessionLease(run);
+    await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId });
+    await this.project("active", operation.sessionId, active);
+    return run;
+  }
+  async begin(input) {
+    const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
+    const activated = await this.activatedBeginRun(operation);
+    if (activated) return activated;
+    const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : void 0);
+    await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
+    const run = await this.checkpointBeginRun(operation, input.policy);
+    await this.checkpointBeginActive(operation);
+    const activatedRun = await this.checkpointBeginActivated(operation);
+    await this.checkpointBeginPermit(operation, activatedRun);
+    return this.status(operation.intentId);
+  }
+  async resume(resumeIntentId) {
+    const intent = await this.load("intents", safeId(resumeIntentId));
+    if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed");
+    await this.assertFrozenScope(intent.resumeOf);
+    let priorRun = await this.run(intent.resumeOf);
+    if (priorRun.phase === "complete" && isPendingPlanReview(priorRun)) {
+      if (!samePath(priorRun.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
+      if (priorRun.sessionLeaseId || priorRun.leaseId) throw new Error("legacy review ownership must be finalized before resume");
+      if (this.probe) this.assertWorktreeBinding(priorRun, await this.probe(priorRun.worktreePath, priorRun.policy), this.expectedHead(priorRun));
+      const targetLease = priorRun.targetBranch ? await this.acquireTargetLease(priorRun.intentId, priorRun.commonGitDir, priorRun.targetBranch, this.expectedHead(priorRun)) : void 0;
+      priorRun = await this.update({ ...priorRun, ...targetLease, phase: "hitl", status: "paused", evidence: [...priorRun.evidence, { kind: "review_resume_migration", resumeIntentId }] });
+    }
+    if (priorRun.status !== "paused" && priorRun.sessionId !== intent.sessionId) throw new Error("active run belongs to another session; its owner must pause before transfer");
+    let operation;
+    try {
+      operation = await this.load("resume-operations", resumeIntentId);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (!operation) {
+      if (intent.consumed) throw new Error("resume intent is invalid or consumed");
+      const run2 = await this.run(intent.resumeOf);
+      if (run2.status === "green" || !samePath(run2.projectRoot, intent.projectRoot)) throw new Error("completed or unrelated run cannot be resumed");
+      if (run2.status !== "paused") await this.assertSessionLease(run2);
+      operation = await putAuthorizedOnceExact(this.dataRoot, "resume-operations", resumeIntentId, { schemaVersion: 1, resumeIntentId, operationToken: randomUUID(), intentId: run2.intentId, runId: run2.runId, sessionId: intent.sessionId, turnId: intent.turnId });
+    }
+    if (operation.resumeIntentId !== resumeIntentId || operation.intentId !== intent.resumeOf || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId) throw new Error("resume retry does not match its signed operation");
+    await putAuthorizedOnceExact(this.dataRoot, "resume-intent-consumed", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, resumeIntentId });
+    if (!intent.consumed) await this.project("intents", resumeIntentId, { ...intent, consumed: true });
+    await this.hooks?.afterResumeReserved?.(operation);
+    try {
+      const activated = await this.load("resume-activated", operation.operationToken);
+      if (activated.intentId !== operation.intentId || activated.turnId !== operation.turnId) throw new Error("resume activation checkpoint is invalid");
+      const run2 = await this.run(operation.intentId);
+      await this.assertSessionLease(run2);
+      await this.project("permits", `${run2.sessionId}-${run2.turnId}`, this.permit(run2));
+      return run2;
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    let run = await this.run(operation.intentId);
+    if (run.runId !== operation.runId || run.status === "green") throw new Error("resume operation no longer matches an active run");
+    if (run.status !== "paused") await this.assertSessionLease(run);
+    if (this.probe) {
+      const current = await this.probe(run.worktreePath, run.policy);
+      this.assertWorktreeBinding(run, current);
+      if (run.preparedCommit) {
+        if (![run.preparedCommit.preCommitHead, run.preparedCommit.candidate].includes(current.head)) throw new Error("worktree branch binding diverged from the signed Captain run");
+      } else if (current.head !== this.expectedHead(run)) {
+        const handoff2 = await this.resumeHandoff(run);
+        if (!handoff2?.worktreeState || current.head !== handoff2.worktreeState.head || current.tree !== handoff2.worktreeState.tree) throw new Error("worktree branch binding diverged from the signed Captain run");
+        run = { ...run, continuityState: handoff2.worktreeState, evidence: [...run.evidence, { kind: "resume_source_reconciled", pauseRevision: handoff2.revision, previousExpectedHead: this.expectedHead(run), head: current.head, tree: current.tree, proofRecorded: false }] };
+      }
+    }
+    if (run.status !== "paused" && run.sessionId === operation.sessionId) {
+      if (run.turnId !== operation.turnId) run = await this.update({ ...run, turnId: operation.turnId });
+    } else {
+      const previousLease = run.status === "paused" ? void 0 : { id: run.sessionLeaseId, token: run.sessionLeaseToken }, sessionLeaseId = digest3(`session-active\0${operation.sessionId}`), sessionLeaseToken = operation.operationToken;
+      await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, { intentId: run.intentId, leaseToken: sessionLeaseToken, operationToken: operation.operationToken, runId: run.runId, sessionId: operation.sessionId, operation: "session-active" });
+      run = await this.update({ ...run, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, sessionLeaseId, sessionLeaseToken, status: "running" });
+      if (previousLease) await releaseAuthorizedLease(this.dataRoot, previousLease.id, run.intentId, previousLease.token);
+    }
+    await this.project("active", operation.sessionId, { schemaVersion: 1, intentId: run.intentId, operationToken: run.activationToken ?? run.operationToken, runId: run.runId, sessionId: operation.sessionId, leaseId: run.sessionLeaseId, leaseToken: run.sessionLeaseToken });
+    const handoff = (await this.handoffs()).find((candidate) => candidate.intentId === run.intentId && candidate.planPath);
+    if (handoff?.planPath) await this.projectPlanState(run, handoff.planPath, { status: "in-progress", phase: handoff.phaseLabel ?? run.phase, handoff: "none", blocker: "none", next: handoff.nextSteps });
+    await putAuthorizedOnceExact(this.dataRoot, "resume-runs", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, revision: run.revision, turnId: run.turnId });
+    await putAuthorizedOnceExact(this.dataRoot, "resume-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: run.intentId, runId: run.runId, turnId: run.turnId });
+    await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run));
+    return run;
+  }
+  async pause(intentId, input) {
+    const run = await this.run(intentId);
+    if (run.status === "green") throw new Error("a completed Captain run cannot be paused");
+    await this.assertSessionLease(run);
+    const summary = input.summary.trim(), nextSteps = input.nextSteps.map((step) => step.trim()).filter(Boolean), blockers = (input.blockers ?? []).map((blocker) => blocker.trim()).filter(Boolean), completedSteps = (input.completedSteps ?? []).map((step) => step.trim()).filter(Boolean), planPath = input.planPath?.trim() || void 0, phaseLabel = input.phaseLabel?.trim() || void 0, context = input.context?.trim() || void 0, redirectTask = input.redirectTask?.trim() || void 0;
+    if (!summary || !nextSteps.length) throw new Error("pause handoff requires a summary and at least one next step");
+    const worktreeState = this.probe ? await this.probe(run.worktreePath, run.policy) : void 0;
+    if (worktreeState) this.assertWorktreeBinding(run, worktreeState);
+    const paused = await this.update({ ...run, status: "paused", evidence: [...run.evidence, { kind: "pause", summarySha256: digest3(summary), nextSteps, blockers, ...planPath ? { planPath } : {}, ...phaseLabel ? { phaseLabel } : {} }] });
+    const handoff = { schemaVersion: 1, intentId: paused.intentId, runId: paused.runId, revision: paused.revision, sessionId: paused.sessionId, turnId: paused.turnId, projectRoot: paused.projectRoot, worktreePath: paused.worktreePath, branch: paused.branch, ...paused.taskId ? { taskId: paused.taskId } : {}, objective: paused.objective, phase: paused.phase, status: paused.status, ...planPath ? { planPath } : {}, ...phaseLabel ? { phaseLabel } : {}, completedSteps, summary, nextSteps, blockers, ...context ? { context } : {}, ...worktreeState ? { worktreeState } : {}, evidence: paused.evidence, resumeDirective: `[Captain resume: ${paused.intentId}]`, ...redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {} };
+    const saved = await putAuthorizedOnceExact(this.dataRoot, "pause-handoffs", `${paused.intentId}-${paused.revision}`, handoff);
+    if (planPath) await this.projectPlanState(paused, planPath, { status: blockers.length ? "blocked" : redirectTask ? "redirected" : "paused", phase: phaseLabel ?? paused.phase, handoff: `${paused.intentId}-${paused.revision}`, blocker: blockers.join("; ") || "none", next: nextSteps });
+    await releaseAuthorizedLease(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
+    return saved;
+  }
+  async handoffs() {
+    let names = [];
+    try {
+      names = await readdir4(path4.join(this.dataRoot, "pause-handoffs"));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    return (await Promise.all(names.filter((name) => name.endsWith(".json")).map((name) => this.load("pause-handoffs", name.slice(0, -5))))).sort((left, right) => right.revision - left.revision);
+  }
+  async linkBlocker(blockedIntentId, blockerIntentId) {
+    const blocked = await this.run(blockedIntentId), blocker = await this.run(blockerIntentId);
+    if (blocked.status !== "paused" || blocker.status === "green" || !samePath(blocked.projectRoot, blocker.projectRoot)) throw new Error("blocker link requires a paused parent and an active same-project blocker");
+    const candidate = { schemaVersion: 1, blockedIntentId: blocked.intentId, blockerIntentId: blocker.intentId, blockedRunId: blocked.runId, blockerRunId: blocker.runId, projectRoot: blocked.projectRoot, createdAt: (/* @__PURE__ */ new Date()).toISOString() }, link2 = await putAuthorizedOnceExact(this.dataRoot, "blocker-links", `${blocked.intentId}-${blocker.intentId}`, candidate);
+    const handoff = (await this.handoffs()).find((candidate2) => candidate2.intentId === blocked.intentId && candidate2.planPath);
+    if (handoff?.planPath) await this.projectPlanState(blocked, handoff.planPath, { status: "blocked", phase: handoff.phaseLabel ?? blocked.phase, handoff: `${handoff.intentId}-${handoff.revision}`, blocker: blockerIntentId, next: handoff.nextSteps });
+    return link2;
+  }
+  async doctor() {
+    const handoffs = await this.handoffs();
+    let names = [];
+    try {
+      names = await readdir4(path4.join(this.dataRoot, "run-revisions"));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const ids = [...new Set(names.map((name) => /^(.*)-0\.json$/.exec(name)?.[1]).filter((value) => Boolean(value)))], runs = await Promise.all(ids.map((id) => this.run(id)));
+    return { pausedHandoffs: handoffs, activeRuns: runs.filter((run) => run.status !== "green" || isPendingPlanReview(run)).map((run) => ({ intentId: run.intentId, sessionId: run.sessionId, turnId: run.turnId, status: run.status, phase: run.phase, worktreePath: run.worktreePath, branch: run.branch })) };
+  }
+  async migratePlanState(intentId, planPaths) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    await this.assertSessionLease(run);
+    if (!planPaths.length) throw new Error("select at least one Markdown plan to migrate");
+    const migrated = [];
+    for (const relative of planPaths) {
+      const normalized = this.safePlanPath(run, relative);
+      if (this.isFrozenPlan(run, normalized)) throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
+      const file = path4.resolve(run.worktreePath, normalized);
+      const original = await readFile3(file, "utf8");
+      if (/<!-- captain:work-state\r?\n[\s\S]*?-->/.test(original)) continue;
+      const heading = /^# .+\r?\n/.exec(original);
+      if (!heading) throw new Error(`plan requires a level-one title before migration: ${relative}`);
+      const line = heading[0].includes("\r\n") ? "\r\n" : "\n", block = `${line}<!-- captain:work-state${line}status: in-progress${line}phase: unspecified${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: none${line}blocker: none${line}next: []${line}-->${line}`;
+      await writeFile3(file, `${heading[0]}${block}${original.slice(heading[0].length)}`, "utf8");
+      migrated.push(normalized);
+    }
+    return migrated;
+  }
+  async recordRed(intentId, command) {
+    await this.assertFrozenScope(intentId);
+    const run = await this.run(intentId);
+    this.phase(run, "tdd_red");
+    const configured = run.policy.commands.ticket;
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    if (!configured || command && command !== configured) throw new Error("red test must use the trusted ticket command");
+    const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
+${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
+    return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest3(configured), exitCode: result.exitCode, outputSha256: digest3(`${result.stdout}
+${result.stderr}`) }] });
+  }
+  async recordPreparedMerge(intentId, prepared) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), prepared.preMergeHead);
+    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preMergeHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.targetOid) || !["ort", "ours"].includes(prepared.strategy)) throw new Error("prepared merge binding is invalid");
+    const existing = run.preparedMerges?.find((value) => value.preMergeHead === prepared.preMergeHead);
+    if (existing) {
+      if (JSON.stringify(existing) === JSON.stringify(prepared)) return run;
+      throw new Error("pre-merge HEAD already has a signed merge authorization");
+    }
+    return this.update({ ...run, preparedMerges: [...run.preparedMerges ?? [], prepared], evidence: [...run.evidence, { kind: "merge_prepared", ...prepared }] });
+  }
+  async discardPreparedMerge(intentId, prepared) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    const values = run.preparedMerges ?? [], latest = values.at(-1);
+    if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared)) throw new Error("only the latest signed prepared merge can be discarded");
+    return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
+  }
+  async acquireWorktreeMutation(intentId, kind, request) {
+    await this.assertFrozenScope(intentId);
+    let run = await this.run(intentId);
+    this.phase(run, "implement");
+    const requestSha256 = digest3(JSON.stringify(request)), leaseId = digest3(`worktree-mutation\0${run.runId}`);
+    if (run.mutationOperation) {
+      if (run.mutationOperation.kind !== kind || run.mutationOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation or worktree mutation is already active for this run");
+      await ensureAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken: run.mutationOperation.leaseToken, runId: run.runId, operation: "worktree-mutation" });
+      if (run.mutationOperation.stage === "authorized") {
+        await this.assertWorktreeMutation(intentId, run.mutationOperation);
+        return run.mutationOperation;
+      }
+      const authorized2 = { ...run.mutationOperation, stage: "authorized" };
+      run = await this.update({ ...run, mutationOperation: authorized2 });
+      return authorized2;
+    }
+    let stale;
+    try {
+      stale = await readAuthorizedLease(this.dataRoot, leaseId);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (stale) {
+      if (stale.intentId !== intentId || stale.runId !== run.runId || stale.operation !== "worktree-mutation") throw new Error("another Captain worktree mutation operation is already active for this run");
+      await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
+    }
+    const operation = { leaseId, leaseToken: randomUUID(), kind, requestSha256, stage: "reserved" };
+    run = await this.update({ ...run, mutationOperation: operation, evidence: [...run.evidence, { kind: "worktree_mutation_reserved", mutationKind: kind, leaseId, requestSha256 }] });
+    await ensureAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken: operation.leaseToken, runId: run.runId, operation: "worktree-mutation" });
+    const latest = await this.run(intentId);
+    if (!latest.mutationOperation || latest.mutationOperation.leaseToken !== operation.leaseToken || latest.mutationOperation.stage !== "reserved") throw new Error("Captain worktree mutation operation changed during authorization");
+    const authorized = { ...operation, stage: "authorized" };
+    await this.update({ ...latest, mutationOperation: authorized, evidence: [...latest.evidence, { kind: "worktree_mutation_authorized", mutationKind: kind, leaseId }] });
+    return authorized;
+  }
+  async takeOverPreparedMergeForAbort(intentId, prepared, pinnedMergeStarted = false) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    const existing = run.mutationOperation, requestSha256 = digest3(JSON.stringify({ prepared, action: "abort" }));
+    if (!existing) return this.acquireWorktreeMutation(intentId, "abort", { prepared, action: "abort" });
+    if (existing.kind === "abort" && existing.requestSha256 === requestSha256) {
+      await this.assertWorktreeMutation(intentId, existing);
+      return existing;
+    }
+    if (existing.kind !== "merge" || prepared.operationToken !== existing.leaseToken || !run.preparedMerges?.some((value) => JSON.stringify(value) === JSON.stringify(prepared))) throw new Error("another Captain commit operation or worktree mutation is already active for this run");
+    if (!pinnedMergeStarted) throw new Error("the signed merge execution still owns the worktree fence; retry the exact prepare request from clean pre-merge state");
+    await this.assertWorktreeMutation(intentId, existing);
+    const taken = { ...existing, kind: "abort", requestSha256 };
+    const updated = await this.update({ ...run, mutationOperation: taken, evidence: [...run.evidence, { kind: "worktree_mutation_taken_over", from: "merge", to: "abort", leaseId: existing.leaseId }] });
+    return updated.mutationOperation;
+  }
+  async assertWorktreeMutation(intentId, operation) {
+    const run = await this.run(intentId);
+    if (!run.mutationOperation || JSON.stringify(run.mutationOperation) !== JSON.stringify(operation) || operation.stage !== "authorized") throw new Error("Captain worktree mutation authority changed before Git mutation");
+    const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId);
+    if (lease.intentId !== intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.operation !== "worktree-mutation") throw new Error("Captain worktree mutation lease ownership is invalid");
+  }
+  async releaseWorktreeMutation(intentId, operation) {
+    const run = await this.run(intentId);
+    if (!run.mutationOperation) {
+      try {
+        await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
+      } catch {
+      }
+      return run;
+    }
+    await this.assertWorktreeMutation(intentId, operation);
+    const released = await this.update({ ...run, mutationOperation: void 0, evidence: [...run.evidence, { kind: "worktree_mutation_released", mutationKind: operation.kind, leaseId: operation.leaseId }] });
+    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
+    return released;
+  }
+  async assertPreparedMergeAuthority(intentId, prepared, operation, expectedKind = "merge") {
+    const run = await this.run(intentId);
+    if (!run.preparedMerges?.some((value) => JSON.stringify(value) === JSON.stringify(prepared)) || expectedKind === "merge" && prepared.operationToken !== operation.leaseToken || operation.kind !== expectedKind) throw new Error("signed prepared merge authority changed before Git mutation");
+    await this.assertWorktreeMutation(intentId, operation);
+  }
+  async acquireCommitOperation(intentId, request) {
+    const operation = await this.reserveCommitOperation(intentId, request), run = await this.run(intentId);
+    return this.authorizeCommitOperation(run, operation);
+  }
+  async reserveCommitOperation(intentId, request) {
+    await this.assertFrozenScope(intentId);
+    let run = await this.run(intentId);
+    this.phase(run, "implement");
+    const requestSha256 = commitRequestSha256(request);
+    if (run.preparedCommit && !run.commitOperation) throw new Error("signed prepared commit has no operation lease ownership");
+    if (run.commitOperation) {
+      if (run.commitOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation is already active for this run");
+      return run.commitOperation;
+    }
+    const leaseId = digest3(`prepared-commit\0${run.runId}`);
+    let stale;
+    try {
+      stale = await readAuthorizedLease(this.dataRoot, leaseId);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (stale) {
+      if (stale.intentId !== intentId || stale.runId !== run.runId || stale.operation !== "prepared-commit") throw new Error("another Captain commit operation is already active for this run");
+      await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
+    }
+    const operation = { leaseId, leaseToken: randomUUID(), requestSha256, stage: "reserved" };
+    run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256 }] });
+    return run.commitOperation;
+  }
+  async commitOperationFor(intentId, request) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    const operation = run.commitOperation;
+    if (!operation || operation.stage !== "prepared" || operation.requestSha256 !== commitRequestSha256(request)) throw new Error("prepared commit recovery requires the exact approved commit request");
+    await this.assertCommitOperation(run, operation);
+    return operation;
+  }
+  async assertPreparedCommitAuthority(intentId, prepared, operation) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (!run.preparedCommit || JSON.stringify({ preCommitHead: run.preparedCommit.preCommitHead, candidate: run.preparedCommit.candidate, tree: run.preparedCommit.tree, ...run.preparedCommit.mergeHead ? { mergeHead: run.preparedCommit.mergeHead } : {} }) !== JSON.stringify(prepared) || operation.stage !== "prepared") throw new Error("signed prepared commit authority changed before Git mutation");
+    await this.assertCommitOperation(run, operation);
+  }
+  async discardCommitOperation(intentId, operation) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (run.preparedCommit) throw new Error("a signed prepared commit must use prepared recovery");
+    await this.assertCommitOperation(run, operation);
+    const discarded = await this.update({ ...run, commitOperation: void 0, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId }] });
+    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
+    return discarded;
+  }
+  async recordPreparedCommit(intentId, prepared, operation) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (run.preparedCommit) throw new Error("a signed prepared commit is already pending recovery");
+    if (operation.stage !== "authorized") throw new Error("prepared commit requires an authorized operation lease");
+    await this.assertCommitOperation(run, operation);
+    if (operation.requestSha256 !== commitRequestSha256(prepared)) throw new Error("prepared commit does not match its leased approved request");
+    if (!/^[0-9a-f]{40,64}$/i.test(prepared.preCommitHead) || !/^[0-9a-f]{40,64}$/i.test(prepared.candidate) || !/^[0-9a-f]{40,64}$/i.test(prepared.tree) || !prepared.paths.length || prepared.subject.includes("\n")) throw new Error("prepared commit binding is invalid");
+    if (prepared.preCommitHead !== this.expectedHead(run)) throw new Error("prepared commit does not extend the governed HEAD");
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), prepared.preCommitHead);
+    return this.update({ ...run, commitOperation: { ...operation, stage: "prepared" }, preparedCommit: prepared, evidence: [...run.evidence, { kind: "commit_prepared", preCommitHead: prepared.preCommitHead, candidate: prepared.candidate, tree: prepared.tree, final: prepared.final, operationLeaseId: operation.leaseId }] });
+  }
+  async discardPreparedCommit(intentId, candidate) {
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (!run.preparedCommit || run.preparedCommit.candidate !== candidate) throw new Error("signed prepared commit recovery binding does not match");
+    const operation = run.commitOperation;
+    if (!operation) throw new Error("signed prepared commit has no operation lease ownership");
+    await this.assertCommitOperation(run, operation);
+    const discarded = await this.update({ ...run, commitOperation: void 0, preparedCommit: void 0, evidence: [...run.evidence, { kind: "commit_preparation_discarded", candidate, operationLeaseId: operation.leaseId }] });
+    await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
+    return discarded;
+  }
+  async resumeTarget(resumeIntentId) {
+    const intent = await this.load("intents", safeId(resumeIntentId));
+    if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed");
+    const run = await this.run(intent.resumeOf);
+    if (!samePath(run.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
+    await this.assertFrozenScope(run.intentId);
+    return run;
+  }
+  async recoverAdvancedPreparedCommit(intentId, commit, firstParent, candidateVerification) {
+    const run = await this.run(intentId), prepared = run.preparedCommit, operation = run.commitOperation;
+    if (run.status !== "paused" || run.phase !== "implement" || !prepared || !operation || operation.stage !== "prepared") throw new Error("advanced prepared commit recovery requires a paused prepared run");
+    await this.assertCommitOperation(run, operation);
+    if (candidateVerification.tree !== prepared.tree || candidateVerification.subject !== prepared.subject) throw new Error("prepared candidate tree or subject diverged from signed authority");
+    if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length) throw new Error("prepared candidate is not retained in the advanced first-parent history");
+    if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.versionChanged || !commit.changelogChanged) throw new Error("advanced commit history does not satisfy the signed commit policy");
+    if (!this.probe) throw new Error("source-state probe is required");
+    const current = await this.probe(run.worktreePath, run.policy);
+    this.assertWorktreeBinding(run, current);
+    if (current.head !== commit.head || current.tree !== commit.tree) throw new Error("advanced commit evidence changed during recovery");
+    const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: prepared.candidate, outcome: "committed", final: prepared.final, commit };
+    await this.update({ ...run, committedState: current, continuityState: void 0, terminalCommit, evidence: [...run.evidence, { kind: "advanced_prepared_commit_recovered", candidate: prepared.candidate, head: commit.head, commitCount: commit.commitCount, firstParent, originalRequestSha256: operation.requestSha256, dirty: current.status !== "" }] });
+    return this.finishTerminalCommit(intentId, operation.requestSha256);
+  }
+  async recordCommit(intentId, commit, final = true) {
+    await this.assertFrozenScope(intentId);
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    const operation = run.commitOperation;
+    if (run.targetBranch && (!run.preparedCommit || !operation)) throw new Error("governed target commit requires signed prepared operation ownership");
+    if (run.preparedCommit && !operation) throw new Error("signed prepared commit has no operation lease ownership");
+    if (operation) {
+      if (!run.preparedCommit || operation.stage !== "prepared") throw new Error("commit operation cannot finalize before signed candidate authorization");
+      await this.assertCommitOperation(run, operation);
+    }
+    if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
+    const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+    if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
+    if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
+    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update the configured version file and changelog");
+    if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
+    if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
+    if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
+    if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
+    if (run.committedState && (commit.previousPhaseHead !== run.committedState.head || !commit.previousPhaseRetained || commit.commitCount <= Number(run.evidence.filter((value) => value.kind === "phase_commit" || value.kind === "commit").at(-1)?.commitCount ?? 0))) throw new Error("each atomic commit must extend the preceding phase commit without replacing history");
+    if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree)) throw new Error("commit tree must be captured");
+    if (!this.probe) throw new Error("source-state probe is required");
+    const committedState = await this.probe(run.worktreePath, run.policy);
+    this.assertWorktreeBinding(run, committedState, commit.head);
+    if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
+    if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final)) throw new Error("commit evidence does not match the signed prepared candidate");
+    const next = { ...run, continuityState: void 0, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
+    if (!operation || !run.preparedCommit) return this.update({ ...next, commitOperation: void 0, preparedCommit: void 0 });
+    const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
+    const terminal = await this.update({ ...next, terminalCommit });
+    await this.hooks?.afterTerminalCommit?.(terminal);
+    return this.finishTerminalCommit(intentId, operation.requestSha256);
+  }
+  async completedCommitFor(intentId, request) {
+    const requestSha256 = commitRequestSha256(request), run = await this.run(intentId);
+    if (run.terminalCommit) {
+      if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit recovery requires the exact approved commit request");
+      return this.finishTerminalCommit(intentId, requestSha256);
+    }
+    try {
+      const outcome = await this.load("commit-outcomes", `${intentId}-${requestSha256}`);
+      if (outcome.intentId !== intentId || outcome.runId !== run.runId || outcome.requestSha256 !== requestSha256 || outcome.outcome !== "committed") throw new Error("signed terminal commit outcome is invalid");
+      return run;
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+  }
+  async finishTerminalCommit(intentId, requestSha256) {
+    let run = await this.run(intentId), terminal = run.terminalCommit;
+    if (!terminal) {
+      const outcome = await this.load("commit-outcomes", `${intentId}-${requestSha256}`);
+      if (outcome.intentId !== intentId || outcome.requestSha256 !== requestSha256) throw new Error("signed terminal commit outcome is invalid");
+      return run;
+    }
+    if (terminal.requestSha256 !== requestSha256) throw new Error("terminal commit recovery requires the exact approved commit request");
+    await putAuthorizedOnceExact(this.dataRoot, "commit-outcomes", `${intentId}-${requestSha256}`, { schemaVersion: 1, intentId, runId: run.runId, requestSha256, candidate: terminal.candidate, outcome: terminal.outcome, final: terminal.final, commit: terminal.commit });
+    await releaseAuthorizedLease(this.dataRoot, terminal.commitLeaseId, intentId, terminal.commitLeaseToken);
+    if (terminal.mutationOperation) await releaseAuthorizedLease(this.dataRoot, terminal.mutationOperation.leaseId, intentId, terminal.mutationOperation.leaseToken);
+    run = await this.run(intentId);
+    if (!run.terminalCommit) return run;
+    if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit authority changed during finalization");
+    return this.update({ ...run, commitOperation: void 0, preparedCommit: void 0, mutationOperation: void 0, terminalCommit: void 0, evidence: [...run.evidence, { kind: "commit_operation_finalized", requestSha256, candidate: terminal.candidate }] });
+  }
+  async runCheck(intentId, scope) {
+    await this.assertFrozenScope(intentId);
+    const run = await this.run(intentId);
+    this.phase(run, "implement");
+    if (run.preparedCommit) throw new Error("prepared commit recovery must complete before iteration checks");
+    const command = run.policy.commands[scope];
+    if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope)) throw new Error("iteration check must be a trusted implementation scope");
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    const result = await this.runner(command, run.worktreePath);
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    return this.update({ ...run, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest3(command), exitCode: result.exitCode }] });
+  }
+  async prove(intentId) {
+    await this.assertFrozenScope(intentId);
+    const current = await this.run(intentId);
+    if (isPendingPlanReview(current)) {
+      if (!this.probe || !current.committedState) throw new Error("HITL requires recorded source proof");
+      await this.assertCommitted(current);
+      return current;
+    }
+    if (current.phase === "complete" && current.status === "green") return this.finalizeCompletion(intentId);
+    try {
+      return await this.proveAttempt(intentId);
+    } catch (error2) {
+      const latest = await this.run(intentId);
+      if (latest.phase === "prove") await this.update({ ...latest, evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest3(String(error2.message)) }] });
+      throw error2;
+    }
+  }
+  async proveAttempt(intentId) {
+    const run = await this.run(intentId);
+    this.phase(run, "prove");
+    if (!this.probe || !run.committedState) throw new Error("source-state probe is required");
+    await this.assertCommitted(run);
+    const scopes = proofScopes(run);
+    for (const scope of scopes) if (!run.policy.commands[scope]) throw new Error(`${scope} proof command is required`);
+    const bindings = { build: "build", "feature-smoke": "smoke", visual: "visual" }, before = {};
+    for (const [scope, role] of Object.entries(bindings)) if (scopes.includes(scope)) {
+      const relative = run.policy.artifactPaths?.[role];
+      if (!relative) throw new Error(`${role} artifact is required by trusted policy`);
+      before[role] = await optionalHash(run.worktreePath, relative);
+    }
+    const proof = [];
+    const artifacts = {};
+    for (const scope of scopes) {
+      const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath);
+      proof.push({ scope, commandSha256: digest3(command), exitCode: result.exitCode });
+      if (result.exitCode !== 0) {
+        await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
+        throw new Error(`${scope} proof failed; run returned to implement for repair`);
+      }
+      await this.assertCommitted(run);
+      const role = bindings[scope];
+      if (role) {
+        const relative = run.policy.artifactPaths[role];
+        const absolute = await safeArtifact(run.worktreePath, relative);
+        const after = await hashPath(absolute);
+        if (role === "visual") await assertImage(absolute);
+        artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope };
+      }
+    }
+    for (const [role, item] of Object.entries(artifacts)) {
+      const finalHash = await hashPath(await safeArtifact(run.worktreePath, item.path));
+      if (finalHash !== item.sha256) throw new Error(`${role} artifact changed after its producing proof command`);
+    }
+    const awaitsReview = Boolean(run.policy.hitlChecks?.length);
+    const completed = await this.update({ ...run, phase: awaitsReview ? "hitl" : "complete", status: awaitsReview ? "running" : "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }, { kind: "proof_passed", head: run.committedState.head, tree: run.committedState.tree }] });
+    if (awaitsReview) return completed;
+    await this.hooks?.afterRunCompleted?.(completed);
+    return this.finalizeCompletion(intentId);
+  }
+  isFrozenPlan(run, relative) {
+    return (run.policy.approvedPlans ?? []).some((plan) => plan.path.toLowerCase() === relative.replaceAll("\\", "/").toLowerCase());
+  }
+  async assertFrozenScope(intentId) {
+    const run = await this.run(intentId);
+    for (const plan of run.policy.approvedPlans ?? []) {
+      try {
+        const file = await safeArtifact(run.worktreePath, plan.path);
+        if (approvedPlanDigest(await readFile3(file, "utf8")) !== plan.sha256) throw new Error("content changed");
+      } catch (error2) {
+        throw new Error(`frozen approved plan changed or is unavailable: ${plan.path}; restore the approved plan and keep progress and human closeout followups separate (${error2.message})`);
+      }
+    }
+  }
+  async recordPlanReview(intentId, input) {
+    const run = await this.run(intentId);
+    if (!run.policy.hitlChecks?.length) throw new Error("plan review requires declared HITL checks frozen at begin");
+    if (!["accept", "needs_changes"].includes(input.decision) || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12e3) throw new Error("plan review requires a valid decision and actual human feedback");
+    const lastReview = run.evidence.filter((item) => item.kind === "plan_review").at(-1);
+    if (run.phase === "complete" && run.status === "green" && lastReview?.decision === "accept" && input.decision === "accept" && lastReview.humanFeedback === input.humanFeedback.trim()) return this.finalizeCompletion(intentId);
+    if (run.phase !== "hitl") throw new Error("plan review requires green proof and the active HITL phase; resume legacy pending review first");
+    await this.assertSessionLease(run);
+    if (run.status === "paused") throw new Error("resume the paused HITL before recording its decision");
+    await this.assertFrozenScope(intentId);
+    if (!this.probe || !run.committedState) throw new Error("HITL requires recorded source proof");
+    if (input.decision === "accept") await this.assertCommitted(run);
+    else this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    const review = { kind: "plan_review", decision: input.decision, humanFeedback: input.humanFeedback.trim(), recordedAt: (/* @__PURE__ */ new Date()).toISOString(), proofHead: run.committedState.head, checkIds: run.policy.hitlChecks.map((check2) => check2.id) };
+    if (input.decision === "needs_changes") return this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, { ...review, nextAction: "Repair the unmet original criteria in this same run and worktree, then repeat their proof and declared HITL. New requirements remain separate human followups." }] });
+    const completed = await this.update({ ...run, phase: "complete", status: "green", evidence: [...run.evidence, review] });
+    await this.hooks?.afterRunCompleted?.(completed);
+    return this.finalizeCompletion(intentId);
+  }
+  async recordHitlFeedback(intentId, input) {
+    const run = await this.run(intentId);
+    if (run.status === "paused") throw new Error("resume the paused run before recording HITL feedback");
+    await this.assertSessionLease(run);
+    await this.assertFrozenScope(intentId);
+    if (!run.policy.hitlChecks?.length || !Array.isArray(input.checkIds) || !input.checkIds.length || new Set(input.checkIds).size !== input.checkIds.length || input.checkIds.some((id) => !run.policy.hitlChecks.some((check2) => check2.id === id))) throw new Error("feedback must reference declared HITL checks frozen at begin");
+    if (!["accept", "needs_changes"].includes(input.decision) || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12e3 || !Array.isArray(input.evidenceReferences) || input.evidenceReferences.length > 50 || input.evidenceReferences.some((value) => typeof value !== "string" || !value.trim() || value.length > 2e3) || input.reviewedRevision !== void 0 && !/^[0-9a-f]{40,64}$/i.test(input.reviewedRevision)) throw new Error("HITL feedback requires actual human feedback and valid evidence references");
+    if (!this.probe) throw new Error("HITL feedback requires a source-state probe");
+    const recordedSource = await this.probe(run.worktreePath, run.policy);
+    this.assertWorktreeBinding(run, recordedSource, this.expectedHead(run));
+    const normalized = { decision: input.decision, humanFeedback: input.humanFeedback.trim(), checkIds: [...input.checkIds].sort(), evidenceReferences: input.evidenceReferences.map((value) => value.trim()), ...input.reviewedRevision ? { reviewedRevision: input.reviewedRevision } : {} };
+    const prior = run.evidence.filter((item) => item.kind === "hitl_feedback").at(-1);
+    if (prior && JSON.stringify({ decision: prior.decision, humanFeedback: prior.humanFeedback, checkIds: prior.checkIds, evidenceReferences: prior.evidenceReferences, ...prior.reviewedRevision ? { reviewedRevision: prior.reviewedRevision } : {} }) === JSON.stringify(normalized)) return run;
+    const review = { ...normalized, kind: "hitl_feedback", recordedAt: (/* @__PURE__ */ new Date()).toISOString(), recordedSource };
+    return this.update({ ...run, evidence: [...run.evidence, review] });
+  }
+  async status(intentId) {
+    const run = await this.run(intentId);
+    await this.reconcileRunProjections(run);
+    return run;
+  }
+  async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) {
+    const leaseId = digest3(`${path4.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path4.resolve(commonGitDir), targetBranch, targetOid };
+    try {
+      await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
+      return { leaseId, leaseToken };
+    } catch (error2) {
+      if (!String(error2.message).includes("already leased")) throw error2;
+      const lease = await readAuthorizedLease(this.dataRoot, leaseId);
+      let prior;
+      try {
+        prior = await this.run(lease.intentId);
+      } catch {
+        throw error2;
+      }
+      if (prior.phase !== "complete" || prior.status !== "green") throw error2;
+      await this.releaseTargetLease(leaseId, lease.intentId, lease.leaseToken);
+      await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
+      return { leaseId, leaseToken };
+    }
+  }
+  safePlanPath(run, relative) {
+    const normalized = relative.replaceAll("\\", "/");
+    if (!normalized.endsWith(".md") || normalized.startsWith("/") || normalized.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
+    const file = path4.resolve(run.worktreePath, normalized), inside = path4.relative(run.worktreePath, file);
+    if (inside.startsWith("..") || path4.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
+    return normalized;
+  }
+  async projectPlanState(run, relative, state) {
+    if (this.isFrozenPlan(run, relative)) return false;
+    const normalized = this.safePlanPath(run, relative), file = path4.resolve(run.worktreePath, normalized), original = await readFile3(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
+    if (!match) return false;
+    const line = match[1], single = (value) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`;
+    await writeFile3(file, `${original.slice(0, match.index)}${block}${original.slice(match.index + match[0].length)}`, "utf8");
+    return true;
+  }
+  async releaseTargetLease(leaseId, intentId, leaseToken) {
+    await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
+  }
+  async permitFor(sessionId, turnId) {
+    try {
+      const permit = await this.load("permits", `${sessionId}-${turnId}`), run = await this.run(permit.intentId), active = await this.load("active", sessionId), activationToken = run.activationToken ?? run.operationToken, activated = await this.load(activationToken === run.operationToken ? "begin-activated" : "resume-activated", activationToken);
+      if (run.status === "green" || run.sessionId !== sessionId || run.turnId !== turnId || run.revision !== permit.runRevision || run.operationToken !== permit.operationToken || permit.activationToken !== activationToken || active.operationToken !== activationToken || activated.operationToken !== activationToken) return null;
+      await this.assertSessionLease(run);
+      return permit;
+    } catch {
+      return null;
+    }
+  }
+  permit(run) {
+    return { schemaVersion: 1, sessionId: run.sessionId, turnId: run.turnId, worktreePath: run.worktreePath, phase: run.phase, intentId: run.intentId, runId: run.runId, runRevision: run.revision, operationToken: run.operationToken, activationToken: run.activationToken ?? run.operationToken, sessionLeaseId: run.sessionLeaseId, sessionLeaseToken: run.sessionLeaseToken, frozenPlanPaths: run.policy.approvedPlans?.map((plan) => plan.path) ?? [], activated: true };
+  }
+  phase(run, expected) {
+    if (run.phase !== expected) throw new Error(`expected ${expected} phase, found ${run.phase}`);
+  }
+  async run(id) {
+    const safe2 = safeId(id), prefix = `${safe2}-`;
+    let names = [];
+    try {
+      names = await readdir4(path4.join(this.dataRoot, "run-revisions"));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const revisions = names.map((name) => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
+    if (!revisions.length) {
+      const legacy = await this.load("runs", safe2), normalized = { ...legacy, revision: legacy.revision ?? 0 };
+      await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${safe2}-0`, normalized);
+      await this.writeRunWatermark(normalized);
+      return normalized;
+    }
+    for (let index = 0; index < revisions.length; index++) if (revisions[index] !== index) throw new Error("signed run revision sequence is not contiguous");
+    let latest, previous;
+    for (const revision of revisions) {
+      latest = await this.load("run-revisions", `${safe2}-${revision}`);
+      if (latest.intentId !== id || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== void 0 : latest.previousRevisionSha256 !== digest3(JSON.stringify(previous)))) throw new Error("signed run revision binding is invalid");
+      if (previous) this.assertStableRun(previous, latest);
+      await this.writeRunWatermark(latest);
+      previous = latest;
+    }
+    let watermarkNames = [];
+    try {
+      watermarkNames = await readdir4(path4.join(this.dataRoot, "run-watermarks"));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const watermarks = watermarkNames.map((name) => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1]));
+    if (watermarks.some((revision) => revision > latest.revision)) throw new Error("signed run revision tail regressed behind its monotonic watermark");
+    return latest;
+  }
+  async update(run) {
+    const current = await this.run(run.intentId);
+    if (current.revision !== run.revision || current.runId !== run.runId) throw new Error("Captain run changed concurrently; retry from authoritative status");
+    const next = { ...run, revision: current.revision + 1, previousRevisionSha256: digest3(JSON.stringify(current)) };
+    const stored = await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${run.intentId}-${next.revision}`, next);
+    await this.writeRunWatermark(stored);
+    await this.hooks?.afterRunRevision?.(stored);
+    await this.reconcileRunProjections(await this.run(run.intentId));
+    return stored;
+  }
+  async writeRunWatermark(run) {
+    await putAuthorizedOnceExact(this.dataRoot, "run-watermarks", `${run.intentId}-${run.revision}`, { schemaVersion: 1, intentId: run.intentId, runId: run.runId, revision: run.revision, runSha256: digest3(JSON.stringify(run)), previousRevisionSha256: run.previousRevisionSha256 });
+  }
+  async reconcileRunProjections(run) {
+    const latest = await this.run(run.intentId);
+    await this.project("runs", latest.intentId, latest);
+    if (latest.status !== "green" && latest.sessionLeaseId && latest.sessionLeaseToken) try {
+      const activated = await this.load("begin-activated", latest.operationToken);
+      if (activated.operationToken === latest.operationToken) {
+        await this.assertSessionLease(latest);
+        await this.project("permits", `${latest.sessionId}-${latest.turnId}`, this.permit(latest));
+      }
+    } catch (error2) {
+      if (error2.code !== "ENOENT" && !String(error2.message).includes("not held")) throw error2;
+    }
+  }
+  assertStableRun(previous, current) {
+    const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path4.resolve(run.projectRoot), worktreePath: path4.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path4.resolve(run.commonGitDir), gitDir: path4.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
+    if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current))) throw new Error("signed run immutable binding changed across revisions");
+  }
+  async project(bucket, id, value) {
+    let failure;
+    for (let attempt = 0; attempt < 3; attempt++) try {
+      await this.save(bucket, id, value);
+      return;
+    } catch (error2) {
+      failure = error2;
+      try {
+        if (JSON.stringify(await this.load(bucket, id)) === JSON.stringify(value)) return;
+      } catch {
+      }
+    }
+    throw failure;
+  }
+  async assertBeginOperation(operation) {
+    const signed = await this.beginOperationFor(operation.intentId);
+    if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged");
+  }
+  assertBeginReservation(operation, intent, input) {
+    if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath(operation.projectRoot, input.projectRoot) || !samePath(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || input.leaseToken && operation.leaseToken !== input.leaseToken) throw new Error("retry does not match the signed begin reservation");
+  }
+  async authorizeCommitOperation(run, operation) {
+    const payload = { intentId: run.intentId, leaseToken: operation.leaseToken, runId: run.runId, requestSha256: operation.requestSha256, operation: "prepared-commit" };
+    await ensureAuthorizedLease(this.dataRoot, operation.leaseId, payload);
+    if (operation.stage === "authorized") {
+      await this.assertCommitOperation(run, operation);
+      return operation;
+    }
+    if (operation.stage !== "reserved") throw new Error("prepared commit recovery must complete before a new commit operation");
+    const latest = await this.run(run.intentId);
+    if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved") throw new Error("Captain commit operation changed during lease authorization");
+    const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] });
+    return updated.commitOperation;
+  }
+  async assertCommitted(run) {
+    await this.assertFrozenScope(run.intentId);
+    const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState;
+    this.assertWorktreeBinding(run, current, expected.head);
+    if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || expected.manifest && current.manifest !== expected.manifest) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
+  }
+  async assertCommitOperation(run, operation) {
+    if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256) throw new Error("Captain commit operation lease ownership diverged from the signed run");
+    const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId);
+    if (lease.intentId !== run.intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.requestSha256 !== operation.requestSha256 || lease.operation !== "prepared-commit") throw new Error("Captain commit operation lease ownership is invalid");
+  }
+  async assertSessionLease(run) {
+    if (!run.sessionLeaseId || !run.sessionLeaseToken) throw new Error("Captain run has no active session ownership");
+    const lease = await readAuthorizedLease(this.dataRoot, run.sessionLeaseId), activationToken = run.activationToken ?? run.operationToken;
+    if (lease.intentId !== run.intentId || lease.leaseToken !== run.sessionLeaseToken || lease.operationToken !== activationToken || lease.runId !== run.runId || lease.sessionId !== run.sessionId || lease.operation !== "session-active") throw new Error("Captain session active ownership is invalid");
+  }
+  async finalizeCompletion(intentId) {
+    let run = await this.run(intentId);
+    if (run.phase !== "complete" || run.status !== "green") throw new Error("only a green completed run can finalize ownership release");
+    const released = [];
+    if (run.leaseId && run.leaseToken) {
+      await this.releaseCompletedLease(run.leaseId, run.intentId, run.leaseToken);
+      released.push({ kind: "target_lease_released", leaseId: run.leaseId });
+    }
+    if (run.sessionLeaseId && run.sessionLeaseToken) {
+      await this.releaseCompletedLease(run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
+      released.push({ kind: "session_lease_released", leaseId: run.sessionLeaseId });
+    }
+    if (run.leaseId || run.sessionLeaseId) run = await this.update({ ...run, leaseId: void 0, leaseToken: void 0, sessionLeaseId: void 0, sessionLeaseToken: void 0, evidence: [...run.evidence, ...released] });
+    try {
+      const active = await this.load("active", run.sessionId);
+      if (active.operationToken === run.operationToken) await this.project("active", run.sessionId, { intentId: "none", complete: true, operationToken: run.operationToken });
+    } catch {
+    }
+    return run;
+  }
+  async releaseCompletedLease(leaseId, intentId, leaseToken) {
+    try {
+      await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
+    } catch (error2) {
+      try {
+        const successor = await readAuthorizedLease(this.dataRoot, leaseId);
+        if (successor.intentId !== intentId || successor.leaseToken !== leaseToken) return;
+      } catch (read) {
+        if (read.code === "ENOENT") return;
+      }
+      throw error2;
+    }
+  }
+  async resumeHandoff(run) {
+    if (run.status !== "paused") return void 0;
+    let handoff;
+    try {
+      handoff = await this.load("pause-handoffs", `${run.intentId}-${run.revision}`);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+    if (handoff.intentId !== run.intentId || handoff.runId !== run.runId || handoff.revision !== run.revision || handoff.status !== "paused" || handoff.branch !== run.branch || !samePath(handoff.projectRoot, run.projectRoot) || !samePath(handoff.worktreePath, run.worktreePath)) throw new Error("signed pause handoff binding diverged from the Captain run");
+    if (handoff.worktreeState) this.assertWorktreeBinding(run, handoff.worktreeState);
+    return handoff;
+  }
+  expectedHead(run) {
+    return executionHead(run);
+  }
+  assertWorktreeBinding(run, current, expectedHead) {
+    const same = (left, right) => Boolean(left && right && path4.resolve(left).toLowerCase() === path4.resolve(right).toLowerCase());
+    if (current.branch !== run.branch || current.branchHead !== current.head || !same(current.commonGitDir, run.commonGitDir) || !same(current.topLevel, run.worktreePath) || !same(current.gitDir, run.gitDir) || expectedHead && current.head !== expectedHead) throw new Error("worktree branch binding diverged from the signed Captain run");
+  }
+  async load(bucket, id) {
+    return readAuthorized(this.dataRoot, bucket, safeId(id));
+  }
+  async save(bucket, id, value) {
+    await writeAuthorized(this.dataRoot, bucket, safeId(id), value);
+  }
+};
+var safeId = (id) => {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
+  return id;
+};
+var samePath = (left, right) => path4.resolve(left).toLowerCase() === path4.resolve(right).toLowerCase();
+var digest3 = (text) => createHash4("sha256").update(text).digest("hex");
+var commitRequestSha256 = (request) => digest3(JSON.stringify({ paths: request.paths, subject: request.subject, taskOutcome: request.taskOutcome ?? null, final: request.final }));
+async function safeArtifact(root, relative) {
+  if (path4.isAbsolute(relative)) throw new Error("artifact must be relative");
+  const full = path4.resolve(root, relative), prefix = path4.resolve(root) + path4.sep;
+  if (!full.startsWith(prefix)) throw new Error("artifact escapes worktree");
+  for (let cursor = full; cursor.startsWith(path4.resolve(root)); cursor = path4.dirname(cursor)) {
+    const info = await lstat2(cursor);
+    if (info.isSymbolicLink()) throw new Error("artifact crosses a reparse point");
+    if (cursor === path4.resolve(root)) break;
+  }
+  return full;
+}
+async function hashPath(target) {
+  const info = await lstat2(target);
+  if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
+  if (info.isFile()) return createHash4("sha256").update(await readFile3(target)).digest("hex");
+  const entries = await readdir4(target, { withFileTypes: true });
+  const lines2 = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const child = path4.join(target, entry.name);
+    lines2.push(`${entry.name}:${await hashPath(child)}`);
+  }
+  return digest3(lines2.join("\n"));
+}
+async function optionalHash(root, relative) {
+  try {
+    return await hashPath(await safeArtifact(root, relative));
+  } catch (error2) {
+    if (error2.code === "ENOENT") return null;
+    throw error2;
+  }
+}
+async function assertImage(target) {
+  const bytes = await readFile3(target);
+  let valid = false;
+  if (bytes.length >= 45 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    const ihdr = bytes.toString("ascii", 12, 16) === "IHDR", width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20), iend = bytes.includes(Buffer.from("IEND"));
+    valid = ihdr && width > 0 && height > 0 && iend;
+  }
+  if (!valid && bytes.length >= 12 && bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217) {
+    for (let i = 2; i + 8 < bytes.length; ) {
+      if (bytes[i++] !== 255) continue;
+      const marker = bytes[i++], length = bytes.readUInt16BE(i);
+      if (length < 2 || i + length > bytes.length) break;
+      if ([192, 193, 194].includes(marker) && bytes.readUInt16BE(i + 3) > 0 && bytes.readUInt16BE(i + 5) > 0) {
+        valid = true;
+        break;
+      }
+      i += length;
+    }
+  }
+  if (!valid) throw new Error("visual artifact is not a structurally valid nonempty PNG or JPEG image");
+}
+
+// src/merge-workflow.ts
+var hash2 = (text) => createHash5("sha256").update(text).digest("hex");
+var digest4 = (value) => hash2(JSON.stringify(value));
+var samePath2 = (left, right) => process.platform === "win32" ? path5.resolve(left).toLowerCase() === path5.resolve(right).toLowerCase() : path5.resolve(left) === path5.resolve(right);
+var safeId2 = (id) => {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe merge id");
+  return id;
+};
+var relativePath = (value) => {
+  if (!value || value.includes("\0") || path5.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
+  return value.replaceAll("\\", "/");
+};
+var resourceId = (common, branch) => hash2(`${path5.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var MergeWorkflowStore = class {
+  constructor(dataRoot, runner = gateRunner) {
+    this.dataRoot = dataRoot;
+    this.runner = runner;
+  }
+  activeOperations = /* @__PURE__ */ new Set();
+  async prep(args) {
+    this.session(args.session_id);
+    const mergeId = safeId2(args.merge_id ?? `merge-${randomUUID2()}`);
+    return this.lock(mergeId, args.session_id, async (assertOperation) => {
+      let record2;
+      if (args.merge_id) {
+        record2 = await this.read(mergeId);
+        this.match(record2, args);
+      } else {
+        const sourceRoot = path5.resolve(args.source_worktree), targetRoot = path5.resolve(args.target_worktree);
+        if (samePath2(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
+        const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, true), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, true);
+        if (source.branch === target.branch) throw new Error("source and target branches must differ");
+        await assertNoOperation(sourceRoot);
+        await assertNoOperation(targetRoot);
+        await repositoryIdentity(sourceRoot);
+        await repositoryIdentity(targetRoot);
+        const policy = await loadPolicy(sourceRoot, source.head), mergePolicyText = await committedFile(sourceRoot, source.head, ".captain-sdlc/merge-policy.json"), mergePolicy = JSON.parse(mergePolicyText ?? '{"schema_version":1,"strictness":"low"}');
+        if (mergePolicy.schema_version !== 1 || !["low", "standard", "strict"].includes(mergePolicy.strictness)) throw new Error("trusted merge policy must configure schema_version 1 and low, standard, or strict");
+        const scopes = mergePolicy.strictness === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...mergePolicy.strictness === "strict" ? ["super-smoke"] : []];
+        for (const scope of scopes) if (!policy.commands[scope]) throw new Error(`trusted merge policy is missing ${scope} command`);
+        record2 = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest4({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
+      }
+      if (record2.state === "merged") return this.output(record2);
+      return this.resources(record2, async (assertResources) => {
+        const assertAuthority = async () => {
+          await assertOperation();
+          await assertResources();
+        };
+        await this.bindings(record2, false);
+        await assertNoOperation(record2.target_worktree);
+        let recoveredCommit = false;
+        if (record2.prepared_commit) {
+          if (args.commit && digest4(args.commit) !== digest4(record2.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
+          const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
+          if (currentHead === record2.prepared_commit.candidate) {
+            await assertAuthority();
+            await reconcilePreparedCommit(record2.source_worktree, record2.prepared_commit, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir);
+          } else if (currentHead === record2.prepared_commit.preCommitHead) {
+            const prepared = record2.prepared_commit;
+            await applyPreparedCommit(record2.source_worktree, prepared, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir, async (candidate) => {
+              await assertAuthority();
+              await this.bindings(record2, false);
+              if (digest4((await this.read(record2.merge_id)).prepared_commit) !== digest4(candidate)) throw new Error("signed integration commit recovery authority changed");
+            });
+          } else throw new Error("prepared commit recovery found diverged source HEAD");
+          record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
+          recoveredCommit = true;
+        }
+        if (record2.prepared_merge && !await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree)) {
+          await assertAuthority();
+          await reconcilePreparedMerge(record2.source_worktree, record2.prepared_merge);
+          record2 = await this.update({ ...record2, prepared_merge: void 0, state: "preparing" });
+        }
+        if (record2.prepared_merge) {
+          const mergeHead = await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree), head = await git(["rev-parse", "HEAD"], record2.source_worktree);
+          if (mergeHead !== record2.prepared_merge.targetOid || head !== record2.prepared_merge.preMergeHead) throw new Error("source no longer matches the signed pending merge; recover that operation before another prep");
+          await assertNoOperation(record2.source_worktree, true);
+          if (args.commit) {
+            const pending = record2.prepared_merge;
+            await assertAuthority();
+            await commitAtomic(
+              record2.source_worktree,
+              args.commit.paths,
+              args.commit.subject,
+              args.commit.task_outcome,
+              args.commit.task_id,
+              record2.captured_policy.commit,
+              [pending],
+              record2.source_binding.branch,
+              record2.source_binding.commonGitDir,
+              pending.preMergeHead,
+              record2.source_binding.gitDir,
+              async (prepared) => {
+                record2 = await this.update({ ...record2, prepared_commit: prepared, prepared_commit_request: args.commit });
+              },
+              async () => {
+                record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0 });
+              },
+              void 0,
+              async (prepared) => {
+                await assertAuthority();
+                const latest = await this.read(record2.merge_id);
+                if (digest4(latest.prepared_commit) !== digest4(prepared)) throw new Error("signed integration commit authority changed");
+                await this.bindings(record2, false);
+              }
+            );
+            record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
+          } else {
+            const conflicts = lines(await git(["diff", "--name-only", "--diff-filter=U"], record2.source_worktree));
+            record2 = await this.update({ ...record2, state: conflicts.length ? "needs_resolution" : "needs_commit", conflicts });
+            return this.output(record2);
+          }
+        } else if (args.commit && !recoveredCommit) throw new Error("Merge Prep commit metadata is only valid for its signed pending target merge");
+        await assertNoOperation(record2.source_worktree);
+        await assertWorktreeBinding(record2.source_worktree, record2.source_binding.branch, record2.source_binding.commonGitDir, void 0, true, record2.source_binding.gitDir);
+        if (!await ancestor(record2.target_binding.head, await git(["rev-parse", "HEAD"], record2.source_worktree), record2.source_worktree)) {
+          const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
+          const result = await prepareMerge(
+            record2.source_worktree,
+            record2.target_binding.head,
+            "ort",
+            async (prepared) => {
+              record2 = await this.update({ ...record2, state: "preparing", prepared_merge: prepared, ready_inputs: void 0, gates: [] });
+            },
+            async () => {
+              record2 = await this.update({ ...record2, prepared_merge: void 0, state: "failed", failure: "target merge preparation was rejected" });
+            },
+            record2.source_binding.branch,
+            record2.source_binding.commonGitDir,
+            currentHead,
+            record2.source_binding.gitDir,
+            void 0,
+            mergeId,
+            async (prepared) => {
+              await assertAuthority();
+              await this.bindings(record2, false);
+              const latest = await this.read(mergeId);
+              if (digest4(latest.prepared_merge) !== digest4(prepared)) throw new Error("signed target merge authority changed");
+            }
+          );
+          record2 = await this.update({ ...record2, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
+          return this.output(record2);
+        }
+        const inputs = await captureInputs(record2.source_worktree, record2.captured_policy);
+        if (record2.state === "ready" && digest4(inputs) === digest4(record2.ready_inputs)) {
+          await this.assertReady(record2);
+          return this.output(record2, true);
+        }
+        if (record2.state === "failed" && digest4(inputs) === digest4(record2.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
+        record2 = await this.update({ ...record2, state: "verifying", ready_inputs: void 0, attempted_inputs: inputs, gates: [], failure: void 0 });
+        try {
+          await git(["diff", "--check", record2.target_binding.head, inputs.source.head], record2.source_worktree);
+          for (const scope of record2.scopes) {
+            await assertAuthority();
+            await this.bindings(record2, false);
+            await this.assertInputs(record2, inputs);
+            const command = record2.captured_policy.commands[scope], result = await this.runner(command, record2.source_worktree);
+            record2 = await this.update({ ...record2, gates: [...record2.gates, { scope, commandSha256: hash2(command), exitCode: result.exitCode, stdoutSha256: hash2(result.stdout), stderrSha256: hash2(result.stderr) }] });
+            if (result.exitCode !== 0) throw new Error(`${scope} merge prep gate failed (exit ${result.exitCode})`);
+            await assertAuthority();
+            await this.bindings(record2, false);
+            await this.assertInputs(record2, inputs);
+          }
+          record2 = await this.update({ ...record2, state: "ready", ready_inputs: inputs });
+          return this.output(record2, true);
+        } catch (error2) {
+          record2 = await this.update({ ...record2, state: "failed", ready_inputs: void 0, failure: error2.message });
+          return this.output(record2, false);
+        }
+      });
+    });
+  }
+  async back(args) {
+    this.session(args.session_id);
+    safeId2(args.merge_id);
+    return this.lock(args.merge_id, args.session_id, async (assertOperation) => {
+      let record2 = await this.read(args.merge_id);
+      this.match(record2, args);
+      if (!["ready", "integrating", "merged"].includes(record2.state) || !record2.ready_inputs) throw new Error("Merge Back requires a successful current ready Merge Prep");
+      return this.resources(record2, async (assertResources) => {
+        await assertOperation();
+        await assertResources();
+        const targetHead = await git(["rev-parse", "HEAD"], record2.target_worktree), sourceHead = record2.ready_inputs.source.head;
+        await this.assertReady(record2, targetHead === sourceHead);
+        if (record2.state === "merged") {
+          if (targetHead !== sourceHead) throw new Error("completed Merge Back target HEAD changed");
+          return this.output(record2, true);
+        }
+        if (targetHead === sourceHead) {
+          record2 = await this.update({ ...record2, state: "merged", integrated_head: sourceHead });
+          return this.output(record2, true);
+        }
+        record2 = await this.update({ ...record2, state: "integrating" });
+        await assertOperation();
+        await assertResources();
+        await this.assertReady(record2);
+        await git(["merge", "--ff-only", sourceHead], record2.target_worktree);
+        await this.assertReady(record2, true);
+        record2 = await this.update({ ...record2, state: "merged", integrated_head: sourceHead });
+        return this.output(record2, true);
+      });
+    });
+  }
+  async status(args) {
+    this.session(args.session_id);
+    const record2 = await this.read(safeId2(args.merge_id));
+    this.match(record2, args);
+    if (["ready", "integrating", "merged"].includes(record2.state)) {
+      try {
+        await this.assertReady(record2, await git(["rev-parse", "HEAD"], record2.target_worktree) === record2.ready_inputs?.source.head);
+        return this.output(record2, true);
+      } catch (error2) {
+        return { ...this.output(record2, false), stale_reason: error2.message };
+      }
+    }
+    return this.output(record2, false);
+  }
+  async recoverStaleLease(args) {
+    this.session(args.session_id);
+    safeId2(args.merge_id);
+    const leaseId = hash2(`merge-operation\0${args.merge_id}`);
+    if (this.activeOperations.has(leaseId)) throw new Error("merge operation is active in this process and cannot be recovered");
+    const record2 = await this.read(args.merge_id);
+    this.match(record2, args);
+    if (record2.revision !== args.expected_revision) throw new Error("signed merge revision changed; refresh status before recovery");
+    const operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);
+    if (!operation) throw new Error("signed merge operation lease history was not found");
+    const lease = operation.payload;
+    this.assertMergeLease(lease, args.merge_id, args.session_id, "integration");
+    if (lease.leaseToken !== args.expected_lease_token) throw new Error("merge lease generation owner or token mismatch");
+    if (operation.state === "held") {
+      if (this.activeOperations.has(leaseId)) throw new Error("merge operation is active in this process and cannot be recovered");
+    }
+    this.assertLeaseOwnerStopped(lease, args.confirm_owner_stopped);
+    const resources = [];
+    const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
+    if (active.some((owner) => samePath2(owner.worktreePath, record2.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; stale merge resources cannot be recovered");
+    const sourceOwners = active.filter((owner) => samePath2(owner.worktreePath, record2.source_worktree));
+    if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record2.session_id || owner.branch !== record2.source_binding.branch)) throw new Error("source Captain owner differs from the signed merge identity");
+    for (const owner of sourceOwners) {
+      const current = await lifecycle.status(owner.intentId);
+      if (current.status !== "paused" || current.branch !== record2.source_binding.branch || !samePath2(current.commonGitDir, record2.source_binding.commonGitDir) || !samePath2(current.gitDir, record2.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
+      const id = hash2(`worktree-mutation\0${current.runId}`), fence = await this.readHeldLease(id);
+      if (fence) {
+        this.assertMergeLease(fence, args.merge_id, args.session_id, "integration-worktree");
+        this.assertLeaseOwnerStopped(fence, args.confirm_owner_stopped);
+        resources.push({ id, payload: fence });
+      }
+    }
+    for (const binding of [record2.source_binding, record2.target_binding]) {
+      const id = resourceId(binding.commonGitDir, binding.branch), existing = await this.readHeldLease(id);
+      if (!existing) continue;
+      if (existing.intentId === args.merge_id) {
+        this.assertMergeLease(existing, args.merge_id, args.session_id, "integration-branch");
+        if (!samePath2(existing.commonGitDir, binding.commonGitDir) || existing.targetBranch !== binding.branch || existing.targetOid !== binding.head) throw new Error("stale integration branch lease differs from the pinned merge binding");
+        this.assertLeaseOwnerStopped(existing, args.confirm_owner_stopped);
+        resources.push({ id, payload: existing });
+      } else {
+        const owner = sourceOwners.find((candidate) => candidate.intentId === existing.intentId);
+        if (binding !== record2.source_binding || !owner) throw new Error("a branch lease is owned by another Captain operation; preserve it");
+        const fullOwner = await lifecycle.status(owner.intentId);
+        if (fullOwner.sessionId !== args.session_id || !samePath2(fullOwner.worktreePath, record2.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
+      }
+    }
+    const latest = await this.read(args.merge_id);
+    this.match(latest, args);
+    if (latest.revision !== args.expected_revision) throw new Error("signed merge revision changed during recovery; refresh status");
+    for (const resource of resources) await releaseAuthorizedLease(this.dataRoot, resource.id, args.merge_id, resource.payload.leaseToken);
+    if (operation.state === "held") await releaseAuthorizedLease(this.dataRoot, leaseId, args.merge_id, args.expected_lease_token);
+    return { merge_id: args.merge_id, released: true, released_resource_leases: resources.length, merge_revision: args.expected_revision, resumed_operation: "reuse captain_merge_prep or captain_merge_back with the same merge_id" };
+  }
+  assertMergeLease(lease, id, session, operation) {
+    if (lease.intentId !== id || lease.sessionId !== session || lease.operation !== operation || typeof lease.leaseToken !== "string") throw new Error("merge lease generation owner or operation mismatch");
+  }
+  assertLeaseOwnerStopped(lease, confirmed) {
+    if (lease.ownerPid !== void 0) {
+      if (!Number.isSafeInteger(lease.ownerPid) || typeof lease.ownerHost !== "string") throw new Error("merge lease owner process metadata is invalid");
+      if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) throw new Error("merge lease owner is on another host and cannot be verified locally");
+      let ownerActive = true;
+      try {
+        process.kill(lease.ownerPid, 0);
+      } catch (error2) {
+        if (error2.code === "ESRCH") ownerActive = false;
+        else throw new Error("merge lease owner process state is unknown; recovery refused", { cause: error2 });
+      }
+      if (ownerActive) throw new Error("merge lease owner process is still active");
+    } else if (confirmed !== true) throw new Error("legacy merge lease has no process metadata; confirm that its owner is stopped");
+  }
+  async readHeldLease(id) {
+    try {
+      return await readAuthorizedLease(this.dataRoot, id);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+  }
+  session(value) {
+    if (!value?.trim()) throw new Error("integration session_id is required");
+  }
+  match(record2, args) {
+    if (record2.session_id !== args.session_id) throw new Error("signed merge session ownership mismatch");
+    if (args.source_worktree && !samePath2(record2.source_worktree, args.source_worktree) || args.target_worktree && !samePath2(record2.target_worktree, args.target_worktree) || args.target_branch && record2.target_branch !== args.target_branch) throw new Error("signed merge source/target identity does not match this request");
+  }
+  output(record2, receipt_valid) {
+    return { ...record2, ...receipt_valid === void 0 ? {} : { receipt_valid }, captain_green: false };
+  }
+  async bindings(record2, targetIntegrated) {
+    await assertWorktreeBinding(record2.source_worktree, record2.source_binding.branch, record2.source_binding.commonGitDir, void 0, false, record2.source_binding.gitDir);
+    await assertWorktreeBinding(record2.target_worktree, record2.target_branch, record2.target_binding.commonGitDir, targetIntegrated ? record2.ready_inputs?.source.head : record2.target_binding.head, true, record2.target_binding.gitDir);
+  }
+  async assertInputs(record2, expected) {
+    if (digest4(await captureInputs(record2.source_worktree, record2.captured_policy)) !== digest4(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
+  }
+  async assertReady(record2, targetIntegrated = false) {
+    if (!record2.ready_inputs || record2.gates.length !== record2.scopes.length || record2.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record2.scopes[index] || gate.commandSha256 !== hash2(record2.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
+    await this.bindings(record2, targetIntegrated);
+    await assertNoOperation(record2.source_worktree);
+    await assertNoOperation(record2.target_worktree);
+    await this.assertInputs(record2, record2.ready_inputs);
+    if (!await ancestor(record2.target_binding.head, record2.ready_inputs.source.head, record2.source_worktree)) throw new Error("prepared source no longer contains the pinned target");
+  }
+  async lock(id, session, action) {
+    const leaseId = hash2(`merge-operation\0${id}`), leaseToken = randomUUID2(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os.hostname() };
+    if (this.activeOperations.has(leaseId)) throw new Error("merge operation is already active in this process");
+    this.activeOperations.add(leaseId);
+    try {
+      await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
+      try {
+        return await action(async () => {
+          if (digest4(await readAuthorizedLease(this.dataRoot, leaseId)) !== digest4(payload)) throw new Error("integration operation lease ownership changed");
+        });
+      } finally {
+        await releaseAuthorizedLease(this.dataRoot, leaseId, id, leaseToken);
+      }
+    } finally {
+      this.activeOperations.delete(leaseId);
+    }
+  }
+  async resources(record2, action) {
+    const held = [];
+    try {
+      const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
+      if (active.some((owner) => samePath2(owner.worktreePath, record2.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; preserve that task before integrating");
+      const sourceOwners = active.filter((owner) => samePath2(owner.worktreePath, record2.source_worktree));
+      if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record2.session_id)) throw new Error("source worktree belongs to another active Captain session owner");
+      const reserveFence = async (owner) => {
+        if (owner.sessionId !== record2.session_id) throw new Error("source Captain session ownership changed before its mutation fence");
+        if (owner.branch !== record2.source_binding.branch || !samePath2(owner.commonGitDir, record2.source_binding.commonGitDir) || !samePath2(owner.gitDir, record2.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
+        const fenceId = hash2(`worktree-mutation\0${owner.runId}`);
+        if (held.some((lease) => lease.id === fenceId)) return;
+        const fence = { intentId: record2.merge_id, leaseToken: randomUUID2(), sessionId: record2.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os.hostname() };
+        await acquireAuthorizedLease(this.dataRoot, fenceId, fence);
+        held.push({ id: fenceId, payload: fence, borrowed: false });
+      };
+      for (const owner of sourceOwners) await reserveFence(await lifecycle.status(owner.intentId));
+      for (const binding of [record2.source_binding, record2.target_binding].sort((a, b) => resourceId(a.commonGitDir, a.branch).localeCompare(resourceId(b.commonGitDir, b.branch)))) {
+        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record2.merge_id, leaseToken: randomUUID2(), sessionId: record2.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os.hostname() };
+        let existing;
+        try {
+          existing = await readAuthorizedLease(this.dataRoot, id);
+        } catch (error2) {
+          if (error2.code !== "ENOENT") throw error2;
+        }
+        if (existing) {
+          if (binding.branch !== record2.source_binding.branch) throw new Error("target branch is already leased by another Captain operation");
+          const owner = await lifecycle.status(existing.intentId);
+          if (owner.sessionId !== record2.session_id || !samePath2(owner.worktreePath, record2.source_worktree) || owner.branch !== binding.branch || owner.leaseId !== id || owner.leaseToken !== existing.leaseToken) throw new Error("source branch lease belongs to another session or worktree owner");
+          held.push({ id, payload: existing, borrowed: true });
+          await reserveFence(owner);
+        } else {
+          await acquireAuthorizedLease(this.dataRoot, id, payload);
+          held.push({ id, payload, borrowed: false });
+        }
+      }
+      return await action(async () => {
+        for (const lease of held) if (digest4(await readAuthorizedLease(this.dataRoot, lease.id)) !== digest4(lease.payload)) throw new Error("source or target branch lease ownership changed before integration mutation");
+      });
+    } finally {
+      for (const lease of held.reverse()) if (!lease.borrowed) await releaseAuthorizedLease(this.dataRoot, lease.id, lease.payload.intentId, lease.payload.leaseToken);
+    }
+  }
+  async initial(record2) {
+    const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record2.merge_id}-0`, record2);
+    await this.watermark(stored);
+    return stored;
+  }
+  async update(record2) {
+    const current = await this.read(record2.merge_id);
+    if (current.revision !== record2.revision) throw new Error("signed merge workflow changed concurrently");
+    const next = JSON.parse(JSON.stringify({ ...record2, revision: current.revision + 1, previous_sha256: digest4(current) }));
+    const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record2.merge_id}-${next.revision}`, next);
+    await this.watermark(stored);
+    return stored;
+  }
+  async watermark(record2) {
+    await putAuthorizedOnceExact(this.dataRoot, "merge-watermarks", `${record2.merge_id}-${record2.revision}`, { merge_id: record2.merge_id, revision: record2.revision, sha256: digest4(record2) });
+  }
+  async read(id) {
+    safeId2(id);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir5(path5.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    if (!revisions.length) throw new Error("signed merge workflow was not found");
+    let previous;
+    for (let index = 0; index < revisions.length; index++) {
+      if (revisions[index] !== index) throw new Error("signed merge revision chain is not contiguous");
+      const current = await readAuthorized(this.dataRoot, "merge-revisions", `${id}-${index}`);
+      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest4(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
+      if (previous && digest4([current.session_id, current.source_worktree, current.target_worktree, current.target_branch, current.source_binding, current.target_binding, current.policy_sha256, current.captured_policy, current.strictness, current.scopes]) !== digest4([previous.session_id, previous.source_worktree, previous.target_worktree, previous.target_branch, previous.source_binding, previous.target_binding, previous.policy_sha256, previous.captured_policy, previous.strictness, previous.scopes])) throw new Error("signed merge identity or policy changed between revisions");
+      await this.watermark(current);
+      previous = current;
+    }
+    const watermarkNames = await readdir5(path5.join(this.dataRoot, "merge-watermarks"));
+    if (watermarkNames.some((name) => {
+      const match = expression.exec(name);
+      return match && Number(match[1]) > previous.revision;
+    })) throw new Error("signed merge revision tail regressed behind its monotonic watermark");
+    return previous;
+  }
+};
+var lines = (value) => value.split(/\r?\n/).filter(Boolean);
+async function optionalGit2(args, cwd) {
+  try {
+    return await git(args, cwd);
+  } catch {
+    return void 0;
+  }
+}
+async function ancestor(before, after, cwd) {
+  try {
+    await git(["merge-base", "--is-ancestor", before, after], cwd);
+    return true;
+  } catch (error2) {
+    if (error2.code === 1) return false;
+    throw error2;
+  }
+}
+async function assertNoOperation(cwd, allowMerge = false) {
+  for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "rebase-merge", "rebase-apply", "sequencer"]) {
+    if (name === "MERGE_HEAD" && allowMerge) continue;
+    const file = await git(["rev-parse", "--path-format=absolute", "--git-path", name], cwd);
+    try {
+      await lstat3(file);
+      throw new Error(`preexisting Git operation ${name} must be resolved by its owner`);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+  }
+}
+async function committedFile(cwd, head, relative) {
+  const listing = await git(["ls-tree", head, "--", relative], cwd);
+  if (!listing) return void 0;
+  if (!/^100(?:644|755) blob /.test(listing)) throw new Error(`trusted merge input must be a regular tracked file: ${relative}`);
+  const text = await git(["show", `${head}:${relative}`], cwd);
+  if (Buffer.byteLength(text) > 1024 * 1024) throw new Error("trusted merge input exceeds bounded limit");
+  return text;
+}
+function excluded(relative, policy) {
+  const lower = relative.toLowerCase();
+  return (policy.sourceManifestExcludes ?? []).some((item) => lower === item.toLowerCase() || lower.startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && (policy.sourceManifestRootFileExcludes ?? []).some((item) => item.startsWith("*.") ? lower.endsWith(item.slice(1).toLowerCase()) : lower === item.toLowerCase());
+}
+async function metadataInputs(cwd, policy, volatilePaths) {
+  const files = (await git(["ls-files", "--others", "-z"], cwd)).split("\0").filter((relative) => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values = [];
+  for (const relative of files) {
+    const info = await lstat3(path5.join(cwd, relative));
+    if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
+    values.push(`${relative}:${hash2(await readFile4(path5.join(cwd, relative)))}`);
+  }
+  return digest4(values);
+}
+async function contentDigest(root, volatile = [], sharedPackage = false) {
+  const values = [];
+  const generated = /* @__PURE__ */ new Set(["library", "temp", "logs", "artifacts", "obj", "bin", "node_modules"]);
+  async function walk(full, relative) {
+    const info = await lstat3(full);
+    if (info.isSymbolicLink()) throw new Error(`dependency input crosses a reparse point: ${full}`);
+    if (volatile.includes(relative)) return;
+    if (info.isDirectory()) {
+      for (const entry of (await readdir5(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+        if (entry.name === ".git" || sharedPackage && !relative && generated.has(entry.name.toLowerCase())) continue;
+        await walk(path5.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
+      }
+    } else if (info.isFile()) values.push(`${relative}:${hash2(await readFile4(full))}`);
+    else throw new Error(`dependency input is not a regular file or directory: ${full}`);
+  }
+  await walk(root, "");
+  return { sha256: digest4(values), file_count: values.length };
+}
+async function captureInputs(cwd, policy) {
+  const source = await sourceState(cwd, policy);
+  if (source.status) throw new Error("merge prep source must be clean before verifying inputs");
+  const dependencies = [], volatilePaths = /* @__PURE__ */ new Set(), lockText = await committedFile(cwd, source.head, ".captain-sdlc/dependency-lock.json"), lock = lockText ? JSON.parse(lockText) : void 0;
+  if (lock?.inputs !== void 0 && !Array.isArray(lock.inputs)) throw new Error("dependency lock inputs must be an array");
+  for (const input of lock?.inputs ?? []) {
+    const relative = relativePath(input.path), full = path5.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
+    for (const item of volatile) volatilePaths.add(`${relative}/${item}`.toLowerCase());
+    if (!samePath2(full, path5.join(cwd, relative)) || path5.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
+    if (!samePath2(full, await realpath2(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
+    dependencies.push({ kind: "locked-input", path: relative, ...await contentDigest(full, volatile) });
+  }
+  const manifestText = await committedFile(cwd, source.head, "Packages/manifest.json");
+  if (manifestText) {
+    const manifest = JSON.parse(manifestText);
+    for (const [name, spec] of Object.entries(manifest.dependencies ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+      if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
+      const supplied = spec.slice(5);
+      if (!supplied || supplied.includes("\0")) throw new Error(`local dependency path is invalid: ${name}`);
+      const full = path5.resolve(path5.join(cwd, "Packages"), supplied), canonical = await realpath2(full);
+      if (!samePath2(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
+      const info = await lstat3(full);
+      let gitState;
+      const normalize = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const expected = (lock?.local_packages ?? []).find((entry) => normalize(name).endsWith(normalize(entry.name)));
+      let ownGit = false;
+      if (info.isDirectory()) {
+        try {
+          await lstat3(path5.join(full, ".git"));
+          ownGit = true;
+        } catch (error2) {
+          if (error2.code !== "ENOENT") throw error2;
+        }
+      }
+      if (ownGit) {
+        if (!samePath2(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
+        const head = await git(["rev-parse", "HEAD"], full);
+        gitState = { head, tree: await git(["rev-parse", "HEAD^{tree}"], full), status: await git(["status", "--porcelain"], full), indexSha256: hash2(await git(["ls-files", "--stage", "-z"], full)) };
+        if (expected && expected.source_commit !== head) throw new Error(`Pinned shared local-package revision diverged: ${name}`);
+      } else if (expected) throw new Error(`cannot verify pinned local-package revision without its Git identity: ${name}`);
+      dependencies.push({ kind: info.isDirectory() ? "local-package" : "local-archive", name, path: full, ...gitState ? { git: gitState } : {}, ...await contentDigest(full, [], info.isDirectory()) });
+    }
+  }
+  const result = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies };
+  const after = await sourceState(cwd, policy);
+  if (digest4(after) !== digest4(source)) throw new Error("source changed during merge input capture");
+  return result;
+}
+
+// src/intent.ts
+function extractCaptainResumeIntent(prompt) {
+  const directives = prompt.split(/\r?\n/).filter((line) => /^\s*\[Captain resume:/i.test(line));
+  if (directives.length > 1) throw new Error("Captain resume directive is ambiguous");
+  if (!directives.length) return void 0;
+  const match = /^\s*\[Captain resume:\s*(intent-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\s*$/i.exec(directives[0]);
+  if (!match) throw new Error("Captain resume directive is invalid");
+  return match[1];
+}
+function extractAuthorizedTargetBranch(prompt) {
+  const directives = prompt.split(/\r?\n/).filter((line) => /^\s*\[Captain target:/i.test(line));
+  if (directives.length > 1) throw new Error("Captain target directive is ambiguous");
+  if (!directives.length) return void 0;
+  const match = /^\s*\[Captain target:\s*([A-Za-z0-9][A-Za-z0-9._/-]*)\]\s*$/i.exec(directives[0]);
+  if (!match) throw new Error("Captain target directive is invalid");
+  const branch = match[1];
+  if (branch.includes("..") || branch.includes("//") || branch.includes("@{") || branch.endsWith("/") || branch.endsWith(".") || branch.toLowerCase().endsWith(".lock")) throw new Error("Captain target directive is invalid");
+  return branch;
+}
 
 // src/server.ts
 var beginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
-async function captainBegin(store, { intent_id, objective, project_root, task_id }, dependencies = beginDependencies) {
+async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }, dependencies = beginDependencies) {
   const operation = await store.reserveBegin({ intentId: intent_id, objective, projectRoot: project_root, taskId: task_id });
   await dependencies.afterStage?.("reservation");
   const activated = await store.activatedBeginRun(operation);
-  if (activated) return activated;
-  const identified = await dependencies.repositoryIdentity(project_root, operation.targetBranch, operation.targetOid), policy = await dependencies.loadPolicy(identified.projectRoot, identified.baseHead), repository = await store.checkpointBeginRepository(operation, identified, policy);
+  if (activated) {
+    const requestedPolicy = await dependencies.loadPolicy(activated.projectRoot, activated.baseHead, plan_paths, hitl_checks);
+    if (JSON.stringify(requestedPolicy.approvedPlans ?? []) !== JSON.stringify(activated.policy.approvedPlans ?? [])) throw new Error("begin retry changes the frozen plan selection");
+    if (JSON.stringify(requestedPolicy.hitlChecks ?? []) !== JSON.stringify(activated.policy.hitlChecks ?? [])) throw new Error("begin retry changes the frozen HITL checks");
+    return activated;
+  }
+  const identified = await dependencies.repositoryIdentity(project_root, operation.targetBranch, operation.targetOid), policy = await dependencies.loadPolicy(identified.projectRoot, identified.baseHead, plan_paths, hitl_checks), repository = await store.checkpointBeginRepository(operation, identified, policy);
   const lease = await store.ensureBeginTargetLease(operation, repository);
   await dependencies.afterStage?.("lease-acquired");
   await store.checkpointBeginLease(operation, repository, lease);
@@ -23089,6 +24106,62 @@ async function captainBegin(store, { intent_id, objective, project_root, task_id
   await store.checkpointBeginPermit(operation, activatedRun);
   await dependencies.afterStage?.("permit");
   return store.status(operation.intentId);
+}
+async function captainIssueIntent(store, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }) {
+  const directiveTarget = extractAuthorizedTargetBranch(prompt), directiveResume = extractCaptainResumeIntent(prompt);
+  if (target_branch !== void 0 && (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target_branch) || extractAuthorizedTargetBranch(`[Captain target: ${target_branch}]`) !== target_branch)) throw new Error("target_branch is invalid");
+  if (target_branch && directiveTarget && target_branch !== directiveTarget) throw new Error("target branch selectors conflict");
+  if (resume_of && directiveResume && resume_of !== directiveResume) throw new Error("resume selectors conflict");
+  target_branch ??= directiveTarget;
+  resume_of ??= directiveResume;
+  if (action === "start" && resume_of) throw new Error("start action conflicts with resume selector");
+  const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action }, async () => {
+    if (!resume_of && task_id && action !== "start") {
+      const candidates = await Promise.all((await store.doctor()).activeRuns.map((run) => store.status(run.intentId)));
+      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path6.resolve(run.projectRoot) === path6.resolve(project_root));
+      if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
+      resume_of = matching[0]?.intentId;
+    }
+    if (action === "resume" && !resume_of) throw new Error("no unfinished run found; supply task_id or resume_of");
+    if (resume_of) {
+      const run = await store.status(resume_of);
+      if (run.status === "green" && !isPendingPlanReview(run) || path6.resolve(run.projectRoot) !== path6.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
+      if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
+      if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
+      if (run.status !== "paused" && !(run.status === "green" && isPendingPlanReview(run) && !run.sessionLeaseId && !run.leaseId) && run.sessionId !== session_id) throw new Error("run is active in another session; its owner must pause before handoff");
+    }
+    let targetOid;
+    if (target_branch && !resume_of) {
+      targetOid = await git(["rev-parse", "--verify", `refs/heads/${target_branch}^{commit}`], project_root);
+      await repositoryIdentity(project_root, target_branch, targetOid);
+    }
+    const intentId2 = `intent-${randomUUID3()}`;
+    return { intentId: intentId2, sessionId: session_id, turnId: turn_id, projectRoot: path6.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
+  });
+  const intentId = issued.intentId;
+  resume_of = issued.resumeOf;
+  await store.recordUserAuthorization({ projectRoot: project_root, sessionId: session_id, turnId: turn_id, prompt, intentId: resume_of ?? intentId, taskId: task_id, source: "client-adapter" });
+  return { intent_id: intentId, ...resume_of ? { resume_instruction: `Call captain_resume_implementation with resume_intent_id=${intentId}.` } : { begin_instruction: `Call captain_begin_implementation with intent_id=${intentId}.` } };
+}
+var resumeDependencies = { assertWorktreeBinding, git, commitEvidence };
+async function captainResume(store, resumeIntentId, dependencies = resumeDependencies) {
+  const run = await store.resumeTarget(resumeIntentId), prepared = run.preparedCommit;
+  if (run.terminalCommit && prepared) {
+    await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final });
+  } else if (prepared) {
+    const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, false, run.gitDir);
+    if (binding.head !== prepared.preCommitHead && binding.head !== prepared.candidate) {
+      const firstParent = (await dependencies.git(["rev-list", "--first-parent", "--reverse", `${run.baseHead}..${binding.head}`], run.worktreePath)).split(/\r?\n/).filter(Boolean);
+      if (!firstParent.includes(prepared.candidate)) throw new Error("prepared candidate is not retained in the advanced first-parent history");
+      const candidateVerification = {
+        tree: await dependencies.git(["rev-parse", `${prepared.candidate}^{tree}`], run.worktreePath),
+        subject: await dependencies.git(["show", "-s", "--format=%s", prepared.candidate], run.worktreePath)
+      };
+      const evidence = await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head);
+      await store.recoverAdvancedPreparedCommit(run.intentId, evidence, firstParent, candidateVerification);
+    }
+  }
+  return store.resume(resumeIntentId);
 }
 var commitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
 async function captainCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
@@ -23114,7 +24187,7 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
     }
     const operation = await store.acquireCommitOperation(intent_id, request);
     run = await store.status(intent_id);
-    const expectedHead = run.committedState?.head ?? run.baseHead;
+    const expectedHead = executionHead(run);
     await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, (prepared) => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final }, operation).then(() => void 0), (prepared) => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => void 0), void 0, async (prepared) => {
       await store.assertWorktreeMutation(intent_id, mutation);
       await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request));
@@ -23136,7 +24209,7 @@ async function captainPrepareMerge(store, { intent_id, commit_oid, strategy }, d
   try {
     const run = await store.status(intent_id);
     if (run.phase !== "implement") throw new Error(`merge preparation requires implement phase, found ${run.phase}`);
-    const expectedHead = run.committedState?.head ?? run.baseHead;
+    const expectedHead = executionHead(run);
     const result = await dependencies.prepareMerge(run.worktreePath, commit_oid, strategy, (prepared) => store.recordPreparedMerge(intent_id, prepared).then(() => void 0), (prepared) => store.discardPreparedMerge(intent_id, prepared).then(() => void 0), run.branch, run.commonGitDir, expectedHead, run.gitDir, void 0, mutation.leaseToken, (prepared) => store.assertPreparedMergeAuthority(intent_id, prepared, mutation));
     await store.releaseWorktreeMutation(intent_id, mutation);
     return result;
@@ -23159,18 +24232,68 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   await store.releaseWorktreeMutation(intent_id, mutation);
   return discarded;
 }
-async function main() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.PLUGIN_DATA;
-  if (!dataRoot) throw new Error("CAPTAIN_PLUGIN_DATA or PLUGIN_DATA is required");
+async function startCaptainMcp() {
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path6.join(process.env.CODEX_HOME || path6.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.1.2" });
+  const merges = new MergeWorkflowStore(dataRoot, gateRunner);
+  const server = new McpServer({ name: "captain-sdlc", version: "0.2.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
-  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional() } }, async (args) => guarded(() => captainBegin(store, args)));
+  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
+    const run = await captainBegin(store, args);
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
+  server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
+  server.registerTool("captain_user_authorization_status", { description: "Retrieve durable commit/merge approval and revocation receipts, including original user wording, source turn, repository, task and merge target. Reuse existing authorization for the same task; missing parser receipts never negate explicit conversational approval. This is evidence, not a new approval gate or a waiver of Git hygiene.", inputSchema: { project_root: external_exports.string().min(1), session_id: external_exports.string().optional(), intent_id: external_exports.string().optional(), operation: external_exports.enum(["commit", "merge"]).optional(), target_branch: external_exports.string().optional() } }, async (args) => guarded(() => store.userAuthorizations({ projectRoot: args.project_root, sessionId: args.session_id, intentId: args.intent_id, operation: args.operation, targetBranch: args.target_branch })));
   server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(() => store.recordRed(intent_id)));
   server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: external_exports.string(), scope: external_exports.enum(["ticket", "feature-smoke", "affected-regression"]) } }, async ({ intent_id, scope }) => guarded(() => store.runCheck(intent_id, scope)));
-  server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run.", inputSchema: { resume_intent_id: external_exports.string() } }, async ({ resume_intent_id }) => guarded(() => store.resume(resume_intent_id)));
-  server.registerTool("captain_prepare_merge", { description: "Prepare an audited no-commit merge from one pinned full commit object id inside the owned worktree.", inputSchema: { intent_id: external_exports.string(), commit_oid: external_exports.string().regex(/^[0-9a-f]{40,64}$/i), strategy: external_exports.enum(["ort", "ours"]).default("ort") } }, async (args) => guarded(() => captainPrepareMerge(store, args)));
+  server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run. Reconcile a validated advanced prepared commit before resuming.", inputSchema: { resume_intent_id: external_exports.string() } }, async ({ resume_intent_id }) => guarded(async () => {
+    const run = await captainResume(store, resume_intent_id);
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
+  server.registerTool("captain_pause_implementation", { description: "Write a signed handoff and release session ownership only for an actual execution limit, explicit human stop, pending human review, or demonstrated external blocker. Keep working when an authorized next action exists; do not self-pause after one rejected tool call. Optionally supply a blocker task to start next.", inputSchema: { intent_id: external_exports.string(), summary: external_exports.string().min(1).max(4e3), next_steps: external_exports.array(external_exports.string().min(1).max(1e3)).min(1).max(20), blockers: external_exports.array(external_exports.string().min(1).max(1e3)).max(20).optional(), plan_path: external_exports.string().max(2e3).optional(), phase_label: external_exports.string().max(500).optional(), completed_steps: external_exports.array(external_exports.string().min(1).max(1e3)).max(50).optional(), context: external_exports.string().max(12e3).optional(), redirect_task: external_exports.string().regex(/^[A-Za-z0-9][A-Za-z0-9._#-]*$/).optional() } }, async ({ intent_id, summary, next_steps, blockers, plan_path, phase_label, completed_steps, context, redirect_task }) => guarded(() => store.pause(intent_id, { summary, nextSteps: next_steps, blockers, planPath: plan_path, phaseLabel: phase_label, completedSteps: completed_steps, context, redirectTask: redirect_task })));
+  server.registerTool("captain_link_blocker", { description: "Append a signed dependency from a paused run to the active blocker run that must be completed before it can resume.", inputSchema: { blocked_intent_id: external_exports.string(), blocker_intent_id: external_exports.string() } }, async ({ blocked_intent_id, blocker_intent_id }) => guarded(() => store.linkBlocker(blocked_intent_id, blocker_intent_id)));
+  server.registerTool("captain_doctor", { description: "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.", inputSchema: {} }, async () => guarded(() => store.doctor()));
+  server.registerTool("captain_migrate_plan_state", { description: "Migrate explicitly selected Markdown plans to Captain's bounded work-state block. This is the same backend used by the Captain dashboard and Codex skill.", inputSchema: { intent_id: external_exports.string(), plan_paths: external_exports.array(external_exports.string().min(1).max(2e3)).min(1).max(100) } }, async ({ intent_id, plan_paths }) => guarded(() => store.migratePlanState(intent_id, plan_paths)));
+  const mergePrepConfig = {
+    description: "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
+    inputSchema: {
+      session_id: external_exports.string().min(1).max(256),
+      source_worktree: external_exports.string().min(1),
+      target_worktree: external_exports.string().min(1),
+      target_branch: external_exports.string().min(1),
+      merge_id: external_exports.string().optional(),
+      commit: external_exports.object({ paths: external_exports.array(external_exports.string().min(1)).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional() }).optional()
+    }
+  };
+  for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
+    server.registerTool(name, mergePrepConfig, async (args) => guarded(() => merges.prep(args)));
+  }
+  const mergeBackConfig = {
+    description: "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
+    inputSchema: { merge_id: external_exports.string().min(1), session_id: external_exports.string().min(1).max(256), source_worktree: external_exports.string().optional(), target_worktree: external_exports.string().optional(), target_branch: external_exports.string().optional() }
+  };
+  for (const name of ["captain_merge_back", "captain_merge_finish"]) {
+    server.registerTool(name, mergeBackConfig, async (args) => guarded(() => merges.back(args)));
+  }
+  server.registerTool("captain_merge_status", {
+    description: "Read the signed Merge Prep/Back operation, prepared revisions, conflicts and retained gate evidence. Merge readiness and integration are separate from implementation complete/green.",
+    inputSchema: { merge_id: external_exports.string().min(1), session_id: external_exports.string().min(1).max(256), source_worktree: external_exports.string().optional(), target_worktree: external_exports.string().optional(), target_branch: external_exports.string().optional() }
+  }, async (args) => guarded(() => merges.status(args)));
+  server.registerTool("captain_recover_merge_lease", {
+    description: "Release only abandoned merge-operation, integration-worktree, and integration-branch leases after verifying the signed merge id, revision, source/target identity, session, pinned bindings, and exact operation lease token. It refuses active worktree owners and foreign leases. For legacy leases without owner-process metadata, the caller must confirm the previous owner is stopped. Resume the same merge_id with captain_merge_prep or captain_merge_back; this does not alter Git refs or merge readiness evidence.",
+    inputSchema: {
+      merge_id: external_exports.string().min(1),
+      session_id: external_exports.string().min(1).max(256),
+      source_worktree: external_exports.string().min(1),
+      target_worktree: external_exports.string().min(1),
+      target_branch: external_exports.string().min(1),
+      expected_revision: external_exports.number().int().nonnegative(),
+      expected_lease_token: external_exports.string().min(1),
+      confirm_owner_stopped: external_exports.boolean().optional()
+    }
+  }, async (args) => guarded(() => merges.recoverStaleLease(args)));
+  server.registerTool("captain_prepare_merge", { description: "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.", inputSchema: { intent_id: external_exports.string(), commit_oid: external_exports.string().regex(/^[0-9a-f]{40,64}$/i), strategy: external_exports.enum(["ort", "ours"]).default("ort") } }, async (args) => guarded(() => captainPrepareMerge(store, args)));
   server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => captainAbortMerge(store, args)));
   server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string(), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainCommit(store, args)));
   server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, changelog, task-trailer, and first-parent phase boundary.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
@@ -23180,13 +24303,27 @@ async function main() {
     return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head));
   }));
   server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
-  server.registerTool("captain_status", { description: "Return the authoritative lifecycle phase and evidence ledger.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(() => store.status(intent_id)));
+  server.registerTool("captain_record_hitl_feedback", { description: "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.", inputSchema: { intent_id: external_exports.string(), decision: external_exports.enum(["accept", "needs_changes"]), human_feedback: external_exports.string().min(1).max(12e3), check_ids: external_exports.array(external_exports.string()).min(1).max(50), evidence_references: external_exports.array(external_exports.string().min(1).max(2e3)).max(50), reviewed_revision: external_exports.string().regex(/^[0-9a-f]{40,64}$/i).optional() } }, async ({ intent_id, decision, human_feedback, check_ids, evidence_references, reviewed_revision }) => guarded(async () => {
+    const run = await store.recordHitlFeedback(intent_id, { decision, humanFeedback: human_feedback, checkIds: check_ids, evidenceReferences: evidence_references, ...reviewed_revision ? { reviewedRevision: reviewed_revision } : {} });
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
+  server.registerTool("captain_record_plan_review", { description: "Record actual human feedback after signed proof is green. Copy the human feedback faithfully; never infer acceptance from agent tests or demonstrations. needs_changes retains HITL and records a bounded repair handoff.", inputSchema: { intent_id: external_exports.string(), decision: external_exports.enum(["accept", "needs_changes"]), human_feedback: external_exports.string().trim().min(1) } }, async ({ intent_id, decision, human_feedback }) => guarded(async () => {
+    const run = await store.recordPlanReview(intent_id, { decision, humanFeedback: human_feedback });
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
+  server.registerTool("captain_status", { description: "Return the authoritative lifecycle phase and evidence ledger.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
+    const run = await store.status(intent_id);
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
   await server.connect(new StdioServerTransport());
 }
-if (process.argv[1] && path4.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && path6.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
 export {
   captainAbortMerge,
   captainBegin,
   captainCommit,
-  captainPrepareMerge
+  captainIssueIntent,
+  captainPrepareMerge,
+  captainResume,
+  startCaptainMcp
 };

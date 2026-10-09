@@ -105,6 +105,11 @@ export async function readAuthorizedLease<T extends LeasePayload>(root: string, 
   return current.payload;
 }
 
+export async function readAuthorizedLeaseState<T extends LeasePayload>(root: string, id: string): Promise<{ state: "held" | "released"; payload: T } | undefined> {
+  const current = await leaseState<T>(root, id);
+  return current && { state: current.state, payload: current.payload };
+}
+
 export async function ensureAuthorizedLease<T extends LeasePayload>(root: string, id: string, payload: T): Promise<T> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const current = await leaseState<T>(root, id);

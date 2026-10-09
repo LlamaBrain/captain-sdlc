@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdtemp, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdtemp, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { approvedPlanDigest } from "./lifecycle.js";
 import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
@@ -12,6 +13,10 @@ const approvedGeneratedPaths = new Set([
     "usersettings", ".vs", ".idea", ".gradle", "exportedobj", ".consulo", "profilercaptures", "dirigibles",
     "assets/packages-merged-link", "assets/packages-merged-link.meta", "assets/_dirigible/temp", "assets/_dirigible/temp.meta",
     "assets/streamingassets/dirigiblebuildprovenance.json", "assets/streamingassets/dirigiblebuildprovenance.json.meta",
+    "assets/addressableassetsdata/link.xml", "assets/addressableassetsdata/link.xml.meta",
+    "assets/addressableassetsdata/windows/addressables_content_state.bin", "assets/addressableassetsdata/windows/addressables_content_state.bin.meta",
+    "assets/thirdparty/gameanalytics/resources/gameanalytics/settings.asset",
+    "assets/textmesh pro/resources/fonts & materials/liberationsans sdf - fallback.asset",
     "assets/resources/performancetestruninfo.json", "assets/resources/performancetestrunsettings.json", ".captain-sdlc/unity-relaunch.log",
     "doxygen/dirigibles", "doxygen/doxygen_warnings.log",
 ]);
@@ -21,18 +26,18 @@ function scrubbedEnvironment() { const env = { ...process.env }; for (const name
     if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA")
         delete env[name]; return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" }; }
 async function gitControls() { isolatedGitControlRoot ??= (async () => { const root = await mkdtemp(path.join(tmpdir(), "captain-git-controls-")); await writeFile(path.join(root, "attributes"), ""); return root; })(); return isolatedGitControlRoot; }
-async function gitInvocation(args, cwd) { const controls = await gitControls(); return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); }
+async function gitInvocation(args, cwd) { const controls = await gitControls(); return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); }
 export const gateRunner = async (command, cwd) => { try {
-    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
 }
 catch (error) {
     return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message };
 } };
 export async function git(args, cwd) { return (await gitInvocation(args, cwd)).stdout.trim(); }
-export async function loadPolicy(projectRoot, baseHead) {
+export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
-    if (profile !== "feature" && profile !== "pre-release")
+    if (profile !== "low" && profile !== "feature" && profile !== "pre-release")
         throw new Error("trusted base policy has an invalid profile");
     if (typeof raw.visualRequired !== "boolean")
         throw new Error("trusted base policy must configure visualRequired");
@@ -41,8 +46,45 @@ export async function loadPolicy(projectRoot, baseHead) {
         if (!commands[scope])
             throw new Error(`trusted base policy is missing ${scope}`);
     const parsed = { profile, visualRequired: raw.visualRequired, commands };
+    if (raw.hitlChecks !== undefined || hitlChecks !== undefined) {
+        const checks = new Map();
+        for (const source of [raw.hitlChecks ?? [], hitlChecks ?? []]) {
+            if (!Array.isArray(source))
+                throw new Error("HITL checks must be an array");
+            for (const check of source) {
+                const fields = ["id", "criterionId", "setup", "action", "expected", "evidence"];
+                if (!check || fields.some(field => typeof check[field] !== "string" || !check[field].trim()))
+                    throw new Error("HITL checks require id, criterionId, setup, action, expected and evidence goals");
+                const normalized = Object.fromEntries(fields.map(field => [field, check[field]]));
+                if (checks.has(normalized.id) && JSON.stringify(checks.get(normalized.id)) !== JSON.stringify(normalized))
+                    throw new Error(`conflicting frozen HITL check: ${normalized.id}`);
+                checks.set(normalized.id, normalized);
+            }
+        }
+        parsed.hitlChecks = [...checks.values()].sort((a, b) => a.id.localeCompare(b.id));
+    }
+    if (raw.approvedPlanPaths !== undefined || planPaths !== undefined) {
+        if ((raw.approvedPlanPaths !== undefined && (!Array.isArray(raw.approvedPlanPaths) || raw.approvedPlanPaths.some((value) => typeof value !== "string"))) || (planPaths !== undefined && (!Array.isArray(planPaths) || planPaths.some(value => typeof value !== "string"))))
+            throw new Error("approvedPlanPaths must be an array of repository paths");
+        parsed.approvedPlans = [];
+        const seen = new Set();
+        for (const value of [...(raw.approvedPlanPaths ?? []), ...(planPaths ?? [])]) {
+            const relative = safeRepositoryPath(value, "approved plan");
+            if (seen.has(relative.toLowerCase()))
+                continue;
+            seen.add(relative.toLowerCase());
+            const mode = await git(["ls-tree", baseHead, "--", relative], projectRoot);
+            if (!/^100(?:644|755) blob /.test(mode))
+                throw new Error(`approved plan must be a tracked regular file: ${relative}`);
+            const result = await gitInvocation(["show", `${baseHead}:${relative}`], projectRoot);
+            if (Buffer.byteLength(result.stdout) > maxPolicyInput)
+                throw new Error(`approved plan exceeds the bounded input limit: ${relative}`);
+            parsed.approvedPlans.push({ path: relative, sha256: approvedPlanDigest(result.stdout) });
+        }
+        parsed.approvedPlans.sort((a, b) => a.path.localeCompare(b.path));
+    }
     if (raw.profiles !== undefined) {
-        if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "feature" && value !== "pre-release"))
+        if (!Array.isArray(raw.profiles) || raw.profiles.some((value) => value !== "low" && value !== "feature" && value !== "pre-release"))
             throw new Error("trusted policy profiles are invalid");
         parsed.profiles = [...new Set(raw.profiles)];
     }
@@ -98,11 +140,45 @@ export async function loadPolicy(projectRoot, baseHead) {
             throw new Error(`${value} matches a tracked base file and cannot be excluded`);
         parsed.sourceManifestRootFileExcludes.push(value);
     }
+    if (parsed.hitlChecks?.length && !parsed.approvedPlans?.length)
+        throw new Error("HITL checks require an approved plan selected at begin");
     return parsed;
 }
 export async function repositoryIdentity(projectRoot, targetBranch, targetOid) { const root = path.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)); if (targetBranch)
     await validateTargetBranch(root, targetBranch); const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root); if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase()))
     throw new Error("signed target branch oid does not match the current ref"); await assertSafeGitAttributesAtCommit(root, baseHead); return { projectRoot: root, baseHead, commonGitDir }; }
+async function hydrateIgnoredUnityPlugins(root, worktree) {
+    for (const parent of ["Assets", "Packages"]) {
+        const sourceParent = path.join(root, parent);
+        let entries;
+        try {
+            entries = await readdir(sourceParent, { withFileTypes: true });
+        }
+        catch (error) {
+            if (error.code === "ENOENT")
+                continue;
+            throw error;
+        }
+        for (const entry of entries) {
+            if (!entry.isDirectory())
+                continue;
+            const relative = parent + "/" + entry.name;
+            if (await optionalGit(["check-ignore", "--", relative], root) === null)
+                continue;
+            await cp(path.join(sourceParent, entry.name), path.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
+            const siblingMeta = relative + ".meta";
+            try {
+                const metadata = await lstat(path.join(root, siblingMeta));
+                if (metadata.isFile())
+                    await cp(path.join(root, siblingMeta), path.join(worktree, siblingMeta), { force: false, errorOnExist: false });
+            }
+            catch (error) {
+                if (error.code !== "ENOENT")
+                    throw error;
+            }
+        }
+    }
+}
 export async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir) {
     const root = path.resolve(projectRoot), commonGitDir = path.resolve(expectedCommonGitDir ?? await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path.join(root, ".captain-sdlc", "worktrees"), proposedPath = path.join(container, safe);
     if (!safe)
@@ -122,6 +198,7 @@ export async function ensureWorktree(projectRoot, baseHead, intentId, targetBran
                 throw new Error("target branch is checked out outside the canonical worktree container");
             await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
             const binding = await assertWorktreeBinding(worktreePath, targetBranch, commonGitDir, baseHead, true);
+            await hydrateIgnoredUnityPlugins(root, worktreePath);
             return { projectRoot: root, worktreePath, baseHead, targetBranch, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
         }
         let binding;
@@ -130,6 +207,7 @@ export async function ensureWorktree(projectRoot, baseHead, intentId, targetBran
             await git(["worktree", "add", proposedPath, targetBranch], root);
             await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
             binding = await assertWorktreeBinding(proposedPath, targetBranch, commonGitDir, baseHead, true);
+            await hydrateIgnoredUnityPlugins(root, proposedPath);
         }
         catch (error) {
             try {
@@ -140,11 +218,20 @@ export async function ensureWorktree(projectRoot, baseHead, intentId, targetBran
         }
         return { projectRoot: root, worktreePath: proposedPath, baseHead, targetBranch, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
     }
-    const branch = `captain/${safe}`;
+    const branch = `captain/${safe}`, branchRef = `refs/heads/${branch}`, existing = (await worktreeEntries(root)).find(value => path.resolve(value.worktree) === path.resolve(proposedPath));
+    if (existing) {
+        if (existing.branch !== branchRef)
+            throw new Error("canonical worktree path belongs to a different branch");
+        await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
+        const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
+        await hydrateIgnoredUnityPlugins(root, proposedPath);
+        return { projectRoot: root, worktreePath: proposedPath, baseHead, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
+    }
     await assertMissingWorktreePath(proposedPath);
     await git(["worktree", "add", proposedPath, "-b", branch, baseHead], root);
     await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
     const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
+    await hydrateIgnoredUnityPlugins(root, proposedPath);
     return { projectRoot: root, worktreePath: proposedPath, baseHead, branch, commonGitDir, gitDir: binding.gitDir };
 }
 export async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = [], previousPhaseHead) {
@@ -334,7 +421,8 @@ export async function preparedMergeState(worktree, prepared) { const mergeHead =
     return "diverged"; return await git(["status", "--porcelain"], worktree) ? "diverged" : "clean"; }
 export async function reconcilePreparedMerge(worktree, prepared) { if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree))
     throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state"); }
-export async function sourceState(worktree, policy) { const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? undefined, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : undefined, commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree); return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest, branch, branchHead, commonGitDir, topLevel, gitDir }; }
+const normalizeSourceStatus = (status) => status.split(/\r?\n/).filter(line => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
+export async function sourceState(worktree, policy) { const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? undefined, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : undefined, commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)); return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest, branch, branchHead, commonGitDir, topLevel, gitDir }; }
 export async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) { const real = await realpath(worktree), owned = path.resolve(worktree); if (path.resolve(real).toLowerCase() !== owned.toLowerCase())
     throw new Error("worktree path resolves through a reparse point"); const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)); if (topLevel.toLowerCase() !== owned.toLowerCase())
     throw new Error("Git top-level does not match the owned worktree"); const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree); if (!branch || (expectedBranch && branch !== expectedBranch))
@@ -459,7 +547,7 @@ async function rejectReparseAncestors(root, target) { for (let cursor = path.res
     if (cursor === path.resolve(root))
         break;
 } }
-function safeRepositoryPath(value, label) { const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/"); if (path.isAbsolute(value) || segments.some(segment => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/-]+$/.test(value))
+function safeRepositoryPath(value, label) { const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/"); if (path.isAbsolute(value) || segments.some(segment => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value))
     throw new Error(`${label} path must be a safe repository-relative path`); return normalized; }
 function objectValue(value, label) { if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error(`${label} must be an object`); return value; }
@@ -519,24 +607,31 @@ async function versionAt(worktree, hash, policy) { const values = []; for (const
         return null;
     }
 } return values.length > 0 && values.every(value => value === values[0]) ? values[0] : null; }
-async function versionTransitionValid(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
-    return true; const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject), beforeValue = await versionAt(worktree, parent, policy), afterValue = await versionAt(worktree, hash, policy); if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue)
-    return false; const before = parseStrictSemVer(beforeValue); if (parsedSubject[2]) {
-    if (before.major === Number.MAX_SAFE_INTEGER)
+async function versionTransitionValid(worktree, parent, hash, subject, policy) {
+    if (!(policy.require_version_suffix ?? true))
+        return true;
+    const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
+    // The configured version_file owns the prior release number. Stale companion
+    // metadata must be repairable in the new commit without rewriting its parent.
+    // The candidate still has to synchronize EVERY configured version surface.
+    const canonical = policy.version_surfaces?.filter(surface => surface.path === policy.version_file) ?? [];
+    const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
+    const afterValue = await versionAt(worktree, hash, policy);
+    if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue)
         return false;
-    return afterValue === `${before.major + 1}.0.0`;
-} if (parsedSubject[1] === "feat") {
-    if (before.minor === Number.MAX_SAFE_INTEGER)
-        return false;
-    return afterValue === `${before.major}.${before.minor + 1}.0`;
-} if (before.patch === Number.MAX_SAFE_INTEGER)
-    return false; return afterValue === `${before.major}.${before.minor}.${before.patch + 1}`; }
+    const before = parseStrictSemVer(beforeValue);
+    if (parsedSubject[2])
+        return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
+    if (parsedSubject[1] === "feat")
+        return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
+    return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
+}
 async function changelogAddsVersion(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
     return true; const version = subjectVersion(subject); if (!version)
     return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes) { const lines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")); async function walk(dir) { for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+async function sourceManifest(root, configuredExcludes, rootFileExcludes) { const lines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/"))); async function walk(dir) { for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
     const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
-    if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
+    if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || (relative.toLowerCase().endsWith(".meta") && !tracked.has(relative)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
         continue;
     const full = path.join(dir, entry.name), info = await lstat(full);
     if (info.isSymbolicLink())

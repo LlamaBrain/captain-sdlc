@@ -15,6 +15,40 @@ test("denies permit reuse from another turn and mutation outside owned worktree"
 
 test("read-only tools remain available before Captain begins", () => {
   assert.equal(mutationDecision({ toolName: "view_image", cwd: "C:/repo", sessionId: "s", permit: null }).allow, true);
+  assert.equal(mutationDecision({ toolName: "exec_command", cwd: "C:/repo", sessionId: "s", permit: null, command: "Get-Content -Raw 'C:\\repo\\SKILL.md'" }).allow, true);
+});
+
+test("authorization lookup is read-only before and during a governed run", () => {
+  for (const toolName of ["mcp__captain-sdlc__captain_user_authorization_status", "mcp__captain_sdlc__captain_user_authorization_status", "tools.captain-sdlc__captain_user_authorization_status"]) {
+    for (const permit of [null, { sessionId: "s", worktreePath: "C:/repo", phase: "tdd_red" }]) {
+      assert.equal(mutationDecision({ toolName, cwd: "C:/repo", sessionId: "s", permit }).allow, true, toolName);
+    }
+  }
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_user_authorization_status_write", cwd: "C:/repo", sessionId: "s", permit: null }).allow, false);
+});
+
+test("standalone Merge Prep and Back use audited entry paths without reopening implementation", () => {
+  for (const namespace of ["mcp__captain-sdlc__", "mcp__captain_sdlc__", "tools.captain-sdlc__", "captain-sdlc__"]) {
+    for (const operation of ["merge_prep", "merge_back", "merge_begin", "merge_finish"]) {
+      const toolName = `${namespace}captain_${operation}`;
+      for (const permit of [null, { sessionId: "s", worktreePath: "C:/repo/owned", phase: "complete", intentId: "completed-task" }]) {
+        assert.equal(mutationDecision({ toolName, cwd: "C:/repo/owned", sessionId: "s", permit }).allow, true, toolName);
+      }
+    }
+  }
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_merge_back_force", cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
+  for (const operation of ["merge_begin_force", "merge_finish_force"]) {
+    assert.equal(mutationDecision({ toolName: `mcp__captain_sdlc__captain_${operation}`, cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
+  }
+});
+
+test("standalone merge status is read-only without an implementation permit", () => {
+  for (const toolName of ["mcp__captain-sdlc__captain_merge_status", "mcp__captain_sdlc__captain_merge_status", "tools.captain-sdlc__captain_merge_status"]) {
+    for (const permit of [null, { sessionId: "s", worktreePath: "C:/repo/owned", phase: "complete", intentId: "completed-task" }]) {
+      assert.equal(mutationDecision({ toolName, cwd: "C:/repo/owned", sessionId: "s", permit }).allow, true, toolName);
+    }
+  }
+  assert.equal(mutationDecision({ toolName: "mcp__captain-sdlc__captain_merge_status_write", cwd: "C:/repo/owned", sessionId: "s", permit: null }).allow, false);
 });
 
 test("denies direct or nested Git metadata mutation paths", () => {

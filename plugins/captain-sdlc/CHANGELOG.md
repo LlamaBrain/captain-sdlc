@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.0
+- Add exact-generation recovery for orphaned Merge Prep/Back leases with owner verification, plus an MCP smoke test proving tool advertisement and recovery.
+- Expose audited Merge Prep, Merge Back, status, and Begin/Finish aliases with merge-specific authorization and skills.
+- Bind exact ignored Unity build outputs while preserving other source and dependency fingerprints.
+
+## 0.1.6
+- Expose exact-generation recovery for stale Merge Prep/Back operation and associated resource leases; record owner process metadata on new leases.
+- Keep recovery fail-closed for active or unverifiable owners; require explicit stopped-owner confirmation for legacy leases.
+- Add focused recovery coverage and MCP transport smoke validation.
+
+## Unreleased
+
+- Support Merge Begin/Finish as aliases for Prep/Back in the MCP tools, skills,
+  mutation policy, and direct user integration authorization.
+- Add explicit signed Merge Prep, Merge Back and merge-status MCP tools. Prep retains the
+  existing source checkout, audits target convergence and verification, and stops at readiness;
+  Back validates that readiness and fast-forwards the target without repeating Prep gates.
+- Add separate merge-prep/merge-back skills and preserve low-level merge-tool compatibility.
+- Capture direct Merge Back authorization separately from preparation requests.
+
+## 0.1.4
+
+- Add signed, evidence-rich pause handoffs that preserve plan and phase context, completed and next steps, blockers, worktree state, and the exact cross-agent resume directive.
+- Support explicit cross-session resume through `[Captain resume: intent-…]`, transferring the active worktree lease only after Captain validates the signed run.
+- Allow a paused run to release session ownership so a blocker task can start as the next governed plan without losing the original resume point.
+
+## 0.1.3
+
+- Bootstrap the Captain MCP server from `CODEX_PLUGIN_ROOT`, `PLUGIN_ROOT`, or the newest matching Codex cache entry so hook enforcement cannot start without its required lifecycle tools.
+- Cover the packaged MCP declaration with an environment-isolated startup smoke.
+- Route plural merge requests and explicit continue/resume implementation prompts into the governed lifecycle before mutation gates run.
+- Derive the standard Codex plugin-data directory when MCP processes do not receive hook-only `PLUGIN_DATA`, and allow audited single-file PowerShell `Get-Content -Raw` inspection before a permit exists.
+- Treat Captain enforcement as repository opt-in: hooks and the skill defer to the normal project workflow until committed `HEAD` contains `.captain-sdlc/codex-policy.json`, eliminating policy-bootstrap deadlocks.
+
 ## 0.1.2
 
 - Adopt an explicitly selected existing target branch inside the canonical worktree container, with pinned-base, clean-state, and branch-location verification.

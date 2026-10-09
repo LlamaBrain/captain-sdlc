@@ -1,0 +1,109 @@
+import { type GateRunner, type ProjectPolicy } from "./lifecycle.js";
+import { assertWorktreeBinding, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
+export type MergeCommitInput = {
+    paths: string[];
+    subject: string;
+    task_outcome?: "Implements" | "Completes" | "Needs-QA";
+    task_id?: string;
+};
+export type MergePrepArgs = {
+    source_worktree: string;
+    target_worktree: string;
+    target_branch: string;
+    session_id: string;
+    merge_id?: string;
+    commit?: MergeCommitInput;
+};
+export type MergeBackArgs = {
+    merge_id: string;
+    session_id: string;
+    source_worktree?: string;
+    target_worktree?: string;
+    target_branch?: string;
+};
+export type MergeLeaseRecoveryArgs = MergeBackArgs & {
+    source_worktree: string;
+    target_worktree: string;
+    target_branch: string;
+    expected_revision: number;
+    expected_lease_token: string;
+    confirm_owner_stopped?: boolean;
+};
+export type MergeState = "preparing" | "needs_resolution" | "needs_commit" | "verifying" | "failed" | "ready" | "integrating" | "merged";
+type Binding = Awaited<ReturnType<typeof assertWorktreeBinding>>;
+type Inputs = {
+    source: Awaited<ReturnType<typeof sourceState>>;
+    metadata: string;
+    dependencies: Array<Record<string, unknown>>;
+};
+type GateEvidence = {
+    scope: string;
+    commandSha256: string;
+    exitCode: number;
+    stdoutSha256: string;
+    stderrSha256: string;
+};
+export type MergeRecord = {
+    schema_version: 1;
+    merge_id: string;
+    revision: number;
+    previous_sha256?: string;
+    session_id: string;
+    state: MergeState;
+    source_worktree: string;
+    target_worktree: string;
+    target_branch: string;
+    source_binding: Binding;
+    target_binding: Binding;
+    captured_policy: ProjectPolicy;
+    policy_sha256: string;
+    strictness: "low" | "standard" | "strict";
+    scopes: string[];
+    prepared_merge?: PreparedMerge;
+    prepared_commit?: PreparedCommitCore;
+    prepared_commit_request?: MergeCommitInput;
+    conflicts: string[];
+    gates: GateEvidence[];
+    attempted_inputs?: Inputs;
+    ready_inputs?: Inputs;
+    failure?: string;
+    integrated_head?: string;
+};
+export type MergeStatus = MergeRecord & {
+    receipt_valid?: boolean;
+    stale_reason?: string;
+    captain_green: false;
+};
+/** Independent integration ledger. Implementation run phases and proof are never rewritten. */
+export declare class MergeWorkflowStore {
+    private readonly dataRoot;
+    private readonly runner;
+    private readonly activeOperations;
+    constructor(dataRoot: string, runner?: GateRunner);
+    prep(args: MergePrepArgs): Promise<MergeStatus>;
+    back(args: MergeBackArgs): Promise<MergeStatus>;
+    status(args: MergeBackArgs): Promise<MergeStatus>;
+    recoverStaleLease(args: MergeLeaseRecoveryArgs): Promise<{
+        merge_id: string;
+        released: boolean;
+        released_resource_leases: number;
+        merge_revision: number;
+        resumed_operation: string;
+    }>;
+    private assertMergeLease;
+    private assertLeaseOwnerStopped;
+    private readHeldLease;
+    private session;
+    private match;
+    private output;
+    private bindings;
+    private assertInputs;
+    private assertReady;
+    private lock;
+    private resources;
+    private initial;
+    private update;
+    private watermark;
+    private read;
+}
+export {};

@@ -1,4 +1,4 @@
-import type { CommitPolicy, GateRunner, ProjectPolicy } from "./lifecycle.js";
+import type { CommitPolicy, GateRunner, ProjectPolicy, HitlCheck } from "./lifecycle.js";
 export type PreparedMerge = {
     preMergeHead: string;
     targetOid: string;
@@ -13,7 +13,7 @@ export type PreparedCommitCore = {
 };
 export declare const gateRunner: GateRunner;
 export declare function git(args: string[], cwd: string): Promise<string>;
-export declare function loadPolicy(projectRoot: string, baseHead: string): Promise<ProjectPolicy>;
+export declare function loadPolicy(projectRoot: string, baseHead: string, planPaths?: string[], hitlChecks?: HitlCheck[]): Promise<ProjectPolicy>;
 export declare function repositoryIdentity(projectRoot: string, targetBranch?: string, targetOid?: string): Promise<{
     projectRoot: string;
     baseHead: string;

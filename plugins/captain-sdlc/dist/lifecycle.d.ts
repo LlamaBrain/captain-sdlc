@@ -1,5 +1,6 @@
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
-export type Profile = "feature" | "pre-release";
+import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
+export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
     stdout: string;
@@ -29,7 +30,32 @@ export type CommitPolicy = {
     }>;
     changelog_files: string[];
 };
+export type HitlCheck = {
+    id: string;
+    criterionId: string;
+    setup: string;
+    action: string;
+    expected: string;
+    evidence: string;
+};
+export type HitlFeedbackInput = {
+    decision: "accept" | "needs_changes";
+    humanFeedback: string;
+    checkIds: string[];
+    evidenceReferences: string[];
+    reviewedRevision?: string;
+};
+export type HitlFeedback = HitlFeedbackInput & {
+    kind: "hitl_feedback";
+    recordedAt: string;
+    recordedSource: SourceState;
+};
 export type ProjectPolicy = {
+    hitlChecks?: HitlCheck[];
+    approvedPlans?: Array<{
+        path: string;
+        sha256: string;
+    }>;
     profile: Profile;
     profiles?: Profile[];
     visualRequired: boolean;
@@ -110,6 +136,41 @@ export type ResumeOperation = {
     sessionId: string;
     turnId: string;
 };
+export type PauseHandoff = {
+    schemaVersion: 1;
+    intentId: string;
+    runId: string;
+    revision: number;
+    sessionId: string;
+    turnId: string;
+    projectRoot: string;
+    worktreePath: string;
+    branch: string;
+    taskId?: string;
+    objective: string;
+    phase: Run["phase"];
+    status: Run["status"];
+    planPath?: string;
+    phaseLabel?: string;
+    completedSteps: string[];
+    summary: string;
+    nextSteps: string[];
+    blockers: string[];
+    context?: string;
+    worktreeState?: SourceState;
+    evidence: Array<Record<string, unknown>>;
+    resumeDirective: string;
+    redirectPrompt?: string;
+};
+export type BlockerLink = {
+    schemaVersion: 1;
+    blockedIntentId: string;
+    blockerIntentId: string;
+    blockedRunId: string;
+    blockerRunId: string;
+    projectRoot: string;
+    createdAt: string;
+};
 export type CommitOperationRequest = {
     paths: string[];
     subject: string;
@@ -154,6 +215,7 @@ export type Run = {
     intentId: string;
     sessionId: string;
     turnId: string;
+    activationToken?: string;
     taskId?: string;
     objective: string;
     projectRoot: string;
@@ -170,8 +232,8 @@ export type Run = {
     profile: Profile;
     visualRequired: boolean;
     startedAt: string;
-    phase: "tdd_red" | "implement" | "prove" | "complete";
-    status: "running" | "green" | "red";
+    phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete";
+    status: "running" | "paused" | "green" | "red";
     policy: ProjectPolicy;
     preparedMerges?: PreparedMerge[];
     mutationOperation?: WorktreeMutationOperation;
@@ -179,9 +241,10 @@ export type Run = {
     preparedCommit?: PreparedCommit;
     terminalCommit?: TerminalCommit;
     committedState?: SourceState;
+    continuityState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
-export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "mutationOperation" | "commitOperation" | "evidence" | "profile" | "visualRequired">;
+export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "evidence" | "profile" | "visualRequired">;
 export type CommitEvidence = {
     head: string;
     tree?: string;
@@ -203,6 +266,40 @@ export type LifecycleHooks = {
     afterResumeReserved?: (operation: ResumeOperation) => Promise<void>;
     afterRunRevision?: (run: Run) => Promise<void>;
 };
+export declare function approvedPlanDigest(content: string): string;
+export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired">): string[];
+export declare function executionHead(run: Run): string;
+export declare function isPendingPlanReview(run: Run): boolean;
+export declare function effectiveGateDisclosure(run: Run): {
+    hitlChecks: HitlCheck[];
+    planReview: Record<string, unknown> | null;
+    humanReview: HitlFeedback | null;
+    humanReviewStatus: {
+        acceptedCheckIds: string[];
+        needsChangesCheckIds: string[];
+        unreviewedCheckIds: string[];
+    };
+    planState: string;
+    approvalAccepted: boolean;
+    scopeBinding: string;
+    approvedPlans: {
+        path: string;
+        sha256: string;
+    }[];
+    baseHead: string;
+    policySource: string;
+    progressLocation: string;
+    proofStatus: {
+        phase: string;
+        status: string;
+    };
+    phaseAcceptance: string;
+    gates: {
+        scope: string;
+        command: string;
+        artifactPath: string | null;
+    }[];
+};
 export declare class LifecycleStore {
     private readonly dataRoot;
     private readonly runner;
@@ -210,6 +307,21 @@ export declare class LifecycleStore {
     private readonly hooks?;
     constructor(dataRoot: string, runner: GateRunner, probe?: StateProbe | undefined, hooks?: LifecycleHooks | undefined);
     markIntent(intent: Intent): Promise<void>;
+    issueIdempotentIntent(request: {
+        sessionId: string;
+        turnId: string;
+        projectRoot: string;
+        prompt: string;
+        taskId?: string;
+        resumeOf?: string;
+        targetBranch?: string;
+        action?: string;
+    }, factory: () => Promise<Intent>): Promise<Intent>;
+    recordUserAuthorization(input: Parameters<typeof recordUserAuthorizations>[1]): Promise<import("./user-authorization.js").AuthorizationReceipt[]>;
+    userAuthorizations(query: AuthorizationQuery): Promise<{
+        receipts: import("./user-authorization.js").AuthorizationReceipt[];
+        guidance: string;
+    }>;
     validateIntent(intentId: string, projectRoot: string): Promise<Intent>;
     beginOperationFor(intentId: string): Promise<BeginOperation>;
     activatedBeginRun(operation: BeginOperation): Promise<Run | undefined>;
@@ -243,6 +355,23 @@ export declare class LifecycleStore {
     checkpointBeginActivated(operation: BeginOperation): Promise<Run>;
     begin(input: BeginInput): Promise<Run>;
     resume(resumeIntentId: string): Promise<Run>;
+    pause(intentId: string, input: {
+        summary: string;
+        nextSteps: string[];
+        blockers?: string[];
+        planPath?: string;
+        phaseLabel?: string;
+        completedSteps?: string[];
+        context?: string;
+        redirectTask?: string;
+    }): Promise<PauseHandoff>;
+    handoffs(): Promise<PauseHandoff[]>;
+    linkBlocker(blockedIntentId: string, blockerIntentId: string): Promise<BlockerLink>;
+    doctor(): Promise<{
+        pausedHandoffs: PauseHandoff[];
+        activeRuns: Array<Pick<Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch">>;
+    }>;
+    migratePlanState(intentId: string, planPaths: string[]): Promise<string[]>;
     recordRed(intentId: string, command?: string): Promise<Run>;
     recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
@@ -258,17 +387,31 @@ export declare class LifecycleStore {
     discardCommitOperation(intentId: string, operation: CommitOperation): Promise<Run>;
     recordPreparedCommit(intentId: string, prepared: PreparedCommit, operation: CommitOperation): Promise<Run>;
     discardPreparedCommit(intentId: string, candidate: string): Promise<Run>;
+    resumeTarget(resumeIntentId: string): Promise<Run>;
+    recoverAdvancedPreparedCommit(intentId: string, commit: CommitEvidence, firstParent: string[], candidateVerification: {
+        tree: string;
+        subject: string;
+    }): Promise<Run>;
     recordCommit(intentId: string, commit: CommitEvidence, final?: boolean): Promise<Run>;
     completedCommitFor(intentId: string, request: CommitOperationRequest): Promise<Run | undefined>;
     finishTerminalCommit(intentId: string, requestSha256: string): Promise<Run>;
     runCheck(intentId: string, scope: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
     private proveAttempt;
+    private isFrozenPlan;
+    assertFrozenScope(intentId: string): Promise<void>;
+    recordPlanReview(intentId: string, input: {
+        decision: "accept" | "needs_changes";
+        humanFeedback: string;
+    }): Promise<Run>;
+    recordHitlFeedback(intentId: string, input: HitlFeedbackInput): Promise<Run>;
     status(intentId: string): Promise<Run>;
     acquireTargetLease(intentId: string, commonGitDir: string, targetBranch: string, targetOid: string): Promise<{
         leaseId: string;
         leaseToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
+    private safePlanPath;
+    private projectPlanState;
     releaseTargetLease(leaseId: string, intentId: string, leaseToken: string): Promise<void>;
     permitFor(sessionId: string, turnId: string): Promise<ReturnType<LifecycleStore["permit"]> | null>;
     private permit;
@@ -287,6 +430,7 @@ export declare class LifecycleStore {
     private assertSessionLease;
     private finalizeCompletion;
     private releaseCompletedLease;
+    private resumeHandoff;
     private expectedHead;
     private assertWorktreeBinding;
     private load;

@@ -4,11 +4,34 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { LifecycleStore, type StateProbe } from "../src/lifecycle.js";
-import { captainAbortMerge, captainBegin, captainCommit, captainPrepareMerge, type CaptainBeginStage } from "../src/server.js";
+import { captainAbortMerge, captainBegin, captainCommit, captainIssueIntent, captainPrepareMerge, captainResume, type CaptainBeginStage } from "../src/server.js";
 import { writeAuthorized } from "../src/authority.js";
 
 const temp = () => mkdtemp(path.join(tmpdir(), "captain-commit-"));
 const policy = { profile: "feature" as const, visualRequired: false, commands: { ticket: "ticket" }, redGate: { expectedExitCodes: [1], outputPattern: "ticket" } };
+
+test("resume reconciles an advanced signed candidate before consuming the resume intent", async () => {
+  const candidate = "b".repeat(40), head = "e".repeat(40), tree = "c".repeat(40), subject = "fix(x): prepared (v1.0.1)";
+  const run = { intentId: "old", worktreePath: "worktree", branch: "captain/old", commonGitDir: "git", gitDir: "linked", baseHead: "a".repeat(40), policy, preparedMerges: [], preparedCommit: { preCommitHead: "a".repeat(40), candidate, tree, subject } };
+  const calls: string[] = [];
+  const store = { resumeTarget: async () => run, recoverAdvancedPreparedCommit: async () => { calls.push("recover"); }, resume: async () => { calls.push("resume"); return run; } } as unknown as LifecycleStore;
+  const evidence = { head, tree: "d".repeat(40), commitCount: 2, clean: false, subject: "fix(x): later (v1.0.2)", versionChanged: true, changelogChanged: true, phaseCommitsValid: true, preparedMergesValid: true, previousPhaseRetained: true };
+  await captainResume(store, "resume-id", {
+    assertWorktreeBinding: async () => ({ head }),
+    git: async (args: string[]) => args[0] === "rev-list" ? `${candidate}\n${head}` : args[1]?.includes("^{tree}") ? tree : subject,
+    commitEvidence: async () => evidence
+  } as any);
+  assert.deepEqual(calls, ["recover", "resume"]);
+});
+
+test("client-neutral intent issuance creates one signed begin or resume instruction", async () => {
+  const root = await temp(), data = await temp(), store = new LifecycleStore(data, async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+  const begun = await captainIssueIntent(store, { session_id: "opencode-session", turn_id: "turn-1", project_root: root, prompt: "implement handoff" });
+  assert.match(begun.intent_id, /^intent-/); assert.match(begun.begin_instruction!, /captain_begin_implementation/);
+  assert.equal((await store.validateIntent(begun.intent_id, root)).sessionId, "opencode-session");
+  await store.markIntent({ intentId: "done", sessionId: "s", turnId: "t", projectRoot: root, prompt: "done" });
+  await assert.rejects(() => captainIssueIntent(store, { session_id: "s", turn_id: "t2", project_root: root, prompt: "resume", resume_of: "done" }), /ENOENT|not found/);
+});
 
 test("distinct concurrent captain_commit is excluded and the signed CAS interruption recovers", async () => {
   const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "commit");

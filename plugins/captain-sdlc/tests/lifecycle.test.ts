@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { LifecycleStore, type GateRunner, type StateProbe } from "../src/lifecycle.js";
@@ -39,6 +39,47 @@ test("resume retries exactly after the intent is consumed but before the resumed
   await base.markIntent({ intentId: "resume-start", sessionId: "s", turnId: "t1", projectRoot: root, prompt: "start" }); await base.begin({ intentId: "resume-start", objective: "start", projectRoot: root, worktreePath: worktree, baseHead: "a".repeat(40), ...binding(root, worktree), policy }); await base.markIntent({ intentId: "resume-crash", sessionId: "s", turnId: "t2", projectRoot: root, prompt: "continue", resumeOf: "resume-start" });
   let crashed = false; const interrupted = new LifecycleStore(data, runner({}), probe, { afterResumeReserved: async () => { if (!crashed) { crashed = true; throw new Error("crash after resume reservation"); } } }); await assert.rejects(() => interrupted.resume("resume-crash"), /crash after resume reservation/);
   const recovered = await new LifecycleStore(data, runner({}), probe).resume("resume-crash"); assert.equal(recovered.turnId, "t2"); assert.ok(await base.permitFor("s", "t2")); assert.equal((await new LifecycleStore(data, runner({}), probe).resume("resume-crash")).revision, recovered.revision);
+});
+
+test("an explicit paused handoff transfers ownership to a new session", async () => {
+  const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "handoff"), store = new LifecycleStore(data, runner({ ticket: 1 }), probe);
+  await store.markIntent({ intentId: "handoff", sessionId: "agent-a", turnId: "turn-a", projectRoot: root, prompt: "implement handoff" });
+  await store.begin({ intentId: "handoff", objective: "implement handoff", projectRoot: root, worktreePath: worktree, baseHead: "a".repeat(40), ...binding(root, worktree), policy });
+  await store.recordRed("handoff", "ticket");
+  await store.markIntent({ intentId: "handoff-resume", sessionId: "agent-b", turnId: "turn-b", projectRoot: root, prompt: "continue", resumeOf: "handoff" });
+  await assert.rejects(store.resume("handoff-resume"), /owner must pause/);
+  await store.pause("handoff", { summary: "Owner releases the run", nextSteps: ["Continue the original task"] });
+  const resumed = await store.resume("handoff-resume");
+  assert.equal(resumed.sessionId, "agent-b");
+  assert.equal(resumed.turnId, "turn-b");
+  assert.ok(await store.permitFor("agent-b", "turn-b"));
+  assert.equal(await store.permitFor("agent-a", "turn-a"), null);
+});
+
+test("pause records a compact evidence-rich handoff packet", async () => {
+  const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "pause"), store = new LifecycleStore(data, runner({ ticket: 1 }), probe);
+  await mkdir(path.join(worktree, "Assets"), { recursive: true }); await writeFile(path.join(worktree, "Assets", "Plan.md"), "# Placement plan\n\nDetails.\n");
+  await store.markIntent({ intentId: "pause", sessionId: "agent-a", turnId: "turn-a", projectRoot: root, prompt: "implement pause" });
+  await store.begin({ intentId: "pause", objective: "implement pause", projectRoot: root, worktreePath: worktree, baseHead: "a".repeat(40), ...binding(root, worktree), policy });
+  await store.recordRed("pause", "ticket");
+  assert.deepEqual(await store.migratePlanState("pause", ["Assets/Plan.md"]), ["Assets/Plan.md"]);
+  const handoff = await store.pause("pause", { summary: "Placement tests are red by design.", planPath: "Assets/Plan.md", phaseLabel: "Phase E", completedSteps: ["Mapped the placement seam"], nextSteps: ["Implement typed clearance"], blockers: ["Need a Unity editor session"], context: "Do not touch unrelated dirty files." });
+  assert.equal(handoff.phaseLabel, "Phase E");
+  assert.deepEqual(handoff.completedSteps, ["Mapped the placement seam"]);
+  assert.equal(handoff.resumeDirective, "[Captain resume: pause]");
+  assert.equal(handoff.worktreeState?.branch, "captain/pause");
+  const pausedPlan = await readFile(path.join(worktree, "Assets", "Plan.md"), "utf8"); assert.match(pausedPlan, /status: blocked/); assert.match(pausedPlan, /phase: Phase E/); assert.match(pausedPlan, /Implement typed clearance/);
+  await store.markIntent({ intentId: "pause-resume", sessionId: "agent-b", turnId: "turn-b", projectRoot: root, prompt: "continue", resumeOf: "pause" }); await store.resume("pause-resume");
+  assert.match(await readFile(path.join(worktree, "Assets", "Plan.md"), "utf8"), /status: in-progress/);
+});
+
+test("plan migration is selected, bounded, idempotent, and rejects escape paths", async () => {
+  const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "plans"), store = new LifecycleStore(data, runner({ ticket: 1 }), probe);
+  await mkdir(path.join(worktree, "Plan"), { recursive: true }); await writeFile(path.join(worktree, "Plan", "Selected.md"), "# Selected\r\n\r\nWork.\r\n");
+  await store.markIntent({ intentId: "plans", sessionId: "s", turnId: "t", projectRoot: root, prompt: "migrate plans" }); await store.begin({ intentId: "plans", objective: "migrate plans", projectRoot: root, worktreePath: worktree, baseHead: "a".repeat(40), ...binding(root, worktree), policy }); await store.recordRed("plans", "ticket");
+  assert.deepEqual(await store.migratePlanState("plans", ["Plan/Selected.md"]), ["Plan/Selected.md"]); assert.deepEqual(await store.migratePlanState("plans", ["Plan/Selected.md"]), []);
+  assert.match(await readFile(path.join(worktree, "Plan", "Selected.md"), "utf8"), /<!-- captain:work-state\r\nstatus: in-progress/);
+  await assert.rejects(() => store.migratePlanState("plans", ["../outside.md"]), /unsafe plan path/);
 });
 
 test("requires a failing ticket test before implementation", async () => {
@@ -105,6 +146,25 @@ test("a signed prepared commit can resume at its exact CAS candidate and finaliz
   await store.markIntent({ intentId: "recover-resume", sessionId: "s", turnId: "t2", projectRoot: root, prompt: "continue", resumeOf: "recover" }); assert.equal((await store.resume("recover-resume")).turnId, "t2");
   await store.recordCommit("recover", { head, tree: "c".repeat(40), commitCount: 1, clean: true, subject: "fix(x): recover (v1.0.1)", versionChanged: true, changelogChanged: true, preparedMergesValid: true, phaseCommitsValid: true, previousPhaseRetained: true }, false);
   assert.equal((await store.status("recover")).preparedCommit, undefined); assert.equal((await store.status("recover")).commitOperation, undefined);
+});
+
+test("advanced signed candidate recovers a paused run without replacing its worktree", async () => {
+  let head = "a".repeat(40); const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "x");
+  const store = new LifecycleStore(data, runner({ ticket: 1 }), async () => boundState(root, worktree, head, "d".repeat(40)));
+  await store.markIntent({ intentId: "advanced", sessionId: "s", turnId: "t1", projectRoot: root, prompt: "implement" });
+  await store.begin({ intentId: "advanced", objective: "implement", projectRoot: root, worktreePath: worktree, baseHead: head, ...binding(root, worktree), policy });
+  await store.recordRed("advanced", "ticket");
+  const candidate = "b".repeat(40), descendant = "e".repeat(40), request = { paths: ["VERSION"], subject: "fix(x): prepared (v1.0.1)", final: false };
+  const operation = await store.acquireCommitOperation("advanced", request);
+  await store.recordPreparedCommit("advanced", { preCommitHead: head, candidate, tree: "c".repeat(40), ...request }, operation);
+  head = descendant;
+  await store.pause("advanced", { summary: "Interrupted after commit", nextSteps: ["Resume the same task"] });
+  const evidence = { head, tree: "d".repeat(40), commitCount: 2, clean: false, subject: "fix(x): later (v1.0.2)", versionChanged: true, changelogChanged: true, phaseCommitsValid: true, preparedMergesValid: true, previousPhaseRetained: true };
+  await assert.rejects(() => store.recoverAdvancedPreparedCommit("advanced", evidence, [descendant], { tree: "c".repeat(40), subject: request.subject }), /first-parent/);
+  const recovered = await store.recoverAdvancedPreparedCommit("advanced", evidence, [candidate, descendant], { tree: "c".repeat(40), subject: request.subject });
+  assert.equal(recovered.committedState?.head, descendant); assert.equal(recovered.preparedCommit, undefined); assert.equal(recovered.worktreePath, worktree);
+  await store.markIntent({ intentId: "advanced-resume", sessionId: "s", turnId: "t2", projectRoot: root, prompt: "continue", resumeOf: "advanced" });
+  assert.equal((await store.resume("advanced-resume")).status, "running");
 });
 
 test("commit operation restart reconciles reservation-before-lease and stale post-release lease", async () => {
@@ -201,6 +261,29 @@ test("feature completion requires green ticket, new smoke, affected regression, 
   assert.equal(run.status, "green"); assert.equal(run.phase, "complete");
   const nextWorktree = path.join(root, ".captain-sdlc", "worktrees", "next"); await store.markIntent({ intentId: "next", sessionId: "s", turnId: "t2", projectRoot: root, prompt: "implement next" });
   const next = await store.begin({ intentId: "next", objective: "next", projectRoot: root, worktreePath: nextWorktree, baseHead: probedHead, ...binding(root, nextWorktree), policy }); assert.equal(next.phase, "tdd_red"); assert.equal(next.sessionId, "s");
+});
+
+test("transient proof runner errors preserve prove phase for retry", async () => {
+  const root = await temp(), data = await temp(), worktree = path.join(root, ".captain-sdlc", "worktrees", "retry");
+  await mkdir(worktree, { recursive: true });
+  let probedHead = "a".repeat(40);
+  let ticketRuns = 0;
+  const retryProbe: StateProbe = async () => boundState(root, worktree, probedHead, "c".repeat(40));
+  const store = new LifecycleStore(data, async command => {
+    if (command === "ticket" && ticketRuns++ === 0) return { exitCode: 1, stdout: command, stderr: "" };
+    if (command === "build") throw new Error("transport timeout");
+    return { exitCode: 0, stdout: command, stderr: "" };
+  }, retryProbe);
+  await store.markIntent({ intentId: "proof-retry", sessionId: "s", turnId: "t", projectRoot: root, prompt: "retry proof" });
+  await store.begin({ intentId: "proof-retry", objective: "retry proof", projectRoot: root, worktreePath: worktree, baseHead: "a".repeat(40), ...binding(root, worktree), policy });
+  await store.recordRed("proof-retry", "ticket");
+  probedHead = "b".repeat(40);
+  await store.recordCommit("proof-retry", { head: probedHead, tree: "c".repeat(40), commitCount: 1, clean: true, subject: "feat(retry): preserve proof phase (v1.2.0)", versionChanged: true, changelogChanged: true, preparedMergesValid: true, phaseCommitsValid: true });
+  await assert.rejects(() => store.prove("proof-retry"), /transport timeout/);
+  const retryable = await store.status("proof-retry");
+  assert.equal(retryable.phase, "prove");
+  assert.equal(retryable.status, "running");
+  assert.equal(retryable.evidence.at(-1)?.kind, "proof_error");
 });
 
 test("a new begin reconciles green completion that crashed before target and session lease release", async () => {

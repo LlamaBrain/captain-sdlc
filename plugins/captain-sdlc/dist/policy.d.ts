@@ -4,6 +4,7 @@ export type Permit = {
     worktreePath: string;
     phase: string;
     intentId?: string;
+    frozenPlanPaths?: string[];
 };
 export type MutationInput = {
     toolName: string;
@@ -17,3 +18,4 @@ export declare function mutationDecision(input: MutationInput): {
     allow: boolean;
     reason?: string;
 };
+export declare function frozenPlanMutationReason(input: MutationInput): string | undefined;
