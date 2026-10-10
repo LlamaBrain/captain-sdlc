@@ -1,4 +1,5 @@
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
+import { captainCancelFailedBegin } from "./failed-begin-cancellation.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,7 @@ export type CaptainIssueIntentArgs = { session_id: string; turn_id: string; proj
 export type CaptainBeginDependencies = { repositoryIdentity: typeof repositoryIdentity; loadPolicy: typeof loadPolicy; ensureWorktree: typeof ensureWorktree; afterStage?: (stage: CaptainBeginStage) => Promise<void> };
 const beginDependencies: CaptainBeginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 export async function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }: CaptainBeginArgs, dependencies: CaptainBeginDependencies = beginDependencies) {
+  return store.withBeginAttemptGate(intent_id, async () => {
   const operation = await store.reserveBegin({ intentId: intent_id, objective, projectRoot: project_root, taskId: task_id }); await dependencies.afterStage?.("reservation"); const activated = await store.activatedBeginRun(operation);
   if (activated) {
     const requestedPolicy = await dependencies.loadPolicy(activated.projectRoot, activated.baseHead, plan_paths, hitl_checks);
@@ -28,7 +30,9 @@ export async function captainBegin(store: LifecycleStore, { intent_id, objective
   const lease = await store.ensureBeginTargetLease(operation, repository); await dependencies.afterStage?.("lease-acquired"); await store.checkpointBeginLease(operation, repository, lease);
   const workspace = await dependencies.ensureWorktree(repository.projectRoot, repository.baseHead, intent_id, operation.targetBranch, repository.commonGitDir); await dependencies.afterStage?.("worktree-created"); await store.checkpointBeginWorkspace(operation, workspace);
   const run = await store.checkpointBeginRun(operation, policy); await dependencies.afterStage?.("run"); await store.checkpointBeginActive(operation); await dependencies.afterStage?.("active"); const activatedRun = await store.checkpointBeginActivated(operation); await store.checkpointBeginPermit(operation, activatedRun); await dependencies.afterStage?.("permit"); return store.status(operation.intentId);
+  });
 }
+export { captainCancelFailedBegin };
 export async function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }: CaptainIssueIntentArgs) {
   const directiveTarget = extractAuthorizedTargetBranch(prompt), directiveResume = extractCaptainResumeIntent(prompt);
   if (target_branch !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target_branch) || extractAuthorizedTargetBranch(`[Captain target: ${target_branch}]`) !== target_branch)) throw new Error("target_branch is invalid");
@@ -132,7 +136,7 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.2.4" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.2.5" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {
@@ -159,6 +163,20 @@ server.registerTool("captain_begin_diagnose", {
   description: "Read-only diagnosis of an exact caller-owned Begin intent and target lease. Authenticates existing signed records without migration, repair, key creation or lease release; foreign/missing ownership is generic and legacy owners require separate supported recovery.",
   inputSchema: { intent_id: z.string().regex(/^[A-Za-z0-9_-]+$/), session_id: z.string().min(1).max(256), project_root: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1) }
 }, async args => guarded(() => createBeginDiagnosticAdapter(dataRoot)(args)));
+server.registerTool("captain_cancel_failed_begin", {
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  description: "Cancel only an exact authenticated terminal pre-workspace Begin after its logical request has returned and the caller confirms no same-intent attempt is active or planned. Uses a shared signed attempt gate and exact target-lease generation; never changes Git refs or retires progressed work.",
+  inputSchema: {
+    intent_id: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    session_id: z.string().min(1).max(256),
+    project_root: z.string().min(1),
+    target_worktree: z.string().min(1),
+    target_branch: z.string().min(1),
+    expected_lease_revision: z.number().int().nonnegative(),
+    resource_generation: z.string().regex(/^[0-9a-f]{64}$/i),
+    confirm_owner_stopped: z.boolean(),
+  },
+}, async args => guarded(() => captainCancelFailedBegin(store, args)));
 server.registerTool("captain_merge_diagnose", {
   description: "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

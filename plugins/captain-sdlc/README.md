@@ -81,6 +81,23 @@ nor releases it. Continue the existing operation only through a supported recove
 that verifies ownership and protects startup progress. This tool does not grant
 Merge Back or push authorization.
 
+## Failed Begin cancellation
+
+`captain_cancel_failed_begin` accepts the exact caller-owned startup and target
+bindings used by `captain_begin_diagnose`, plus its observed lease revision,
+opaque resource generation, and `confirm_owner_stopped: true`. The confirmation
+means the failed logical startup invocation has ended and no same-intent call is
+running or will be retried; an idle MCP server does not need to exit.
+
+Cancellation verifies the signed producer chain and current Git bindings, refuses
+foreign ownership or startup progress, and serializes against current-version
+startup retries. It writes a signed terminal reservation before releasing only
+the inspected lease generation. A repeated matching cancellation is idempotent
+and cannot release a replacement lease. Older plugin binaries do not understand
+the cancellation marker; callers must not replay that retired intent through them.
+Git refs and working files remain unchanged. Continue the existing Merge Prep;
+this operation grants no Merge Back or push authorization.
+
 ## Routing and emergency control
 
 Ordinary requests are never governed. To start a governed worktree run, put a standalone task directive in the request: `[Captain plan: TASK-ID]`; add `[Captain target: branch]` when the plan must integrate a specific local branch.

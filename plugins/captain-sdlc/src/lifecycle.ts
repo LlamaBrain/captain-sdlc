@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, releaseAuthorizedLease, writeAuthorized } from "./authority.js";
+import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
+import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
+import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
 import { recordUserAuthorizations, userAuthorizationStatus, type AuthorizationQuery } from "./user-authorization.js";
@@ -18,7 +20,8 @@ export type ProjectPolicy = { hitlChecks?: HitlCheck[]; approvedPlans?: Array<{ 
 export type Intent = { intentId: string; sessionId: string; turnId: string; projectRoot: string; prompt: string; requestedProfile?: Profile; capability?: string; consumed?: boolean; resumeOf?: string; targetBranch?: string; targetOid?: string };
 export type BeginOperation = { schemaVersion: 1; intentId: string; operationToken: string; leaseToken: string; runId: string; startedAt: string; sessionId: string; turnId: string; projectRoot: string; objective: string; taskId?: string; targetBranch?: string; targetOid?: string };
 export type BeginRepository = { schemaVersion: 1; operationToken: string; projectRoot: string; baseHead: string; commonGitDir: string; policySha256: string };
-export type BeginLease = { schemaVersion: 1; operationToken: string; leaseId?: string; leaseToken?: string; commonGitDir?: string; targetBranch?: string; targetOid?: string };
+export type BeginLease = { schemaVersion: 1; operationToken: string; leaseId?: string; leaseToken?: string; leaseRevision?: number; resourceGeneration?: string; commonGitDir?: string; targetBranch?: string; targetOid?: string };
+export type BeginCancellationMarker = { schemaVersion: 1; kind: "failed_begin_cancelled"; intentId: string; sessionId: string; turnId: string; operationToken: string; projectRoot: string; targetWorktree: string; targetBranch: string; leaseId: string; leaseToken: string; expectedLeaseRevision: number; resourceGeneration: string };
 export type BeginWorkspace = { schemaVersion: 1; operationToken: string; projectRoot: string; worktreePath: string; baseHead: string; branch: string; commonGitDir: string; gitDir: string; targetBranch?: string };
 export type ResumeOperation = { schemaVersion: 1; resumeIntentId: string; operationToken: string; intentId: string; runId: string; sessionId: string; turnId: string };
 export type PauseHandoff = { schemaVersion: 1; intentId: string; runId: string; revision: number; sessionId: string; turnId: string; projectRoot: string; worktreePath: string; branch: string; taskId?: string; objective: string; phase: Run["phase"]; status: Run["status"]; planPath?: string; phaseLabel?: string; completedSteps: string[]; summary: string; nextSteps: string[]; blockers: string[]; context?: string; worktreeState?: SourceState; evidence: Array<Record<string, unknown>>; resumeDirective: string; redirectPrompt?: string };
@@ -65,6 +68,71 @@ export function effectiveGateDisclosure(run: Run) {
 }
 export class LifecycleStore {
   constructor(private readonly dataRoot: string, private readonly runner: GateRunner, private readonly probe?: StateProbe, private readonly hooks?: LifecycleHooks) {}
+  async withBeginAttemptGate<T>(intentId: string, action: () => Promise<T>): Promise<T> {
+    const leaseId = `begin-attempt-${digest(intentId)}`, leaseToken = randomUUID();
+    await acquireAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken, operation: "begin-attempt" });
+    try { return await action(); }
+    finally { await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken); }
+  }
+  async diagnoseBegin(args: BeginDiagnosticArgs) { return createBeginDiagnosticAdapter(this.dataRoot)(args); }
+  async beginCancellationFor(intentId: string): Promise<BeginCancellationMarker | undefined> {
+    await readFile(path.join(this.dataRoot, "authority.key"), "utf8");
+    try { return await readAuthorizedReadOnly<BeginCancellationMarker>(this.dataRoot, "begin-cancellations", safeId(intentId)); }
+    catch (error: any) { if (error.code === "ENOENT") return undefined; throw error; }
+  }
+  async readBeginCancellationEvidence(intentId: string) {
+    const operation = await readAuthorizedReadOnly<BeginOperation>(this.dataRoot, "begin-operations", safeId(intentId));
+    if (operation.intentId !== intentId) throw new Error("signed Begin operation binding is invalid");
+    const [intent, repository, lease, consumed] = await Promise.all([
+      readAuthorizedReadOnly<Intent>(this.dataRoot, "intents", safeId(intentId)),
+      readAuthorizedReadOnly<BeginRepository>(this.dataRoot, "begin-repositories", safeId(operation.operationToken)),
+      readAuthorizedReadOnly<BeginLease>(this.dataRoot, "begin-leases", safeId(operation.operationToken)),
+      readAuthorizedReadOnly<{ schemaVersion: number; operationToken: string; intentId: string }>(this.dataRoot, "begin-intent-consumed", safeId(operation.operationToken)),
+    ]);
+    let activeProjection: Record<string, any> | undefined;
+    try { activeProjection = await readAuthorizedReadOnly<Record<string, any>>(this.dataRoot, "active", operation.sessionId); }
+    catch (error: any) { if (error.code !== "ENOENT") throw error; }
+    let completedSessionTombstone = false;
+    if (activeProjection) {
+      const sessionLeaseId = digest(`session-active\0${operation.sessionId}`);
+      const sessionLease = await readAuthorizedLeaseSnapshotReadOnly<any>(this.dataRoot, sessionLeaseId);
+      if (JSON.stringify(Object.keys(activeProjection).sort()) === JSON.stringify(["complete", "intentId", "operationToken"]) &&
+          activeProjection.intentId === "none" &&
+          activeProjection.complete === true && typeof activeProjection.operationToken === "string" &&
+          activeProjection.operationToken && activeProjection.operationToken !== operation.operationToken &&
+          sessionLease?.state === "released" && !sessionLease.legacy &&
+          Number.isSafeInteger(sessionLease.revision) && sessionLease.payload.sessionId === operation.sessionId &&
+          sessionLease.payload.operation === "session-active" && typeof sessionLease.payload.intentId === "string" &&
+          sessionLease.payload.intentId !== intentId && typeof sessionLease.payload.operationToken === "string" &&
+          typeof sessionLease.payload.runId === "string" && typeof sessionLease.payload.leaseToken === "string") {
+        const priorIntentId = sessionLease.payload.intentId;
+        const [priorOperation, priorRun] = await Promise.all([
+          readAuthorizedReadOnly<BeginOperation>(this.dataRoot, "begin-operations", safeId(priorIntentId)),
+          readAuthorizedReadOnly<Run>(this.dataRoot, "runs", safeId(priorIntentId)),
+        ]);
+        completedSessionTombstone = priorOperation.schemaVersion === 1 && priorOperation.intentId === priorIntentId &&
+          priorOperation.sessionId === operation.sessionId && priorOperation.operationToken === activeProjection.operationToken &&
+          priorOperation.runId === sessionLease.payload.runId && priorRun.schemaVersion === 1 &&
+          priorRun.intentId === priorIntentId && priorRun.runId === sessionLease.payload.runId &&
+          priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
+          priorRun.phase === "complete" && priorRun.status === "green";
+      }
+    }
+    return { intent, operation, repository, lease, consumed, completedSessionTombstone };
+  }
+  async recordBeginCancellation(marker: BeginCancellationMarker) {
+    return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId(marker.intentId), marker);
+  }
+  async releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string) {
+    return releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, intentId, leaseToken, expectedRevision, resourceGeneration);
+  }
+  private async assertBeginNotCancelled(intentId: string) {
+    const marker = await this.beginCancellationFor(intentId);
+    if (marker && marker.schemaVersion === 1 && marker.kind === "failed_begin_cancelled" && marker.intentId === intentId) {
+      throw new Error("implementation Begin was cancelled and this intent cannot be retried");
+    }
+    if (marker) throw new Error("signed Begin cancellation marker is invalid");
+  }
   async markIntent(intent: Intent): Promise<void> { await this.save("intents", intent.intentId, intent); }
   async issueIdempotentIntent(request: { sessionId: string; turnId: string; projectRoot: string; prompt: string; taskId?: string; resumeOf?: string; targetBranch?: string; action?: string }, factory: () => Promise<Intent>): Promise<Intent> {
     const normalized = JSON.parse(JSON.stringify({ ...request, projectRoot: path.resolve(request.projectRoot) }));
@@ -88,6 +156,7 @@ export class LifecycleStore {
   async beginOperationFor(intentId: string): Promise<BeginOperation> { return this.load("begin-operations", safeId(intentId)); }
   async activatedBeginRun(operation: BeginOperation): Promise<Run | undefined> { await this.assertBeginOperation(operation); try { const activated = await this.load<any>("begin-activated", operation.operationToken); if (activated.intentId !== operation.intentId || activated.runId !== operation.runId) throw new Error("activated begin checkpoint does not match its reservation"); const run = await this.run(operation.intentId); await this.assertSessionLease(run); const active = await this.load<any>("begin-active", operation.operationToken); await this.project("active", operation.sessionId, active); await this.project("runs", operation.intentId, run); await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run)); return run; } catch (error: any) { if (error.code === "ENOENT") return undefined; throw error; } }
   async reserveBegin(input: { intentId: string; objective: string; projectRoot: string; taskId?: string; leaseToken?: string }): Promise<BeginOperation> {
+    await this.assertBeginNotCancelled(input.intentId);
     const intent = await this.load<Intent>("intents", safeId(input.intentId)); if (intent.resumeOf) throw new Error("resume intent cannot reserve a new implementation");
     let existing: BeginOperation | undefined;
     try { existing = await this.beginOperationFor(input.intentId); } catch (error: any) { if (error.code !== "ENOENT") throw error; }
@@ -105,7 +174,7 @@ export class LifecycleStore {
     if (!samePath(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || (operation.targetOid && operation.targetOid !== value.baseHead)) throw new Error("repository checkpoint does not match the signed begin reservation");
     return putAuthorizedOnceExact(this.dataRoot, "begin-repositories", operation.operationToken, value);
   }
-  async ensureBeginTargetLease(operation: BeginOperation, repository: BeginRepository): Promise<{ leaseId: string; leaseToken: string } | undefined> {
+  async ensureBeginTargetLease(operation: BeginOperation, repository: BeginRepository): Promise<{ leaseId: string; leaseToken: string; leaseRevision: number; resourceGeneration: string } | undefined> {
     await this.assertBeginOperation(operation); if (!operation.targetBranch || !operation.targetOid) return undefined;
     const leaseId = digest(`${path.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
     try { await ensureAuthorizedLease(this.dataRoot, leaseId, payload); }
@@ -115,12 +184,37 @@ export class LifecycleStore {
       if (prior.phase !== "complete" || prior.status !== "green" || prior.leaseId !== leaseId || prior.leaseToken !== priorLease.leaseToken) throw error;
       await releaseAuthorizedLease(this.dataRoot, leaseId, prior.intentId, priorLease.leaseToken); await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
     }
-    return { leaseId, leaseToken: operation.leaseToken };
+    const snapshot = await readAuthorizedLeaseSnapshotReadOnly<any>(this.dataRoot, leaseId);
+    if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) ||
+        snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken ||
+        snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch ||
+        snapshot.payload.targetOid !== operation.targetOid || !samePath(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+      throw new Error("target lease changed before the signed Begin lease checkpoint");
+    }
+    const resourceGeneration = digest(JSON.stringify({ leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
+    return { leaseId, leaseToken: operation.leaseToken, leaseRevision: snapshot.revision!, resourceGeneration };
   }
-  async checkpointBeginLease(operation: BeginOperation, repository: BeginRepository, lease?: { leaseId: string; leaseToken: string }): Promise<BeginLease> {
-    await this.assertBeginOperation(operation); const value: BeginLease = { schemaVersion: 1, operationToken: operation.operationToken, ...(lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {}) };
+  async checkpointBeginLease(operation: BeginOperation, repository: BeginRepository, lease?: { leaseId: string; leaseToken: string; leaseRevision?: number; resourceGeneration?: string }): Promise<BeginLease> {
+    await this.assertBeginOperation(operation);
+    let leaseFields: Partial<BeginLease> = {};
+    if (lease) {
+      const snapshot = await readAuthorizedLeaseSnapshotReadOnly<any>(this.dataRoot, lease.leaseId);
+      if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) ||
+          snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken ||
+          (snapshot.payload.operationToken !== undefined && snapshot.payload.operationToken !== operation.operationToken) ||
+          snapshot.payload.targetBranch !== operation.targetBranch ||
+          snapshot.payload.targetOid !== operation.targetOid || !samePath(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+        throw new Error("target lease checkpoint does not match its signed authority");
+      }
+      const resourceGeneration = digest(JSON.stringify({ leaseId: lease.leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
+      if ((lease.leaseRevision !== undefined && lease.leaseRevision !== snapshot.revision) ||
+          (lease.resourceGeneration !== undefined && lease.resourceGeneration !== resourceGeneration)) {
+        throw new Error("target lease changed before the signed Begin lease checkpoint");
+      }
+      leaseFields = { leaseRevision: snapshot.revision!, resourceGeneration };
+    }
+    const value: BeginLease = { schemaVersion: 1, operationToken: operation.operationToken, ...(lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, ...leaseFields, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {}) };
     if (Boolean(operation.targetBranch) !== Boolean(lease) || (lease && lease.leaseToken !== operation.leaseToken)) throw new Error("target lease checkpoint does not match the signed begin reservation");
-    if (lease) { const authorized = await readAuthorizedLease<any>(this.dataRoot, lease.leaseId); if (authorized.intentId !== operation.intentId || authorized.leaseToken !== operation.leaseToken || authorized.targetBranch !== operation.targetBranch || authorized.targetOid !== operation.targetOid || !samePath(authorized.commonGitDir, repository.commonGitDir)) throw new Error("target lease checkpoint does not match its signed authority"); }
     return putAuthorizedOnceExact(this.dataRoot, "begin-leases", operation.operationToken, value);
   }
   async checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken">): Promise<BeginWorkspace> {
@@ -131,6 +225,25 @@ export class LifecycleStore {
   async checkpointBeginRun(operation: BeginOperation, policy: ProjectPolicy): Promise<Run> {
     await this.assertBeginOperation(operation); const repository = await this.load<BeginRepository>("begin-repositories", operation.operationToken), lease = await this.load<BeginLease>("begin-leases", operation.operationToken), workspace = await this.load<BeginWorkspace>("begin-workspaces", operation.operationToken);
     if (repository.policySha256 !== digest(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath(repository.commonGitDir, workspace.commonGitDir)) throw new Error("begin checkpoints diverged before run activation");
+    if (Boolean(operation.targetBranch) !== Boolean(lease.leaseId)) throw new Error("target lease checkpoint is missing or unexpected before run activation");
+    if (lease.leaseId) {
+      if (!lease.leaseToken || lease.leaseToken !== operation.leaseToken ||
+          !Number.isSafeInteger(lease.leaseRevision) || typeof lease.resourceGeneration !== "string" ||
+          !/^[0-9a-f]{64}$/i.test(lease.resourceGeneration)) {
+        throw new Error("target lease generation is missing from the signed Begin checkpoint");
+      }
+      const current = await readAuthorizedLeaseSnapshotReadOnly<any>(this.dataRoot, lease.leaseId);
+      const generation = current && typeof current.revision === "number"
+        ? digest(JSON.stringify({ leaseId: lease.leaseId, revision: current.revision, state: current.state, payload: current.payload }))
+        : undefined;
+      if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation !== lease.resourceGeneration ||
+          current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken ||
+          (current.payload.operationToken !== undefined && current.payload.operationToken !== operation.operationToken) ||
+          current.payload.targetBranch !== operation.targetBranch ||
+          current.payload.targetOid !== operation.targetOid || !samePath(current.payload.commonGitDir, repository.commonGitDir)) {
+        throw new Error("target lease generation changed before run revision 0; Begin was fenced");
+      }
+    }
     const profile = (await this.load<Intent>("intents", operation.intentId)).requestedProfile ?? policy.profile; if (!(policy.profiles ?? [policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`); if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId))) throw new Error("trusted commit policy requires a safe task id");
     const run: Run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, ...(operation.taskId ? { taskId: operation.taskId } : {}), objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...(operation.targetBranch ? { targetBranch: operation.targetBranch } : {}), commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...(lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}), profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
     await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run); const authoritative = await this.run(operation.intentId); await this.reconcileRunProjections(authoritative); return authoritative;
@@ -152,11 +265,13 @@ export class LifecycleStore {
   }
   async checkpointBeginActivated(operation: BeginOperation): Promise<Run> { await this.assertBeginOperation(operation); const run = await this.run(operation.intentId), active = await this.load<any>("begin-active", operation.operationToken); if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken) throw new Error("begin activation checkpoints are incomplete"); await this.assertSessionLease(run); await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId }); await this.project("active", operation.sessionId, active); return run; }
   async begin(input: BeginInput): Promise<Run> {
-    const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
-    const activated = await this.activatedBeginRun(operation); if (activated) return activated;
-    const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);
-    await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
-    const run = await this.checkpointBeginRun(operation, input.policy); await this.checkpointBeginActive(operation); const activatedRun = await this.checkpointBeginActivated(operation); await this.checkpointBeginPermit(operation, activatedRun); return this.status(operation.intentId);
+    return this.withBeginAttemptGate(input.intentId, async () => {
+      const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
+      const activated = await this.activatedBeginRun(operation); if (activated) return activated;
+      const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);
+      await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
+      const run = await this.checkpointBeginRun(operation, input.policy); await this.checkpointBeginActive(operation); const activatedRun = await this.checkpointBeginActivated(operation); await this.checkpointBeginPermit(operation, activatedRun); return this.status(operation.intentId);
+    });
   }
   async resume(resumeIntentId: string): Promise<Run> {
     const intent = await this.load<Intent>("intents", safeId(resumeIntentId)); if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed"); await this.assertFrozenScope(intent.resumeOf); let priorRun = await this.run(intent.resumeOf);
@@ -464,7 +579,7 @@ export class LifecycleStore {
   private async reconcileRunProjections(run: Run) { const latest = await this.run(run.intentId); await this.project("runs", latest.intentId, latest); if (latest.status !== "green" && latest.sessionLeaseId && latest.sessionLeaseToken) try { const activated = await this.load<any>("begin-activated", latest.operationToken); if (activated.operationToken === latest.operationToken) { await this.assertSessionLease(latest); await this.project("permits", `${latest.sessionId}-${latest.turnId}`, this.permit(latest)); } } catch (error: any) { if (error.code !== "ENOENT" && !String(error.message).includes("not held")) throw error; } }
   private assertStableRun(previous: Run, current: Run) { const stable = (run: Run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir), gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy }); if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current))) throw new Error("signed run immutable binding changed across revisions"); }
   private async project(bucket: string, id: string, value: unknown) { let failure: unknown; for (let attempt = 0; attempt < 3; attempt++) try { await this.save(bucket, id, value); return; } catch (error) { failure = error; try { if (JSON.stringify(await this.load(bucket, id)) === JSON.stringify(value)) return; } catch {} } throw failure; }
-  private async assertBeginOperation(operation: BeginOperation) { const signed = await this.beginOperationFor(operation.intentId); if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged"); }
+  private async assertBeginOperation(operation: BeginOperation) { await this.assertBeginNotCancelled(operation.intentId); const signed = await this.beginOperationFor(operation.intentId); if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged"); }
   private assertBeginReservation(operation: BeginOperation, intent: Intent, input: { intentId: string; objective: string; projectRoot: string; taskId?: string; leaseToken?: string }) { if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath(operation.projectRoot, input.projectRoot) || !samePath(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || (input.leaseToken && operation.leaseToken !== input.leaseToken)) throw new Error("retry does not match the signed begin reservation"); }
   private async authorizeCommitOperation(run: Run, operation: CommitOperation): Promise<CommitOperation> { const payload = { intentId: run.intentId, leaseToken: operation.leaseToken, runId: run.runId, requestSha256: operation.requestSha256, operation: "prepared-commit" }; await ensureAuthorizedLease(this.dataRoot, operation.leaseId, payload); if (operation.stage === "authorized") { await this.assertCommitOperation(run, operation); return operation; } if (operation.stage !== "reserved") throw new Error("prepared commit recovery must complete before a new commit operation"); const latest = await this.run(run.intentId); if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved") throw new Error("Captain commit operation changed during lease authorization"); const authorized = { ...operation, stage: "authorized" as const }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] }); return updated.commitOperation!; }
   private async assertCommitted(run: Run) { await this.assertFrozenScope(run.intentId); const current = await this.probe!(run.worktreePath, run.policy), expected = run.committedState!; this.assertWorktreeBinding(run, current, expected.head); if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest)) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }

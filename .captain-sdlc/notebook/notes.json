@@ -22,6 +22,28 @@
       },
       "createdAt": "2026-10-10T05:17:32.681Z",
       "updatedAt": "2026-10-10T05:17:32.681Z"
+    },
+    {
+      "id": "captain-failed-begin-logical-retirement-20261010",
+      "kind": "decision",
+      "title": "Retire the terminal failed Begin for original Merge Prep",
+      "body": "R1-R3 in .captain-proof/failed-begin-retirement/setup.json repair the original authorized commit-and-Merge-Prep requirement. The public diagnostic verifies the failed Begin belongs to our actual session, exact project/target/branch and held revision 44. Historical terminal MCP reply proves that logical invocation ended before workspace/run creation. An idle MCP server OS exit is not an approved gate. Cancellation must authenticate exact bindings, claim signed terminal reservation state before generation-CAS release, serialize current retry/progress, protect all foreign/replacement/later-progress state and forbid later same-intent retry. The session completion tombstone is presence rather than liveness; type it explicitly. Old binaries do not honor the new marker; the unchanged outside-canonical primary checkout prevents old workspace activation, and Captain will not retry that failed intent. Preserve prior completed scopes, target/source/stash and the same original merge ID; no push or Merge Back.",
+      "status": "accepted",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "begin-retirement",
+        "merge-prep"
+      ],
+      "links": [
+        ".captain-proof/failed-begin-retirement/setup.json"
+      ],
+      "source": {
+        "agent": "Captain"
+      },
+      "createdAt": "2026-10-10T05:37:45.236Z",
+      "updatedAt": "2026-10-10T05:37:45.236Z"
     }
   ]
 }

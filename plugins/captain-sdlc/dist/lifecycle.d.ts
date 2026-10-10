@@ -1,3 +1,4 @@
+import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
 export type Profile = "low" | "feature" | "pre-release";
@@ -112,9 +113,26 @@ export type BeginLease = {
     operationToken: string;
     leaseId?: string;
     leaseToken?: string;
+    leaseRevision?: number;
+    resourceGeneration?: string;
     commonGitDir?: string;
     targetBranch?: string;
     targetOid?: string;
+};
+export type BeginCancellationMarker = {
+    schemaVersion: 1;
+    kind: "failed_begin_cancelled";
+    intentId: string;
+    sessionId: string;
+    turnId: string;
+    operationToken: string;
+    projectRoot: string;
+    targetWorktree: string;
+    targetBranch: string;
+    leaseId: string;
+    leaseToken: string;
+    expectedLeaseRevision: number;
+    resourceGeneration: string;
 };
 export type BeginWorkspace = {
     schemaVersion: 1;
@@ -306,6 +324,101 @@ export declare class LifecycleStore {
     private readonly probe?;
     private readonly hooks?;
     constructor(dataRoot: string, runner: GateRunner, probe?: StateProbe | undefined, hooks?: LifecycleHooks | undefined);
+    withBeginAttemptGate<T>(intentId: string, action: () => Promise<T>): Promise<T>;
+    diagnoseBegin(args: BeginDiagnosticArgs): Promise<{
+        diagnosis: "invalid_request";
+        session_match: "unknown";
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "untrusted";
+        session_match: "unknown";
+        reason: string;
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "unavailable";
+        session_match: "unknown";
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "untrusted";
+        session_match: "same";
+        reason: string;
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "inspected";
+        session_match: "same";
+        project_root_matches: boolean;
+        target_branch_matches: boolean;
+        issuance: "invalid_target_binding";
+        stage: "unknown";
+        recovery_disposition: "refused";
+        refusal_code: string;
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "inspected";
+        session_match: "same";
+        project_root_matches: boolean;
+        target_branch_matches: boolean;
+        target_worktree_matches: boolean;
+        issuance: "verified" | "missing_or_mismatched";
+        recovery_disposition: "refused_request_binding_mismatch";
+        read_only: true;
+        intent_id: string;
+    } | {
+        diagnosis: "inspected";
+        session_match: "same";
+        project_root_matches: true;
+        target_branch_matches: true;
+        target_worktree_matches: boolean;
+        target_ref_matches: boolean;
+        issuance: "verified" | "missing_or_mismatched";
+        reservation: "verified" | "mismatched" | "absent";
+        repository_checkpoint: "verified" | "mismatched" | "absent";
+        lease_checkpoint: "verified" | "mismatched" | "absent";
+        stage: string;
+        target_lease: {
+            state: "held" | "released" | "absent";
+            owner: "legacy" | "unknown" | "live" | "stopped" | "foreign_host" | "other";
+            bindings_match: boolean;
+            generation_revisioned: boolean;
+            revision: number | null;
+            resource_generation: string | null;
+        };
+        later_state: {
+            workspace: boolean;
+            run: boolean;
+            active: boolean;
+            activated: boolean;
+            permit: boolean;
+            canonical_path_exists: boolean;
+            canonical_worktree_registered: boolean;
+            pending_git_operation: boolean | "unknown";
+        };
+        recovery_disposition: string;
+        observed_branch_checkout_outside_canonical: boolean;
+        read_only: true;
+        intent_id: string;
+    }>;
+    beginCancellationFor(intentId: string): Promise<BeginCancellationMarker | undefined>;
+    readBeginCancellationEvidence(intentId: string): Promise<{
+        intent: Intent;
+        operation: BeginOperation;
+        repository: BeginRepository;
+        lease: BeginLease;
+        consumed: {
+            schemaVersion: number;
+            operationToken: string;
+            intentId: string;
+        };
+        completedSessionTombstone: boolean;
+    }>;
+    recordBeginCancellation(marker: BeginCancellationMarker): Promise<BeginCancellationMarker>;
+    releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string): Promise<void>;
+    private assertBeginNotCancelled;
     markIntent(intent: Intent): Promise<void>;
     issueIdempotentIntent(request: {
         sessionId: string;
@@ -340,10 +453,14 @@ export declare class LifecycleStore {
     ensureBeginTargetLease(operation: BeginOperation, repository: BeginRepository): Promise<{
         leaseId: string;
         leaseToken: string;
+        leaseRevision: number;
+        resourceGeneration: string;
     } | undefined>;
     checkpointBeginLease(operation: BeginOperation, repository: BeginRepository, lease?: {
         leaseId: string;
         leaseToken: string;
+        leaseRevision?: number;
+        resourceGeneration?: string;
     }): Promise<BeginLease>;
     checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken">): Promise<BeginWorkspace>;
     checkpointBeginRun(operation: BeginOperation, policy: ProjectPolicy): Promise<Run>;

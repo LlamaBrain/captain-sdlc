@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5
+- Add guarded public cancellation of an authenticated caller-owned, failed pre-workspace Begin reservation.
+- Serialize cancellation with current startup retries, retire the signed reservation before exact-generation lease release, and revalidate target ownership before run publication.
+- Verify real public startup producers, stale and foreign refusals, concurrent retries, replacement leases, later progress, and unchanged Git state.
+
 ## 0.2.4
 - Add public, authenticated read-only diagnosis for an exact caller-owned Begin intent and target lease.
 - Report startup progress and an opaque verified lease generation without changing authority records, Git state or recovery controls.

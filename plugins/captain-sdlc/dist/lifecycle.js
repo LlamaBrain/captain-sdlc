@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, releaseAuthorizedLease, writeAuthorized } from "./authority.js";
+import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
+import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
 import { recordUserAuthorizations, userAuthorizationStatus } from "./user-authorization.js";
 export function approvedPlanDigest(content) { return digest(content.replaceAll("\r\n", "\n")); }
@@ -49,6 +50,88 @@ export class LifecycleStore {
         this.runner = runner;
         this.probe = probe;
         this.hooks = hooks;
+    }
+    async withBeginAttemptGate(intentId, action) {
+        const leaseId = `begin-attempt-${digest(intentId)}`, leaseToken = randomUUID();
+        await acquireAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken, operation: "begin-attempt" });
+        try {
+            return await action();
+        }
+        finally {
+            await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
+        }
+    }
+    async diagnoseBegin(args) { return createBeginDiagnosticAdapter(this.dataRoot)(args); }
+    async beginCancellationFor(intentId) {
+        await readFile(path.join(this.dataRoot, "authority.key"), "utf8");
+        try {
+            return await readAuthorizedReadOnly(this.dataRoot, "begin-cancellations", safeId(intentId));
+        }
+        catch (error) {
+            if (error.code === "ENOENT")
+                return undefined;
+            throw error;
+        }
+    }
+    async readBeginCancellationEvidence(intentId) {
+        const operation = await readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId(intentId));
+        if (operation.intentId !== intentId)
+            throw new Error("signed Begin operation binding is invalid");
+        const [intent, repository, lease, consumed] = await Promise.all([
+            readAuthorizedReadOnly(this.dataRoot, "intents", safeId(intentId)),
+            readAuthorizedReadOnly(this.dataRoot, "begin-repositories", safeId(operation.operationToken)),
+            readAuthorizedReadOnly(this.dataRoot, "begin-leases", safeId(operation.operationToken)),
+            readAuthorizedReadOnly(this.dataRoot, "begin-intent-consumed", safeId(operation.operationToken)),
+        ]);
+        let activeProjection;
+        try {
+            activeProjection = await readAuthorizedReadOnly(this.dataRoot, "active", operation.sessionId);
+        }
+        catch (error) {
+            if (error.code !== "ENOENT")
+                throw error;
+        }
+        let completedSessionTombstone = false;
+        if (activeProjection) {
+            const sessionLeaseId = digest(`session-active\0${operation.sessionId}`);
+            const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
+            if (JSON.stringify(Object.keys(activeProjection).sort()) === JSON.stringify(["complete", "intentId", "operationToken"]) &&
+                activeProjection.intentId === "none" &&
+                activeProjection.complete === true && typeof activeProjection.operationToken === "string" &&
+                activeProjection.operationToken && activeProjection.operationToken !== operation.operationToken &&
+                sessionLease?.state === "released" && !sessionLease.legacy &&
+                Number.isSafeInteger(sessionLease.revision) && sessionLease.payload.sessionId === operation.sessionId &&
+                sessionLease.payload.operation === "session-active" && typeof sessionLease.payload.intentId === "string" &&
+                sessionLease.payload.intentId !== intentId && typeof sessionLease.payload.operationToken === "string" &&
+                typeof sessionLease.payload.runId === "string" && typeof sessionLease.payload.leaseToken === "string") {
+                const priorIntentId = sessionLease.payload.intentId;
+                const [priorOperation, priorRun] = await Promise.all([
+                    readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId(priorIntentId)),
+                    readAuthorizedReadOnly(this.dataRoot, "runs", safeId(priorIntentId)),
+                ]);
+                completedSessionTombstone = priorOperation.schemaVersion === 1 && priorOperation.intentId === priorIntentId &&
+                    priorOperation.sessionId === operation.sessionId && priorOperation.operationToken === activeProjection.operationToken &&
+                    priorOperation.runId === sessionLease.payload.runId && priorRun.schemaVersion === 1 &&
+                    priorRun.intentId === priorIntentId && priorRun.runId === sessionLease.payload.runId &&
+                    priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
+                    priorRun.phase === "complete" && priorRun.status === "green";
+            }
+        }
+        return { intent, operation, repository, lease, consumed, completedSessionTombstone };
+    }
+    async recordBeginCancellation(marker) {
+        return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId(marker.intentId), marker);
+    }
+    async releaseBeginTargetLeaseAtGeneration(leaseId, intentId, leaseToken, expectedRevision, resourceGeneration) {
+        return releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, intentId, leaseToken, expectedRevision, resourceGeneration);
+    }
+    async assertBeginNotCancelled(intentId) {
+        const marker = await this.beginCancellationFor(intentId);
+        if (marker && marker.schemaVersion === 1 && marker.kind === "failed_begin_cancelled" && marker.intentId === intentId) {
+            throw new Error("implementation Begin was cancelled and this intent cannot be retried");
+        }
+        if (marker)
+            throw new Error("signed Begin cancellation marker is invalid");
     }
     async markIntent(intent) { await this.save("intents", intent.intentId, intent); }
     async issueIdempotentIntent(request, factory) {
@@ -114,6 +197,7 @@ export class LifecycleStore {
         throw error;
     } }
     async reserveBegin(input) {
+        await this.assertBeginNotCancelled(input.intentId);
         const intent = await this.load("intents", safeId(input.intentId));
         if (intent.resumeOf)
             throw new Error("resume intent cannot reserve a new implementation");
@@ -185,18 +269,38 @@ export class LifecycleStore {
             await releaseAuthorizedLease(this.dataRoot, leaseId, prior.intentId, priorLease.leaseToken);
             await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
         }
-        return { leaseId, leaseToken: operation.leaseToken };
+        const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
+        if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) ||
+            snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken ||
+            snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch ||
+            snapshot.payload.targetOid !== operation.targetOid || !samePath(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+            throw new Error("target lease changed before the signed Begin lease checkpoint");
+        }
+        const resourceGeneration = digest(JSON.stringify({ leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
+        return { leaseId, leaseToken: operation.leaseToken, leaseRevision: snapshot.revision, resourceGeneration };
     }
     async checkpointBeginLease(operation, repository, lease) {
         await this.assertBeginOperation(operation);
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...(lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {}) };
+        let leaseFields = {};
+        if (lease) {
+            const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
+            if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) ||
+                snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken ||
+                (snapshot.payload.operationToken !== undefined && snapshot.payload.operationToken !== operation.operationToken) ||
+                snapshot.payload.targetBranch !== operation.targetBranch ||
+                snapshot.payload.targetOid !== operation.targetOid || !samePath(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+                throw new Error("target lease checkpoint does not match its signed authority");
+            }
+            const resourceGeneration = digest(JSON.stringify({ leaseId: lease.leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
+            if ((lease.leaseRevision !== undefined && lease.leaseRevision !== snapshot.revision) ||
+                (lease.resourceGeneration !== undefined && lease.resourceGeneration !== resourceGeneration)) {
+                throw new Error("target lease changed before the signed Begin lease checkpoint");
+            }
+            leaseFields = { leaseRevision: snapshot.revision, resourceGeneration };
+        }
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...(lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, ...leaseFields, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {}) };
         if (Boolean(operation.targetBranch) !== Boolean(lease) || (lease && lease.leaseToken !== operation.leaseToken))
             throw new Error("target lease checkpoint does not match the signed begin reservation");
-        if (lease) {
-            const authorized = await readAuthorizedLease(this.dataRoot, lease.leaseId);
-            if (authorized.intentId !== operation.intentId || authorized.leaseToken !== operation.leaseToken || authorized.targetBranch !== operation.targetBranch || authorized.targetOid !== operation.targetOid || !samePath(authorized.commonGitDir, repository.commonGitDir))
-                throw new Error("target lease checkpoint does not match its signed authority");
-        }
         return putAuthorizedOnceExact(this.dataRoot, "begin-leases", operation.operationToken, value);
     }
     async checkpointBeginWorkspace(operation, workspace) {
@@ -212,6 +316,26 @@ export class LifecycleStore {
         const repository = await this.load("begin-repositories", operation.operationToken), lease = await this.load("begin-leases", operation.operationToken), workspace = await this.load("begin-workspaces", operation.operationToken);
         if (repository.policySha256 !== digest(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath(repository.commonGitDir, workspace.commonGitDir))
             throw new Error("begin checkpoints diverged before run activation");
+        if (Boolean(operation.targetBranch) !== Boolean(lease.leaseId))
+            throw new Error("target lease checkpoint is missing or unexpected before run activation");
+        if (lease.leaseId) {
+            if (!lease.leaseToken || lease.leaseToken !== operation.leaseToken ||
+                !Number.isSafeInteger(lease.leaseRevision) || typeof lease.resourceGeneration !== "string" ||
+                !/^[0-9a-f]{64}$/i.test(lease.resourceGeneration)) {
+                throw new Error("target lease generation is missing from the signed Begin checkpoint");
+            }
+            const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
+            const generation = current && typeof current.revision === "number"
+                ? digest(JSON.stringify({ leaseId: lease.leaseId, revision: current.revision, state: current.state, payload: current.payload }))
+                : undefined;
+            if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation !== lease.resourceGeneration ||
+                current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken ||
+                (current.payload.operationToken !== undefined && current.payload.operationToken !== operation.operationToken) ||
+                current.payload.targetBranch !== operation.targetBranch ||
+                current.payload.targetOid !== operation.targetOid || !samePath(current.payload.commonGitDir, repository.commonGitDir)) {
+                throw new Error("target lease generation changed before run revision 0; Begin was fenced");
+            }
+        }
         const profile = (await this.load("intents", operation.intentId)).requestedProfile ?? policy.profile;
         if (!(policy.profiles ?? [policy.profile]).includes(profile))
             throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
@@ -271,17 +395,19 @@ export class LifecycleStore {
     async checkpointBeginActivated(operation) { await this.assertBeginOperation(operation); const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken); if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken)
         throw new Error("begin activation checkpoints are incomplete"); await this.assertSessionLease(run); await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId }); await this.project("active", operation.sessionId, active); return run; }
     async begin(input) {
-        const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
-        const activated = await this.activatedBeginRun(operation);
-        if (activated)
-            return activated;
-        const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);
-        await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
-        const run = await this.checkpointBeginRun(operation, input.policy);
-        await this.checkpointBeginActive(operation);
-        const activatedRun = await this.checkpointBeginActivated(operation);
-        await this.checkpointBeginPermit(operation, activatedRun);
-        return this.status(operation.intentId);
+        return this.withBeginAttemptGate(input.intentId, async () => {
+            const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
+            const activated = await this.activatedBeginRun(operation);
+            if (activated)
+                return activated;
+            const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);
+            await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
+            const run = await this.checkpointBeginRun(operation, input.policy);
+            await this.checkpointBeginActive(operation);
+            const activatedRun = await this.checkpointBeginActivated(operation);
+            await this.checkpointBeginPermit(operation, activatedRun);
+            return this.status(operation.intentId);
+        });
     }
     async resume(resumeIntentId) {
         const intent = await this.load("intents", safeId(resumeIntentId));
@@ -1011,7 +1137,7 @@ export class LifecycleStore {
             }
             catch { }
         } throw failure; }
-    async assertBeginOperation(operation) { const signed = await this.beginOperationFor(operation.intentId); if (JSON.stringify(signed) !== JSON.stringify(operation))
+    async assertBeginOperation(operation) { await this.assertBeginNotCancelled(operation.intentId); const signed = await this.beginOperationFor(operation.intentId); if (JSON.stringify(signed) !== JSON.stringify(operation))
         throw new Error("signed begin operation ownership diverged"); }
     assertBeginReservation(operation, intent, input) { if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath(operation.projectRoot, input.projectRoot) || !samePath(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || (input.leaseToken && operation.leaseToken !== input.leaseToken))
         throw new Error("retry does not match the signed begin reservation"); }

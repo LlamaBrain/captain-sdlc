@@ -154,6 +154,41 @@ export async function releaseAuthorizedLease(root: string, id: string, intentId:
   throw new Error("authorized lease release could not establish its exact generation");
 }
 
+/** Release one inspected generation without following a replacement lease. */
+export async function releaseAuthorizedLeaseAtGeneration(
+  root: string, id: string, intentId: string, leaseToken: string,
+  expectedRevision: number, resourceGeneration: string,
+): Promise<void> {
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+      expectedRevision === Number.MAX_SAFE_INTEGER || !/^[0-9a-f]{64}$/i.test(resourceGeneration)) {
+    throw new Error("authorized lease generation selector is invalid");
+  }
+  const leaseId = safe(id);
+  const current = await readAuthorizedLeaseSnapshotReadOnly(root, leaseId);
+  if (!current || current.legacy || current.payload.intentId !== intentId ||
+      current.payload.leaseToken !== leaseToken) {
+    throw new Error("authorized lease generation owner mismatch");
+  }
+  const selectedGeneration = digest({ leaseId, revision: expectedRevision, state: "held", payload: current.payload });
+  if (selectedGeneration !== resourceGeneration.toLowerCase()) {
+    throw new Error("authorized lease generation changed");
+  }
+  // Repeating this exact release can never adopt a subsequently held generation.
+  if (current.state === "released" && current.revision === expectedRevision + 1) return;
+  if (current.state !== "held" || current.revision !== expectedRevision) {
+    throw new Error("authorized lease generation changed");
+  }
+  const previous = await readAuthorizedReadOnly<LeaseRevision>(root, "lease-revisions", `${leaseId}-${expectedRevision}`);
+  // Publication is an immutable N+1 compare-and-set. There is deliberately no
+  // retry loop that could follow a newly acquired generation with reused tokens.
+  await appendLeaseRevision(root, leaseId, previous, "released", previous.payload);
+  const published = await readAuthorizedLeaseSnapshotReadOnly(root, leaseId);
+  if (published?.state !== "released" || published.revision !== expectedRevision + 1 ||
+      JSON.stringify(published.payload) !== JSON.stringify(current.payload)) {
+    throw new Error("authorized lease release could not establish its exact generation");
+  }
+}
+
 const safe = (id: string) => { if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id"); return id; };
 
 /** Authenticate existing evidence without bootstrapping keys or checkpoints. */

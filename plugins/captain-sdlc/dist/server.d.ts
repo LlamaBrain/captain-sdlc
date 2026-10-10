@@ -1,3 +1,4 @@
+import { captainCancelFailedBegin } from "./failed-begin-cancellation.js";
 import { LifecycleStore, type HitlCheck } from "./lifecycle.js";
 import { git } from "./workspace.js";
 import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, preparedMergeState, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity } from "./workspace.js";
@@ -27,6 +28,7 @@ export type CaptainBeginDependencies = {
     afterStage?: (stage: CaptainBeginStage) => Promise<void>;
 };
 export declare function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }: CaptainBeginArgs, dependencies?: CaptainBeginDependencies): Promise<import("./lifecycle.js").Run>;
+export { captainCancelFailedBegin };
 export declare function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }: CaptainIssueIntentArgs): Promise<{
     resume_instruction: string;
     intent_id: string;
