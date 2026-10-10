@@ -14,4 +14,11 @@ export declare function readAuthorizedLeaseState<T extends LeasePayload>(root: s
 export declare function ensureAuthorizedLease<T extends LeasePayload>(root: string, id: string, payload: T): Promise<T>;
 export declare function acquireAuthorizedLease<T extends LeasePayload>(root: string, id: string, payload: T): Promise<string>;
 export declare function releaseAuthorizedLease(root: string, id: string, intentId: string, leaseToken: string): Promise<void>;
+/** Authenticate existing evidence without bootstrapping keys or checkpoints. */
+export declare function readAuthorizedReadOnly<T>(root: string, bucket: string, id: string): Promise<T>;
+/** Inspect signed lease ownership without migration, watermark publication or recovery. */
+export declare function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(root: string, id: string): Promise<{
+    state: "held" | "released";
+    payload: T;
+} | undefined>;
 export {};

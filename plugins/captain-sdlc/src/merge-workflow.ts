@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
 import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseState, releaseAuthorizedLease } from "./authority.js";
+import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedReadOnly, readAuthorizedLease, readAuthorizedLeaseState, readAuthorizedLeaseStateReadOnly, releaseAuthorizedLease } from "./authority.js";
 import { LifecycleStore, type GateRunner, type ProjectPolicy, type Run } from "./lifecycle.js";
 import { applyPreparedCommit, assertWorktreeBinding, commitAtomic, gateRunner, git, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
 
@@ -28,6 +28,20 @@ export type MergeOperationLeaseStatus = {
   recovery?: { next_tool: "captain_recover_merge_lease"; args: MergeLeaseRecoveryArgs; eligible: boolean; requires_owner_stop_verification: boolean; reason: string };
 };
 export type MergeStatus = MergeRecord & { receipt_valid?: boolean; stale_reason?: string; captain_green: false; operation_lease?: MergeOperationLeaseStatus };
+export type MergeDiagnosticArgs = Pick<MergePrepArgs, "session_id" | "source_worktree" | "target_worktree" | "target_branch">;
+export type MergeDiagnostic = {
+  read_only: true; captain_green: false;
+  operations: Array<Pick<MergeRecord, "merge_id" | "revision" | "state" | "source_worktree" | "target_worktree" | "target_branch"> & { source_head: string; target_head: string }>;
+  target_lease: { state: "absent" | "held" | "released"; intent_id?: string; operation?: string; owner?: MergeLeaseOwner; session_match?: "same" | "other" | "unknown" };
+};
+
+/** Context is attached only after Prep has established its caller-owned signed record. */
+export class MergeWorkflowError extends Error {
+  constructor(public readonly merge_id: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = "MergeWorkflowError";
+  }
+}
 
 const hash = (text: string | Buffer) => createHash("sha256").update(text).digest("hex");
 const digest = (value: unknown) => hash(JSON.stringify(value));
@@ -41,9 +55,35 @@ export class MergeWorkflowStore {
   private readonly activeOperations = new Set<string>();
   constructor(private readonly dataRoot: string, private readonly runner: GateRunner = gateRunner) {}
 
+  async diagnose(args: MergeDiagnosticArgs): Promise<MergeDiagnostic> {
+    this.session(args.session_id);
+    const source = await readOnlyBinding(args.source_worktree), target = await readOnlyBinding(args.target_worktree, args.target_branch, source.commonGitDir);
+    if (samePath(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
+    const revisions = await directoryNames(path.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames(path.join(this.dataRoot, "merge-watermarks"));
+    const ids = [...new Set([...revisions, ...watermarks].map(name => /^([A-Za-z0-9_-]+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id): id is string => Boolean(id)))].sort();
+    const operations: MergeDiagnostic["operations"] = [];
+    for (const id of ids) {
+      const record = await this.readForDiagnosis(id, revisions, watermarks);
+      if (record.session_id !== args.session_id || !samePath(record.source_worktree, source.topLevel) || !samePath(record.target_worktree, target.topLevel) || record.target_branch !== args.target_branch) continue;
+      for (const [stored, actual] of [[record.source_binding, source], [record.target_binding, target]]) {
+        if (!stored || stored.branch !== actual.branch || !samePath(stored.topLevel, actual.topLevel) || !samePath(stored.commonGitDir, actual.commonGitDir) || !samePath(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
+        if (await git(["--no-optional-locks", "rev-parse", "--verify", `${stored.head}^{commit}`], actual.topLevel) !== stored.head) throw new Error("signed merge commit binding diverged");
+      }
+      operations.push({ merge_id: record.merge_id, revision: record.revision, state: record.state, source_worktree: record.source_worktree, target_worktree: record.target_worktree, target_branch: record.target_branch, source_head: record.source_binding.head, target_head: record.target_binding.head });
+    }
+    const lease = await readAuthorizedLeaseStateReadOnly<Record<string, any> & { intentId: string; leaseToken: string }>(this.dataRoot, resourceId(target.commonGitDir, target.branch));
+    let target_lease: MergeDiagnostic["target_lease"] = { state: "absent" };
+    if (lease) {
+      const payload = lease.payload;
+      target_lease = { state: lease.state, intent_id: safeId(payload.intentId), ...(typeof payload.operation === "string" ? { operation: payload.operation } : {}), owner: this.leaseOwnerStatus(payload).owner, session_match: typeof payload.sessionId !== "string" || !payload.sessionId.trim() ? "unknown" : payload.sessionId === args.session_id ? "same" : "other" };
+    }
+    return { read_only: true, captain_green: false, operations, target_lease };
+  }
+
   async prep(args: MergePrepArgs): Promise<MergeStatus> {
     this.session(args.session_id); const mergeId = safeId(args.merge_id ?? `merge-${randomUUID()}`);
-    return this.lock(mergeId, args.session_id, async assertOperation => {
+    let durableMergeId: string | undefined;
+    try { return await this.lock(mergeId, args.session_id, async assertOperation => {
       let record: MergeRecord;
       if (args.merge_id) { record = await this.read(mergeId); this.match(record, args); }
       else {
@@ -58,6 +98,7 @@ export class MergeWorkflowStore {
         for (const scope of scopes) if (!policy.commands[scope]) throw new Error(`trusted merge policy is missing ${scope} command`);
         record = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
       }
+      durableMergeId = record.merge_id;
       if (record.state === "merged") return this.output(record);
       return this.resources(record, async assertResources => {
         const assertAuthority = async () => { await assertOperation(); await assertResources(); };
@@ -128,7 +169,10 @@ export class MergeWorkflowStore {
           return this.output(record, false);
         }
       });
-    });
+    }); } catch (error) {
+      if (durableMergeId) throw new MergeWorkflowError(durableMergeId, error);
+      throw error;
+    }
   }
 
   async back(args: MergeBackArgs): Promise<MergeStatus> {
@@ -317,13 +361,37 @@ export class MergeWorkflowStore {
       return await action(async () => { for (const lease of held) if (digest(await readAuthorizedLease(this.dataRoot, lease.id)) !== digest(lease.payload)) throw new Error("source or target branch lease ownership changed before integration mutation"); });
     } finally { for (const lease of held.reverse()) if (!lease.borrowed) await releaseAuthorizedLease(this.dataRoot, lease.id, lease.payload.intentId, lease.payload.leaseToken); }
   }
-  private async initial(record: MergeRecord) { const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record.merge_id}-0`, record); await this.watermark(stored); return stored; }
+  private async initial(record: MergeRecord) {
+    const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record.merge_id}-0`, record);
+    try { await this.watermark(stored); return stored; }
+    catch (error) { throw new MergeWorkflowError(stored.merge_id, error); }
+  }
   private async update(record: MergeRecord) {
     const current = await this.read(record.merge_id); if (current.revision !== record.revision) throw new Error("signed merge workflow changed concurrently");
     const next = JSON.parse(JSON.stringify({ ...record, revision: current.revision + 1, previous_sha256: digest(current) })) as MergeRecord;
     const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record.merge_id}-${next.revision}`, next); await this.watermark(stored); return stored;
   }
   private async watermark(record: MergeRecord) { await putAuthorizedOnceExact(this.dataRoot, "merge-watermarks", `${record.merge_id}-${record.revision}`, { merge_id: record.merge_id, revision: record.revision, sha256: digest(record) }); }
+  /** Verify existing history and watermarks; never repair a checkpoint while diagnosing. */
+  private async readForDiagnosis(id: string, names: string[], watermarkNames: string[]): Promise<MergeRecord> {
+    safeId(id);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), revisions = names.map(name => expression.exec(name)).filter(Boolean).map(match => Number(match![1])).sort((a, b) => a - b);
+    if (!revisions.length) throw new Error("signed merge revision tail regressed behind its watermark");
+    let previous: MergeRecord | undefined;
+    for (let index = 0; index < revisions.length; index++) {
+      if (revisions[index] !== index) throw new Error("signed merge revision chain is not contiguous");
+      const current = await readAuthorizedReadOnly<MergeRecord>(this.dataRoot, "merge-revisions", `${id}-${index}`);
+      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest(previous) : current.previous_sha256 !== undefined)) throw new Error("signed merge revision binding is invalid");
+      if (typeof current.session_id !== "string" || !current.session_id.trim() || typeof current.source_worktree !== "string" || typeof current.target_worktree !== "string" || typeof current.target_branch !== "string" || !["preparing", "needs_resolution", "needs_commit", "verifying", "failed", "ready", "integrating", "merged"].includes(current.state)) throw new Error("signed merge identity/state is invalid");
+      if (previous && digest([current.session_id, current.source_worktree, current.target_worktree, current.target_branch, current.source_binding, current.target_binding, current.policy_sha256, current.captured_policy, current.strictness, current.scopes]) !== digest([previous.session_id, previous.source_worktree, previous.target_worktree, previous.target_branch, previous.source_binding, previous.target_binding, previous.policy_sha256, previous.captured_policy, previous.strictness, previous.scopes])) throw new Error("signed merge identity or policy changed between revisions");
+      if (!watermarkNames.includes(`${id}-${index}.json`)) throw new Error("signed merge watermark is missing");
+      const watermark = await readAuthorizedReadOnly<{ merge_id: string; revision: number; sha256: string }>(this.dataRoot, "merge-watermarks", `${id}-${index}`);
+      if (watermark.merge_id !== id || watermark.revision !== index || watermark.sha256 !== digest(current)) throw new Error("signed merge watermark binding is invalid");
+      previous = current;
+    }
+    if (watermarkNames.some(name => { const match = expression.exec(name); return match && Number(match[1]) > previous!.revision; })) throw new Error("signed merge revision tail regressed behind its monotonic watermark");
+    return previous!;
+  }
   private async read(id: string): Promise<MergeRecord> {
     safeId(id); const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir(path.join(this.dataRoot, "merge-revisions")), revisions = names.map(name => expression.exec(name)).filter(Boolean).map(match => Number(match![1])).sort((a, b) => a - b);
     if (!revisions.length) throw new Error("signed merge workflow was not found");
@@ -341,6 +409,21 @@ export class MergeWorkflowStore {
 }
 
 const lines = (value: string) => value.split(/\r?\n/).filter(Boolean);
+async function directoryNames(directory: string): Promise<string[]> { try { return await readdir(directory); } catch (error: any) { if (error.code === "ENOENT") return []; throw error; } }
+async function readOnlyBinding(worktree: string, expectedBranch?: string, expectedCommonGitDir?: string): Promise<Binding> {
+  const owned = path.resolve(worktree), real = await realpath(owned);
+  if (!samePath(real, owned)) throw new Error("worktree path resolves through a reparse point");
+  const readGit = (args: string[]) => git(["--no-optional-locks", ...args], owned);
+  const topLevel = path.resolve(await readGit(["rev-parse", "--show-toplevel"]));
+  if (!samePath(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
+  const branch = await readGit(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  if (!branch || (expectedBranch !== undefined && branch !== expectedBranch)) throw new Error("worktree symbolic target branch binding diverged");
+  const commonGitDir = path.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  if (expectedCommonGitDir && !samePath(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
+  const head = await readGit(["rev-parse", "--verify", "HEAD^{commit}"]);
+  if (head !== await readGit(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
+  return { branch, commonGitDir, gitDir, topLevel, head };
+}
 async function optionalGit(args: string[], cwd: string): Promise<string | undefined> { try { return await git(args, cwd); } catch { return undefined; } }
 async function ancestor(before: string, after: string, cwd: string) { try { await git(["merge-base", "--is-ancestor", before, after], cwd); return true; } catch (error: any) { if (error.code === 1) return false; throw error; } }
 async function assertNoOperation(cwd: string, allowMerge = false) {

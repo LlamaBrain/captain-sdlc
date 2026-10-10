@@ -155,3 +155,49 @@ export async function releaseAuthorizedLease(root: string, id: string, intentId:
 }
 
 const safe = (id: string) => { if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id"); return id; };
+
+/** Authenticate existing evidence without bootstrapping keys or checkpoints. */
+export async function readAuthorizedReadOnly<T>(root: string, bucket: string, id: string): Promise<T> {
+  const secret = decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
+  const envelope = JSON.parse(await readFile(path.join(root, bucket, `${safe(id)}.json`), "utf8"));
+  if (typeof envelope.tag !== "string" || !/^[0-9a-f]{64}$/i.test(envelope.tag)) throw new Error("Captain authority tag is invalid");
+  const expected = Buffer.from(tag(envelope.payload, secret), "hex"), actual = Buffer.from(envelope.tag, "hex");
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error("Captain authority tag is invalid");
+  return envelope.payload as T;
+}
+
+/** Inspect signed lease ownership without migration, watermark publication or recovery. */
+export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(root: string, id: string): Promise<{ state: "held" | "released"; payload: T } | undefined> {
+  const leaseId = safe(id);
+  // Absence is meaningful only in an existing authenticated authority store.
+  decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
+  const expression = new RegExp(`^${leaseId}-([0-9]+)\\.json$`);
+  const names = async (bucket: string): Promise<string[]> => {
+    try { return await readdir(path.join(root, bucket)); }
+    catch (error: any) { if (error.code !== "ENOENT") throw error; return []; }
+  };
+  const numbers = (entries: string[]) => entries.map(name => expression.exec(name)).filter((match): match is RegExpExecArray => Boolean(match)).map(match => Number(match[1])).sort((a, b) => a - b);
+  const revisions = numbers(await names("lease-revisions")), watermarks = numbers(await names("lease-watermarks"));
+  const validPayload = (value: unknown): value is T => Boolean(value && typeof value === "object" && typeof (value as LeasePayload).intentId === "string" && typeof (value as LeasePayload).leaseToken === "string");
+  if (!revisions.length) {
+    if (watermarks.length) throw new Error("authorized lease revision tail regressed behind its signed watermark");
+    let legacy: T;
+    try { legacy = await readAuthorizedReadOnly<T>(root, "leases", leaseId); }
+    catch (error: any) { if (error.code !== "ENOENT") throw error; return undefined; }
+    if (!validPayload(legacy)) throw new Error("authorized legacy lease payload is invalid");
+    return { state: "held", payload: legacy };
+  }
+  if (revisions[0] !== 0 || revisions.some((revision, index) => revision !== index)) throw new Error("authorized lease revision chain is not contiguous");
+  if (watermarks.some(revision => revision > revisions[revisions.length - 1])) throw new Error("authorized lease revision tail regressed behind its signed watermark");
+  let previous: LeaseRevision<T> | undefined;
+  for (const revision of revisions) {
+    const current = await readAuthorizedReadOnly<LeaseRevision<T>>(root, "lease-revisions", `${leaseId}-${revision}`);
+    if (current.schemaVersion !== 1 || current.leaseId !== leaseId || current.revision !== revision || (revision === 0 ? current.previousSha256 !== undefined : current.previousSha256 !== digest(previous))) throw new Error("authorized lease revision chain is invalid");
+    if (!validPayload(current.payload) || !["held", "released"].includes(current.state)) throw new Error("authorized lease revision payload is invalid");
+    const existing = await readAuthorizedReadOnly<LeaseWatermark>(root, "lease-watermarks", `${leaseId}-${revision}`);
+    const expected: LeaseWatermark = { schemaVersion: 1, leaseId, revision, revisionSha256: digest(current), ...(current.previousSha256 ? { previousSha256: current.previousSha256 } : {}) };
+    if (JSON.stringify(existing) !== JSON.stringify(expected)) throw new Error("signed lease watermark checkpoint does not match its revision");
+    previous = current;
+  }
+  return { state: previous!.state, payload: previous!.payload };
+}

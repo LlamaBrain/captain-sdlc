@@ -132,3 +132,9 @@ and tool schema, and continue the same authorized operation. A new thread is
 optional for refreshing the host's inventory, not a prerequisite for using the
 installed public tools. Preserve hook decisions and the original signed task
 and merge bindings.
+
+## Read-only merge diagnosis
+
+When the initial Prep call fails after saving its signed operation, its error includes the durable `merge_id` and an exact `captain_merge_status` next step for the same session. Pre-validation failures do not claim a saved operation.
+
+If the operation ID is unavailable, call `captain_merge_diagnose` with the actual `session_id`, `source_worktree`, `target_worktree`, and `target_branch`. It returns all matching caller-owned operations and limited target lease owner metadata. Diagnosis verifies existing signatures, chains and watermarks without writing authority or Git state; it does not establish readiness or grant recovery rights.

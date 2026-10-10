@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+- Preserve the persisted operation ID when initial Merge Prep fails, with public status guidance bound to the caller session.
+- Add strict read-only merge diagnosis for caller-owned operations with exact source/target/branch bindings and limited conflicting lease owner metadata.
+- Verify existing signatures, chains and watermarks without creating authority, migrating legacy leases or changing signed state; preserve recovery ownership and generation checks.
+- Cover the module and public transport behavior, read-only filesystem purity, and unchanged refusal controls.
+
 ## 0.2.1
 - Expose signed merge lease recovery arguments and owner state through public MCP status, and guide rejected continuations back to that status.
 - Admit the exact recovery tool through governed hook routing while retaining session, token, revision, and worktree checks.

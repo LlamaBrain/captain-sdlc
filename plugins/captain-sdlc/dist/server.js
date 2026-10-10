@@ -21621,6 +21621,55 @@ var safe = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
   return id;
 };
+async function readAuthorizedReadOnly(root, bucket, id) {
+  const secret = decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
+  const envelope = JSON.parse(await readFile(path.join(root, bucket, `${safe(id)}.json`), "utf8"));
+  if (typeof envelope.tag !== "string" || !/^[0-9a-f]{64}$/i.test(envelope.tag)) throw new Error("Captain authority tag is invalid");
+  const expected = Buffer.from(tag(envelope.payload, secret), "hex"), actual = Buffer.from(envelope.tag, "hex");
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error("Captain authority tag is invalid");
+  return envelope.payload;
+}
+async function readAuthorizedLeaseStateReadOnly(root, id) {
+  const leaseId = safe(id);
+  decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
+  const expression = new RegExp(`^${leaseId}-([0-9]+)\\.json$`);
+  const names = async (bucket) => {
+    try {
+      return await readdir(path.join(root, bucket));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      return [];
+    }
+  };
+  const numbers = (entries) => entries.map((name) => expression.exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
+  const revisions = numbers(await names("lease-revisions")), watermarks = numbers(await names("lease-watermarks"));
+  const validPayload = (value) => Boolean(value && typeof value === "object" && typeof value.intentId === "string" && typeof value.leaseToken === "string");
+  if (!revisions.length) {
+    if (watermarks.length) throw new Error("authorized lease revision tail regressed behind its signed watermark");
+    let legacy;
+    try {
+      legacy = await readAuthorizedReadOnly(root, "leases", leaseId);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      return void 0;
+    }
+    if (!validPayload(legacy)) throw new Error("authorized legacy lease payload is invalid");
+    return { state: "held", payload: legacy };
+  }
+  if (revisions[0] !== 0 || revisions.some((revision, index) => revision !== index)) throw new Error("authorized lease revision chain is not contiguous");
+  if (watermarks.some((revision) => revision > revisions[revisions.length - 1])) throw new Error("authorized lease revision tail regressed behind its signed watermark");
+  let previous;
+  for (const revision of revisions) {
+    const current = await readAuthorizedReadOnly(root, "lease-revisions", `${leaseId}-${revision}`);
+    if (current.schemaVersion !== 1 || current.leaseId !== leaseId || current.revision !== revision || (revision === 0 ? current.previousSha256 !== void 0 : current.previousSha256 !== digest(previous))) throw new Error("authorized lease revision chain is invalid");
+    if (!validPayload(current.payload) || !["held", "released"].includes(current.state)) throw new Error("authorized lease revision payload is invalid");
+    const existing = await readAuthorizedReadOnly(root, "lease-watermarks", `${leaseId}-${revision}`);
+    const expected = { schemaVersion: 1, leaseId, revision, revisionSha256: digest(current), ...current.previousSha256 ? { previousSha256: current.previousSha256 } : {} };
+    if (JSON.stringify(existing) !== JSON.stringify(expected)) throw new Error("signed lease watermark checkpoint does not match its revision");
+    previous = current;
+  }
+  return { state: previous.state, payload: previous.payload };
+}
 
 // src/lifecycle.ts
 import { createHash as createHash4, randomUUID } from "node:crypto";
@@ -23525,6 +23574,13 @@ async function assertImage(target) {
 }
 
 // src/merge-workflow.ts
+var MergeWorkflowError = class extends Error {
+  constructor(merge_id, cause) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.merge_id = merge_id;
+    this.name = "MergeWorkflowError";
+  }
+};
 var hash2 = (text) => createHash5("sha256").update(text).digest("hex");
 var digest4 = (value) => hash2(JSON.stringify(value));
 var samePath2 = (left, right) => process.platform === "win32" ? path5.resolve(left).toLowerCase() === path5.resolve(right).toLowerCase() : path5.resolve(left) === path5.resolve(right);
@@ -23543,158 +23599,189 @@ var MergeWorkflowStore = class {
     this.runner = runner;
   }
   activeOperations = /* @__PURE__ */ new Set();
+  async diagnose(args) {
+    this.session(args.session_id);
+    const source = await readOnlyBinding(args.source_worktree), target = await readOnlyBinding(args.target_worktree, args.target_branch, source.commonGitDir);
+    if (samePath2(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
+    const revisions = await directoryNames(path5.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames(path5.join(this.dataRoot, "merge-watermarks"));
+    const ids = [...new Set([...revisions, ...watermarks].map((name) => /^([A-Za-z0-9_-]+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))].sort();
+    const operations = [];
+    for (const id of ids) {
+      const record2 = await this.readForDiagnosis(id, revisions, watermarks);
+      if (record2.session_id !== args.session_id || !samePath2(record2.source_worktree, source.topLevel) || !samePath2(record2.target_worktree, target.topLevel) || record2.target_branch !== args.target_branch) continue;
+      for (const [stored, actual] of [[record2.source_binding, source], [record2.target_binding, target]]) {
+        if (!stored || stored.branch !== actual.branch || !samePath2(stored.topLevel, actual.topLevel) || !samePath2(stored.commonGitDir, actual.commonGitDir) || !samePath2(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
+        if (await git(["--no-optional-locks", "rev-parse", "--verify", `${stored.head}^{commit}`], actual.topLevel) !== stored.head) throw new Error("signed merge commit binding diverged");
+      }
+      operations.push({ merge_id: record2.merge_id, revision: record2.revision, state: record2.state, source_worktree: record2.source_worktree, target_worktree: record2.target_worktree, target_branch: record2.target_branch, source_head: record2.source_binding.head, target_head: record2.target_binding.head });
+    }
+    const lease = await readAuthorizedLeaseStateReadOnly(this.dataRoot, resourceId(target.commonGitDir, target.branch));
+    let target_lease = { state: "absent" };
+    if (lease) {
+      const payload = lease.payload;
+      target_lease = { state: lease.state, intent_id: safeId2(payload.intentId), ...typeof payload.operation === "string" ? { operation: payload.operation } : {}, owner: this.leaseOwnerStatus(payload).owner, session_match: typeof payload.sessionId !== "string" || !payload.sessionId.trim() ? "unknown" : payload.sessionId === args.session_id ? "same" : "other" };
+    }
+    return { read_only: true, captain_green: false, operations, target_lease };
+  }
   async prep(args) {
     this.session(args.session_id);
     const mergeId = safeId2(args.merge_id ?? `merge-${randomUUID2()}`);
-    return this.lock(mergeId, args.session_id, async (assertOperation) => {
-      let record2;
-      if (args.merge_id) {
-        record2 = await this.read(mergeId);
-        this.match(record2, args);
-      } else {
-        const sourceRoot = path5.resolve(args.source_worktree), targetRoot = path5.resolve(args.target_worktree);
-        if (samePath2(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
-        const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, true), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, true);
-        if (source.branch === target.branch) throw new Error("source and target branches must differ");
-        await assertNoOperation(sourceRoot);
-        await assertNoOperation(targetRoot);
-        await repositoryIdentity(sourceRoot);
-        await repositoryIdentity(targetRoot);
-        const policy = await loadPolicy(sourceRoot, source.head), mergePolicyText = await committedFile(sourceRoot, source.head, ".captain-sdlc/merge-policy.json"), mergePolicy = JSON.parse(mergePolicyText ?? '{"schema_version":1,"strictness":"low"}');
-        if (mergePolicy.schema_version !== 1 || !["low", "standard", "strict"].includes(mergePolicy.strictness)) throw new Error("trusted merge policy must configure schema_version 1 and low, standard, or strict");
-        const scopes = mergePolicy.strictness === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...mergePolicy.strictness === "strict" ? ["super-smoke"] : []];
-        for (const scope of scopes) if (!policy.commands[scope]) throw new Error(`trusted merge policy is missing ${scope} command`);
-        record2 = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest4({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
-      }
-      if (record2.state === "merged") return this.output(record2);
-      return this.resources(record2, async (assertResources) => {
-        const assertAuthority = async () => {
-          await assertOperation();
-          await assertResources();
-        };
-        await this.bindings(record2, false);
-        await assertNoOperation(record2.target_worktree);
-        let recoveredCommit = false;
-        if (record2.prepared_commit) {
-          if (args.commit && digest4(args.commit) !== digest4(record2.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
-          const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
-          if (currentHead === record2.prepared_commit.candidate) {
-            await assertAuthority();
-            await reconcilePreparedCommit(record2.source_worktree, record2.prepared_commit, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir);
-          } else if (currentHead === record2.prepared_commit.preCommitHead) {
-            const prepared = record2.prepared_commit;
-            await applyPreparedCommit(record2.source_worktree, prepared, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir, async (candidate) => {
+    let durableMergeId;
+    try {
+      return await this.lock(mergeId, args.session_id, async (assertOperation) => {
+        let record2;
+        if (args.merge_id) {
+          record2 = await this.read(mergeId);
+          this.match(record2, args);
+        } else {
+          const sourceRoot = path5.resolve(args.source_worktree), targetRoot = path5.resolve(args.target_worktree);
+          if (samePath2(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
+          const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, true), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, true);
+          if (source.branch === target.branch) throw new Error("source and target branches must differ");
+          await assertNoOperation(sourceRoot);
+          await assertNoOperation(targetRoot);
+          await repositoryIdentity(sourceRoot);
+          await repositoryIdentity(targetRoot);
+          const policy = await loadPolicy(sourceRoot, source.head), mergePolicyText = await committedFile(sourceRoot, source.head, ".captain-sdlc/merge-policy.json"), mergePolicy = JSON.parse(mergePolicyText ?? '{"schema_version":1,"strictness":"low"}');
+          if (mergePolicy.schema_version !== 1 || !["low", "standard", "strict"].includes(mergePolicy.strictness)) throw new Error("trusted merge policy must configure schema_version 1 and low, standard, or strict");
+          const scopes = mergePolicy.strictness === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...mergePolicy.strictness === "strict" ? ["super-smoke"] : []];
+          for (const scope of scopes) if (!policy.commands[scope]) throw new Error(`trusted merge policy is missing ${scope} command`);
+          record2 = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest4({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
+        }
+        durableMergeId = record2.merge_id;
+        if (record2.state === "merged") return this.output(record2);
+        return this.resources(record2, async (assertResources) => {
+          const assertAuthority = async () => {
+            await assertOperation();
+            await assertResources();
+          };
+          await this.bindings(record2, false);
+          await assertNoOperation(record2.target_worktree);
+          let recoveredCommit = false;
+          if (record2.prepared_commit) {
+            if (args.commit && digest4(args.commit) !== digest4(record2.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
+            const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
+            if (currentHead === record2.prepared_commit.candidate) {
               await assertAuthority();
-              await this.bindings(record2, false);
-              if (digest4((await this.read(record2.merge_id)).prepared_commit) !== digest4(candidate)) throw new Error("signed integration commit recovery authority changed");
-            });
-          } else throw new Error("prepared commit recovery found diverged source HEAD");
-          record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
-          recoveredCommit = true;
-        }
-        if (record2.prepared_merge && !await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree)) {
-          await assertAuthority();
-          await reconcilePreparedMerge(record2.source_worktree, record2.prepared_merge);
-          record2 = await this.update({ ...record2, prepared_merge: void 0, state: "preparing" });
-        }
-        if (record2.prepared_merge) {
-          const mergeHead = await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree), head = await git(["rev-parse", "HEAD"], record2.source_worktree);
-          if (mergeHead !== record2.prepared_merge.targetOid || head !== record2.prepared_merge.preMergeHead) throw new Error("source no longer matches the signed pending merge; recover that operation before another prep");
-          await assertNoOperation(record2.source_worktree, true);
-          if (args.commit) {
-            const pending = record2.prepared_merge;
+              await reconcilePreparedCommit(record2.source_worktree, record2.prepared_commit, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir);
+            } else if (currentHead === record2.prepared_commit.preCommitHead) {
+              const prepared = record2.prepared_commit;
+              await applyPreparedCommit(record2.source_worktree, prepared, record2.source_binding.branch, record2.source_binding.commonGitDir, record2.source_binding.gitDir, async (candidate) => {
+                await assertAuthority();
+                await this.bindings(record2, false);
+                if (digest4((await this.read(record2.merge_id)).prepared_commit) !== digest4(candidate)) throw new Error("signed integration commit recovery authority changed");
+              });
+            } else throw new Error("prepared commit recovery found diverged source HEAD");
+            record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
+            recoveredCommit = true;
+          }
+          if (record2.prepared_merge && !await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree)) {
             await assertAuthority();
-            await commitAtomic(
+            await reconcilePreparedMerge(record2.source_worktree, record2.prepared_merge);
+            record2 = await this.update({ ...record2, prepared_merge: void 0, state: "preparing" });
+          }
+          if (record2.prepared_merge) {
+            const mergeHead = await optionalGit2(["rev-parse", "--verify", "MERGE_HEAD"], record2.source_worktree), head = await git(["rev-parse", "HEAD"], record2.source_worktree);
+            if (mergeHead !== record2.prepared_merge.targetOid || head !== record2.prepared_merge.preMergeHead) throw new Error("source no longer matches the signed pending merge; recover that operation before another prep");
+            await assertNoOperation(record2.source_worktree, true);
+            if (args.commit) {
+              const pending = record2.prepared_merge;
+              await assertAuthority();
+              await commitAtomic(
+                record2.source_worktree,
+                args.commit.paths,
+                args.commit.subject,
+                args.commit.task_outcome,
+                args.commit.task_id,
+                record2.captured_policy.commit,
+                [pending],
+                record2.source_binding.branch,
+                record2.source_binding.commonGitDir,
+                pending.preMergeHead,
+                record2.source_binding.gitDir,
+                async (prepared) => {
+                  record2 = await this.update({ ...record2, prepared_commit: prepared, prepared_commit_request: args.commit });
+                },
+                async () => {
+                  record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0 });
+                },
+                void 0,
+                async (prepared) => {
+                  await assertAuthority();
+                  const latest = await this.read(record2.merge_id);
+                  if (digest4(latest.prepared_commit) !== digest4(prepared)) throw new Error("signed integration commit authority changed");
+                  await this.bindings(record2, false);
+                }
+              );
+              record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
+            } else {
+              const conflicts = lines(await git(["diff", "--name-only", "--diff-filter=U"], record2.source_worktree));
+              record2 = await this.update({ ...record2, state: conflicts.length ? "needs_resolution" : "needs_commit", conflicts });
+              return this.output(record2);
+            }
+          } else if (args.commit && !recoveredCommit) throw new Error("Merge Prep commit metadata is only valid for its signed pending target merge");
+          await assertNoOperation(record2.source_worktree);
+          await assertWorktreeBinding(record2.source_worktree, record2.source_binding.branch, record2.source_binding.commonGitDir, void 0, true, record2.source_binding.gitDir);
+          if (!await ancestor(record2.target_binding.head, await git(["rev-parse", "HEAD"], record2.source_worktree), record2.source_worktree)) {
+            const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
+            const result = await prepareMerge(
               record2.source_worktree,
-              args.commit.paths,
-              args.commit.subject,
-              args.commit.task_outcome,
-              args.commit.task_id,
-              record2.captured_policy.commit,
-              [pending],
-              record2.source_binding.branch,
-              record2.source_binding.commonGitDir,
-              pending.preMergeHead,
-              record2.source_binding.gitDir,
+              record2.target_binding.head,
+              "ort",
               async (prepared) => {
-                record2 = await this.update({ ...record2, prepared_commit: prepared, prepared_commit_request: args.commit });
+                record2 = await this.update({ ...record2, state: "preparing", prepared_merge: prepared, ready_inputs: void 0, gates: [] });
               },
               async () => {
-                record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0 });
+                record2 = await this.update({ ...record2, prepared_merge: void 0, state: "failed", failure: "target merge preparation was rejected" });
               },
+              record2.source_binding.branch,
+              record2.source_binding.commonGitDir,
+              currentHead,
+              record2.source_binding.gitDir,
               void 0,
+              mergeId,
               async (prepared) => {
                 await assertAuthority();
-                const latest = await this.read(record2.merge_id);
-                if (digest4(latest.prepared_commit) !== digest4(prepared)) throw new Error("signed integration commit authority changed");
                 await this.bindings(record2, false);
+                const latest = await this.read(mergeId);
+                if (digest4(latest.prepared_merge) !== digest4(prepared)) throw new Error("signed target merge authority changed");
               }
             );
-            record2 = await this.update({ ...record2, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
-          } else {
-            const conflicts = lines(await git(["diff", "--name-only", "--diff-filter=U"], record2.source_worktree));
-            record2 = await this.update({ ...record2, state: conflicts.length ? "needs_resolution" : "needs_commit", conflicts });
+            record2 = await this.update({ ...record2, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
             return this.output(record2);
           }
-        } else if (args.commit && !recoveredCommit) throw new Error("Merge Prep commit metadata is only valid for its signed pending target merge");
-        await assertNoOperation(record2.source_worktree);
-        await assertWorktreeBinding(record2.source_worktree, record2.source_binding.branch, record2.source_binding.commonGitDir, void 0, true, record2.source_binding.gitDir);
-        if (!await ancestor(record2.target_binding.head, await git(["rev-parse", "HEAD"], record2.source_worktree), record2.source_worktree)) {
-          const currentHead = await git(["rev-parse", "HEAD"], record2.source_worktree);
-          const result = await prepareMerge(
-            record2.source_worktree,
-            record2.target_binding.head,
-            "ort",
-            async (prepared) => {
-              record2 = await this.update({ ...record2, state: "preparing", prepared_merge: prepared, ready_inputs: void 0, gates: [] });
-            },
-            async () => {
-              record2 = await this.update({ ...record2, prepared_merge: void 0, state: "failed", failure: "target merge preparation was rejected" });
-            },
-            record2.source_binding.branch,
-            record2.source_binding.commonGitDir,
-            currentHead,
-            record2.source_binding.gitDir,
-            void 0,
-            mergeId,
-            async (prepared) => {
+          const inputs = await captureInputs(record2.source_worktree, record2.captured_policy);
+          if (record2.state === "ready" && digest4(inputs) === digest4(record2.ready_inputs)) {
+            await this.assertReady(record2);
+            return this.output(record2, true);
+          }
+          if (record2.state === "failed" && digest4(inputs) === digest4(record2.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
+          record2 = await this.update({ ...record2, state: "verifying", ready_inputs: void 0, attempted_inputs: inputs, gates: [], failure: void 0 });
+          try {
+            await git(["diff", "--check", record2.target_binding.head, inputs.source.head], record2.source_worktree);
+            for (const scope of record2.scopes) {
               await assertAuthority();
               await this.bindings(record2, false);
-              const latest = await this.read(mergeId);
-              if (digest4(latest.prepared_merge) !== digest4(prepared)) throw new Error("signed target merge authority changed");
+              await this.assertInputs(record2, inputs);
+              const command = record2.captured_policy.commands[scope], result = await this.runner(command, record2.source_worktree);
+              record2 = await this.update({ ...record2, gates: [...record2.gates, { scope, commandSha256: hash2(command), exitCode: result.exitCode, stdoutSha256: hash2(result.stdout), stderrSha256: hash2(result.stderr) }] });
+              if (result.exitCode !== 0) throw new Error(`${scope} merge prep gate failed (exit ${result.exitCode})`);
+              await assertAuthority();
+              await this.bindings(record2, false);
+              await this.assertInputs(record2, inputs);
             }
-          );
-          record2 = await this.update({ ...record2, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
-          return this.output(record2);
-        }
-        const inputs = await captureInputs(record2.source_worktree, record2.captured_policy);
-        if (record2.state === "ready" && digest4(inputs) === digest4(record2.ready_inputs)) {
-          await this.assertReady(record2);
-          return this.output(record2, true);
-        }
-        if (record2.state === "failed" && digest4(inputs) === digest4(record2.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
-        record2 = await this.update({ ...record2, state: "verifying", ready_inputs: void 0, attempted_inputs: inputs, gates: [], failure: void 0 });
-        try {
-          await git(["diff", "--check", record2.target_binding.head, inputs.source.head], record2.source_worktree);
-          for (const scope of record2.scopes) {
-            await assertAuthority();
-            await this.bindings(record2, false);
-            await this.assertInputs(record2, inputs);
-            const command = record2.captured_policy.commands[scope], result = await this.runner(command, record2.source_worktree);
-            record2 = await this.update({ ...record2, gates: [...record2.gates, { scope, commandSha256: hash2(command), exitCode: result.exitCode, stdoutSha256: hash2(result.stdout), stderrSha256: hash2(result.stderr) }] });
-            if (result.exitCode !== 0) throw new Error(`${scope} merge prep gate failed (exit ${result.exitCode})`);
-            await assertAuthority();
-            await this.bindings(record2, false);
-            await this.assertInputs(record2, inputs);
+            record2 = await this.update({ ...record2, state: "ready", ready_inputs: inputs });
+            return this.output(record2, true);
+          } catch (error2) {
+            record2 = await this.update({ ...record2, state: "failed", ready_inputs: void 0, failure: error2.message });
+            return this.output(record2, false);
           }
-          record2 = await this.update({ ...record2, state: "ready", ready_inputs: inputs });
-          return this.output(record2, true);
-        } catch (error2) {
-          record2 = await this.update({ ...record2, state: "failed", ready_inputs: void 0, failure: error2.message });
-          return this.output(record2, false);
-        }
+        });
       });
-    });
+    } catch (error2) {
+      if (durableMergeId) throw new MergeWorkflowError(durableMergeId, error2);
+      throw error2;
+    }
   }
   async back(args) {
     this.session(args.session_id);
@@ -23933,8 +24020,12 @@ var MergeWorkflowStore = class {
   }
   async initial(record2) {
     const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record2.merge_id}-0`, record2);
-    await this.watermark(stored);
-    return stored;
+    try {
+      await this.watermark(stored);
+      return stored;
+    } catch (error2) {
+      throw new MergeWorkflowError(stored.merge_id, error2);
+    }
   }
   async update(record2) {
     const current = await this.read(record2.merge_id);
@@ -23946,6 +24037,29 @@ var MergeWorkflowStore = class {
   }
   async watermark(record2) {
     await putAuthorizedOnceExact(this.dataRoot, "merge-watermarks", `${record2.merge_id}-${record2.revision}`, { merge_id: record2.merge_id, revision: record2.revision, sha256: digest4(record2) });
+  }
+  /** Verify existing history and watermarks; never repair a checkpoint while diagnosing. */
+  async readForDiagnosis(id, names, watermarkNames) {
+    safeId2(id);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    if (!revisions.length) throw new Error("signed merge revision tail regressed behind its watermark");
+    let previous;
+    for (let index = 0; index < revisions.length; index++) {
+      if (revisions[index] !== index) throw new Error("signed merge revision chain is not contiguous");
+      const current = await readAuthorizedReadOnly(this.dataRoot, "merge-revisions", `${id}-${index}`);
+      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest4(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
+      if (typeof current.session_id !== "string" || !current.session_id.trim() || typeof current.source_worktree !== "string" || typeof current.target_worktree !== "string" || typeof current.target_branch !== "string" || !["preparing", "needs_resolution", "needs_commit", "verifying", "failed", "ready", "integrating", "merged"].includes(current.state)) throw new Error("signed merge identity/state is invalid");
+      if (previous && digest4([current.session_id, current.source_worktree, current.target_worktree, current.target_branch, current.source_binding, current.target_binding, current.policy_sha256, current.captured_policy, current.strictness, current.scopes]) !== digest4([previous.session_id, previous.source_worktree, previous.target_worktree, previous.target_branch, previous.source_binding, previous.target_binding, previous.policy_sha256, previous.captured_policy, previous.strictness, previous.scopes])) throw new Error("signed merge identity or policy changed between revisions");
+      if (!watermarkNames.includes(`${id}-${index}.json`)) throw new Error("signed merge watermark is missing");
+      const watermark = await readAuthorizedReadOnly(this.dataRoot, "merge-watermarks", `${id}-${index}`);
+      if (watermark.merge_id !== id || watermark.revision !== index || watermark.sha256 !== digest4(current)) throw new Error("signed merge watermark binding is invalid");
+      previous = current;
+    }
+    if (watermarkNames.some((name) => {
+      const match = expression.exec(name);
+      return match && Number(match[1]) > previous.revision;
+    })) throw new Error("signed merge revision tail regressed behind its monotonic watermark");
+    return previous;
   }
   async read(id) {
     safeId2(id);
@@ -23969,6 +24083,28 @@ var MergeWorkflowStore = class {
   }
 };
 var lines = (value) => value.split(/\r?\n/).filter(Boolean);
+async function directoryNames(directory) {
+  try {
+    return await readdir5(directory);
+  } catch (error2) {
+    if (error2.code === "ENOENT") return [];
+    throw error2;
+  }
+}
+async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
+  const owned = path5.resolve(worktree), real = await realpath2(owned);
+  if (!samePath2(real, owned)) throw new Error("worktree path resolves through a reparse point");
+  const readGit = (args) => git(["--no-optional-locks", ...args], owned);
+  const topLevel = path5.resolve(await readGit(["rev-parse", "--show-toplevel"]));
+  if (!samePath2(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
+  const branch = await readGit(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  if (!branch || expectedBranch !== void 0 && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
+  const commonGitDir = path5.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path5.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  if (expectedCommonGitDir && !samePath2(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
+  const head = await readGit(["rev-parse", "--verify", "HEAD^{commit}"]);
+  if (head !== await readGit(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
+  return { branch, commonGitDir, gitDir, topLevel, head };
+}
 async function optionalGit2(args, cwd) {
   try {
     return await git(args, cwd);
@@ -24262,16 +24398,17 @@ async function startCaptainMcp() {
   const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path6.join(process.env.CODEX_HOME || path6.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.2.1" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.2.2" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {
-    const next_step = args.merge_id ? {
+    const merge_id = args.merge_id ?? (error2 instanceof MergeWorkflowError ? error2.merge_id : void 0);
+    const next_step = merge_id ? {
       tool: "captain_merge_status",
-      arguments: { merge_id: args.merge_id, session_id: args.session_id },
+      arguments: { merge_id, session_id: args.session_id },
       guidance: "Read the signed source/target bindings and operation_lease recovery context. Repair the diagnosed cause and continue the same authorized operation; lease recovery is separate from abort/reset."
     } : void 0;
-    return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...next_step ? { next_step } : {} } };
+    return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...merge_id ? { merge_id } : {}, ...next_step ? { next_step } : {} } };
   });
   server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
     const run = await captainBegin(store, args);
@@ -24289,6 +24426,11 @@ async function startCaptainMcp() {
   server.registerTool("captain_link_blocker", { description: "Append a signed dependency from a paused run to the active blocker run that must be completed before it can resume.", inputSchema: { blocked_intent_id: external_exports.string(), blocker_intent_id: external_exports.string() } }, async ({ blocked_intent_id, blocker_intent_id }) => guarded(() => store.linkBlocker(blocked_intent_id, blocker_intent_id)));
   server.registerTool("captain_doctor", { description: "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.", inputSchema: {} }, async () => guarded(() => store.doctor()));
   server.registerTool("captain_migrate_plan_state", { description: "Migrate explicitly selected Markdown plans to Captain's bounded work-state block. This is the same backend used by the Captain dashboard and Codex skill.", inputSchema: { intent_id: external_exports.string(), plan_paths: external_exports.array(external_exports.string().min(1).max(2e3)).min(1).max(100) } }, async ({ intent_id, plan_paths }) => guarded(() => store.migratePlanState(intent_id, plan_paths)));
+  server.registerTool("captain_merge_diagnose", {
+    description: "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: { session_id: external_exports.string().min(1).max(256), source_worktree: external_exports.string().min(1), target_worktree: external_exports.string().min(1), target_branch: external_exports.string().min(1) }
+  }, async (args) => guarded(() => merges.diagnose(args)));
   const mergePrepConfig = {
     description: "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
     inputSchema: {

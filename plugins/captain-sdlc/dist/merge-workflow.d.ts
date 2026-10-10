@@ -91,12 +91,34 @@ export type MergeStatus = MergeRecord & {
     captain_green: false;
     operation_lease?: MergeOperationLeaseStatus;
 };
+export type MergeDiagnosticArgs = Pick<MergePrepArgs, "session_id" | "source_worktree" | "target_worktree" | "target_branch">;
+export type MergeDiagnostic = {
+    read_only: true;
+    captain_green: false;
+    operations: Array<Pick<MergeRecord, "merge_id" | "revision" | "state" | "source_worktree" | "target_worktree" | "target_branch"> & {
+        source_head: string;
+        target_head: string;
+    }>;
+    target_lease: {
+        state: "absent" | "held" | "released";
+        intent_id?: string;
+        operation?: string;
+        owner?: MergeLeaseOwner;
+        session_match?: "same" | "other" | "unknown";
+    };
+};
+/** Context is attached only after Prep has established its caller-owned signed record. */
+export declare class MergeWorkflowError extends Error {
+    readonly merge_id: string;
+    constructor(merge_id: string, cause: unknown);
+}
 /** Independent integration ledger. Implementation run phases and proof are never rewritten. */
 export declare class MergeWorkflowStore {
     private readonly dataRoot;
     private readonly runner;
     private readonly activeOperations;
     constructor(dataRoot: string, runner?: GateRunner);
+    diagnose(args: MergeDiagnosticArgs): Promise<MergeDiagnostic>;
     prep(args: MergePrepArgs): Promise<MergeStatus>;
     back(args: MergeBackArgs): Promise<MergeStatus>;
     status(args: MergeBackArgs): Promise<MergeStatus>;
@@ -123,6 +145,8 @@ export declare class MergeWorkflowStore {
     private initial;
     private update;
     private watermark;
+    /** Verify existing history and watermarks; never repair a checkpoint while diagnosing. */
+    private readForDiagnosis;
     private read;
 }
 export {};

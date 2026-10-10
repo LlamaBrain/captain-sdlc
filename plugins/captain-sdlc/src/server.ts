@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { MergeWorkflowStore } from "./merge-workflow.js";
+import { MergeWorkflowError, MergeWorkflowStore } from "./merge-workflow.js";
 import { z } from "zod";
 import { LifecycleStore, effectiveGateDisclosure, executionHead, isPendingPlanReview, type HitlCheck } from "./lifecycle.js";
 import { extractAuthorizedTargetBranch, extractCaptainResumeIntent } from "./intent.js";
@@ -131,16 +131,17 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.2.1" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.2.2" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {
-  const next_step = args.merge_id ? {
+  const merge_id = args.merge_id ?? (error instanceof MergeWorkflowError ? error.merge_id : undefined);
+  const next_step = merge_id ? {
     tool: "captain_merge_status",
-    arguments: { merge_id: args.merge_id, session_id: args.session_id },
+    arguments: { merge_id, session_id: args.session_id },
     guidance: "Read the signed source/target bindings and operation_lease recovery context. Repair the diagnosed cause and continue the same authorized operation; lease recovery is separate from abort/reset.",
   } : undefined;
-  return { isError: true, content: [{ type: "text" as const, text: error.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error.message, ...(next_step ? { next_step } : {}) } };
+  return { isError: true, content: [{ type: "text" as const, text: error.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error.message, ...(merge_id ? { merge_id } : {}), ...(next_step ? { next_step } : {}) } };
 });
 server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: z.array(z.string().min(1)).optional(), hitl_checks: z.array(z.object({ id: z.string().trim().min(1), criterionId: z.string().trim().min(1), setup: z.string().trim().min(1), action: z.string().trim().min(1), expected: z.string().trim().min(1), evidence: z.string().trim().min(1) })).optional() } }, async args => guarded(async () => { const run = await captainBegin(store, args); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
 server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
@@ -152,6 +153,11 @@ server.registerTool("captain_run_check", { description: "Run a trusted ticket/sm
 server.registerTool("captain_link_blocker", { description: "Append a signed dependency from a paused run to the active blocker run that must be completed before it can resume.", inputSchema: { blocked_intent_id: z.string(), blocker_intent_id: z.string() } }, async ({ blocked_intent_id, blocker_intent_id }) => guarded(() => store.linkBlocker(blocked_intent_id, blocker_intent_id)));
 server.registerTool("captain_doctor", { description: "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.", inputSchema: {} }, async () => guarded(() => store.doctor()));
 server.registerTool("captain_migrate_plan_state", { description: "Migrate explicitly selected Markdown plans to Captain's bounded work-state block. This is the same backend used by the Captain dashboard and Codex skill.", inputSchema: { intent_id: z.string(), plan_paths: z.array(z.string().min(1).max(2000)).min(1).max(100) } }, async ({ intent_id, plan_paths }) => guarded(() => store.migratePlanState(intent_id, plan_paths)));
+server.registerTool("captain_merge_diagnose", {
+  description: "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: { session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1) }
+}, async args => guarded(() => merges.diagnose(args)));
 const mergePrepConfig = {
   description: "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
   inputSchema: {
