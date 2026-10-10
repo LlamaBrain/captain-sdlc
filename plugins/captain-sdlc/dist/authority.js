@@ -229,7 +229,7 @@ export async function readAuthorizedReadOnly(root, bucket, id) {
     return envelope.payload;
 }
 /** Inspect signed lease ownership without migration, watermark publication or recovery. */
-export async function readAuthorizedLeaseStateReadOnly(root, id) {
+export async function readAuthorizedLeaseSnapshotReadOnly(root, id) {
     const leaseId = safe(id);
     // Absence is meaningful only in an existing authenticated authority store.
     decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
@@ -261,7 +261,7 @@ export async function readAuthorizedLeaseStateReadOnly(root, id) {
         }
         if (!validPayload(legacy))
             throw new Error("authorized legacy lease payload is invalid");
-        return { state: "held", payload: legacy };
+        return { state: "held", payload: legacy, revision: null, legacy: true };
     }
     if (revisions[0] !== 0 || revisions.some((revision, index) => revision !== index))
         throw new Error("authorized lease revision chain is not contiguous");
@@ -280,5 +280,10 @@ export async function readAuthorizedLeaseStateReadOnly(root, id) {
             throw new Error("signed lease watermark checkpoint does not match its revision");
         previous = current;
     }
-    return { state: previous.state, payload: previous.payload };
+    return { state: previous.state, payload: previous.payload, revision: previous.revision, legacy: false };
+}
+/** Preserve the existing public read-only lease result shape. */
+export async function readAuthorizedLeaseStateReadOnly(root, id) {
+    const snapshot = await readAuthorizedLeaseSnapshotReadOnly(root, id);
+    return snapshot && { state: snapshot.state, payload: snapshot.payload };
 }

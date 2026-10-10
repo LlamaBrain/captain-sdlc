@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4
+- Add public, authenticated read-only diagnosis for an exact caller-owned Begin intent and target lease.
+- Report startup progress and an opaque verified lease generation without changing authority records, Git state or recovery controls.
+- Cover real signed Begin producers and public MCP transport, including interrupted startup, progressed startup and response sanitization.
+
 ## 0.2.3
 - Configure Captain's per-project policy for the existing plugin version files and scoped changelog.
 - Keep the exact ignored plugin build, proof and scratch output roots out of source proof while rejecting tracked content in those roots.

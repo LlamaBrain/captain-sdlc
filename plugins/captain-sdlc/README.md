@@ -66,6 +66,21 @@ proof; integration has its own signed record. Caller-supplied commands cannot re
 The existing `captain_prepare_merge`/`captain_abort_merge` tools retain their low-level contracts
 for current implementation clients. A request for Merge Prep never implies Merge Back.
 
+## Read-only Begin diagnosis
+
+`captain_begin_diagnose` inspects an exact caller-owned startup using `intent_id`,
+`session_id`, `project_root`, `target_worktree` and `target_branch`. It verifies
+existing signed intent, issuance, startup checkpoints and lease history, then checks
+the matching Git checkout. It reports the observed startup stage, binding results,
+later state and an opaque lease generation without creating authority keys, repairing
+records, publishing watermarks or changing Git state.
+
+Missing or foreign ownership returns a generic unavailable result. A held legacy
+lease remains unproven; this diagnostic neither establishes that its owner stopped
+nor releases it. Continue the existing operation only through a supported recovery
+that verifies ownership and protects startup progress. This tool does not grant
+Merge Back or push authorization.
+
 ## Routing and emergency control
 
 Ordinary requests are never governed. To start a governed worktree run, put a standalone task directive in the request: `[Captain plan: TASK-ID]`; add `[Captain target: branch]` when the plan must integrate a specific local branch.

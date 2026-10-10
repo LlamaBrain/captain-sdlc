@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "notes": [
+    {
+      "id": "captain-begin-diagnosis-scope-20261010",
+      "kind": "decision",
+      "title": "Read-only Begin diagnosis scope and ownership boundary",
+      "body": "D1-D3 are frozen in .captain-proof/begin-diagnosis/setup.json for intent-9ee54077-5bb6-498d-a43e-19893e4efb39. Deliver authenticated exact-caller read-only diagnosis, real signed producer and SDK invariance proof, a reviewed atomic plugin patch and local installation. Diagnose the existing Dirigible orphan without changing its authority records or releasing unknown ownership. Original Dirigible commit and merge-33df1974-b691-45b0-af41-dedbb4088e27 remain retained; continue that same Prep only after supported recovery. Commit authorization persists; push and Merge Back are not authorized. Per-project configuration now captures the canonical plugin version and generated-output exclusions without changing the feature proof gates.",
+      "status": "accepted",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "begin-diagnosis",
+        "merge-prep"
+      ],
+      "links": [
+        ".captain-proof/begin-diagnosis/setup.json"
+      ],
+      "source": {
+        "agent": "Captain"
+      },
+      "createdAt": "2026-10-10T05:17:32.681Z",
+      "updatedAt": "2026-10-10T05:17:32.681Z"
+    }
+  ]
+}

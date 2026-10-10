@@ -167,7 +167,7 @@ export async function readAuthorizedReadOnly<T>(root: string, bucket: string, id
 }
 
 /** Inspect signed lease ownership without migration, watermark publication or recovery. */
-export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(root: string, id: string): Promise<{ state: "held" | "released"; payload: T } | undefined> {
+export async function readAuthorizedLeaseSnapshotReadOnly<T extends LeasePayload>(root: string, id: string): Promise<{ state: "held" | "released"; payload: T; revision: number | null; legacy: boolean } | undefined> {
   const leaseId = safe(id);
   // Absence is meaningful only in an existing authenticated authority store.
   decodeKey(await readFile(path.join(root, "authority.key"), "utf8"));
@@ -185,7 +185,7 @@ export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(r
     try { legacy = await readAuthorizedReadOnly<T>(root, "leases", leaseId); }
     catch (error: any) { if (error.code !== "ENOENT") throw error; return undefined; }
     if (!validPayload(legacy)) throw new Error("authorized legacy lease payload is invalid");
-    return { state: "held", payload: legacy };
+    return { state: "held", payload: legacy, revision: null, legacy: true };
   }
   if (revisions[0] !== 0 || revisions.some((revision, index) => revision !== index)) throw new Error("authorized lease revision chain is not contiguous");
   if (watermarks.some(revision => revision > revisions[revisions.length - 1])) throw new Error("authorized lease revision tail regressed behind its signed watermark");
@@ -199,5 +199,11 @@ export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(r
     if (JSON.stringify(existing) !== JSON.stringify(expected)) throw new Error("signed lease watermark checkpoint does not match its revision");
     previous = current;
   }
-  return { state: previous!.state, payload: previous!.payload };
+  return { state: previous!.state, payload: previous!.payload, revision: previous!.revision, legacy: false };
+}
+
+/** Preserve the existing public read-only lease result shape. */
+export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(root: string, id: string): Promise<{ state: "held" | "released"; payload: T } | undefined> {
+  const snapshot = await readAuthorizedLeaseSnapshotReadOnly<T>(root, id);
+  return snapshot && { state: snapshot.state, payload: snapshot.payload };
 }
