@@ -1,6 +1,9 @@
 {
   "profile": "feature",
-  "profiles": ["feature", "pre-release"],
+  "profiles": [
+    "feature",
+    "pre-release"
+  ],
   "visualRequired": false,
   "commands": {
     "build": "npm --prefix plugins/captain-sdlc run build",
@@ -13,5 +16,16 @@
     "build": "plugins/captain-sdlc/dist",
     "smoke": "plugins/captain-sdlc/.captain-proof/smoke.json"
   },
-  "redGate": { "expectedExitCodes": [1], "outputPattern": "fail [1-9][0-9]*" }
+  "redGate": {
+    "expectedExitCodes": [
+      1
+    ],
+    "outputPattern": "fail [1-9][0-9]*"
+  },
+  "commitPolicyPath": ".captain-sdlc/project-policy.json",
+  "sourceManifestExcludes": [
+    "plugins/captain-sdlc/bin",
+    "plugins/captain-sdlc/Temp/automation-scratch",
+    "plugins/captain-sdlc/.captain-proof"
+  ]
 }

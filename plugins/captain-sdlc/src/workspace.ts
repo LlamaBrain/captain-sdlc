@@ -21,6 +21,7 @@ const approvedGeneratedPaths = new Set([
   "assets/textmesh pro/resources/fonts & materials/liberationsans sdf - fallback.asset",
   "assets/resources/performancetestruninfo.json", "assets/resources/performancetestrunsettings.json", ".captain-sdlc/unity-relaunch.log",
   "doxygen/dirigibles", "doxygen/doxygen_warnings.log",
+  "plugins/captain-sdlc/bin", "plugins/captain-sdlc/temp/automation-scratch", "plugins/captain-sdlc/.captain-proof",
 ]);
 const approvedGeneratedRootFilePatterns = new Set(["*.csproj", "*.unityproj", "*.sln", "*.suo", "*.tmp", "*.user", "*.userprefs", "*.pidb", "*.booproj", "*.svd", "*.pdb", "*.mdb", "*.opendb", "*.vc.db", "*.dotsettings", "*.dotsettings.user", "sysinfo.txt", "crashlytics-build.properties", "doxygen_warnings.log"]);
 let isolatedGitControlRoot: Promise<string> | undefined;

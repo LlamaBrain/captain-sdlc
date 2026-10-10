@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+- Configure Captain's per-project policy for the existing plugin version files and scoped changelog.
+- Keep the exact ignored plugin build, proof and scratch output roots out of source proof while rejecting tracked content in those roots.
+- Verify synchronized plugin commit preflight, captured policy preservation and source protection without changing commands or gates.
+
 ## 0.2.2
 - Preserve the persisted operation ID when initial Merge Prep fails, with public status guidance bound to the caller session.
 - Add strict read-only merge diagnosis for caller-owned operations with exact source/target/branch bindings and limited conflicting lease owner metadata.

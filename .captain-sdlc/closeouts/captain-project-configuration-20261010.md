@@ -1,0 +1,11 @@
+# Captain project configuration closeout
+
+Delivered K1–K3: configure the existing per-project commit policy to the real plugin release files and changelog; admit only three exact ignored build/proof/scratch roots while retaining tracked-file refusal; prove a synchronized plugin patch without fabricated root release files. Existing commands, profiles, hooks, safe regex, unique paths and captured policies remain unchanged. Original diagnostic C1–C4 scope remains frozen.
+
+Branch: `captain/intent-ff286e0f-23f5-4a13-9c06-ab4ad2f5ea6b`, parent `c8784a64056d80f89821e5a2c0563a87951b5bac`, patch version 0.2.3. The exact resulting commit is recorded separately in `.captain-proof/project-configuration/git-commit.json`.
+
+Verification: full captured ticket including package build PASS; captured affected regression/typecheck PASS; captured feature smoke/public MCP initialize PASS. RED is signed revision 2. Six focused configuration, genuine commit preflight, policy-freeze, generated-output and tracked-file checks passed (tool output 03b45e). Actual revisions, response hashes, reviews and setup/application receipts are retained in `.captain-proof/project-configuration/`. Two independent reviews returned CLEAR. No Unity/runtime/visual gate applies to this tooling configuration change; no CI push was authorized or run.
+
+This bootstrap run retains its original signed policy, which lacks the plugin commit policy and still defaults to absent root VERSION/CHANGELOG.md. That known preflight invariant was diagnosed in the preceding run and is not retried unchanged or bypassed. This authorized ordinary Git commit preserves normal hooks; Captain final green remains incomplete for the bootstrap run. Future runs from this committed correction capture the actual project policy. Git delivery and signed proof are distinct.
+
+Follow-up for human review: the safe package-lock pattern captures top-level version only. The root package mirror is explicitly checked at packaging and staging; extending typed validation is separate work. No regex or unique-path control was weakened. Remaining original action: diagnose/recover the target branch lease through public authenticated tooling, then continue the same Dirigible Prep. Dirigible source/target and notebook stash are preserved; no Merge Back or push is authorized.

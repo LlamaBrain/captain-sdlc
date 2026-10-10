@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "commit": {
+    "conventional": true,
+    "require_version_suffix": true,
+    "require_task_trailer": false,
+    "version_file": "plugins/captain-sdlc/package.json",
+    "version_surfaces": [
+      {
+        "path": "plugins/captain-sdlc/package.json",
+        "pattern": "(?m)^  \"version\": \"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\",$"
+      },
+      {
+        "path": "plugins/captain-sdlc/package-lock.json",
+        "pattern": "(?m)^  \"version\": \"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\",$"
+      },
+      {
+        "path": "plugins/captain-sdlc/.codex-plugin/plugin.json",
+        "pattern": "(?m)^  \"version\": \"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\",$"
+      },
+      {
+        "path": "plugins/captain-sdlc/src/server.ts",
+        "pattern": "(?m)^const server = new McpServer\\(\\{ name: \"captain-sdlc\", version: \"(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\" \\}\\);$"
+      }
+    ],
+    "changelog_files": [
+      "plugins/captain-sdlc/CHANGELOG.md"
+    ]
+  }
+}

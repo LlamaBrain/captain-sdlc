@@ -1,14 +1,72 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { execFile } from "node:child_process";
-import { access, chmod, mkdir, mkdtemp, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { abortMerge, applyPreparedCommit, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState } from "../src/workspace.js";
 const exec = promisify(execFile);
 const runGit = (root: string, ...args: string[]) => exec("git", args, { cwd: root });
 async function repo() { const root = await mkdtemp(path.join(tmpdir(), "captain-workspace-")); await exec("git", ["init"], { cwd: root }); await exec("git", ["config", "user.name", "Captain Test"], { cwd: root }); await exec("git", ["config", "user.email", "captain@example.invalid"], { cwd: root }); await mkdir(path.join(root, ".captain-sdlc")); await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify({ profile: "feature", visualRequired: false, commands: { build: "build", ticket: "trusted", "feature-smoke": "smoke", "affected-regression": "affected" } })); await exec("git", ["add", "."], { cwd: root }); await exec("git", ["commit", "-m", "baseline"], { cwd: root }); return root; }
+
+const selfHostGeneratedRoots = ["plugins/captain-sdlc/bin", "plugins/captain-sdlc/Temp/automation-scratch", "plugins/captain-sdlc/.captain-proof"];
+async function selfHostConfiguredRepo(t: TestContext) {
+  const root = await repo();
+  t.after(async () => {
+    assert.equal(path.dirname(root), path.resolve(tmpdir()));
+    assert.ok(path.basename(root).startsWith("captain-workspace-"));
+    await rm(root, { recursive: true, force: true });
+  });
+  const sourceRoot = fileURLToPath(new URL("../../../", import.meta.url));
+  const shippedText = await readFile(path.join(sourceRoot, ".captain-sdlc/codex-policy.json"), "utf8");
+  const shipped = JSON.parse(shippedText);
+  await writeFile(path.join(root, ".captain-sdlc/codex-policy.json"), shippedText);
+  if (shipped.commitPolicyPath) {
+    await mkdir(path.dirname(path.join(root, shipped.commitPolicyPath)), { recursive: true });
+    await writeFile(path.join(root, shipped.commitPolicyPath), await readFile(path.join(sourceRoot, shipped.commitPolicyPath)));
+  }
+  await writeFile(path.join(root, ".gitignore"), await readFile(path.join(sourceRoot, ".gitignore")));
+  const retainedSource = "plugins/captain-sdlc/src/retained-contract.ts";
+  await mkdir(path.dirname(path.join(root, retainedSource)), { recursive: true });
+  await writeFile(path.join(root, retainedSource), "export const retainedContract = 1;\n");
+  await runGit(root, "add", ".");
+  await runGit(root, "commit", "-m", "fixture actual self-host generated paths");
+  const baseHead = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+  return { root, baseHead, retainedSource };
+}
+
+test("shipped self-host policy keeps required ignored generated outputs out of its source manifest", async t => {
+  const fixture = await selfHostConfiguredRepo(t);
+  const policy = await loadPolicy(fixture.root, fixture.baseHead);
+  const before = await sourceState(fixture.root, policy);
+  for (const relative of selfHostGeneratedRoots) {
+    await mkdir(path.join(fixture.root, relative), { recursive: true });
+    await writeFile(path.join(fixture.root, relative, "generated-proof-fixture.json"), "generated output\n");
+    await runGit(fixture.root, "check-ignore", "-q", "--", `${relative}/generated-proof-fixture.json`);
+  }
+  const after = await sourceState(fixture.root, policy);
+  assert.equal(after.status, "", "these exact artifact writes must remain ignored by the shipped repository rules");
+  assert.equal(after.manifest, before.manifest, "required self-host build/smoke/scratch outputs must not invalidate source proof");
+  await writeFile(path.join(fixture.root, fixture.retainedSource), "export const retainedContract = 2;\n");
+  assert.notEqual((await sourceState(fixture.root, policy)).manifest, before.manifest, "the surrounding plugin source must remain in the proof manifest");
+});
+
+test("shipped self-host generated exclusions refuse tracked authored files in each exact root", async t => {
+  const fixture = await selfHostConfiguredRepo(t);
+  for (const relative of selfHostGeneratedRoots) {
+    const authored = path.join(relative, "authored-contract.txt").replaceAll("\\", "/");
+    await mkdir(path.dirname(path.join(fixture.root, authored)), { recursive: true });
+    await writeFile(path.join(fixture.root, authored), "tracked authored contract\n");
+    await runGit(fixture.root, "add", "-f", "--", authored);
+    await runGit(fixture.root, "commit", "-m", "fixture tracked authored file under " + relative);
+    const head = (await runGit(fixture.root, "rev-parse", "HEAD")).stdout.trim();
+    await assert.rejects(loadPolicy(fixture.root, head), /tracked base files and cannot be excluded/, "generated-path admission must retain the tracked-content refusal");
+    await runGit(fixture.root, "rm", "--", authored);
+    await runGit(fixture.root, "commit", "-m", "remove owned authored fixture");
+  }
+});
 
 const repositoryCommitPolicy = {
   conventional: true,

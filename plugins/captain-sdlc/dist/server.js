@@ -21754,7 +21754,10 @@ var approvedGeneratedPaths = /* @__PURE__ */ new Set([
   "assets/resources/performancetestrunsettings.json",
   ".captain-sdlc/unity-relaunch.log",
   "doxygen/dirigibles",
-  "doxygen/doxygen_warnings.log"
+  "doxygen/doxygen_warnings.log",
+  "plugins/captain-sdlc/bin",
+  "plugins/captain-sdlc/temp/automation-scratch",
+  "plugins/captain-sdlc/.captain-proof"
 ]);
 var approvedGeneratedRootFilePatterns = /* @__PURE__ */ new Set(["*.csproj", "*.unityproj", "*.sln", "*.suo", "*.tmp", "*.user", "*.userprefs", "*.pidb", "*.booproj", "*.svd", "*.pdb", "*.mdb", "*.opendb", "*.vc.db", "*.dotsettings", "*.dotsettings.user", "sysinfo.txt", "crashlytics-build.properties", "doxygen_warnings.log"]);
 var isolatedGitControlRoot;
@@ -24398,7 +24401,7 @@ async function startCaptainMcp() {
   const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path6.join(process.env.CODEX_HOME || path6.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.2.2" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.2.3" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {
