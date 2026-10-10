@@ -40,6 +40,7 @@ export function effectiveGateDisclosure(run) {
         gates: proofScopes(run).map(scope => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
     };
 }
+const beginAttemptQueues = new Map();
 export class LifecycleStore {
     dataRoot;
     runner;
@@ -50,6 +51,24 @@ export class LifecycleStore {
         this.runner = runner;
         this.probe = probe;
         this.hooks = hooks;
+    }
+    async withSerializedBeginAttempt(intentId, action) {
+        const resolvedRoot = path.resolve(this.dataRoot);
+        const rootKey = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
+        const key = rootKey + "\0" + intentId;
+        const previous = beginAttemptQueues.get(key) ?? Promise.resolve();
+        let release;
+        const current = new Promise(resolve => { release = resolve; });
+        beginAttemptQueues.set(key, current);
+        await previous;
+        try {
+            return await this.withBeginAttemptGate(intentId, action);
+        }
+        finally {
+            release();
+            if (beginAttemptQueues.get(key) === current)
+                beginAttemptQueues.delete(key);
+        }
     }
     async withBeginAttemptGate(intentId, action) {
         const leaseId = `begin-attempt-${digest(intentId)}`, leaseToken = randomUUID();
@@ -395,7 +414,7 @@ export class LifecycleStore {
     async checkpointBeginActivated(operation) { await this.assertBeginOperation(operation); const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken); if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken)
         throw new Error("begin activation checkpoints are incomplete"); await this.assertSessionLease(run); await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId }); await this.project("active", operation.sessionId, active); return run; }
     async begin(input) {
-        return this.withBeginAttemptGate(input.intentId, async () => {
+        return this.withSerializedBeginAttempt(input.intentId, async () => {
             const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
             const activated = await this.activatedBeginRun(operation);
             if (activated)

@@ -18,7 +18,7 @@ export type CaptainIssueIntentArgs = { session_id: string; turn_id: string; proj
 export type CaptainBeginDependencies = { repositoryIdentity: typeof repositoryIdentity; loadPolicy: typeof loadPolicy; ensureWorktree: typeof ensureWorktree; afterStage?: (stage: CaptainBeginStage) => Promise<void> };
 const beginDependencies: CaptainBeginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 export async function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }: CaptainBeginArgs, dependencies: CaptainBeginDependencies = beginDependencies) {
-  return store.withBeginAttemptGate(intent_id, async () => {
+  return store.withSerializedBeginAttempt(intent_id, async () => {
   const operation = await store.reserveBegin({ intentId: intent_id, objective, projectRoot: project_root, taskId: task_id }); await dependencies.afterStage?.("reservation"); const activated = await store.activatedBeginRun(operation);
   if (activated) {
     const requestedPolicy = await dependencies.loadPolicy(activated.projectRoot, activated.baseHead, plan_paths, hitl_checks);
@@ -136,7 +136,7 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.2.5" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.2.6" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {

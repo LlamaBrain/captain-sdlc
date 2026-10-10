@@ -23145,12 +23145,31 @@ function effectiveGateDisclosure(run) {
     gates: proofScopes(run).map((scope) => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
   };
 }
+var beginAttemptQueues = /* @__PURE__ */ new Map();
 var LifecycleStore = class {
   constructor(dataRoot, runner, probe, hooks) {
     this.dataRoot = dataRoot;
     this.runner = runner;
     this.probe = probe;
     this.hooks = hooks;
+  }
+  async withSerializedBeginAttempt(intentId, action) {
+    const resolvedRoot = path7.resolve(this.dataRoot);
+    const rootKey = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
+    const key2 = rootKey + "\0" + intentId;
+    const previous = beginAttemptQueues.get(key2) ?? Promise.resolve();
+    let release;
+    const current = new Promise((resolve) => {
+      release = resolve;
+    });
+    beginAttemptQueues.set(key2, current);
+    await previous;
+    try {
+      return await this.withBeginAttemptGate(intentId, action);
+    } finally {
+      release();
+      if (beginAttemptQueues.get(key2) === current) beginAttemptQueues.delete(key2);
+    }
   }
   async withBeginAttemptGate(intentId, action) {
     const leaseId = `begin-attempt-${digest4(intentId)}`, leaseToken = randomUUID();
@@ -23454,7 +23473,7 @@ var LifecycleStore = class {
     return run;
   }
   async begin(input) {
-    return this.withBeginAttemptGate(input.intentId, async () => {
+    return this.withSerializedBeginAttempt(input.intentId, async () => {
       const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
       const activated = await this.activatedBeginRun(operation);
       if (activated) return activated;
@@ -24957,7 +24976,7 @@ function extractAuthorizedTargetBranch(prompt) {
 // src/server.ts
 var beginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }, dependencies = beginDependencies) {
-  return store.withBeginAttemptGate(intent_id, async () => {
+  return store.withSerializedBeginAttempt(intent_id, async () => {
     const operation = await store.reserveBegin({ intentId: intent_id, objective, projectRoot: project_root, taskId: task_id });
     await dependencies.afterStage?.("reservation");
     const activated = await store.activatedBeginRun(operation);
@@ -25113,7 +25132,7 @@ async function startCaptainMcp() {
   const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path9.join(process.env.CODEX_HOME || path9.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.2.5" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.2.6" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {

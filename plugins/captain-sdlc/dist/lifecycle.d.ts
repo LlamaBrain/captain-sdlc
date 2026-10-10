@@ -324,6 +324,7 @@ export declare class LifecycleStore {
     private readonly probe?;
     private readonly hooks?;
     constructor(dataRoot: string, runner: GateRunner, probe?: StateProbe | undefined, hooks?: LifecycleHooks | undefined);
+    withSerializedBeginAttempt<T>(intentId: string, action: () => Promise<T>): Promise<T>;
     withBeginAttemptGate<T>(intentId: string, action: () => Promise<T>): Promise<T>;
     diagnoseBegin(args: BeginDiagnosticArgs): Promise<{
         diagnosis: "invalid_request";

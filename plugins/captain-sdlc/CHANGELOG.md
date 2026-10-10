@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+- Preserve simultaneous exact Begin idempotency by serializing ordinary calls in one process, then rechecking each signed reservation and cancellation marker.
+- Keep cancellation and cross-process startup exclusion on the existing signed attempt gate; rejected calls cannot poison the local queue.
+
 ## 0.2.5
 - Add guarded public cancellation of an authenticated caller-owned, failed pre-workspace Begin reservation.
 - Serialize cancellation with current startup retries, retire the signed reservation before exact-generation lease release, and revalidate target ownership before run publication.

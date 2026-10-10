@@ -66,8 +66,24 @@ export function effectiveGateDisclosure(run: Run) {
     gates: proofScopes(run).map(scope => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
   };
 }
+const beginAttemptQueues = new Map<string, Promise<void>>();
 export class LifecycleStore {
   constructor(private readonly dataRoot: string, private readonly runner: GateRunner, private readonly probe?: StateProbe, private readonly hooks?: LifecycleHooks) {}
+  async withSerializedBeginAttempt<T>(intentId: string, action: () => Promise<T>): Promise<T> {
+    const resolvedRoot = path.resolve(this.dataRoot);
+    const rootKey = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
+    const key = rootKey + "\0" + intentId;
+    const previous = beginAttemptQueues.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>(resolve => { release = resolve; });
+    beginAttemptQueues.set(key, current);
+    await previous;
+    try { return await this.withBeginAttemptGate(intentId, action); }
+    finally {
+      release();
+      if (beginAttemptQueues.get(key) === current) beginAttemptQueues.delete(key);
+    }
+  }
   async withBeginAttemptGate<T>(intentId: string, action: () => Promise<T>): Promise<T> {
     const leaseId = `begin-attempt-${digest(intentId)}`, leaseToken = randomUUID();
     await acquireAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken, operation: "begin-attempt" });
@@ -265,7 +281,7 @@ export class LifecycleStore {
   }
   async checkpointBeginActivated(operation: BeginOperation): Promise<Run> { await this.assertBeginOperation(operation); const run = await this.run(operation.intentId), active = await this.load<any>("begin-active", operation.operationToken); if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken) throw new Error("begin activation checkpoints are incomplete"); await this.assertSessionLease(run); await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId }); await this.project("active", operation.sessionId, active); return run; }
   async begin(input: BeginInput): Promise<Run> {
-    return this.withBeginAttemptGate(input.intentId, async () => {
+    return this.withSerializedBeginAttempt(input.intentId, async () => {
       const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
       const activated = await this.activatedBeginRun(operation); if (activated) return activated;
       const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);

@@ -402,3 +402,120 @@ test("actual completion's unrelated session tombstone does not block retirement 
     assert.notEqual(fresh.operationToken, started.operationToken);
   } finally { await dispose(f); }
 });
+
+test("ordinary Begin calls queue and revalidate changed reservation arguments", { timeout: 30000 }, async () => {
+  const f = await fixture();
+  let enteredResolve!: () => void, releaseResolve!: () => void;
+  const entered = new Promise<void>(resolve => { enteredResolve = resolve; });
+  const hold = new Promise<void>(resolve => { releaseResolve = resolve; });
+  let firstOutcome: Promise<{ value?: unknown; error?: unknown }> | undefined;
+  let secondOutcome: Promise<{ value?: unknown; error?: unknown }> | undefined;
+  try {
+    const intentId = await issue(f), args = beginArgs(f, intentId);
+    const pausedDependencies = {
+      ...beginDependencies,
+      ensureWorktree: async (...worktreeArgs: any[]) => {
+        enteredResolve();
+        await hold;
+        return workspace.ensureWorktree(...worktreeArgs);
+      },
+    };
+    firstOutcome = serverApi.captainBegin(f.store, args, pausedDependencies).then(
+      value => ({ value }), error => ({ error }),
+    );
+    await bounded(entered, 10000, "first Begin did not reach the signed lease/workspace boundary");
+
+    let secondSettled = false;
+    secondOutcome = serverApi.captainBegin(
+      new LifecycleStore(f.dataRoot, ok),
+      { ...args, objective: "changed objective must be checked after queuing" },
+      beginDependencies,
+    ).then(value => ({ value }), error => ({ error })).then(result => {
+      secondSettled = true;
+      return result;
+    });
+    await new Promise(resolve => setTimeout(resolve, 25));
+    const settledBeforeRelease = secondSettled;
+    releaseResolve();
+
+    const [first, second] = await Promise.all([firstOutcome, secondOutcome]);
+    assert.equal(settledBeforeRelease, false, "the second exact-intent Begin waits for the current local attempt");
+    assert.ok(first.error, "the real pre-workspace checkout conflict remains a refusal");
+    assert.match(String((first.error as Error).message), canonicalFailure);
+    assert.ok(second.error, "changed arguments are not accepted as a second Begin");
+    assert.match(String((second.error as Error).message), /signed begin reservation/i,
+      "the queued call re-runs reservation validation after the first attempt releases the gate");
+  } finally {
+    releaseResolve();
+    if (firstOutcome) await firstOutcome;
+    if (secondOutcome) await secondOutcome;
+    await dispose(f);
+  }
+});
+
+test("queued retries after cancellation re-read the terminal marker", { timeout: 30000 }, async () => {
+  const f = await fixture();
+  let enteredResolve!: () => void, releaseResolve!: () => void;
+  const entered = new Promise<void>(resolve => { enteredResolve = resolve; });
+  const hold = new Promise<void>(resolve => { releaseResolve = resolve; });
+  let firstOutcome: Promise<{ value?: unknown; error?: unknown }> | undefined;
+  let secondOutcome: Promise<{ value?: unknown; error?: unknown }> | undefined;
+  try {
+    const intentId = await issue(f);
+    await failedBegin(f, intentId);
+    const state = await checkpointState(f, intentId);
+    const { args } = await inspect(f, intentId);
+    const retired = await cancellation()(f.store, args);
+    assert.equal(retired.cancelled, true);
+
+    const marker = await authority.readAuthorizedReadOnly(f.dataRoot, "begin-cancellations", intentId);
+    const releasedLease = await authority.readAuthorizedLeaseSnapshotReadOnly(f.dataRoot, state.checkpoint.leaseId);
+    const beforeGit = await snapshotTree(path.join(f.projectRoot, ".git"));
+    const firstStore = new LifecycleStore(f.dataRoot, ok);
+    const originalBeginCancellationFor = firstStore.beginCancellationFor.bind(firstStore);
+    let pausedFirstMarkerRead = false;
+    firstStore.beginCancellationFor = async requestedIntentId => {
+      if (requestedIntentId === intentId && !pausedFirstMarkerRead) {
+        pausedFirstMarkerRead = true;
+        enteredResolve();
+        await hold;
+      }
+      return originalBeginCancellationFor(requestedIntentId);
+    };
+
+    const beginArgsForIntent = beginArgs(f, intentId);
+    firstOutcome = serverApi.captainBegin(firstStore, beginArgsForIntent, beginDependencies).then(
+      value => ({ value }), error => ({ error }),
+    );
+    await bounded(entered, 10000, "first retry did not reach the signed cancellation marker");
+    let secondSettled = false;
+    secondOutcome = serverApi.captainBegin(
+      new LifecycleStore(f.dataRoot, ok),
+      beginArgsForIntent,
+      beginDependencies,
+    ).then(value => ({ value }), error => ({ error })).then(result => {
+      secondSettled = true;
+      return result;
+    });
+    await new Promise(resolve => setTimeout(resolve, 25));
+    const settledBeforeRelease = secondSettled;
+    releaseResolve();
+
+    const [first, second] = await Promise.all([firstOutcome, secondOutcome]);
+    assert.equal(settledBeforeRelease, false, "the second retry waits for the first marker check");
+    for (const outcome of [first, second]) {
+      assert.ok(outcome.error, "a retired Begin cannot be restarted");
+      assert.match(String((outcome.error as Error).message), /implementation Begin was cancelled/i);
+    }
+    assert.deepEqual(await authority.readAuthorizedReadOnly(f.dataRoot, "begin-cancellations", intentId), marker);
+    assert.deepEqual(await authority.readAuthorizedLeaseSnapshotReadOnly(f.dataRoot, state.checkpoint.leaseId), releasedLease);
+    assert.equal((await f.store.beginOperationFor(intentId)).operationToken, state.operation.operationToken);
+    await assertNoRun(f, intentId);
+    assert.deepEqual(await snapshotTree(path.join(f.projectRoot, ".git")), beforeGit);
+  } finally {
+    releaseResolve();
+    if (firstOutcome) await firstOutcome;
+    if (secondOutcome) await secondOutcome;
+    await dispose(f);
+  }
+});
