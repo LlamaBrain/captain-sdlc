@@ -1,3 +1,4 @@
+import { type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
@@ -224,6 +225,12 @@ export type TerminalCommit = {
     final: boolean;
     commit: CommitEvidence;
 };
+export type TaskTicket = {
+    filter: string;
+    command: string;
+    commandSha256: string;
+    policyCommandSha256: string;
+};
 export type Run = {
     schemaVersion: 1;
     revision: number;
@@ -253,6 +260,7 @@ export type Run = {
     phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete";
     status: "running" | "paused" | "green" | "red";
     policy: ProjectPolicy;
+    taskTicket?: TaskTicket;
     preparedMerges?: PreparedMerge[];
     mutationOperation?: WorktreeMutationOperation;
     commitOperation?: CommitOperation;
@@ -262,7 +270,7 @@ export type Run = {
     continuityState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
-export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "evidence" | "profile" | "visualRequired">;
+export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
 export type CommitEvidence = {
     head: string;
     tree?: string;
@@ -278,7 +286,28 @@ export type CommitEvidence = {
     previousPhaseHead?: string;
     previousPhaseRetained?: boolean;
 };
+export type SessionInterruptionArgs = {
+    intentId: string;
+    sessionId: string;
+    expectedRunRevision: number;
+    expectedSessionLeaseRevision: number;
+    resourceGeneration: string;
+    summary: string;
+    nextSteps: string[];
+};
+export type SessionOwnerBinding = {
+    schemaVersion: 1;
+    intentId: string;
+    runId: string;
+    sessionId: string;
+    activationToken: string;
+    sessionLeaseId: string;
+    sessionLeaseToken: string;
+    owner: SessionOwner;
+};
 export type LifecycleHooks = {
+    sessionOwner?: (sessionId: string) => Promise<SessionOwner | undefined>;
+    probeSessionOwner?: (owner: SessionOwner) => Promise<SessionOwnerProbe>;
     afterTerminalCommit?: (run: Run) => Promise<void>;
     afterRunCompleted?: (run: Run) => Promise<void>;
     afterResumeReserved?: (operation: ResumeOperation) => Promise<void>;
@@ -312,6 +341,8 @@ export declare function effectiveGateDisclosure(run: Run): {
         status: string;
     };
     phaseAcceptance: string;
+    taskTicket: TaskTicket | null;
+    ticketCommand: string;
     gates: {
         scope: string;
         command: string;
@@ -472,6 +503,49 @@ export declare class LifecycleStore {
     }>;
     checkpointBeginActivated(operation: BeginOperation): Promise<Run>;
     begin(input: BeginInput): Promise<Run>;
+    bindSessionOwner(intentId: string, sessionId: string, owner: SessionOwner): Promise<void>;
+    sessionInterruptionStatus(intentId: string, sessionId: string): Promise<{
+        intentId: string;
+        runId: string;
+        sessionId: string;
+        status: "paused" | "green";
+        phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete";
+        owner: {
+            pid?: number | undefined;
+            host?: string | undefined;
+            startedAt?: string | undefined;
+            state: import("./session-interruption.js").SessionOwnerState;
+            reason?: string;
+        };
+        canRecover: boolean;
+        selectors: undefined;
+    } | {
+        intentId: string;
+        runId: string;
+        sessionId: string;
+        status: "running" | "red";
+        phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete";
+        owner: {
+            pid?: number | undefined;
+            host?: string | undefined;
+            startedAt?: string | undefined;
+            state: import("./session-interruption.js").SessionOwnerState;
+            reason?: string;
+        };
+        canRecover: boolean;
+        selectors: {
+            intentId: string;
+            sessionId: string;
+            expectedRunRevision: number;
+            expectedSessionLeaseRevision: number;
+            resourceGeneration: string;
+        };
+    }>;
+    recoverInterruptedSession(args: SessionInterruptionArgs): Promise<PauseHandoff>;
+    recordSessionClosed(args: SessionInterruptionArgs & {
+        ownerToken: string;
+        reason: "closed" | "crashed";
+    }): Promise<PauseHandoff>;
     resume(resumeIntentId: string): Promise<Run>;
     pause(intentId: string, input: {
         summary: string;
@@ -483,14 +557,15 @@ export declare class LifecycleStore {
         context?: string;
         redirectTask?: string;
     }): Promise<PauseHandoff>;
+    private pauseWithSessionFence;
     handoffs(): Promise<PauseHandoff[]>;
     linkBlocker(blockedIntentId: string, blockerIntentId: string): Promise<BlockerLink>;
     doctor(): Promise<{
         pausedHandoffs: PauseHandoff[];
-        activeRuns: Array<Pick<Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch">>;
+        activeRuns: Array<Pick<Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch" | "projectRoot" | "taskId">>;
     }>;
     migratePlanState(intentId: string, planPaths: string[]): Promise<string[]>;
-    recordRed(intentId: string, command?: string): Promise<Run>;
+    recordRed(intentId: string, command?: string, ticketFilter?: string): Promise<Run>;
     recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     acquireWorktreeMutation(intentId: string, kind: WorktreeMutationOperation["kind"], request: unknown): Promise<WorktreeMutationOperation>;
@@ -513,7 +588,7 @@ export declare class LifecycleStore {
     recordCommit(intentId: string, commit: CommitEvidence, final?: boolean): Promise<Run>;
     completedCommitFor(intentId: string, request: CommitOperationRequest): Promise<Run | undefined>;
     finishTerminalCommit(intentId: string, requestSha256: string): Promise<Run>;
-    runCheck(intentId: string, scope: string): Promise<Run>;
+    runCheck(intentId: string, scope: string, ticketFilter?: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
     private proveAttempt;
     private isFrozenPlan;
@@ -545,6 +620,14 @@ export declare class LifecycleStore {
     private authorizeCommitOperation;
     private assertCommitted;
     private assertCommitOperation;
+    private captureSessionOwner;
+    private readSessionOwner;
+    private interruptionLeaseReadOnly;
+    private assertInterruptionSelectors;
+    private interruptionSelectorId;
+    private completePendingSessionInterruption;
+    private interruptionResult;
+    private interruptionRunReadOnly;
     private assertSessionLease;
     private finalizeCompletion;
     private releaseCompletedLease;

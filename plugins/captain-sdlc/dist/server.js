@@ -22279,20 +22279,94 @@ var StdioServerTransport = class {
 
 // src/server.ts
 import { fileURLToPath } from "node:url";
-import os2 from "node:os";
+import os3 from "node:os";
 import path9 from "node:path";
 import { randomUUID as randomUUID3 } from "node:crypto";
 
 // src/merge-workflow.ts
 import { createHash as createHash6, randomUUID as randomUUID2 } from "node:crypto";
-import os from "node:os";
-import { lstat as lstat3, readFile as readFile4, readdir as readdir6, realpath as realpath2 } from "node:fs/promises";
+import os2 from "node:os";
+import { lstat as lstat3, readFile as readFile5, readdir as readdir6, realpath as realpath2 } from "node:fs/promises";
 import path8 from "node:path";
 
 // src/lifecycle.ts
 import { createHash as createHash5, randomUUID } from "node:crypto";
-import { lstat as lstat2, readFile as readFile3, readdir as readdir5, writeFile as writeFile3 } from "node:fs/promises";
+import { lstat as lstat2, readFile as readFile4, readdir as readdir5, writeFile as writeFile3 } from "node:fs/promises";
 import path7 from "node:path";
+
+// src/session-interruption.ts
+import { execFile } from "node:child_process";
+import { readFile as readFile2 } from "node:fs/promises";
+import os from "node:os";
+import { promisify } from "node:util";
+var exec = promisify(execFile);
+function validateSessionOwner(owner) {
+  if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid <= 0 || typeof owner.host !== "string" || !owner.host.trim() || typeof owner.startedAt !== "string" || !owner.startedAt.trim() || owner.closeTokenHash !== void 0 && !/^[0-9a-f]{64}$/.test(owner.closeTokenHash)) {
+    throw new Error("client session owner identity is invalid");
+  }
+}
+async function processStart(pid) {
+  if (process.platform === "win32") {
+    const script = `$ErrorActionPreference='Stop'; try { $p=Get-Process -Id ${pid}; $s=$p.StartTime.ToUniversalTime().Ticks.ToString(); if(-not $s){exit 4}; [Console]::Out.Write($s) } catch { if($_.FullyQualifiedErrorId -like 'NoProcessFoundForGivenId*'){exit 3}; exit 4 }`;
+    try {
+      const { stdout } = await exec(
+        "powershell.exe",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+        { windowsHide: true, timeout: 1e4, encoding: "utf8" }
+      );
+      if (!/^\d+$/.test(stdout.trim())) throw new Error("client process start identity unavailable");
+      return `windows:${stdout.trim()}`;
+    } catch (error2) {
+      if (error2.code === 3) return void 0;
+      throw error2;
+    }
+  }
+  if (process.platform === "linux") {
+    try {
+      const [stat2, boot] = await Promise.all([readFile2(`/proc/${pid}/stat`, "utf8"), readFile2("/proc/sys/kernel/random/boot_id", "utf8")]);
+      const fields = stat2.slice(stat2.lastIndexOf(")") + 2).trim().split(/\s+/);
+      if (!/^\d+$/.test(fields[19] ?? "") || !boot.trim()) throw new Error("client process start identity unavailable");
+      return `linux:${boot.trim()}:${fields[19]}`;
+    } catch (error2) {
+      if (error2.code === "ENOENT") {
+        try {
+          await readFile2(`/proc/${pid}/stat`, "utf8");
+        } catch (probe) {
+          if (probe.code === "ENOENT") return void 0;
+          throw probe;
+        }
+      }
+      throw error2;
+    }
+  }
+  throw new Error("client process identity probe is unavailable on this platform");
+}
+async function captureClientSessionOwner(clientPid, closeTokenHash) {
+  if (!Number.isSafeInteger(clientPid) || clientPid <= 0 || clientPid === process.pid) {
+    throw new Error("actual client owner PID is required; the MCP host cannot own the client session");
+  }
+  const startedAt = await processStart(clientPid);
+  if (!startedAt) throw new Error("client process is stopped; cannot bind session owner");
+  const owner = { pid: clientPid, host: os.hostname(), startedAt, ...closeTokenHash ? { closeTokenHash: closeTokenHash.toLowerCase() } : {} };
+  validateSessionOwner(owner);
+  return owner;
+}
+async function probeSessionOwner(owner) {
+  try {
+    validateSessionOwner(owner);
+  } catch {
+    return { state: "unknown", reason: "client owner identity is invalid" };
+  }
+  if (owner.host.toLowerCase() !== os.hostname().toLowerCase()) return { state: "foreign_host", reason: "client belongs to another host" };
+  try {
+    const current = await processStart(owner.pid);
+    if (current === void 0) return { state: "stopped", reason: "captured client PID is missing" };
+    if (current !== owner.startedAt) return { state: "stopped", reason: "captured client exited; PID belongs to a different process start" };
+    return { state: "live" };
+  } catch {
+    return { state: "unknown", reason: "client process identity could not be inspected" };
+  }
+}
 
 // src/validation.ts
 function compileSafeRegex(pattern, flags = "", label = "regular expression") {
@@ -22325,13 +22399,13 @@ import { readdir as readdir4 } from "node:fs/promises";
 import path6 from "node:path";
 
 // src/workspace.ts
-import { execFile } from "node:child_process";
+import { execFile as execFile2 } from "node:child_process";
 import { createHash as createHash3 } from "node:crypto";
-import { cp, lstat, mkdtemp, readFile as readFile2, readdir as readdir3, realpath, writeFile as writeFile2 } from "node:fs/promises";
+import { cp, lstat, mkdtemp, readFile as readFile3, readdir as readdir3, realpath, writeFile as writeFile2 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path5 from "node:path";
-import { promisify } from "node:util";
-var exec = promisify(execFile);
+import { promisify as promisify2 } from "node:util";
+var exec2 = promisify2(execFile2);
 var maxGitBuffer = 10 * 1024 * 1024;
 var maxPolicyInput = 1024 * 1024;
 var defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
@@ -22394,11 +22468,11 @@ async function gitControls() {
 }
 async function gitInvocation(args, cwd) {
   const controls = await gitControls();
-  return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path5.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path5.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
 }
 var gateRunner = async (command, cwd) => {
   try {
-    const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+    const result = await exec2(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
   } catch (error2) {
     return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
@@ -22795,7 +22869,7 @@ async function assertSafeGitMetadataAttributes(cwd) {
   try {
     const info = await lstat(file);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file");
-    const content = await readFile2(file, "utf8");
+    const content = await readFile3(file, "utf8");
     if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers");
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -22843,7 +22917,7 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
     try {
       const info = await lstat(file);
       if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path5.relative(cwd, file)}`);
-      const content = await readFile2(file, "utf8");
+      const content = await readFile3(file, "utf8");
       if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path5.relative(cwd, file)}`);
       if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path5.relative(cwd, file)}`);
     } catch (error2) {
@@ -22993,7 +23067,7 @@ async function sourceManifest(root, configuredExcludes, rootFileExcludes) {
       const full = path5.join(dir, entry.name), info = await lstat(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
       if (info.isDirectory()) await walk(full);
-      else if (info.isFile()) lines2.push(`${relative}:${createHash3("sha256").update(await readFile2(full)).digest("hex")}`);
+      else if (info.isFile()) lines2.push(`${relative}:${createHash3("sha256").update(await readFile3(full)).digest("hex")}`);
     }
   }
   await walk(root);
@@ -23142,8 +23216,39 @@ function effectiveGateDisclosure(run) {
     progressLocation: "signed run evidence and pause handoffs; approved plans are immutable",
     proofStatus: pendingReview ? { phase: "complete", status: "green" } : { phase: run.phase, status: run.status },
     phaseAcceptance: humanReviewStatus.needsChangesCheckIds.length ? `human requested changes for ${humanReviewStatus.needsChangesCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : humanReviewStatus.acceptedCheckIds.length ? `human accepted ${humanReviewStatus.acceptedCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : pendingReview ? "awaiting declared human review" : "not inferred from proof status",
+    taskTicket: run.taskTicket ?? null,
+    ticketCommand: run.taskTicket?.command ?? run.policy.commands.ticket ?? null,
     gates: proofScopes(run).map((scope) => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
   };
+}
+function taskTicketCommand(run, scope, requestedFilter) {
+  const configured = run.policy.commands[scope];
+  if (requestedFilter !== void 0 && scope !== "ticket") throw new Error("ticket filter is only supported for the ticket scope");
+  if (scope !== "ticket" || requestedFilter === void 0 && !run.taskTicket) return { command: configured };
+  if (run.profile !== "low" || run.policy.profile !== "low") throw new Error("task ticket filters are supported only by the LOW profile");
+  const filter = requestedFilter ?? run.taskTicket.filter;
+  if (typeof filter !== "string" || filter.length > 512 || !/^[A-Za-z_][A-Za-z0-9_.]*$/.test(filter)) throw new Error("ticket filter must be one bounded ASCII namespace, class, or method selector");
+  if (!configured || configured.length > 8192 || !/^[A-Za-z0-9_./\\:-]+(?:[ \t]+[A-Za-z0-9_./\\:-]+)*$/.test(configured)) throw new Error("ticket selector requires an unquoted plain PowerShell -File command");
+  const tokens = configured.split(/[ \t]+/);
+  const fileSlots = tokens.map((token, index) => /^-File$/i.test(token) ? index : -1).filter((index) => index >= 0);
+  const fileIndex = fileSlots[0];
+  if (!/^(?:powershell|pwsh)(?:\.exe)?$/i.test(tokens[0]) || fileSlots.length !== 1 || fileIndex < 1 || !/\.ps1$/i.test(tokens[fileIndex + 1] ?? "") || tokens.findIndex((token) => /^-TestFilter$/i.test(token)) <= fileIndex + 1) throw new Error("ticket selector requires one PowerShell -File script and an actual script filter argument");
+  for (let index = 1; index < fileIndex; index++) {
+    if (/^-(?:NoLogo|NoProfile|NonInteractive)$/i.test(tokens[index])) continue;
+    if (/^-ExecutionPolicy$/i.test(tokens[index]) && index + 1 < fileIndex && /^(?:Bypass|RemoteSigned|AllSigned|Restricted|Unrestricted|Default|Undefined)$/i.test(tokens[index + 1])) {
+      index++;
+      continue;
+    }
+    throw new Error("ticket selector does not support this PowerShell invocation option");
+  }
+  const slots = configured.match(/(?:^|\s)-TestFilter(?=[\s:=]|$)/gi) ?? [];
+  const slot = /(?:^|\s)-TestFilter\s+([A-Za-z_][A-Za-z0-9_.]*)(?=\s|$)/i.exec(configured ?? "");
+  if (slots.length !== 1 || !slot) throw new Error("trusted ticket command must contain exactly one unquoted scalar -TestFilter slot");
+  const valueStart = slot.index + slot[0].length - slot[1].length;
+  const command = configured.slice(0, valueStart) + filter + configured.slice(valueStart + slot[1].length);
+  const binding = { filter, command, commandSha256: digest4(command), policyCommandSha256: digest4(configured) };
+  if (run.taskTicket && (run.taskTicket.filter !== binding.filter || run.taskTicket.command !== binding.command || run.taskTicket.commandSha256 !== binding.commandSha256 || run.taskTicket.policyCommandSha256 !== binding.policyCommandSha256)) throw new Error("ticket filter or command differs from the immutable task binding");
+  return { command, binding };
 }
 var beginAttemptQueues = /* @__PURE__ */ new Map();
 var LifecycleStore = class {
@@ -23184,7 +23289,7 @@ var LifecycleStore = class {
     return createBeginDiagnosticAdapter(this.dataRoot)(args);
   }
   async beginCancellationFor(intentId) {
-    await readFile3(path7.join(this.dataRoot, "authority.key"), "utf8");
+    await readFile4(path7.join(this.dataRoot, "authority.key"), "utf8");
     try {
       return await readAuthorizedReadOnly(this.dataRoot, "begin-cancellations", safeId2(intentId));
     } catch (error2) {
@@ -23468,6 +23573,7 @@ var LifecycleStore = class {
     const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken);
     if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken) throw new Error("begin activation checkpoints are incomplete");
     await this.assertSessionLease(run);
+    await this.captureSessionOwner(run);
     await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId });
     await this.project("active", operation.sessionId, active);
     return run;
@@ -23486,11 +23592,71 @@ var LifecycleStore = class {
       return this.status(operation.intentId);
     });
   }
+  async bindSessionOwner(intentId, sessionId, owner) {
+    validateSessionOwner(owner);
+    const run = await this.run(intentId);
+    if (run.sessionId !== sessionId || run.status === "paused" || run.status === "green") throw new Error("client owner session binding is not active");
+    await this.assertSessionLease(run);
+    const binding = {
+      schemaVersion: 1,
+      intentId,
+      runId: run.runId,
+      sessionId,
+      activationToken: run.activationToken ?? run.operationToken,
+      sessionLeaseId: run.sessionLeaseId,
+      sessionLeaseToken: run.sessionLeaseToken,
+      owner
+    };
+    await putAuthorizedOnceExact(this.dataRoot, "session-owner-bindings", binding.activationToken, binding);
+  }
+  async sessionInterruptionStatus(intentId, sessionId) {
+    const run = await this.interruptionRunReadOnly(intentId);
+    if (run.sessionId !== sessionId) throw new Error("client session binding does not match the selected run");
+    const binding = await this.readSessionOwner(run);
+    const ownerState = binding ? await (this.hooks?.probeSessionOwner ?? probeSessionOwner)(binding.owner) : { state: "legacy", reason: "no captured client owner identity" };
+    const owner = { ...ownerState, ...binding ? { pid: binding.owner.pid, host: binding.owner.host, startedAt: binding.owner.startedAt } : {} };
+    if (run.status === "paused" || run.status === "green") return { intentId, runId: run.runId, sessionId, status: run.status, phase: run.phase, owner, canRecover: false, selectors: void 0 };
+    const lease = await this.interruptionLeaseReadOnly(run);
+    const selectors = {
+      intentId,
+      sessionId,
+      expectedRunRevision: run.revision,
+      expectedSessionLeaseRevision: lease.revision,
+      resourceGeneration: digest4(JSON.stringify({ leaseId: run.sessionLeaseId, revision: lease.revision, state: "held", payload: lease.payload }))
+    };
+    return { intentId, runId: run.runId, sessionId, status: run.status, phase: run.phase, owner, canRecover: ownerState.state === "stopped", selectors };
+  }
+  async recoverInterruptedSession(args) {
+    const saved = await this.interruptionResult(args);
+    if (saved) return saved;
+    const run = await this.assertInterruptionSelectors(args);
+    const binding = await this.readSessionOwner(run);
+    if (!binding) throw new Error("legacy client session has no captured owner identity; recovery refused");
+    const owner = await (this.hooks?.probeSessionOwner ?? probeSessionOwner)(binding.owner);
+    if (owner.state !== "stopped") throw new Error(`client owner is ${owner.state}; positive stopped proof is required`);
+    return this.pauseWithSessionFence(args.intentId, { summary: args.summary, nextSteps: args.nextSteps }, { args, reason: "crashed", requireStopped: true });
+  }
+  async recordSessionClosed(args) {
+    const run = await this.interruptionRunReadOnly(args.intentId);
+    const binding = await this.readSessionOwner(run);
+    if (!binding?.owner.closeTokenHash || typeof args.ownerToken !== "string" || !args.ownerToken || digest4(args.ownerToken) !== binding.owner.closeTokenHash) {
+      throw new Error("client close capability token is invalid or owner identity is unregistered");
+    }
+    if (!["closed", "crashed"].includes(args.reason)) throw new Error("client close reason is invalid");
+    const saved = await this.interruptionResult(args);
+    if (saved) return saved;
+    await this.assertInterruptionSelectors(args);
+    return this.pauseWithSessionFence(args.intentId, { summary: args.summary, nextSteps: args.nextSteps }, { args, reason: args.reason, requireStopped: false });
+  }
   async resume(resumeIntentId) {
     const intent = await this.load("intents", safeId2(resumeIntentId));
     if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed");
     await this.assertFrozenScope(intent.resumeOf);
     let priorRun = await this.run(intent.resumeOf);
+    if (priorRun.status === "paused") {
+      await this.completePendingSessionInterruption(priorRun);
+      priorRun = await this.run(intent.resumeOf);
+    }
     if (priorRun.phase === "complete" && isPendingPlanReview(priorRun)) {
       if (!samePath4(priorRun.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
       if (priorRun.sessionLeaseId || priorRun.leaseId) throw new Error("legacy review ownership must be finalized before resume");
@@ -23498,7 +23664,16 @@ var LifecycleStore = class {
       const targetLease = priorRun.targetBranch ? await this.acquireTargetLease(priorRun.intentId, priorRun.commonGitDir, priorRun.targetBranch, this.expectedHead(priorRun)) : void 0;
       priorRun = await this.update({ ...priorRun, ...targetLease, phase: "hitl", status: "paused", evidence: [...priorRun.evidence, { kind: "review_resume_migration", resumeIntentId }] });
     }
-    if (priorRun.status !== "paused" && priorRun.sessionId !== intent.sessionId) throw new Error("active run belongs to another session; its owner must pause before transfer");
+    if (priorRun.status !== "paused") {
+      const transferringSession = priorRun.sessionId !== intent.sessionId;
+      if (transferringSession || await this.readSessionOwner(priorRun)) {
+        const interruption = await this.sessionInterruptionStatus(priorRun.intentId, priorRun.sessionId);
+        if (interruption.canRecover && interruption.selectors) {
+          await this.recoverInterruptedSession({ ...interruption.selectors, summary: "Client process ended; retain and resume the same task", nextSteps: ["Continue the existing signed task and retained worktree"] });
+          priorRun = await this.run(intent.resumeOf);
+        } else if (transferringSession) throw new Error(`active run belongs to another session; client owner is ${interruption.owner.state}; its owner must pause before transfer`);
+      }
+    }
     let operation;
     try {
       operation = await this.load("resume-operations", resumeIntentId);
@@ -23548,6 +23723,7 @@ var LifecycleStore = class {
       run = await this.update({ ...run, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, sessionLeaseId, sessionLeaseToken, status: "running" });
       if (previousLease) await releaseAuthorizedLease(this.dataRoot, previousLease.id, run.intentId, previousLease.token);
     }
+    await this.captureSessionOwner(run);
     await this.project("active", operation.sessionId, { schemaVersion: 1, intentId: run.intentId, operationToken: run.activationToken ?? run.operationToken, runId: run.runId, sessionId: operation.sessionId, leaseId: run.sessionLeaseId, leaseToken: run.sessionLeaseToken });
     const handoff = (await this.handoffs()).find((candidate) => candidate.intentId === run.intentId && candidate.planPath);
     if (handoff?.planPath) await this.projectPlanState(run, handoff.planPath, { status: "in-progress", phase: handoff.phaseLabel ?? run.phase, handoff: "none", blocker: "none", next: handoff.nextSteps });
@@ -23557,6 +23733,9 @@ var LifecycleStore = class {
     return run;
   }
   async pause(intentId, input) {
+    return this.pauseWithSessionFence(intentId, input);
+  }
+  async pauseWithSessionFence(intentId, input, fence) {
     const run = await this.run(intentId);
     if (run.status === "green") throw new Error("a completed Captain run cannot be paused");
     await this.assertSessionLease(run);
@@ -23564,11 +23743,62 @@ var LifecycleStore = class {
     if (!summary || !nextSteps.length) throw new Error("pause handoff requires a summary and at least one next step");
     const worktreeState = this.probe ? await this.probe(run.worktreePath, run.policy) : void 0;
     if (worktreeState) this.assertWorktreeBinding(run, worktreeState);
-    const paused = await this.update({ ...run, status: "paused", evidence: [...run.evidence, { kind: "pause", summarySha256: digest4(summary), nextSteps, blockers, ...planPath ? { planPath } : {}, ...phaseLabel ? { phaseLabel } : {} }] });
+    if (fence) {
+      await this.assertInterruptionSelectors(fence.args);
+      if (fence.requireStopped) {
+        const binding = await this.readSessionOwner(run);
+        const checked = binding && await (this.hooks?.probeSessionOwner ?? probeSessionOwner)(binding.owner);
+        if (checked?.state !== "stopped") throw new Error("client owner stopped proof changed before pause");
+        await this.assertInterruptionSelectors(fence.args);
+      }
+    }
+    if (fence) {
+      const draft = {
+        schemaVersion: 1,
+        intentId: run.intentId,
+        runId: run.runId,
+        revision: run.revision + 1,
+        sessionId: run.sessionId,
+        turnId: run.turnId,
+        projectRoot: run.projectRoot,
+        worktreePath: run.worktreePath,
+        branch: run.branch,
+        ...run.taskId ? { taskId: run.taskId } : {},
+        objective: run.objective,
+        phase: run.phase,
+        status: "paused",
+        ...planPath ? { planPath } : {},
+        ...phaseLabel ? { phaseLabel } : {},
+        completedSteps,
+        summary,
+        nextSteps,
+        blockers,
+        ...context ? { context } : {},
+        ...worktreeState ? { worktreeState } : {},
+        resumeDirective: `[Captain resume: ${run.intentId}]`,
+        ...redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {}
+      };
+      const selectors = {
+        intentId: fence.args.intentId,
+        sessionId: fence.args.sessionId,
+        expectedRunRevision: fence.args.expectedRunRevision,
+        expectedSessionLeaseRevision: fence.args.expectedSessionLeaseRevision,
+        resourceGeneration: fence.args.resourceGeneration
+      };
+      await putAuthorizedOnceExact(this.dataRoot, "session-interruption-drafts", this.interruptionSelectorId(fence.args), { handoff: draft, selectors });
+    }
+    const paused = await this.update({ ...run, status: "paused", evidence: [
+      ...run.evidence,
+      ...fence ? [{ kind: "session_interruption", reason: fence.reason, sessionId: run.sessionId, selectorHash: this.interruptionSelectorId(fence.args), retainedWorktree: run.worktreePath }] : [],
+      { kind: "pause", summarySha256: digest4(summary), nextSteps, blockers, ...planPath ? { planPath } : {}, ...phaseLabel ? { phaseLabel } : {} }
+    ] });
     const handoff = { schemaVersion: 1, intentId: paused.intentId, runId: paused.runId, revision: paused.revision, sessionId: paused.sessionId, turnId: paused.turnId, projectRoot: paused.projectRoot, worktreePath: paused.worktreePath, branch: paused.branch, ...paused.taskId ? { taskId: paused.taskId } : {}, objective: paused.objective, phase: paused.phase, status: paused.status, ...planPath ? { planPath } : {}, ...phaseLabel ? { phaseLabel } : {}, completedSteps, summary, nextSteps, blockers, ...context ? { context } : {}, ...worktreeState ? { worktreeState } : {}, evidence: paused.evidence, resumeDirective: `[Captain resume: ${paused.intentId}]`, ...redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {} };
     const saved = await putAuthorizedOnceExact(this.dataRoot, "pause-handoffs", `${paused.intentId}-${paused.revision}`, handoff);
     if (planPath) await this.projectPlanState(paused, planPath, { status: blockers.length ? "blocked" : redirectTask ? "redirected" : "paused", phase: phaseLabel ?? paused.phase, handoff: `${paused.intentId}-${paused.revision}`, blocker: blockers.join("; ") || "none", next: nextSteps });
-    await releaseAuthorizedLease(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
+    if (fence) {
+      await releaseAuthorizedLeaseAtGeneration(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken, fence.args.expectedSessionLeaseRevision, fence.args.resourceGeneration);
+      await putAuthorizedOnceExact(this.dataRoot, "session-interruption-results", this.interruptionSelectorId(fence.args), saved);
+    } else await releaseAuthorizedLease(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken);
     return saved;
   }
   async handoffs() {
@@ -23597,7 +23827,7 @@ var LifecycleStore = class {
       if (error2.code !== "ENOENT") throw error2;
     }
     const ids = [...new Set(names.map((name) => /^(.*)-0\.json$/.exec(name)?.[1]).filter((value) => Boolean(value)))], runs = await Promise.all(ids.map((id) => this.run(id)));
-    return { pausedHandoffs: handoffs, activeRuns: runs.filter((run) => run.status !== "green" || isPendingPlanReview(run)).map((run) => ({ intentId: run.intentId, sessionId: run.sessionId, turnId: run.turnId, status: run.status, phase: run.phase, worktreePath: run.worktreePath, branch: run.branch })) };
+    return { pausedHandoffs: handoffs, activeRuns: runs.filter((run) => run.status !== "green" || isPendingPlanReview(run)).map((run) => ({ intentId: run.intentId, sessionId: run.sessionId, turnId: run.turnId, status: run.status, phase: run.phase, worktreePath: run.worktreePath, branch: run.branch, projectRoot: run.projectRoot, ...run.taskId ? { taskId: run.taskId } : {} })) };
   }
   async migratePlanState(intentId, planPaths) {
     const run = await this.run(intentId);
@@ -23609,7 +23839,7 @@ var LifecycleStore = class {
       const normalized = this.safePlanPath(run, relative);
       if (this.isFrozenPlan(run, normalized)) throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
       const file = path7.resolve(run.worktreePath, normalized);
-      const original = await readFile3(file, "utf8");
+      const original = await readFile4(file, "utf8");
       if (/<!-- captain:work-state\r?\n[\s\S]*?-->/.test(original)) continue;
       const heading = /^# .+\r?\n/.exec(original);
       if (!heading) throw new Error(`plan requires a level-one title before migration: ${relative}`);
@@ -23619,18 +23849,19 @@ var LifecycleStore = class {
     }
     return migrated;
   }
-  async recordRed(intentId, command) {
+  async recordRed(intentId, command, ticketFilter) {
     await this.assertFrozenScope(intentId);
     const run = await this.run(intentId);
     this.phase(run, "tdd_red");
     const configured = run.policy.commands.ticket;
     if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
     if (!configured || command && command !== configured) throw new Error("red test must use the trusted ticket command");
-    const result = await this.runner(configured, run.worktreePath), red = run.policy.redGate;
+    const selected = taskTicketCommand(run, "ticket", ticketFilter);
+    const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate;
     if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
     if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
 ${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
-    return this.update({ ...run, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest4(configured), exitCode: result.exitCode, outputSha256: digest4(`${result.stdout}
+    return this.update({ ...run, ...selected.binding ? { taskTicket: selected.binding } : {}, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest4(selected.command), ...selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}, exitCode: result.exitCode, outputSha256: digest4(`${result.stdout}
 ${result.stderr}`) }] });
   }
   async recordPreparedMerge(intentId, prepared) {
@@ -23891,17 +24122,18 @@ ${result.stderr}`) }] });
     if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit authority changed during finalization");
     return this.update({ ...run, commitOperation: void 0, preparedCommit: void 0, mutationOperation: void 0, terminalCommit: void 0, evidence: [...run.evidence, { kind: "commit_operation_finalized", requestSha256, candidate: terminal.candidate }] });
   }
-  async runCheck(intentId, scope) {
+  async runCheck(intentId, scope, ticketFilter) {
     await this.assertFrozenScope(intentId);
     const run = await this.run(intentId);
     this.phase(run, "implement");
     if (run.preparedCommit) throw new Error("prepared commit recovery must complete before iteration checks");
     const command = run.policy.commands[scope];
     if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope)) throw new Error("iteration check must be a trusted implementation scope");
+    const selected = taskTicketCommand(run, scope, ticketFilter);
     if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
-    const result = await this.runner(command, run.worktreePath);
+    const result = await this.runner(selected.command, run.worktreePath);
     if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
-    return this.update({ ...run, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest4(command), exitCode: result.exitCode }] });
+    return this.update({ ...run, ...selected.binding && (run.taskTicket || result.exitCode === 0) ? { taskTicket: selected.binding } : {}, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest4(selected.command), ...selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}, exitCode: result.exitCode }] });
   }
   async prove(intentId) {
     await this.assertFrozenScope(intentId);
@@ -23970,7 +24202,7 @@ ${result.stderr}`) }] });
     for (const plan of run.policy.approvedPlans ?? []) {
       try {
         const file = await safeArtifact(run.worktreePath, plan.path);
-        if (approvedPlanDigest(await readFile3(file, "utf8")) !== plan.sha256) throw new Error("content changed");
+        if (approvedPlanDigest(await readFile4(file, "utf8")) !== plan.sha256) throw new Error("content changed");
       } catch (error2) {
         throw new Error(`frozen approved plan changed or is unavailable: ${plan.path}; restore the approved plan and keep progress and human closeout followups separate (${error2.message})`);
       }
@@ -24045,7 +24277,7 @@ ${result.stderr}`) }] });
   }
   async projectPlanState(run, relative, state) {
     if (this.isFrozenPlan(run, relative)) return false;
-    const normalized = this.safePlanPath(run, relative), file = path7.resolve(run.worktreePath, normalized), original = await readFile3(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
+    const normalized = this.safePlanPath(run, relative), file = path7.resolve(run.worktreePath, normalized), original = await readFile4(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
     if (!match) return false;
     const line = match[1], single = (value) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`;
     await writeFile3(file, `${original.slice(0, match.index)}${block}${original.slice(match.index + match[0].length)}`, "utf8");
@@ -24120,7 +24352,7 @@ ${result.stderr}`) }] });
   async reconcileRunProjections(run) {
     const latest = await this.run(run.intentId);
     await this.project("runs", latest.intentId, latest);
-    if (latest.status !== "green" && latest.sessionLeaseId && latest.sessionLeaseToken) try {
+    if (latest.status !== "green" && latest.status !== "paused" && latest.sessionLeaseId && latest.sessionLeaseToken) try {
       const activated = await this.load("begin-activated", latest.operationToken);
       if (activated.operationToken === latest.operationToken) {
         await this.assertSessionLease(latest);
@@ -24133,6 +24365,7 @@ ${result.stderr}`) }] });
   assertStableRun(previous, current) {
     const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path7.resolve(run.projectRoot), worktreePath: path7.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path7.resolve(run.commonGitDir), gitDir: path7.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
     if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current))) throw new Error("signed run immutable binding changed across revisions");
+    if (previous.taskTicket !== void 0 && JSON.stringify(previous.taskTicket) !== JSON.stringify(current.taskTicket)) throw new Error("signed run immutable task ticket binding changed across revisions");
   }
   async project(bucket, id, value) {
     let failure;
@@ -24179,6 +24412,106 @@ ${result.stderr}`) }] });
     if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256) throw new Error("Captain commit operation lease ownership diverged from the signed run");
     const lease = await readAuthorizedLease(this.dataRoot, operation.leaseId);
     if (lease.intentId !== run.intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.requestSha256 !== operation.requestSha256 || lease.operation !== "prepared-commit") throw new Error("Captain commit operation lease ownership is invalid");
+  }
+  async captureSessionOwner(run) {
+    if (!this.hooks?.sessionOwner || await this.readSessionOwner(run)) return;
+    const owner = await this.hooks.sessionOwner(run.sessionId);
+    if (owner) await this.bindSessionOwner(run.intentId, run.sessionId, owner);
+  }
+  async readSessionOwner(run) {
+    const token = run.activationToken ?? run.operationToken;
+    let binding;
+    try {
+      binding = await readAuthorizedReadOnly(this.dataRoot, "session-owner-bindings", safeId2(token));
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+    if (binding.schemaVersion !== 1 || binding.intentId !== run.intentId || binding.runId !== run.runId || binding.sessionId !== run.sessionId || binding.activationToken !== token || binding.sessionLeaseId !== run.sessionLeaseId || binding.sessionLeaseToken !== run.sessionLeaseToken) throw new Error("signed client owner binding diverged from the active session");
+    validateSessionOwner(binding.owner);
+    return binding;
+  }
+  async interruptionLeaseReadOnly(run) {
+    if (!run.sessionLeaseId || !run.sessionLeaseToken) throw new Error("run has no current session ownership");
+    const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, run.sessionLeaseId);
+    const token = run.activationToken ?? run.operationToken;
+    if (!lease || lease.legacy || lease.state !== "held" || lease.revision === null || lease.payload.intentId !== run.intentId || lease.payload.runId !== run.runId || lease.payload.sessionId !== run.sessionId || lease.payload.leaseToken !== run.sessionLeaseToken || lease.payload.operationToken !== token || lease.payload.operation !== "session-active") throw new Error("session lease generation or owner binding is invalid");
+    return lease;
+  }
+  async assertInterruptionSelectors(args) {
+    if (!Number.isSafeInteger(args.expectedRunRevision) || args.expectedRunRevision < 0 || !Number.isSafeInteger(args.expectedSessionLeaseRevision) || args.expectedSessionLeaseRevision < 0 || !/^[0-9a-f]{64}$/i.test(args.resourceGeneration)) throw new Error("session interruption generation selectors are invalid");
+    const run = await this.interruptionRunReadOnly(args.intentId);
+    if (run.sessionId !== args.sessionId || run.revision !== args.expectedRunRevision || run.status === "paused" || run.status === "green") throw new Error("session interruption run revision or session binding changed");
+    const lease = await this.interruptionLeaseReadOnly(run);
+    const generation = digest4(JSON.stringify({ leaseId: run.sessionLeaseId, revision: lease.revision, state: "held", payload: lease.payload }));
+    if (lease.revision !== args.expectedSessionLeaseRevision || generation !== args.resourceGeneration.toLowerCase()) throw new Error("session interruption lease generation changed");
+    return run;
+  }
+  interruptionSelectorId(args) {
+    return digest4(JSON.stringify({
+      intentId: args.intentId,
+      sessionId: args.sessionId,
+      expectedRunRevision: args.expectedRunRevision,
+      expectedSessionLeaseRevision: args.expectedSessionLeaseRevision,
+      resourceGeneration: args.resourceGeneration.toLowerCase()
+    }));
+  }
+  async completePendingSessionInterruption(run) {
+    const interruption = run.evidence.filter((item) => item.kind === "session_interruption").at(-1);
+    if (!interruption || typeof interruption.selectorHash !== "string" || !/^[0-9a-f]{64}$/.test(interruption.selectorHash)) return;
+    try {
+      await readAuthorizedReadOnly(this.dataRoot, "session-interruption-results", interruption.selectorHash);
+      return;
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const checkpoint = await readAuthorizedReadOnly(this.dataRoot, "session-interruption-drafts", interruption.selectorHash);
+    if (checkpoint.handoff.revision !== run.revision) return;
+    const args = { ...checkpoint.selectors, summary: checkpoint.handoff.summary, nextSteps: checkpoint.handoff.nextSteps };
+    if (this.interruptionSelectorId(args) !== interruption.selectorHash || args.intentId !== run.intentId || args.sessionId !== run.sessionId || args.expectedRunRevision + 1 !== run.revision) throw new Error("pending signed interruption generation binding is invalid");
+    if (!await this.interruptionResult(args)) throw new Error("pending signed interruption could not finalize its original handoff and lease");
+  }
+  async interruptionResult(args) {
+    try {
+      return await readAuthorizedReadOnly(this.dataRoot, "session-interruption-results", this.interruptionSelectorId(args));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    const run = await this.interruptionRunReadOnly(args.intentId);
+    if (run.status !== "paused" || run.sessionId !== args.sessionId || run.revision !== args.expectedRunRevision + 1 || !run.evidence.some((item) => item.kind === "session_interruption" && item.selectorHash === this.interruptionSelectorId(args))) return void 0;
+    let handoff;
+    try {
+      handoff = await readAuthorizedReadOnly(this.dataRoot, "pause-handoffs", `${run.intentId}-${run.revision}`);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      const checkpoint = await readAuthorizedReadOnly(this.dataRoot, "session-interruption-drafts", this.interruptionSelectorId(args));
+      if (this.interruptionSelectorId({ ...checkpoint.selectors, summary: args.summary, nextSteps: args.nextSteps }) !== this.interruptionSelectorId(args)) throw new Error("signed interruption checkpoint generation selectors are invalid");
+      const draft = checkpoint.handoff;
+      if (draft.schemaVersion !== 1 || draft.intentId !== run.intentId || draft.runId !== run.runId || draft.revision !== run.revision || draft.sessionId !== run.sessionId || draft.turnId !== run.turnId || draft.projectRoot !== run.projectRoot || draft.branch !== run.branch || draft.worktreePath !== run.worktreePath || draft.phase !== run.phase || draft.objective !== run.objective || draft.status !== "paused" || draft.resumeDirective !== `[Captain resume: ${run.intentId}]` || !draft.summary || !draft.nextSteps.length) throw new Error("signed session interruption draft binding is invalid");
+      if (draft.worktreeState) this.assertWorktreeBinding(run, draft.worktreeState);
+      handoff = await putAuthorizedOnceExact(this.dataRoot, "pause-handoffs", `${run.intentId}-${run.revision}`, { ...draft, evidence: run.evidence });
+    }
+    if (handoff.runId !== run.runId || handoff.sessionId !== run.sessionId || handoff.worktreePath !== run.worktreePath) throw new Error("session interruption handoff binding is invalid");
+    await releaseAuthorizedLeaseAtGeneration(this.dataRoot, run.sessionLeaseId, run.intentId, run.sessionLeaseToken, args.expectedSessionLeaseRevision, args.resourceGeneration);
+    return putAuthorizedOnceExact(this.dataRoot, "session-interruption-results", this.interruptionSelectorId(args), handoff);
+  }
+  async interruptionRunReadOnly(intentId) {
+    const id = safeId2(intentId), prefix = `${id}-`;
+    const names = await readdir5(path7.join(this.dataRoot, "run-revisions"));
+    const revisions = names.map((name) => name.startsWith(prefix) && /^(\d+)\.json$/.exec(name.slice(prefix.length))).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    if (!revisions.length) throw new Error("legacy run has no authenticated revision chain for interruption recovery");
+    let previous;
+    for (let index = 0; index < revisions.length; index++) {
+      if (revisions[index] !== index) throw new Error("signed run revision sequence is not contiguous");
+      const current = await readAuthorizedReadOnly(this.dataRoot, "run-revisions", `${id}-${index}`);
+      const watermark = await readAuthorizedReadOnly(this.dataRoot, "run-watermarks", `${id}-${index}`);
+      if (current.intentId !== intentId || current.revision !== index || current.previousRevisionSha256 !== (previous ? digest4(JSON.stringify(previous)) : void 0) || watermark.intentId !== intentId || watermark.runId !== current.runId || watermark.revision !== index || watermark.runSha256 !== digest4(JSON.stringify(current))) throw new Error("signed run interruption revision binding is invalid");
+      if (previous) this.assertStableRun(previous, current);
+      previous = current;
+    }
+    const watermarks = await readdir5(path7.join(this.dataRoot, "run-watermarks"));
+    if (watermarks.some((name) => name.startsWith(prefix) && /^(\d+)\.json$/.test(name.slice(prefix.length)) && Number(name.slice(prefix.length, -5)) > previous.revision)) throw new Error("signed run revision tail regressed behind its watermark");
+    return previous;
   }
   async assertSessionLease(run) {
     if (!run.sessionLeaseId || !run.sessionLeaseToken) throw new Error("Captain run has no active session ownership");
@@ -24266,7 +24599,7 @@ async function safeArtifact(root, relative) {
 async function hashPath(target) {
   const info = await lstat2(target);
   if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
-  if (info.isFile()) return createHash5("sha256").update(await readFile3(target)).digest("hex");
+  if (info.isFile()) return createHash5("sha256").update(await readFile4(target)).digest("hex");
   const entries = await readdir5(target, { withFileTypes: true });
   const lines2 = [];
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
@@ -24284,7 +24617,7 @@ async function optionalHash(root, relative) {
   }
 }
 async function assertImage(target) {
-  const bytes = await readFile3(target);
+  const bytes = await readFile4(target);
   let valid = false;
   if (bytes.length >= 45 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
     const ihdr = bytes.toString("ascii", 12, 16) === "IHDR", width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20), iend = bytes.includes(Buffer.from("IEND"));
@@ -24648,7 +24981,7 @@ var MergeWorkflowStore = class {
     const metadata = { ...typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}, ...typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {} };
     if (lease.ownerPid === void 0 && lease.ownerHost === void 0) return { owner: { state: "legacy" }, reason: "legacy merge lease has no process metadata; independently verify and confirm that its owner is stopped" };
     if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
-    if (lease.ownerHost.toLowerCase() !== os.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
+    if (lease.ownerHost.toLowerCase() !== os2.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
     try {
       process.kill(lease.ownerPid, 0);
     } catch (error2) {
@@ -24691,7 +25024,7 @@ var MergeWorkflowStore = class {
     if (!await ancestor(record3.target_binding.head, record3.ready_inputs.source.head, record3.source_worktree)) throw new Error("prepared source no longer contains the pinned target");
   }
   async lock(id, session, action) {
-    const leaseId = hash2(`merge-operation\0${id}`), leaseToken = randomUUID2(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os.hostname() };
+    const leaseId = hash2(`merge-operation\0${id}`), leaseToken = randomUUID2(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os2.hostname() };
     if (this.activeOperations.has(leaseId)) throw new Error("merge operation is already active in this process");
     this.activeOperations.add(leaseId);
     try {
@@ -24719,13 +25052,13 @@ var MergeWorkflowStore = class {
         if (owner.branch !== record3.source_binding.branch || !samePath5(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath5(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
         const fenceId = hash2(`worktree-mutation\0${owner.runId}`);
         if (held.some((lease) => lease.id === fenceId)) return;
-        const fence = { intentId: record3.merge_id, leaseToken: randomUUID2(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os.hostname() };
+        const fence = { intentId: record3.merge_id, leaseToken: randomUUID2(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os2.hostname() };
         await acquireAuthorizedLease(this.dataRoot, fenceId, fence);
         held.push({ id: fenceId, payload: fence, borrowed: false });
       };
       for (const owner of sourceOwners) await reserveFence(await lifecycle.status(owner.intentId));
       for (const binding of [record3.source_binding, record3.target_binding].sort((a, b) => resourceId(a.commonGitDir, a.branch).localeCompare(resourceId(b.commonGitDir, b.branch)))) {
-        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID2(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os.hostname() };
+        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID2(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os2.hostname() };
         let existing;
         try {
           existing = await readAuthorizedLease(this.dataRoot, id);
@@ -24882,7 +25215,7 @@ async function metadataInputs(cwd, policy, volatilePaths) {
   for (const relative of files) {
     const info = await lstat3(path8.join(cwd, relative));
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
-    values.push(`${relative}:${hash2(await readFile4(path8.join(cwd, relative)))}`);
+    values.push(`${relative}:${hash2(await readFile5(path8.join(cwd, relative)))}`);
   }
   return digest5(values);
 }
@@ -24898,7 +25231,7 @@ async function contentDigest(root, volatile = [], sharedPackage = false) {
         if (entry.name === ".git" || sharedPackage && !relative && generated.has(entry.name.toLowerCase())) continue;
         await walk(path8.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
       }
-    } else if (info.isFile()) values.push(`${relative}:${hash2(await readFile4(full))}`);
+    } else if (info.isFile()) values.push(`${relative}:${hash2(await readFile5(full))}`);
     else throw new Error(`dependency input is not a regular file or directory: ${full}`);
   }
   await walk(root, "");
@@ -24975,7 +25308,8 @@ function extractAuthorizedTargetBranch(prompt) {
 
 // src/server.ts
 var beginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
-async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }, dependencies = beginDependencies) {
+async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }, dependencies = beginDependencies) {
+  if (close_token_hash && client_pid === void 0) throw new Error("client close capability requires a real client PID");
   return store.withSerializedBeginAttempt(intent_id, async () => {
     const operation = await store.reserveBegin({ intentId: intent_id, objective, projectRoot: project_root, taskId: task_id });
     await dependencies.afterStage?.("reservation");
@@ -24984,6 +25318,7 @@ async function captainBegin(store, { intent_id, objective, project_root, task_id
       const requestedPolicy = await dependencies.loadPolicy(activated.projectRoot, activated.baseHead, plan_paths, hitl_checks);
       if (JSON.stringify(requestedPolicy.approvedPlans ?? []) !== JSON.stringify(activated.policy.approvedPlans ?? [])) throw new Error("begin retry changes the frozen plan selection");
       if (JSON.stringify(requestedPolicy.hitlChecks ?? []) !== JSON.stringify(activated.policy.hitlChecks ?? [])) throw new Error("begin retry changes the frozen HITL checks");
+      await bindClientOwner(store, activated, { client_pid, close_token_hash });
       return activated;
     }
     const identified = await dependencies.repositoryIdentity(project_root, operation.targetBranch, operation.targetOid), policy = await dependencies.loadPolicy(identified.projectRoot, identified.baseHead, plan_paths, hitl_checks), repository = await store.checkpointBeginRepository(operation, identified, policy);
@@ -25000,8 +25335,22 @@ async function captainBegin(store, { intent_id, objective, project_root, task_id
     const activatedRun = await store.checkpointBeginActivated(operation);
     await store.checkpointBeginPermit(operation, activatedRun);
     await dependencies.afterStage?.("permit");
-    return store.status(operation.intentId);
+    const result = await store.status(operation.intentId);
+    await bindClientOwner(store, result, { client_pid, close_token_hash });
+    return result;
   });
+}
+async function captainDoctor(store) {
+  const discovery = await store.doctor();
+  return { ...discovery, pausedHandoffs: discovery.pausedHandoffs.map((handoff) => {
+    const { worktreeState, evidence, ...summary } = handoff;
+    return {
+      ...summary,
+      handoffId: `${handoff.intentId}-${handoff.revision}`,
+      evidenceCount: evidence.length,
+      ...worktreeState ? { worktreeState: { head: worktreeState.head, tree: worktreeState.tree } } : {}
+    };
+  }) };
 }
 async function captainIssueIntent(store, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }) {
   const directiveTarget = extractAuthorizedTargetBranch(prompt), directiveResume = extractCaptainResumeIntent(prompt);
@@ -25013,7 +25362,8 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   if (action === "start" && resume_of) throw new Error("start action conflicts with resume selector");
   const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action }, async () => {
     if (!resume_of && task_id && action !== "start") {
-      const candidates = await Promise.all((await store.doctor()).activeRuns.map((run) => store.status(run.intentId)));
+      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path9.resolve(run.projectRoot) === path9.resolve(project_root));
+      const candidates = await Promise.all(selected.map((run) => store.status(run.intentId)));
       const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path9.resolve(run.projectRoot) === path9.resolve(project_root));
       if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
       resume_of = matching[0]?.intentId;
@@ -25024,7 +25374,15 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
       if (run.status === "green" && !isPendingPlanReview(run) || path9.resolve(run.projectRoot) !== path9.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
       if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
       if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
-      if (run.status !== "paused" && !(run.status === "green" && isPendingPlanReview(run) && !run.sessionLeaseId && !run.leaseId) && run.sessionId !== session_id) throw new Error("run is active in another session; its owner must pause before handoff");
+      if (run.status !== "paused" && run.status !== "green" && run.sessionId !== session_id) {
+        const interruption = await store.sessionInterruptionStatus(run.intentId, run.sessionId);
+        if (!interruption.canRecover || !interruption.selectors) throw new Error("run is active in another session; its owner must pause before handoff (no verified interruption)");
+        await store.recoverInterruptedSession({
+          ...interruption.selectors,
+          summary: "Client interruption detected while resuming the retained task",
+          nextSteps: ["Resume the same run and worktree from its signed handoff; preserve unfinished task work and prior evidence"]
+        });
+      }
     }
     let targetOid;
     if (target_branch && !resume_of) {
@@ -25039,8 +25397,15 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   await store.recordUserAuthorization({ projectRoot: project_root, sessionId: session_id, turnId: turn_id, prompt, intentId: resume_of ?? intentId, taskId: task_id, source: "client-adapter" });
   return { intent_id: intentId, ...resume_of ? { resume_instruction: `Call captain_resume_implementation with resume_intent_id=${intentId}.` } : { begin_instruction: `Call captain_begin_implementation with intent_id=${intentId}.` } };
 }
+async function bindClientOwner(store, run, client) {
+  if (client.client_pid !== void 0) {
+    const owner = await captureClientSessionOwner(client.client_pid, client.close_token_hash);
+    await store.bindSessionOwner(run.intentId, run.sessionId, owner);
+  }
+}
 var resumeDependencies = { assertWorktreeBinding, git, commitEvidence };
-async function captainResume(store, resumeIntentId, dependencies = resumeDependencies) {
+async function captainResume(store, resumeIntentId, dependencies = resumeDependencies, client = {}) {
+  if (client.close_token_hash && client.client_pid === void 0) throw new Error("client close capability requires a real client PID");
   const run = await store.resumeTarget(resumeIntentId), prepared = run.preparedCommit;
   if (run.terminalCommit && prepared) {
     await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final });
@@ -25057,7 +25422,9 @@ async function captainResume(store, resumeIntentId, dependencies = resumeDepende
       await store.recoverAdvancedPreparedCommit(run.intentId, evidence, firstParent, candidateVerification);
     }
   }
-  return store.resume(resumeIntentId);
+  const resumed = await store.resume(resumeIntentId);
+  await bindClientOwner(store, resumed, client);
+  return resumed;
 }
 var commitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
 async function captainCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
@@ -25129,10 +25496,10 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   return discarded;
 }
 async function startCaptainMcp() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path9.join(process.env.CODEX_HOME || path9.join(os2.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
-  const store = new LifecycleStore(dataRoot, gateRunner, sourceState);
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path9.join(process.env.CODEX_HOME || path9.join(os3.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
+  const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.2.6" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.3.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {
@@ -25144,21 +25511,61 @@ async function startCaptainMcp() {
     } : void 0;
     return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...merge_id ? { merge_id } : {}, ...next_step ? { next_step } : {} } };
   });
-  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
+  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), client_pid: external_exports.number().int().positive().optional(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
     const run = await captainBegin(store, args);
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
   }));
   server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
+  const interruptionSchema = {
+    intent_id: external_exports.string(),
+    session_id: external_exports.string().min(1).max(256),
+    expected_run_revision: external_exports.number().int().nonnegative(),
+    expected_session_lease_revision: external_exports.number().int().nonnegative(),
+    resource_generation: external_exports.string().regex(/^[0-9a-f]{64}$/i),
+    summary: external_exports.string().trim().min(1).max(12e3),
+    next_steps: external_exports.array(external_exports.string().trim().min(1)).min(1)
+  };
+  function interruptionArgs(args) {
+    return {
+      intentId: args.intent_id,
+      sessionId: args.session_id,
+      expectedRunRevision: args.expected_run_revision,
+      expectedSessionLeaseRevision: args.expected_session_lease_revision,
+      resourceGeneration: args.resource_generation,
+      summary: args.summary,
+      nextSteps: args.next_steps
+    };
+  }
+  server.registerTool("captain_bind_session_owner", {
+    description: "Bind the current owned logical session to its actual client process, capturing host and process start from the OS. The adapter must supply the client PID, never a temporary MCP/helper PID. Optionally bind a private client-close capability by its SHA256; no owner is inferred from server lifetime.",
+    inputSchema: { intent_id: external_exports.string(), session_id: external_exports.string().min(1).max(256), client_pid: external_exports.number().int().positive(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional() }
+  }, async ({ intent_id, session_id, client_pid, close_token_hash }) => guarded(async () => {
+    const owner = await captureClientSessionOwner(client_pid, close_token_hash);
+    await store.bindSessionOwner(intent_id, session_id, owner);
+    return store.sessionInterruptionStatus(intent_id, session_id);
+  }));
+  server.registerTool("captain_session_interruption_status", {
+    description: "Read-only signed session interruption diagnosis. Return exact recovery selectors and verified client liveness without exposing close tokens or modifying ownership. Unknown, legacy, and foreign host states never mean crashed.",
+    inputSchema: { intent_id: external_exports.string(), session_id: external_exports.string().min(1).max(256) }
+  }, async ({ intent_id, session_id }) => guarded(() => store.sessionInterruptionStatus(intent_id, session_id)));
+  server.registerTool("captain_recover_interrupted_session", {
+    description: "Convert a positively verified stopped client session into a signed pause handoff. Fence the exact run and lease generation; retain run, worktree, dirty work, phase and evidence. Use ordinary resume afterward. Live, foreign, unknown and legacy owners are protected.",
+    inputSchema: interruptionSchema
+  }, async (args) => guarded(() => store.recoverInterruptedSession(interruptionArgs(args))));
+  server.registerTool("captain_record_session_closed", {
+    description: "Client adapter notification of logical session close or crash, authenticated by its private pre-bound close token and exact signed ownership generation. This supports closed panels whose host process remains alive and writes the same signed pause handoff.",
+    inputSchema: { ...interruptionSchema, owner_token: external_exports.string().min(16).max(1024), reason: external_exports.enum(["closed", "crashed"]) }
+  }, async (args) => guarded(() => store.recordSessionClosed({ ...interruptionArgs(args), ownerToken: args.owner_token, reason: args.reason })));
   server.registerTool("captain_user_authorization_status", { description: "Retrieve durable commit/merge approval and revocation receipts, including original user wording, source turn, repository, task and merge target. Reuse existing authorization for the same task; missing parser receipts never negate explicit conversational approval. This is evidence, not a new approval gate or a waiver of Git hygiene.", inputSchema: { project_root: external_exports.string().min(1), session_id: external_exports.string().optional(), intent_id: external_exports.string().optional(), operation: external_exports.enum(["commit", "merge"]).optional(), target_branch: external_exports.string().optional() } }, async (args) => guarded(() => store.userAuthorizations({ projectRoot: args.project_root, sessionId: args.session_id, intentId: args.intent_id, operation: args.operation, targetBranch: args.target_branch })));
-  server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(() => store.recordRed(intent_id)));
-  server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: external_exports.string(), scope: external_exports.enum(["ticket", "feature-smoke", "affected-regression"]) } }, async ({ intent_id, scope }) => guarded(() => store.runCheck(intent_id, scope)));
-  server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run. Reconcile a validated advanced prepared commit before resuming.", inputSchema: { resume_intent_id: external_exports.string() } }, async ({ resume_intent_id }) => guarded(async () => {
-    const run = await captainResume(store, resume_intent_id);
+  server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: external_exports.string(), ticket_filter: external_exports.string().min(1).max(512).regex(/^[A-Za-z_][A-Za-z0-9_.]*$/).optional() } }, async ({ intent_id, ticket_filter }) => guarded(() => store.recordRed(intent_id, void 0, ticket_filter)));
+  server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: external_exports.string(), scope: external_exports.enum(["ticket", "feature-smoke", "affected-regression"]), ticket_filter: external_exports.string().min(1).max(512).regex(/^[A-Za-z_][A-Za-z0-9_.]*$/).optional() } }, async ({ intent_id, scope, ticket_filter }) => guarded(() => store.runCheck(intent_id, scope, ticket_filter)));
+  server.registerTool("captain_resume_implementation", { description: "Consume a hook-issued one-time resume token for a later turn in the same governed run. Reconcile a validated advanced prepared commit before resuming.", inputSchema: { resume_intent_id: external_exports.string(), client_pid: external_exports.number().int().positive().optional(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional() } }, async ({ resume_intent_id, client_pid, close_token_hash }) => guarded(async () => {
+    const run = await captainResume(store, resume_intent_id, void 0, { client_pid, close_token_hash });
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
   }));
   server.registerTool("captain_pause_implementation", { description: "Write a signed handoff and release session ownership only for an actual execution limit, explicit human stop, pending human review, or demonstrated external blocker. Keep working when an authorized next action exists; do not self-pause after one rejected tool call. Optionally supply a blocker task to start next.", inputSchema: { intent_id: external_exports.string(), summary: external_exports.string().min(1).max(4e3), next_steps: external_exports.array(external_exports.string().min(1).max(1e3)).min(1).max(20), blockers: external_exports.array(external_exports.string().min(1).max(1e3)).max(20).optional(), plan_path: external_exports.string().max(2e3).optional(), phase_label: external_exports.string().max(500).optional(), completed_steps: external_exports.array(external_exports.string().min(1).max(1e3)).max(50).optional(), context: external_exports.string().max(12e3).optional(), redirect_task: external_exports.string().regex(/^[A-Za-z0-9][A-Za-z0-9._#-]*$/).optional() } }, async ({ intent_id, summary, next_steps, blockers, plan_path, phase_label, completed_steps, context, redirect_task }) => guarded(() => store.pause(intent_id, { summary, nextSteps: next_steps, blockers, planPath: plan_path, phaseLabel: phase_label, completedSteps: completed_steps, context, redirectTask: redirect_task })));
   server.registerTool("captain_link_blocker", { description: "Append a signed dependency from a paused run to the active blocker run that must be completed before it can resume.", inputSchema: { blocked_intent_id: external_exports.string(), blocker_intent_id: external_exports.string() } }, async ({ blocked_intent_id, blocker_intent_id }) => guarded(() => store.linkBlocker(blocked_intent_id, blocker_intent_id)));
-  server.registerTool("captain_doctor", { description: "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.", inputSchema: {} }, async () => guarded(() => store.doctor()));
+  server.registerTool("captain_doctor", { description: "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.", inputSchema: {} }, async () => guarded(() => captainDoctor(store)));
   server.registerTool("captain_migrate_plan_state", { description: "Migrate explicitly selected Markdown plans to Captain's bounded work-state block. This is the same backend used by the Captain dashboard and Codex skill.", inputSchema: { intent_id: external_exports.string(), plan_paths: external_exports.array(external_exports.string().min(1).max(2e3)).min(1).max(100) } }, async ({ intent_id, plan_paths }) => guarded(() => store.migratePlanState(intent_id, plan_paths)));
   server.registerTool("captain_begin_diagnose", {
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -25252,6 +25659,7 @@ export {
   captainBegin,
   captainCancelFailedBegin,
   captainCommit,
+  captainDoctor,
   captainIssueIntent,
   captainPrepareMerge,
   captainResume,

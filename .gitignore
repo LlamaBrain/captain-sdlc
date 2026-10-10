@@ -24,3 +24,9 @@ obj/
 node_modules/
 .captain-proof/
 node_modules/
+
+# Generated task baseline output; durable CaptainSessionContinuity evidence remains tracked.
+/plugins/captain-sdlc/Artifacts/RuntimeSmokeArtifactingSetup/
+
+# Local task closeout can record final signed proof without changing committed source.
+/.captain-sdlc/closeouts/captain-ticket-session-continuity-20261010.md

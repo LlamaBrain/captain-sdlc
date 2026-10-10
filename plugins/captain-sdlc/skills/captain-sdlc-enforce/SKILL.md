@@ -78,6 +78,19 @@ The human need not reproduce an intent token. Ambiguous tasks require clarificat
 another session's active ownership must not be taken over automatically. Resume retains
 the original worktree, dirty task work, phase and evidence. Missing or changed worktree
 identity requires a specific recovery diagnosis, not a fresh implementation worktree.
+Closing and reopening a client session, or a verified crash, is execution
+continuity for the retained task. When the client adapter supplies its real
+process identity, pass `client_pid` on Begin/Resume (or bind it through
+`captain_bind_session_owner`). Never bind a temporary helper/MCP PID. A client
+that supports logical close notification may bind a private close-token hash
+and call `captain_record_session_closed` on panel closure; keep the token private.
+On ordinary resume, Captain can turn a positively stopped registered owner into
+the existing signed pause handoff automatically. If diagnosis is needed, use
+`captain_session_interruption_status` and its exact selectors before
+`captain_recover_interrupted_session`. Preserve the same run, branch, dirty work
+and evidence. An inaccessible, live, foreign-host or unregistered owner is not
+proof of a crash. A turn Stop event is not session closure.
+
 Resume uses the exact signed pause snapshot to retain an already-recorded task HEAD.
 This execution continuity is distinct from validated commit evidence and proof; it never
 fills a missing commit ledger or marks tests green. A HEAD changed after that snapshot,
@@ -108,6 +121,11 @@ repository root. Keep durable evidence, policy and handoffs in their documented 
 1. Call `captain_begin_implementation` with the intent id, exact objective, repository root, and the repository task id when the trusted commit policy requires a task trailer. Profile and visual requirements come from trusted policy, not caller input.
 2. Switch all implementation work to the canonical worktree returned by Captain.
 3. Write the ticket test first, then call `captain_record_red`. The trusted ticket command must fail for the expected missing behavior.
+For a LOW run whose captured ticket selects an unrelated Unity fixture, pass the
+smallest task-relevant class or method as `ticket_filter` to `captain_record_red`.
+Captain binds only the trusted runner's literal filter argument; subsequent
+`captain_run_check` ticket calls reuse that immutable selection. Do not override
+the command, edit captured policy or import broader suites for this selection.
 4. Implement until the ticket test is green. Build a new deterministic feature smoke that runs in the provided build. Keep affected regression scope narrow; do not run the release-wide suite for ordinary feature work.
 5. Produce the configured testable build, smoke result, and required screenshot/video evidence.
 6. During implementation, `captain_prepare_merge`/`captain_abort_merge` remain the low-level audited tools for a pinned incoming commit when the existing run permits it. Resolve in the owned source; they do not certify integration readiness or update the target. Perform the separate branch-integration workflow below after the source is committed.

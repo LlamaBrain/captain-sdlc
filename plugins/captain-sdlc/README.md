@@ -170,3 +170,21 @@ and merge bindings.
 When the initial Prep call fails after saving its signed operation, its error includes the durable `merge_id` and an exact `captain_merge_status` next step for the same session. Pre-validation failures do not claim a saved operation.
 
 If the operation ID is unavailable, call `captain_merge_diagnose` with the actual `session_id`, `source_worktree`, `target_worktree`, and `target_branch`. It returns all matching caller-owned operations and limited target lease owner metadata. Diagnosis verifies existing signatures, chains and watermarks without writing authority or Git state; it does not establish readiness or grant recovery rights.
+
+## Ticket selection and interrupted clients
+
+A LOW task may pass `ticket_filter` to `captain_record_red`. Captain changes only the single literal `-TestFilter` argument in the captured trusted runner, binds the actual command and policy digest to the run, and reuses that binding for green ticket checks. Captured policy and final Build gates remain unchanged. Other profiles and arbitrary command overrides remain unsupported.
+
+A client close or crash preserves the same run, phase, worktree, unfinished work, frozen scope and evidence. A resume adapter first selects only the matching signed repository/task, then resumes its retained checkout. It never allocates a replacement because a session ended.
+
+Clients with process identity support supply their actual `client_pid` on Begin/Resume or call `captain_bind_session_owner`. Captain obtains host and process start from the OS. Never supply the temporary MCP/helper server PID. Clients with long-lived host processes also generate a private random close token and bind its SHA256 as `close_token_hash`; keep the raw token client-side.
+
+`captain_session_interruption_status` returns read-only diagnosis and exact generation selectors. A positively stopped recorded client can be recovered automatically on cross-session resume or explicitly through `captain_recover_interrupted_session`. Graceful panel closure uses `captain_record_session_closed` with the private token, exact selectors, concise summary and next actions. Both produce the existing signed pause handoff, then ordinary resume transfers the retained task. Stop remains a turn completion event; it is never mistaken for session closure.
+
+Clients that do not expose a client process or authenticated close notification cannot be diagnosed as crashed from elapsed time or MCP process lifetime. Legacy, live, foreign-host and unknown ownership remains protected. This does not change ordinary same-session continuation or already-paused resume.
+
+Recovery discovery through `captain_doctor` returns a compact handoff index:
+identity, objective, current phase, next steps, blockers, context, source head/tree,
+`evidenceCount` and exact `handoffId`. Full signed source snapshots and evidence
+remain in the authority store and are used by ordinary resume. Large retained
+handoffs therefore do not overflow the MCP message buffer during task discovery.

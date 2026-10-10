@@ -3,7 +3,11 @@ import { LifecycleStore, type HitlCheck } from "./lifecycle.js";
 import { git } from "./workspace.js";
 import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, preparedMergeState, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity } from "./workspace.js";
 export type CaptainBeginStage = "reservation" | "lease-acquired" | "worktree-created" | "run" | "permit" | "active";
-export type CaptainBeginArgs = {
+export type ClientOwnerArgs = {
+    client_pid?: number;
+    close_token_hash?: string;
+};
+export type CaptainBeginArgs = ClientOwnerArgs & {
     intent_id: string;
     objective: string;
     project_root: string;
@@ -27,8 +31,41 @@ export type CaptainBeginDependencies = {
     ensureWorktree: typeof ensureWorktree;
     afterStage?: (stage: CaptainBeginStage) => Promise<void>;
 };
-export declare function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks }: CaptainBeginArgs, dependencies?: CaptainBeginDependencies): Promise<import("./lifecycle.js").Run>;
+export declare function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }: CaptainBeginArgs, dependencies?: CaptainBeginDependencies): Promise<import("./lifecycle.js").Run>;
 export { captainCancelFailedBegin };
+export declare function captainDoctor(store: Pick<LifecycleStore, "doctor">): Promise<{
+    pausedHandoffs: {
+        worktreeState?: {
+            head: string;
+            tree: string;
+        } | undefined;
+        handoffId: string;
+        evidenceCount: number;
+        schemaVersion: 1;
+        intentId: string;
+        runId: string;
+        revision: number;
+        sessionId: string;
+        turnId: string;
+        projectRoot: string;
+        worktreePath: string;
+        branch: string;
+        taskId?: string;
+        objective: string;
+        phase: import("./lifecycle.js").Run["phase"];
+        status: import("./lifecycle.js").Run["status"];
+        planPath?: string;
+        phaseLabel?: string;
+        completedSteps: string[];
+        summary: string;
+        nextSteps: string[];
+        blockers: string[];
+        context?: string;
+        resumeDirective: string;
+        redirectPrompt?: string;
+    }[];
+    activeRuns: Array<Pick<import("./lifecycle.js").Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch" | "projectRoot" | "taskId">>;
+}>;
 export declare function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }: CaptainIssueIntentArgs): Promise<{
     resume_instruction: string;
     intent_id: string;
@@ -48,7 +85,7 @@ export type CaptainResumeDependencies = {
     git: typeof git;
     commitEvidence: typeof commitEvidence;
 };
-export declare function captainResume(store: LifecycleStore, resumeIntentId: string, dependencies?: CaptainResumeDependencies): Promise<import("./lifecycle.js").Run>;
+export declare function captainResume(store: LifecycleStore, resumeIntentId: string, dependencies?: CaptainResumeDependencies, client?: ClientOwnerArgs): Promise<import("./lifecycle.js").Run>;
 export type CaptainCommitDependencies = {
     applyPreparedCommit: typeof applyPreparedCommit;
     assertWorktreeBinding: typeof assertWorktreeBinding;

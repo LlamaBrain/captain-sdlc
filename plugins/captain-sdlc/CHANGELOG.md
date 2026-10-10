@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+- v0.3.0: Add an immutable task-specific LOW ticket selector while preserving the captured trusted runner and proof gates.
+- v0.3.0: Bind actual client ownership and authenticated logical close notifications, recovering interrupted work through the same signed pause/resume handoff while protecting live, foreign and unknown owners.
+- v0.3.0: Preserve same-session reopening, incomplete pause checkpoints and paused-task discovery without replacing worktrees or taking another task's lease; keep public recovery discovery compact.
+- v0.3.0: Cover selector safety, continuity and real public transport with focused regressions and the passing configured suite.
+
 ## 0.2.6
 - Preserve simultaneous exact Begin idempotency by serializing ordinary calls in one process, then rechecking each signed reservation and cancellation marker.
 - Keep cancellation and cross-process startup exclusion on the existing signed attempt gate; rejected calls cannot poison the local queue.

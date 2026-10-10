@@ -1,0 +1,75 @@
+﻿{
+    "allHookStateEntries":  [
+                                {
+                                    "trusted_hash":  "sha256:be6ac27d981ddcb10845af20a5d63a43c370fdeac05bb84957ace73713fb0647",
+                                    "identity":  "C:\\Users\\metag\\.codex\\hooks.json:stop:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:e3c85913bf433af5792aeae64922c19a9aa777abec9d0d24f1a017bdcc6acb22",
+                                    "identity":  "C:\\Users\\metag\\.codex\\hooks.json:user_prompt_submit:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:be527484c3c5fb02c5bc846149f8d5e164918d2d5ea5d2c961a09037db8c4905",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:pre_tool_use:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:a49c41be9e7dbc00e03703265adefdca46e12b77d722ca8b47fa0094db82f93b",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:post_tool_use:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:19949ab8aadd05443e67e1b66298d8e303b7c5a7150aae85114a04563e35d9c0",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:session_start:0:2"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:73009d71492f3db420bb856eb972da392e678eadcbc7e1e125e7430a67d49f4b",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:session_start:0:1"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:84922f02a2c8ac9df62faaa0b63c38778360cd9900554bdec989108f796841ab",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:session_start:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:c9ed4da2921325c632de9c9b4754dfd6edb753d8548f946a6073c4876507d44a",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:user_prompt_submit:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:1e99bde05721215c13722e100fd2ed6657dacffab6e1c5dcb9be47a56bf6f6d5",
+                                    "identity":  "claude-mem@claude-mem-local:hooks/codex-hooks.json:stop:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:0b544b8c8036201462d1983d6d380de4d7651e75b9827be9028a2b05272e8989",
+                                    "identity":  "captain-sdlc@personal:hooks/hooks.json:pre_tool_use:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:b61408973ab5f01f8a7c9a8c67c2c3aea1f6a547fb7ea94adb26ca4b6fd3a830",
+                                    "identity":  "captain-sdlc@personal:hooks/hooks.json:user_prompt_submit:0:0"
+                                },
+                                {
+                                    "trusted_hash":  "sha256:880daa3feb7344be9b8aa5e36cd1138156ce7548e52688ed114c45be0b86b8e4",
+                                    "identity":  "captain-sdlc@personal:hooks/hooks.json:stop:0:0"
+                                }
+                            ],
+    "installedHooks":  {
+                           "sha256":  "f383a4bccd553a22afc655988d2aaa23decf38f6a2853207bf451671a2ed0148",
+                           "path":  "C:/Users/metag/.codex/plugins/cache/personal/captain-sdlc/0.2.1/hooks/hooks.json"
+                       },
+    "globalMutations":  false,
+    "capturedAt":  "2026-10-10T16:20:01.4956234Z",
+    "configSha256":  "12494979df204ec8d305fd2688c3c14028a273dae3f475446aac9faeb6a6602c",
+    "hookStateEntryCount":  12,
+    "trustSource":  "C:/Users/metag/.codex/config.toml",
+    "captainHookEntries":  [
+                               {
+                                   "trusted_hash":  "sha256:0b544b8c8036201462d1983d6d380de4d7651e75b9827be9028a2b05272e8989",
+                                   "identity":  "captain-sdlc@personal:hooks/hooks.json:pre_tool_use:0:0"
+                               },
+                               {
+                                   "trusted_hash":  "sha256:b61408973ab5f01f8a7c9a8c67c2c3aea1f6a547fb7ea94adb26ca4b6fd3a830",
+                                   "identity":  "captain-sdlc@personal:hooks/hooks.json:user_prompt_submit:0:0"
+                               },
+                               {
+                                   "trusted_hash":  "sha256:880daa3feb7344be9b8aa5e36cd1138156ce7548e52688ed114c45be0b86b8e4",
+                                   "identity":  "captain-sdlc@personal:hooks/hooks.json:stop:0:0"
+                               }
+                           ]
+}

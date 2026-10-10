@@ -1,0 +1,1318 @@
+{
+  "runtimeRoot": "C:\\Users\\metag\\.codex\\plugins\\cache\\personal\\captain-sdlc\\0.2.6",
+  "runtimeSha256": "f4b1c597b88f4af9a7e61137774b080326c74455aa7644d99e9e981be364424e",
+  "authorityRoot": "C:\\Users\\metag\\.codex\\plugins\\data\\captain-sdlc-personal",
+  "server": {
+    "name": "captain-sdlc",
+    "version": "0.2.6"
+  },
+  "method": "tools/list",
+  "result": {
+    "tools": [
+      {
+        "name": "captain_begin_implementation",
+        "description": "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "objective": {
+              "type": "string"
+            },
+            "project_root": {
+              "type": "string"
+            },
+            "client_pid": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "close_token_hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "task_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]+$"
+            },
+            "plan_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "hitl_checks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "criterionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "setup": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "expected": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "criterionId",
+                  "setup",
+                  "action",
+                  "expected",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "intent_id",
+            "objective",
+            "project_root"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_issue_intent",
+        "description": "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "turn_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "project_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "task_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]+$"
+            },
+            "resume_of": {
+              "type": "string"
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "resume"
+              ]
+            }
+          },
+          "required": [
+            "session_id",
+            "turn_id",
+            "project_root",
+            "prompt"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_bind_session_owner",
+        "description": "Bind the current owned logical session to its actual client process, capturing host and process start from the OS. The adapter must supply the client PID, never a temporary MCP/helper PID. Optionally bind a private client-close capability by its SHA256; no owner is inferred from server lifetime.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "client_pid": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "close_token_hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id",
+            "client_pid"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_session_interruption_status",
+        "description": "Read-only signed session interruption diagnosis. Return exact recovery selectors and verified client liveness without exposing close tokens or modifying ownership. Unknown, legacy, and foreign host states never mean crashed.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_recover_interrupted_session",
+        "description": "Convert a positively verified stopped client session into a signed pause handoff. Fence the exact run and lease generation; retain run, worktree, dirty work, phase and evidence. Use ordinary resume afterward. Live, foreign, unknown and legacy owners are protected.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "expected_run_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expected_session_lease_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resource_generation": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "next_steps": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id",
+            "expected_run_revision",
+            "expected_session_lease_revision",
+            "resource_generation",
+            "summary",
+            "next_steps"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_record_session_closed",
+        "description": "Client adapter notification of logical session close or crash, authenticated by its private pre-bound close token and exact signed ownership generation. This supports closed panels whose host process remains alive and writes the same signed pause handoff.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "expected_run_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expected_session_lease_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resource_generation": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "next_steps": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "owner_token": "[REDACTED]",
+            "reason": {
+              "type": "string",
+              "enum": [
+                "closed",
+                "crashed"
+              ]
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id",
+            "expected_run_revision",
+            "expected_session_lease_revision",
+            "resource_generation",
+            "summary",
+            "next_steps",
+            "owner_token",
+            "reason"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_user_authorization_status",
+        "description": "Retrieve durable commit/merge approval and revocation receipts, including original user wording, source turn, repository, task and merge target. Reuse existing authorization for the same task; missing parser receipts never negate explicit conversational approval. This is evidence, not a new approval gate or a waiver of Git hygiene.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string"
+            },
+            "intent_id": {
+              "type": "string"
+            },
+            "operation": {
+              "type": "string",
+              "enum": [
+                "commit",
+                "merge"
+              ]
+            },
+            "target_branch": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_root"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_record_red",
+        "description": "Run the trusted ticket test and require it to fail before implementation.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "ticket_filter": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$"
+            }
+          },
+          "required": [
+            "intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_run_check",
+        "description": "Run a trusted ticket/smoke/regression check during the implementation loop.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "ticket",
+                "feature-smoke",
+                "affected-regression"
+              ]
+            },
+            "ticket_filter": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^[A-Za-z_][A-Za-z0-9_.]*$"
+            }
+          },
+          "required": [
+            "intent_id",
+            "scope"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_resume_implementation",
+        "description": "Consume a hook-issued one-time resume token for a later turn in the same governed run. Reconcile a validated advanced prepared commit before resuming.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "resume_intent_id": {
+              "type": "string"
+            },
+            "client_pid": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "close_token_hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "resume_intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_pause_implementation",
+        "description": "Write a signed handoff and release session ownership only for an actual execution limit, explicit human stop, pending human review, or demonstrated external blocker. Keep working when an authorized next action exists; do not self-pause after one rejected tool call. Optionally supply a blocker task to start next.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "next_steps": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "minItems": 1,
+              "maxItems": 20
+            },
+            "blockers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "maxItems": 20
+            },
+            "plan_path": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "phase_label": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "completed_steps": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "maxItems": 50
+            },
+            "context": {
+              "type": "string",
+              "maxLength": 12000
+            },
+            "redirect_task": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._#-]*$"
+            }
+          },
+          "required": [
+            "intent_id",
+            "summary",
+            "next_steps"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_link_blocker",
+        "description": "Append a signed dependency from a paused run to the active blocker run that must be completed before it can resume.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "blocked_intent_id": {
+              "type": "string"
+            },
+            "blocker_intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "blocked_intent_id",
+            "blocker_intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_doctor",
+        "description": "List durable paused handoffs and unfinished Captain runs so a new agent can choose the correct resume or blocker task without rediscovery.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_migrate_plan_state",
+        "description": "Migrate explicitly selected Markdown plans to Captain's bounded work-state block. This is the same backend used by the Captain dashboard and Codex skill.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "plan_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "minItems": 1,
+              "maxItems": 100
+            }
+          },
+          "required": [
+            "intent_id",
+            "plan_paths"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_begin_diagnose",
+        "description": "Read-only diagnosis of an exact caller-owned Begin intent and target lease. Authenticates existing signed records without migration, repair, key creation or lease release; foreign/missing ownership is generic and legacy owners require separate supported recovery.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "project_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id",
+            "project_root",
+            "target_worktree",
+            "target_branch"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_cancel_failed_begin",
+        "description": "Cancel only an exact authenticated terminal pre-workspace Begin after its logical request has returned and the caller confirms no same-intent attempt is active or planned. Uses a shared signed attempt gate and exact target-lease generation; never changes Git refs or retires progressed work.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "project_root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_lease_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "resource_generation": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "confirm_owner_stopped": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "intent_id",
+            "session_id",
+            "project_root",
+            "target_worktree",
+            "target_branch",
+            "expected_lease_revision",
+            "resource_generation",
+            "confirm_owner_stopped"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_diagnose",
+        "description": "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "session_id",
+            "source_worktree",
+            "target_worktree",
+            "target_branch"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_prep",
+        "description": "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "merge_id": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "object",
+              "properties": {
+                "paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "task_outcome": {
+                  "type": "string",
+                  "enum": [
+                    "Implements",
+                    "Completes",
+                    "Needs-QA"
+                  ]
+                },
+                "task_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": [
+                "paths",
+                "subject"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "session_id",
+            "source_worktree",
+            "target_worktree",
+            "target_branch"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_begin",
+        "description": "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "merge_id": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "object",
+              "properties": {
+                "paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "task_outcome": {
+                  "type": "string",
+                  "enum": [
+                    "Implements",
+                    "Completes",
+                    "Needs-QA"
+                  ]
+                },
+                "task_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._-]+$"
+                }
+              },
+              "required": [
+                "paths",
+                "subject"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "session_id",
+            "source_worktree",
+            "target_worktree",
+            "target_branch"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_back",
+        "description": "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "merge_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string"
+            },
+            "target_worktree": {
+              "type": "string"
+            },
+            "target_branch": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "merge_id",
+            "session_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_finish",
+        "description": "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "merge_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string"
+            },
+            "target_worktree": {
+              "type": "string"
+            },
+            "target_branch": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "merge_id",
+            "session_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_merge_status",
+        "description": "Read the signed Merge Prep/Back operation, source/target bindings, retained gate evidence, and authenticated operation lease owner/recovery context. Use operation_lease.recovery.args for exact-generation recovery after verifying its owner is stopped; no internal storage inspection is needed. Merge readiness and integration are separate from implementation complete/green.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "merge_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string"
+            },
+            "target_worktree": {
+              "type": "string"
+            },
+            "target_branch": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "merge_id",
+            "session_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_recover_merge_lease",
+        "description": "Release only abandoned merge-operation, integration-worktree, and integration-branch leases after verifying the signed merge id, revision, source/target identity, session, pinned bindings, and exact operation lease token. It refuses active worktree owners and foreign leases. For legacy leases without owner-process metadata, the caller must confirm the previous owner is stopped. Resume the same merge_id with captain_merge_prep or captain_merge_back; this does not alter Git refs or merge readiness evidence.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "merge_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "source_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_worktree": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target_branch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expected_lease_token": {
+              "type": "string",
+              "minLength": 1
+            },
+            "confirm_owner_stopped": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "merge_id",
+            "session_id",
+            "source_worktree",
+            "target_worktree",
+            "target_branch",
+            "expected_revision",
+            "expected_lease_token"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_prepare_merge",
+        "description": "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "commit_oid": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40,64}$"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "ort",
+                "ours"
+              ],
+              "default": "ort"
+            }
+          },
+          "required": [
+            "intent_id",
+            "commit_oid"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_abort_merge",
+        "description": "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_commit",
+        "description": "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "subject": {
+              "type": "string"
+            },
+            "task_outcome": {
+              "type": "string",
+              "enum": [
+                "Implements",
+                "Completes",
+                "Needs-QA"
+              ]
+            },
+            "final": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "required": [
+            "intent_id",
+            "paths",
+            "subject"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_record_commit",
+        "description": "Validate the exact clean atomic Conventional Commit, SemVer, changelog, task-trailer, and first-parent phase boundary.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_prove",
+        "description": "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_record_hitl_feedback",
+        "description": "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "accept",
+                "needs_changes"
+              ]
+            },
+            "human_feedback": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "check_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 50
+            },
+            "evidence_references": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "maxItems": 50
+            },
+            "reviewed_revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40,64}$"
+            }
+          },
+          "required": [
+            "intent_id",
+            "decision",
+            "human_feedback",
+            "check_ids",
+            "evidence_references"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_record_plan_review",
+        "description": "Record actual human feedback after signed proof is green. Copy the human feedback faithfully; never infer acceptance from agent tests or demonstrations. needs_changes retains HITL and records a bounded repair handoff.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "accept",
+                "needs_changes"
+              ]
+            },
+            "human_feedback": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "intent_id",
+            "decision",
+            "human_feedback"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "captain_status",
+        "description": "Return the authoritative lifecycle phase and evidence ledger.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "intent_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ]
+  },
+  "stderr": ""
+}

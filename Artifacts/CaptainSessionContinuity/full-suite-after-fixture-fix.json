@@ -1,0 +1,16 @@
+﻿{
+    "output":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\Artifacts\\CaptainSessionContinuity\\full-suite-after-fixture-fix.txt",
+    "exitCode":  0,
+    "sourceHashes":  {
+                         "tests/task-discovery-size.test.ts":  "d74e7f589ca891cffa56d3a509338db24ebed4de309a13a187f51dc4ea4adda0",
+                         "src/server.ts":  "c9e4ecbc8efb0d77d74cdbd6a7baed8624565d87071c7e29792863c053d1ca5c",
+                         "tests/crash-session-continuity.test.ts":  "42d22cb9d7912e11eec6d51c3cd0cb35ce4e96126091608ba2c27e0bce001576",
+                         "tests/adapter-fluidity.test.ts":  "69499cb0cdb59614fc6b6df0bae5b155972cc1a477b33434643bdc7006262342",
+                         "src/lifecycle.ts":  "668bad6e8c7af3cff7cd26f24ee9a5fce0ac6780ef1e5a15c0ac24ed50bf31dc",
+                         "src/session-interruption.ts":  "24fba331965e01664a050a3d115ba07e32f60eef7e43eb8d5895ddaa0675c420"
+                     },
+    "command":  "npm.cmd test",
+    "startedAt":  "2026-10-10T16:11:48.3373488Z",
+    "completedAt":  "2026-10-10T16:18:50.2980843Z",
+    "cwd":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\plugins\\captain-sdlc"
+}

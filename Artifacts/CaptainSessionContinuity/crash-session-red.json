@@ -1,0 +1,8 @@
+﻿{
+    "command":  "node --import tsx --test --test-reporter=tap tests/crash-session-continuity.test.ts",
+    "cwd":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\plugins\\captain-sdlc",
+    "exit_code":  1,
+    "timestamp_utc":  "2026-10-10T15:40:53.0851625Z",
+    "output":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\Artifacts\\CaptainSessionContinuity\\crash-session-red.txt",
+    "test_sha256":  "9155681fcfbb701713a94dfb1b1e26ccfbae73ca84c93427c87a158d8ba35e99"
+}

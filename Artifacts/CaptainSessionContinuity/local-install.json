@@ -1,0 +1,11 @@
+﻿{
+    "installedVersion":  "0.2.6",
+    "installedRoot":  "C:/Users/metag/.codex/plugins/cache/personal/captain-sdlc/0.2.6",
+    "serverSha256":  "f4b1c597b88f4af9a7e61137774b080326c74455aa7644d99e9e981be364424e",
+    "publicToolCount":  31,
+    "hookTrustUnchanged":  true,
+    "hookTrustEntries":  12,
+    "capturedAt":  "2026-10-10T16:25:22.3734850Z",
+    "sourceVersionUncommitted":  true,
+    "authorityRootUnchanged":  "C:/Users/metag/.codex/plugins/data/captain-sdlc-personal"
+}

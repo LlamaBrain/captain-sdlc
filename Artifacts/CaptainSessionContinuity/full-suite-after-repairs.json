@@ -1,0 +1,10 @@
+﻿{
+    "command":  "npm test",
+    "cwd":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\plugins\\captain-sdlc",
+    "started_utc":  "2026-10-10T16:02:45.2536859Z",
+    "completed_utc":  "2026-10-10T16:10:18.8154278Z",
+    "exit_code":  1,
+    "output":  "E:\\Personal\\captain-sdlc\\.captain-sdlc\\worktrees\\intent-f93bf701-69c4-4fed-9fea-96708217f645\\.captain-sdlc\\worktrees\\intent-b672eea8-739a-4de5-a69d-61eb9c29b073\\Artifacts\\CaptainSessionContinuity\\full-suite-after-repairs.txt",
+    "source_sha256":  "668bad6e8c7af3cff7cd26f24ee9a5fce0ac6780ef1e5a15c0ac24ed50bf31dc",
+    "test_sha256":  "42d22cb9d7912e11eec6d51c3cd0cb35ce4e96126091608ba2c27e0bce001576"
+}

@@ -11,7 +11,7 @@ const temp = () => mkdtemp(path.join(tmpdir(), "captain-adapter-"));
 const request = (root: string) => ({ session_id: "s", turn_id: "t", project_root: root, prompt: "continue the approved task" });
 function mockStore(runs: any[]) {
   const intents: any[] = [];
-  return { intents, store: { issueIdempotentIntent: async (_request: unknown, factory: () => Promise<any>) => { const intent = await factory(); intents.push(intent); return intent; }, doctor: async () => ({ activeRuns: runs }), status: async (id: string) => runs.find(run => run.intentId === id), markIntent: async (intent: any) => { intents.push(intent); }, recordUserAuthorization: async () => {} } as unknown as LifecycleStore };
+  return { intents, store: { issueIdempotentIntent: async (_request: unknown, factory: () => Promise<any>) => { const intent = await factory(); intents.push(intent); return intent; }, doctor: async () => ({ activeRuns: runs }), status: async (id: string) => runs.find(run => run.intentId === id), sessionInterruptionStatus: async () => ({ owner: { state: "legacy" }, canRecover: false }), markIntent: async (intent: any) => { intents.push(intent); }, recordUserAuthorization: async () => {} } as unknown as LifecycleStore };
 }
 test("adapter pins the requested target branch rather than checkout HEAD", async () => {
   const root = await temp(), data = await temp();
