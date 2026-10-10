@@ -13,6 +13,12 @@ export type GateResult = { exitCode: number; stdout: string; stderr: string };
 export type GateRunner = (command: string, cwd: string) => Promise<GateResult>;
 export type SourceState = { head: string; tree: string; status: string; manifest?: string; branch?: string; branchHead?: string; commonGitDir?: string; topLevel?: string; gitDir?: string };
 export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
+type ProofSourceRepairFence = { runId: string; runRevision: number; committedStateSha256: string; activationToken: string; sessionLeaseRevision: number; sessionLeaseSha256: string };
+class ProofSourceDivergenceError extends Error {
+  constructor(readonly fence: ProofSourceRepairFence) {
+    super("proof source state diverged from the clean committed tree or ignored-input manifest");
+  }
+}
 export type CommitPolicy = { conventional?: boolean; require_version_suffix?: boolean; require_task_trailer?: boolean; version_file: string; version_surfaces?: Array<{ path: string; pattern: string }>; changelog_files: string[] };
 export type HitlCheck = { id: string; criterionId: string; setup: string; action: string; expected: string; evidence: string };
 export type HitlFeedbackInput = { decision: "accept" | "needs_changes"; humanFeedback: string; checkIds: string[]; evidenceReferences: string[]; reviewedRevision?: string };
@@ -649,18 +655,38 @@ export class LifecycleStore {
     const current = await this.run(intentId);
     if (isPendingPlanReview(current)) { if (!this.probe || !current.committedState) throw new Error("HITL requires recorded source proof"); await this.assertCommitted(current); return current; }
     if (current.phase === "complete" && current.status === "green") return this.finalizeCompletion(intentId);
-    try { return await this.proveAttempt(intentId); } catch (error) { const latest = await this.run(intentId); if (latest.phase === "prove") await this.update({ ...latest, evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest(String((error as Error).message)) }] }); throw error; }
+    const repairFence = current.phase === "prove" ? await this.proofSourceRepairFence(current) : undefined;
+    try { return await this.proveAttempt(intentId, repairFence); }
+    catch (error) {
+      if (error instanceof ProofSourceDivergenceError) {
+        const latest = await this.run(intentId), expected = error.fence;
+        if (latest.phase !== "prove" || latest.status !== "running" || latest.runId !== expected.runId ||
+            latest.revision !== expected.runRevision || digest(JSON.stringify(latest.committedState)) !== expected.committedStateSha256 ||
+            (latest.activationToken ?? latest.operationToken) !== expected.activationToken)
+          throw new Error("Captain run changed concurrently; source repair was not authorized", { cause: error });
+        const actual = await this.proofSourceRepairFence(latest);
+        if (JSON.stringify(actual) !== JSON.stringify(expected))
+          throw new Error("Captain source repair lease generation or activation changed", { cause: error });
+        await this.update({ ...latest, phase: "implement", status: "red", evidence: [...latest.evidence,
+          { kind: "proof_error", messageSha256: digest(error.message), repairRequired: true, head: latest.committedState!.head }] });
+        throw new Error(`${error.message}; run returned to implement for repair`, { cause: error });
+      }
+      const latest = await this.run(intentId);
+      if (latest.phase === "prove") await this.update({ ...latest, evidence: [...latest.evidence,
+        { kind: "proof_error", messageSha256: digest(String((error as Error).message)) }] });
+      throw error;
+    }
   }
-  private async proveAttempt(intentId: string): Promise<Run> {
+  private async proveAttempt(intentId: string, repairFence?: ProofSourceRepairFence): Promise<Run> {
     const run = await this.run(intentId); this.phase(run, "prove");
-    if (!this.probe || !run.committedState) throw new Error("source-state probe is required"); await this.assertCommitted(run);
+    if (!this.probe || !run.committedState) throw new Error("source-state probe is required"); await this.assertCommitted(run, repairFence);
     const scopes = proofScopes(run);
     for (const scope of scopes) if (!run.policy.commands[scope]) throw new Error(`${scope} proof command is required`);
     const bindings: Record<string, string> = { build: "build", "feature-smoke": "smoke", visual: "visual" }, before: Record<string, string | null> = {};
     for (const [scope, role] of Object.entries(bindings)) if (scopes.includes(scope)) { const relative = run.policy.artifactPaths?.[role]; if (!relative) throw new Error(`${role} artifact is required by trusted policy`); before[role] = await optionalHash(run.worktreePath, relative); }
     const proof = [];
     const artifacts: Record<string, unknown> = {};
-    for (const scope of scopes) { const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath); proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode }); if (result.exitCode !== 0) { await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] }); throw new Error(`${scope} proof failed; run returned to implement for repair`); } await this.assertCommitted(run); const role = bindings[scope]; if (role) { const relative = run.policy.artifactPaths![role]; const absolute = await safeArtifact(run.worktreePath, relative); const after = await hashPath(absolute); if (role === "visual") await assertImage(absolute); artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope }; } }
+    for (const scope of scopes) { const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath); proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode }); if (result.exitCode !== 0) { await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] }); throw new Error(`${scope} proof failed; run returned to implement for repair`); } await this.assertCommitted(run, repairFence); const role = bindings[scope]; if (role) { const relative = run.policy.artifactPaths![role]; const absolute = await safeArtifact(run.worktreePath, relative); const after = await hashPath(absolute); if (role === "visual") await assertImage(absolute); artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope }; } }
     for (const [role, item] of Object.entries(artifacts) as Array<[string, any]>) { const finalHash = await hashPath(await safeArtifact(run.worktreePath, item.path)); if (finalHash !== item.sha256) throw new Error(`${role} artifact changed after its producing proof command`); }
     const awaitsReview = Boolean(run.policy.hitlChecks?.length);
     const completed = await this.update({ ...run, phase: awaitsReview ? "hitl" : "complete", status: awaitsReview ? "running" : "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }, { kind: "proof_passed", head: run.committedState.head, tree: run.committedState.tree }] });
@@ -726,7 +752,25 @@ export class LifecycleStore {
   private async assertBeginOperation(operation: BeginOperation) { await this.assertBeginNotCancelled(operation.intentId); const signed = await this.beginOperationFor(operation.intentId); if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged"); }
   private assertBeginReservation(operation: BeginOperation, intent: Intent, input: { intentId: string; objective: string; projectRoot: string; taskId?: string; leaseToken?: string }) { if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath(operation.projectRoot, input.projectRoot) || !samePath(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || (input.leaseToken && operation.leaseToken !== input.leaseToken)) throw new Error("retry does not match the signed begin reservation"); }
   private async authorizeCommitOperation(run: Run, operation: CommitOperation): Promise<CommitOperation> { const payload = { intentId: run.intentId, leaseToken: operation.leaseToken, runId: run.runId, requestSha256: operation.requestSha256, operation: "prepared-commit" }; await ensureAuthorizedLease(this.dataRoot, operation.leaseId, payload); if (operation.stage === "authorized") { await this.assertCommitOperation(run, operation); return operation; } if (operation.stage !== "reserved") throw new Error("prepared commit recovery must complete before a new commit operation"); const latest = await this.run(run.intentId); if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved") throw new Error("Captain commit operation changed during lease authorization"); const authorized = { ...operation, stage: "authorized" as const }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] }); return updated.commitOperation!; }
-  private async assertCommitted(run: Run) { await this.assertFrozenScope(run.intentId); const current = await this.probe!(run.worktreePath, run.policy), expected = run.committedState!; this.assertWorktreeBinding(run, current, expected.head); if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || (expected.manifest && current.manifest !== expected.manifest)) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest"); }
+  private async proofSourceRepairFence(run: Run): Promise<ProofSourceRepairFence> {
+    const activationToken = run.activationToken ?? run.operationToken;
+    const permit = await this.permitFor(run.sessionId, run.turnId);
+    if (!permit || permit.intentId !== run.intentId || permit.runRevision !== run.revision || permit.activationToken !== activationToken)
+      throw new Error("Captain source repair session activation or ownership is invalid");
+    const lease = await this.interruptionLeaseReadOnly(run);
+    return { runId: run.runId, runRevision: run.revision, committedStateSha256: digest(JSON.stringify(run.committedState)),
+      activationToken, sessionLeaseRevision: lease.revision!, sessionLeaseSha256: digest(JSON.stringify(lease.payload)) };
+  }
+  private async assertCommitted(run: Run, repairFence?: ProofSourceRepairFence) {
+    await this.assertFrozenScope(run.intentId);
+    const current = await this.probe!(run.worktreePath, run.policy), expected = run.committedState!;
+    this.assertWorktreeBinding(run, current, expected.head);
+    if (current.tree !== expected.tree) throw new Error("proof committed tree binding diverged from the signed Captain run");
+    if (current.status !== "" || (expected.manifest && current.manifest !== expected.manifest)) {
+      if (repairFence) throw new ProofSourceDivergenceError(repairFence);
+      throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
+    }
+  }
   private async assertCommitOperation(run: Run, operation: CommitOperation) { if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256) throw new Error("Captain commit operation lease ownership diverged from the signed run"); const lease = await readAuthorizedLease<{ intentId: string; leaseToken: string; runId: string; requestSha256: string; operation: string }>(this.dataRoot, operation.leaseId); if (lease.intentId !== run.intentId || lease.leaseToken !== operation.leaseToken || lease.runId !== run.runId || lease.requestSha256 !== operation.requestSha256 || lease.operation !== "prepared-commit") throw new Error("Captain commit operation lease ownership is invalid"); }
   private async captureSessionOwner(run: Run): Promise<void> {
     if (!this.hooks?.sessionOwner || await this.readSessionOwner(run)) return;

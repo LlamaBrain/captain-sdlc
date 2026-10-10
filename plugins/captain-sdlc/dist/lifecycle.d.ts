@@ -618,6 +618,7 @@ export declare class LifecycleStore {
     private assertBeginOperation;
     private assertBeginReservation;
     private authorizeCommitOperation;
+    private proofSourceRepairFence;
     private assertCommitted;
     private assertCommitOperation;
     private captureSessionOwner;

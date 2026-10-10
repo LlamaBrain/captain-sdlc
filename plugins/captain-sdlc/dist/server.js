@@ -23176,6 +23176,12 @@ async function userAuthorizationStatus(data, query) {
 }
 
 // src/lifecycle.ts
+var ProofSourceDivergenceError = class extends Error {
+  constructor(fence) {
+    super("proof source state diverged from the clean committed tree or ignored-input manifest");
+    this.fence = fence;
+  }
+};
 function approvedPlanDigest(content) {
   return digest4(content.replaceAll("\r\n", "\n"));
 }
@@ -24144,19 +24150,36 @@ ${result.stderr}`) }] });
       return current;
     }
     if (current.phase === "complete" && current.status === "green") return this.finalizeCompletion(intentId);
+    const repairFence = current.phase === "prove" ? await this.proofSourceRepairFence(current) : void 0;
     try {
-      return await this.proveAttempt(intentId);
+      return await this.proveAttempt(intentId, repairFence);
     } catch (error2) {
+      if (error2 instanceof ProofSourceDivergenceError) {
+        const latest2 = await this.run(intentId), expected = error2.fence;
+        if (latest2.phase !== "prove" || latest2.status !== "running" || latest2.runId !== expected.runId || latest2.revision !== expected.runRevision || digest4(JSON.stringify(latest2.committedState)) !== expected.committedStateSha256 || (latest2.activationToken ?? latest2.operationToken) !== expected.activationToken)
+          throw new Error("Captain run changed concurrently; source repair was not authorized", { cause: error2 });
+        const actual = await this.proofSourceRepairFence(latest2);
+        if (JSON.stringify(actual) !== JSON.stringify(expected))
+          throw new Error("Captain source repair lease generation or activation changed", { cause: error2 });
+        await this.update({ ...latest2, phase: "implement", status: "red", evidence: [
+          ...latest2.evidence,
+          { kind: "proof_error", messageSha256: digest4(error2.message), repairRequired: true, head: latest2.committedState.head }
+        ] });
+        throw new Error(`${error2.message}; run returned to implement for repair`, { cause: error2 });
+      }
       const latest = await this.run(intentId);
-      if (latest.phase === "prove") await this.update({ ...latest, evidence: [...latest.evidence, { kind: "proof_error", messageSha256: digest4(String(error2.message)) }] });
+      if (latest.phase === "prove") await this.update({ ...latest, evidence: [
+        ...latest.evidence,
+        { kind: "proof_error", messageSha256: digest4(String(error2.message)) }
+      ] });
       throw error2;
     }
   }
-  async proveAttempt(intentId) {
+  async proveAttempt(intentId, repairFence) {
     const run = await this.run(intentId);
     this.phase(run, "prove");
     if (!this.probe || !run.committedState) throw new Error("source-state probe is required");
-    await this.assertCommitted(run);
+    await this.assertCommitted(run, repairFence);
     const scopes = proofScopes(run);
     for (const scope of scopes) if (!run.policy.commands[scope]) throw new Error(`${scope} proof command is required`);
     const bindings = { build: "build", "feature-smoke": "smoke", visual: "visual" }, before = {};
@@ -24174,7 +24197,7 @@ ${result.stderr}`) }] });
         await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
         throw new Error(`${scope} proof failed; run returned to implement for repair`);
       }
-      await this.assertCommitted(run);
+      await this.assertCommitted(run, repairFence);
       const role = bindings[scope];
       if (role) {
         const relative = run.policy.artifactPaths[role];
@@ -24402,11 +24425,30 @@ ${result.stderr}`) }] });
     const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] });
     return updated.commitOperation;
   }
-  async assertCommitted(run) {
+  async proofSourceRepairFence(run) {
+    const activationToken = run.activationToken ?? run.operationToken;
+    const permit = await this.permitFor(run.sessionId, run.turnId);
+    if (!permit || permit.intentId !== run.intentId || permit.runRevision !== run.revision || permit.activationToken !== activationToken)
+      throw new Error("Captain source repair session activation or ownership is invalid");
+    const lease = await this.interruptionLeaseReadOnly(run);
+    return {
+      runId: run.runId,
+      runRevision: run.revision,
+      committedStateSha256: digest4(JSON.stringify(run.committedState)),
+      activationToken,
+      sessionLeaseRevision: lease.revision,
+      sessionLeaseSha256: digest4(JSON.stringify(lease.payload))
+    };
+  }
+  async assertCommitted(run, repairFence) {
     await this.assertFrozenScope(run.intentId);
     const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState;
     this.assertWorktreeBinding(run, current, expected.head);
-    if (current.head !== expected.head || current.tree !== expected.tree || current.status !== "" || expected.manifest && current.manifest !== expected.manifest) throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
+    if (current.tree !== expected.tree) throw new Error("proof committed tree binding diverged from the signed Captain run");
+    if (current.status !== "" || expected.manifest && current.manifest !== expected.manifest) {
+      if (repairFence) throw new ProofSourceDivergenceError(repairFence);
+      throw new Error("proof source state diverged from the clean committed tree or ignored-input manifest");
+    }
   }
   async assertCommitOperation(run, operation) {
     if (!run.commitOperation || run.commitOperation.leaseId !== operation.leaseId || run.commitOperation.leaseToken !== operation.leaseToken || run.commitOperation.requestSha256 !== operation.requestSha256) throw new Error("Captain commit operation lease ownership diverged from the signed run");
@@ -25499,7 +25541,7 @@ async function startCaptainMcp() {
   const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path9.join(process.env.CODEX_HOME || path9.join(os3.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.3.0" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.3.1" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedMerge = (operation, args) => operation().then(reply).catch((error2) => {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+- v0.3.1: Return verified same-head dirty-source and ignored-input manifest proof failures to implementation for repair in the retained task, preserving committed evidence and policy.
+- v0.3.1: Fence repair by exact run revision, activation and authenticated session lease generation; preserve retry behavior for transport failures and refuse changed identity or concurrent ownership.
+
 ## 0.3.0
 - v0.3.0: Add an immutable task-specific LOW ticket selector while preserving the captured trusted runner and proof gates.
 - v0.3.0: Bind actual client ownership and authenticated logical close notifications, recovering interrupted work through the same signed pause/resume handoff while protecting live, foreign and unknown owners.
