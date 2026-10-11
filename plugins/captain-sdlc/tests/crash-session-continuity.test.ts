@@ -10,6 +10,7 @@ import path from "node:path";
 import { LifecycleStore, type SourceState } from "../src/lifecycle.js";
 import { readAuthorizedLeaseSnapshotReadOnly } from "../src/authority.js";
 import { captainIssueIntent } from "../src/server.js";
+import { git } from "../src/workspace.js";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const expectedFailure = (pattern: RegExp) => (error: unknown) =>
@@ -304,6 +305,7 @@ test("ordinary resume automatically finishes a signed interruption checkpoint af
 });
 test("paused task stays discoverable and resumes in another session while a support task retains the reused original session", async () => {
   const f = await fixture();
+  await git(["init", "-b", "main"], f.root);
   const original = await f.store.status("interrupted-task");
   await f.store.pause(original.intentId, { summary: "Authorized support task must run before continuation", nextSteps: ["Resume the same original task after support"] });
   const supportWorktree = path.join(f.root, ".captain-sdlc", "worktrees", "support-task");

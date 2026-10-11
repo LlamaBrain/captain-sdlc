@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+- Return the same consent context on fresh and idempotent Begin responses.
+- Preserve signed predecessor integrity and diagnostic redaction while adapting existing fixtures to caller-owned consent provenance and repository-bound issuance.
+- Retain failed 0.4.0 proof and repair within the original task, worktree and captured gates.
+
 ## 0.4.0
 - Persist signed original human objective lines and task consent before implementation startup, including source-only LOW requests that have no governed task yet.
 - Automatically recollect scoped authority in issuance, status, failed-Begin diagnosis and signed pause/resume; preserve the defining objective across supporting steps and session changes.

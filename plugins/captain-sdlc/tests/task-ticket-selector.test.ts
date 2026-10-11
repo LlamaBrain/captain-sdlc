@@ -165,7 +165,7 @@ for (const mutation of ["remove", "replace"] as const) {
   test(`signed ticket binding rejects a later revision that attempts to ${mutation} it`, async () => {
     const { store, data } = await fixture();
     await red(store, selectedFilter);
-    const previous = await store.status("selector");
+    const { user_request: _context, ...previous } = await store.status("selector");
     const candidate: any = { ...previous, revision: previous.revision + 1, previousRevisionSha256: hash(JSON.stringify(previous)) };
     if (mutation === "remove") delete candidate.taskTicket;
     else {

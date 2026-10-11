@@ -6,6 +6,7 @@ import path from "node:path";
 import { LifecycleStore, type StateProbe } from "../src/lifecycle.js";
 import { captainAbortMerge, captainBegin, captainCommit, captainIssueIntent, captainPrepareMerge, captainResume, type CaptainBeginStage } from "../src/server.js";
 import { writeAuthorized } from "../src/authority.js";
+import { git } from "../src/workspace.js";
 
 const temp = () => mkdtemp(path.join(tmpdir(), "captain-commit-"));
 const policy = { profile: "feature" as const, visualRequired: false, commands: { ticket: "ticket" }, redGate: { expectedExitCodes: [1], outputPattern: "ticket" } };
@@ -14,18 +15,19 @@ test("resume reconciles an advanced signed candidate before consuming the resume
   const candidate = "b".repeat(40), head = "e".repeat(40), tree = "c".repeat(40), subject = "fix(x): prepared (v1.0.1)";
   const run = { intentId: "old", worktreePath: "worktree", branch: "captain/old", commonGitDir: "git", gitDir: "linked", baseHead: "a".repeat(40), policy, preparedMerges: [], preparedCommit: { preCommitHead: "a".repeat(40), candidate, tree, subject } };
   const calls: string[] = [];
-  const store = { resumeTarget: async () => run, recoverAdvancedPreparedCommit: async () => { calls.push("recover"); }, resume: async () => { calls.push("resume"); return run; } } as unknown as LifecycleStore;
+  const store = { resumeTarget: async () => run, recoverAdvancedPreparedCommit: async () => { calls.push("recover"); }, resume: async () => { calls.push("resume"); return run; }, status: async (intentId: string) => { assert.equal(intentId, run.intentId); calls.push("status"); return run; } } as unknown as LifecycleStore;
   const evidence = { head, tree: "d".repeat(40), commitCount: 2, clean: false, subject: "fix(x): later (v1.0.2)", versionChanged: true, changelogChanged: true, phaseCommitsValid: true, preparedMergesValid: true, previousPhaseRetained: true };
   await captainResume(store, "resume-id", {
     assertWorktreeBinding: async () => ({ head }),
     git: async (args: string[]) => args[0] === "rev-list" ? `${candidate}\n${head}` : args[1]?.includes("^{tree}") ? tree : subject,
     commitEvidence: async () => evidence
   } as any);
-  assert.deepEqual(calls, ["recover", "resume"]);
+  assert.deepEqual(calls, ["recover", "resume", "status"]);
 });
 
 test("client-neutral intent issuance creates one signed begin or resume instruction", async () => {
   const root = await temp(), data = await temp(), store = new LifecycleStore(data, async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+  await git(["init"], root);
   const begun = await captainIssueIntent(store, { session_id: "opencode-session", turn_id: "turn-1", project_root: root, prompt: "implement handoff" });
   assert.match(begun.intent_id, /^intent-/); assert.match(begun.begin_instruction!, /captain_begin_implementation/);
   assert.equal((await store.validateIntent(begun.intent_id, root)).sessionId, "opencode-session");
@@ -188,7 +190,7 @@ test("exact captain_begin retry after lifecycle progress returns the authoritati
   await mkdir(worktree, { recursive: true }); const store = new LifecycleStore(data, async command => ({ exitCode: command === "ticket" ? 1 : 0, stdout: command, stderr: "" }));
   await store.markIntent({ intentId: "progressed", sessionId: "s", turnId: "t", projectRoot: root, prompt: "integrate", targetBranch: "colony/spike", targetOid: "a".repeat(40) });
   await captainBegin(store, args, beginDependencies(root, worktree)); const progressed = await store.recordRed("progressed", "ticket"), retried = await captainBegin(new LifecycleStore(data, async () => ({ exitCode: 0, stdout: "", stderr: "" })), args, beginDependencies(root, worktree));
-  assert.equal(retried.phase, "implement"); assert.equal(retried.revision, progressed.revision); assert.deepEqual(retried, progressed);
+  assert.equal(retried.phase, "implement"); assert.equal(retried.revision, progressed.revision); assert.deepEqual(retried, await store.status("progressed"));
 });
 
 test("an incomplete prior-turn begin activates only a signed current-turn permit on retry", async () => {

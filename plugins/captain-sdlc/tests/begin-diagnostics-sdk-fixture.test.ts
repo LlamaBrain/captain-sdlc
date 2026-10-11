@@ -146,7 +146,12 @@ test("public SDK diagnoses the real signed pre-workspace Begin without writes", 
     assert.deepEqual(await snapshotTree(dataRoot), authorityBefore, "diagnosis must not write signed authority records or watermarks");
     assert.deepEqual(await snapshotTree(path.join(projectRoot, ".git")), gitBefore, "diagnosis must not mutate Git refs or worktree state");
     const serialized = JSON.stringify(value);
-    assert.equal(serialized.includes(sessionId), false, "response must not expose the caller's raw session id");
+    const { user_request, ...diagnostic } = value;
+    assert.equal(JSON.stringify(diagnostic).includes(sessionId), false, "diagnostic fields must not expose the caller's raw session id");
+    assert.equal(user_request.receipts.length, 1);
+    assert.equal(user_request.receipts[0].sessionId, sessionId);
+    assert.equal(user_request.receipts[0].source, "client-adapter");
+    assert.equal(user_request.receipts[0].originalText, "Inspect the signed target lease without releasing it.");
     assert.doesNotMatch(serialized, /leaseToken|operationToken|sessionLeaseToken/i);
   } finally {
     await client.close();

@@ -336,7 +336,7 @@ export class LifecycleStore {
   async begin(input: BeginInput): Promise<Run> {
     return this.withSerializedBeginAttempt(input.intentId, async () => {
       const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
-      const activated = await this.activatedBeginRun(operation); if (activated) return activated;
+      const activated = await this.activatedBeginRun(operation); if (activated) return this.status(activated.intentId);
       const repository = await this.checkpointBeginRepository(operation, input, input.policy), lease = await this.checkpointBeginLease(operation, repository, input.leaseId && input.leaseToken ? { leaseId: input.leaseId, leaseToken: input.leaseToken } : undefined);
       await this.checkpointBeginWorkspace(operation, { projectRoot: input.projectRoot, worktreePath: input.worktreePath, baseHead: input.baseHead, branch: input.branch, targetBranch: input.targetBranch, commonGitDir: input.commonGitDir, gitDir: input.gitDir });
       const run = await this.checkpointBeginRun(operation, input.policy); await this.checkpointBeginActive(operation); const activatedRun = await this.checkpointBeginActivated(operation); await this.checkpointBeginPermit(operation, activatedRun); return this.status(operation.intentId);
