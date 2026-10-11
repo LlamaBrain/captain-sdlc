@@ -2,6 +2,8 @@ import { type SessionOwner, type SessionOwnerProbe } from "./session-interruptio
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
+import { type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
+import { type UserRequestSourceQuery } from "./user-request-source.js";
 export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
@@ -74,6 +76,7 @@ export type ProjectPolicy = {
     sourceManifestRootFileExcludes?: string[];
 };
 export type Intent = {
+    issuedAt?: string;
     intentId: string;
     sessionId: string;
     turnId: string;
@@ -156,6 +159,7 @@ export type ResumeOperation = {
     turnId: string;
 };
 export type PauseHandoff = {
+    user_request?: UserRequestStatus;
     schemaVersion: 1;
     intentId: string;
     runId: string;
@@ -232,6 +236,7 @@ export type TaskTicket = {
     policyCommandSha256: string;
 };
 export type Run = {
+    user_request?: UserRequestStatus;
     schemaVersion: 1;
     revision: number;
     previousRevisionSha256?: string;
@@ -270,7 +275,7 @@ export type Run = {
     continuityState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
-export type BeginInput = Omit<Run, "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
+export type BeginInput = Omit<Run, "user_request" | "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
 export type CommitEvidence = {
     head: string;
     tree?: string;
@@ -401,6 +406,30 @@ export declare class LifecycleStore {
         read_only: true;
         intent_id: string;
     } | {
+        user_request: UserRequestStatus;
+        diagnosis: "inspected";
+        session_match: "same";
+        project_root_matches: boolean;
+        target_branch_matches: boolean;
+        issuance: "invalid_target_binding";
+        stage: "unknown";
+        recovery_disposition: "refused";
+        refusal_code: string;
+        read_only: true;
+        intent_id: string;
+    } | {
+        user_request: UserRequestStatus;
+        diagnosis: "inspected";
+        session_match: "same";
+        project_root_matches: boolean;
+        target_branch_matches: boolean;
+        target_worktree_matches: boolean;
+        issuance: "verified" | "missing_or_mismatched";
+        recovery_disposition: "refused_request_binding_mismatch";
+        read_only: true;
+        intent_id: string;
+    } | {
+        user_request: UserRequestStatus;
         diagnosis: "inspected";
         session_match: "same";
         project_root_matches: true;
@@ -461,12 +490,17 @@ export declare class LifecycleStore {
         resumeOf?: string;
         targetBranch?: string;
         action?: string;
+        requestKind?: "instruction" | "goal";
+        sourceRequestId?: string;
     }, factory: () => Promise<Intent>): Promise<Intent>;
     recordUserAuthorization(input: Parameters<typeof recordUserAuthorizations>[1]): Promise<import("./user-authorization.js").AuthorizationReceipt[]>;
     userAuthorizations(query: AuthorizationQuery): Promise<{
         receipts: import("./user-authorization.js").AuthorizationReceipt[];
         guidance: string;
     }>;
+    recordUserRequest(input: UserRequestInput): Promise<import("./user-request.js").UserRequestReceipt>;
+    userRequests(query: UserRequestQuery): Promise<UserRequestStatus>;
+    userRequestSource(query: UserRequestSourceQuery): Promise<import("./user-request-source.js").UserRequestSourceReceipt | undefined>;
     validateIntent(intentId: string, projectRoot: string): Promise<Intent>;
     beginOperationFor(intentId: string): Promise<BeginOperation>;
     activatedBeginRun(operation: BeginOperation): Promise<Run | undefined>;

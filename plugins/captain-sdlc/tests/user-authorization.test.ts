@@ -20,7 +20,7 @@ async function fixture() {
 }
 
 test("plain commit and target-specific merge instructions are explicit authorization", () => {
-  for (const text of ["commit", "Commit it", "Approve commit", "please commit the changes", "go ahead and commit it!"]) {
+  for (const text of ["commit", "Commit it", "do a commit", "please do a commit", "Approve commit", "please commit the changes", "go ahead and commit it!"]) {
     assert.deepEqual(parseUserAuthorizations(text), [{ operation: "commit", decision: "approve", quote: text }]);
   }
   assert.deepEqual(parseUserAuthorizations("merge to spike/colony"), [{ operation: "merge", decision: "approve", targetBranch: "spike/colony", quote: "merge to spike/colony" }]);

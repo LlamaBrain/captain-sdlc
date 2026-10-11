@@ -24,6 +24,8 @@ export type CaptainIssueIntentArgs = {
     resume_of?: string;
     target_branch?: string;
     action?: "start" | "resume";
+    request_kind?: "instruction" | "goal";
+    source_request_id?: string;
 };
 export type CaptainBeginDependencies = {
     repositoryIdentity: typeof repositoryIdentity;
@@ -41,6 +43,7 @@ export declare function captainDoctor(store: Pick<LifecycleStore, "doctor">): Pr
         } | undefined;
         handoffId: string;
         evidenceCount: number;
+        user_request?: import("./user-request.js").UserRequestStatus;
         schemaVersion: 1;
         intentId: string;
         runId: string;
@@ -66,12 +69,14 @@ export declare function captainDoctor(store: Pick<LifecycleStore, "doctor">): Pr
     }[];
     activeRuns: Array<Pick<import("./lifecycle.js").Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch" | "projectRoot" | "taskId">>;
 }>;
-export declare function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }: CaptainIssueIntentArgs): Promise<{
+export declare function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action, request_kind, source_request_id }: CaptainIssueIntentArgs): Promise<{
     resume_instruction: string;
     intent_id: string;
+    user_request: import("./user-request.js").UserRequestStatus;
 } | {
     begin_instruction: string;
     intent_id: string;
+    user_request: import("./user-request.js").UserRequestStatus;
 }>;
 export type CaptainCommitArgs = {
     intent_id: string;

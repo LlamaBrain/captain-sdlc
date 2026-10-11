@@ -32,7 +32,7 @@ export function parseUserAuthorizations(prompt) {
         const negative = /^(?:do not|don't|stop|cancel)\s+/i.test(text);
         const action = negative ? text.replace(/^(?:do not|don't|stop|cancel)\s+/i, "") : text.replace(/^(?:approve|authorize)\s+(?:the\s+)?/i, "");
         const decision = negative ? "revoke" : "approve";
-        if (/^commit(?:ting)?(?:\s+(?:it|this|that|the changes|these changes|your work|the work))?(?:\s+(?:now|already|please))?$/i.test(action)) {
+        if (/^(?:do (?:a |the )?)?commit(?:ting)?(?:\s+(?:it|this|that|the changes|these changes|your work|the work))?(?:\s+(?:now|already|please))?$/i.test(action)) {
             result.push({ operation: "commit", decision, quote });
             continue;
         }

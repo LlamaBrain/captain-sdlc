@@ -23,6 +23,7 @@ test("issuance retries retain the original token and pinned branch after HEAD ad
 test("concurrent retries converge and recovery after authorization failure preserves one token", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "captain-issue-")), data = await mkdtemp(path.join(tmpdir(), "captain-issue-state-"));
   const store = new LifecycleStore(data, async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+  await git(["init", "-b", "main"], root);
   const args = { session_id: "s", turn_id: "t", project_root: root, prompt: "implement task", action: "start" as const };
   const original = store.recordUserAuthorization.bind(store); let captured: string | undefined;
   store.recordUserAuthorization = async input => { captured = input.intentId; throw new Error("response interrupted"); };

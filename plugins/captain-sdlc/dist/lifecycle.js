@@ -6,6 +6,8 @@ import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { probeSessionOwner, validateSessionOwner } from "./session-interruption.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
 import { recordUserAuthorizations, userAuthorizationStatus } from "./user-authorization.js";
+import { recordUserRequest, userRequestStatus } from "./user-request.js";
+import { readUserRequestSource } from "./user-request-source.js";
 class ProofSourceDivergenceError extends Error {
     fence;
     constructor(fence) {
@@ -131,7 +133,12 @@ export class LifecycleStore {
             await releaseAuthorizedLease(this.dataRoot, leaseId, intentId, leaseToken);
         }
     }
-    async diagnoseBegin(args) { return createBeginDiagnosticAdapter(this.dataRoot)(args); }
+    async diagnoseBegin(args) {
+        const diagnosis = await createBeginDiagnosticAdapter(this.dataRoot)(args);
+        if (diagnosis.diagnosis !== "inspected" || diagnosis.session_match !== "same" || !diagnosis.project_root_matches)
+            return diagnosis;
+        return { ...diagnosis, user_request: await this.userRequests({ projectRoot: args.project_root, intentId: args.intent_id, sessionId: args.session_id }) };
+    }
     async beginCancellationFor(intentId) {
         await readFile(path.join(this.dataRoot, "authority.key"), "utf8");
         try {
@@ -245,6 +252,9 @@ export class LifecycleStore {
     }
     async recordUserAuthorization(input) { return recordUserAuthorizations(this.dataRoot, input); }
     async userAuthorizations(query) { return userAuthorizationStatus(this.dataRoot, query); }
+    async recordUserRequest(input) { return recordUserRequest(this.dataRoot, input); }
+    async userRequests(query) { return userRequestStatus(this.dataRoot, query); }
+    async userRequestSource(query) { return readUserRequestSource(this.dataRoot, query); }
     async validateIntent(intentId, projectRoot) { const intent = await this.load("intents", intentId); if (intent.consumed || intent.resumeOf)
         throw new Error("implementation intent is invalid or consumed"); if (path.resolve(intent.projectRoot) !== path.resolve(projectRoot))
         throw new Error("intent project root mismatch"); return intent; }
@@ -653,6 +663,7 @@ export class LifecycleStore {
         const summary = input.summary.trim(), nextSteps = input.nextSteps.map(step => step.trim()).filter(Boolean), blockers = (input.blockers ?? []).map(blocker => blocker.trim()).filter(Boolean), completedSteps = (input.completedSteps ?? []).map(step => step.trim()).filter(Boolean), planPath = input.planPath?.trim() || undefined, phaseLabel = input.phaseLabel?.trim() || undefined, context = input.context?.trim() || undefined, redirectTask = input.redirectTask?.trim() || undefined;
         if (!summary || !nextSteps.length)
             throw new Error("pause handoff requires a summary and at least one next step");
+        const user_request = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId });
         const worktreeState = this.probe ? await this.probe(run.worktreePath, run.policy) : undefined;
         if (worktreeState)
             this.assertWorktreeBinding(run, worktreeState);
@@ -667,7 +678,7 @@ export class LifecycleStore {
             }
         }
         if (fence) {
-            const draft = { schemaVersion: 1, intentId: run.intentId, runId: run.runId,
+            const draft = { user_request, schemaVersion: 1, intentId: run.intentId, runId: run.runId,
                 revision: run.revision + 1, sessionId: run.sessionId, turnId: run.turnId, projectRoot: run.projectRoot,
                 worktreePath: run.worktreePath, branch: run.branch, ...(run.taskId ? { taskId: run.taskId } : {}),
                 objective: run.objective, phase: run.phase, status: "paused", ...(planPath ? { planPath } : {}),
@@ -680,7 +691,7 @@ export class LifecycleStore {
         }
         const paused = await this.update({ ...run, status: "paused", evidence: [...run.evidence,
                 ...(fence ? [{ kind: "session_interruption", reason: fence.reason, sessionId: run.sessionId, selectorHash: this.interruptionSelectorId(fence.args), retainedWorktree: run.worktreePath }] : []), { kind: "pause", summarySha256: digest(summary), nextSteps, blockers, ...(planPath ? { planPath } : {}), ...(phaseLabel ? { phaseLabel } : {}) }] });
-        const handoff = { schemaVersion: 1, intentId: paused.intentId, runId: paused.runId, revision: paused.revision, sessionId: paused.sessionId, turnId: paused.turnId, projectRoot: paused.projectRoot, worktreePath: paused.worktreePath, branch: paused.branch, ...(paused.taskId ? { taskId: paused.taskId } : {}), objective: paused.objective, phase: paused.phase, status: paused.status, ...(planPath ? { planPath } : {}), ...(phaseLabel ? { phaseLabel } : {}), completedSteps, summary, nextSteps, blockers, ...(context ? { context } : {}), ...(worktreeState ? { worktreeState } : {}), evidence: paused.evidence, resumeDirective: `[Captain resume: ${paused.intentId}]`, ...(redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {}) };
+        const handoff = { user_request, schemaVersion: 1, intentId: paused.intentId, runId: paused.runId, revision: paused.revision, sessionId: paused.sessionId, turnId: paused.turnId, projectRoot: paused.projectRoot, worktreePath: paused.worktreePath, branch: paused.branch, ...(paused.taskId ? { taskId: paused.taskId } : {}), objective: paused.objective, phase: paused.phase, status: paused.status, ...(planPath ? { planPath } : {}), ...(phaseLabel ? { phaseLabel } : {}), completedSteps, summary, nextSteps, blockers, ...(context ? { context } : {}), ...(worktreeState ? { worktreeState } : {}), evidence: paused.evidence, resumeDirective: `[Captain resume: ${paused.intentId}]`, ...(redirectTask ? { redirectPrompt: `[Captain plan: ${redirectTask}]` } : {}) };
         const saved = await putAuthorizedOnceExact(this.dataRoot, "pause-handoffs", `${paused.intentId}-${paused.revision}`, handoff);
         if (planPath)
             await this.projectPlanState(paused, planPath, { status: blockers.length ? "blocked" : redirectTask ? "redirected" : "paused", phase: phaseLabel ?? paused.phase, handoff: `${paused.intentId}-${paused.revision}`, blocker: blockers.join("; ") || "none", next: nextSteps });
@@ -1223,7 +1234,7 @@ export class LifecycleStore {
         const review = { ...normalized, kind: "hitl_feedback", recordedAt: new Date().toISOString(), recordedSource };
         return this.update({ ...run, evidence: [...run.evidence, review] });
     }
-    async status(intentId) { const run = await this.run(intentId); await this.reconcileRunProjections(run); return run; }
+    async status(intentId) { const run = await this.run(intentId); await this.reconcileRunProjections(run); return { ...run, user_request: await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId }) }; }
     async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) { const leaseId = digest(`${path.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path.resolve(commonGitDir), targetBranch, targetOid }; try {
         await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
         return { leaseId, leaseToken };
@@ -1295,7 +1306,7 @@ export class LifecycleStore {
     } const watermarks = watermarkNames.map(name => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map(match => Number(match[1])); if (watermarks.some(revision => revision > latest.revision))
         throw new Error("signed run revision tail regressed behind its monotonic watermark"); return latest; }
     async update(run) { const current = await this.run(run.intentId); if (current.revision !== run.revision || current.runId !== run.runId)
-        throw new Error("Captain run changed concurrently; retry from authoritative status"); const next = { ...run, revision: current.revision + 1, previousRevisionSha256: digest(JSON.stringify(current)) }; const stored = await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${run.intentId}-${next.revision}`, next); await this.writeRunWatermark(stored); await this.hooks?.afterRunRevision?.(stored); await this.reconcileRunProjections(await this.run(run.intentId)); return stored; }
+        throw new Error("Captain run changed concurrently; retry from authoritative status"); const { user_request: _context, ...persistedRun } = run; const next = { ...persistedRun, revision: current.revision + 1, previousRevisionSha256: digest(JSON.stringify(current)) }; const stored = await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${run.intentId}-${next.revision}`, next); await this.writeRunWatermark(stored); await this.hooks?.afterRunRevision?.(stored); await this.reconcileRunProjections(await this.run(run.intentId)); return stored; }
     async writeRunWatermark(run) { await putAuthorizedOnceExact(this.dataRoot, "run-watermarks", `${run.intentId}-${run.revision}`, { schemaVersion: 1, intentId: run.intentId, runId: run.runId, revision: run.revision, runSha256: digest(JSON.stringify(run)), previousRevisionSha256: run.previousRevisionSha256 }); }
     async reconcileRunProjections(run) { const latest = await this.run(run.intentId); await this.project("runs", latest.intentId, latest); if (latest.status !== "green" && latest.status !== "paused" && latest.sessionLeaseId && latest.sessionLeaseToken)
         try {

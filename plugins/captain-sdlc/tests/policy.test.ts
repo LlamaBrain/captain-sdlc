@@ -99,3 +99,19 @@ test("denies production edits before red, unknown tools, and multiline shell byp
   assert.equal(mutationDecision({ toolName: "mcp__unknown__write_file", cwd: permit.worktreePath, sessionId: "s", permit }).allow, false);
   assert.equal(mutationDecision({ toolName: "Bash", cwd: permit.worktreePath, sessionId: "s", permit: null, command: "git status\necho bad>x" }).allow, false);
 });
+
+test("durable user request lookup is exactly read-only under normalized Captain tool names", () => {
+  const permits = [null, { sessionId: "s", worktreePath: "C:/repo", phase: "tdd_red" },
+    { sessionId: "other", worktreePath: "C:/repo", phase: "complete" }];
+  for (const namespace of ["mcp__captain-sdlc__", "mcp__captain_sdlc__", "tools.captain-sdlc__", "tools.captain_sdlc__", "captain-sdlc__", "captain_sdlc__"]) {
+    const toolName = namespace + "captain_user_request_status";
+    for (const permit of permits) assert.equal(
+      mutationDecision({ toolName, cwd: "C:/repo", sessionId: "s", permit }).allow, true, toolName);
+    for (const suffix of ["_write", "_force", "_record"]) assert.equal(
+      mutationDecision({ toolName: toolName + suffix, cwd: "C:/repo", sessionId: "s", permit: null }).allow, false);
+  }
+  for (const toolName of ["mcp__unknown__captain_user_request_status", "captain_user_request_status",
+    "mcp__captain-sdlc__captain_record_user_request", "mcp__captain-sdlc__captain_user_request"]) {
+    assert.equal(mutationDecision({ toolName, cwd: "C:/repo", sessionId: "s", permit: null }).allow, false, toolName);
+  }
+});

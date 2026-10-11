@@ -11,7 +11,7 @@ const temp = () => mkdtemp(path.join(tmpdir(), "captain-adapter-"));
 const request = (root: string) => ({ session_id: "s", turn_id: "t", project_root: root, prompt: "continue the approved task" });
 function mockStore(runs: any[]) {
   const intents: any[] = [];
-  return { intents, store: { issueIdempotentIntent: async (_request: unknown, factory: () => Promise<any>) => { const intent = await factory(); intents.push(intent); return intent; }, doctor: async () => ({ activeRuns: runs }), status: async (id: string) => runs.find(run => run.intentId === id), sessionInterruptionStatus: async () => ({ owner: { state: "legacy" }, canRecover: false }), markIntent: async (intent: any) => { intents.push(intent); }, recordUserAuthorization: async () => {} } as unknown as LifecycleStore };
+  return { intents, store: { issueIdempotentIntent: async (_request: unknown, factory: () => Promise<any>) => { const intent = await factory(); intents.push(intent); return intent; }, doctor: async () => ({ activeRuns: runs }), status: async (id: string) => runs.find(run => run.intentId === id), sessionInterruptionStatus: async () => ({ owner: { state: "legacy" }, canRecover: false }), markIntent: async (intent: any) => { intents.push(intent); }, recordUserAuthorization: async () => {}, recordUserRequest: async () => ({}), userRequestSource: async () => undefined, userRequests: async () => ({ status: "missing", receipts: [], objectiveLines: [], guidance: "" }) } as unknown as LifecycleStore };
 }
 test("adapter pins the requested target branch rather than checkout HEAD", async () => {
   const root = await temp(), data = await temp();
@@ -46,6 +46,7 @@ test("ambiguous tasks and another session's active work are never silently adopt
 });
 test("adapter resumes a paused task in the original signed worktree", async () => {
   const root = await temp(), data = await temp(), worktreePath = path.join(root, ".captain-sdlc", "worktrees", "existing"), head = "a".repeat(40);
+  await git(["init", "-b", "main"], root);
   const binding = { branch: "spike/colony", commonGitDir: path.join(root, ".git"), gitDir: path.join(root, ".git", "worktrees", "existing") };
   let currentPath = worktreePath;
   const store = new LifecycleStore(data, async () => ({ exitCode: 0, stdout: "", stderr: "" }), async () => ({ head, tree: "b".repeat(40), status: "", ...binding, topLevel: currentPath, branchHead: head }));

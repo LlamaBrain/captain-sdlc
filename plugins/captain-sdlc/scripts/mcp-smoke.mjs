@@ -1,18 +1,63 @@
-import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-const data = await mkdtemp(path.join(tmpdir(), "captain-mcp-smoke-"));
-const root = path.resolve(import.meta.dirname, "..");
-const declaration = JSON.parse(await readFile(path.join(root, ".mcp.json"), "utf8")).mcpServers["captain-sdlc"];
-const env = { ...process.env, CODEX_HOME: data, CODEX_PLUGIN_ROOT: root };
-delete env.CAPTAIN_PLUGIN_DATA;
-delete env.CODEX_PLUGIN_DATA;
-delete env.PLUGIN_DATA;
-delete env.PLUGIN_ROOT;
-delete env.CLAUDE_PLUGIN_ROOT;
-const child = spawn(declaration.command, declaration.args, { env, stdio: ["pipe", "pipe", "inherit"] });
-const request = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "captain-smoke", version: "1" } } };
-child.stdin.write(JSON.stringify(request) + "\n");
-const timeout = setTimeout(() => { child.kill(); throw new Error("MCP initialize timed out"); }, 5000);
-for await (const chunk of child.stdout) { if (chunk.toString().includes('"result"')) { clearTimeout(timeout); child.kill(); const proofDir = path.resolve(import.meta.dirname, "..", ".captain-proof"); await mkdir(proofDir, { recursive: true }); await writeFile(path.join(proofDir, "smoke.json"), JSON.stringify({ schema_version: 1, smoke: "mcp-initialize", status: "green", created_at: new Date().toISOString() }, null, 2)); process.stdout.write("captain MCP initialize: green\n"); break; } }
+import { promisify } from "node:util";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const root=path.resolve(process.argv[2]??path.join(import.meta.dirname,".."));
+const version=JSON.parse(await readFile(path.join(root,"package.json"),"utf8")).version;
+const run=await mkdtemp(path.join(tmpdir(),"captain-objective-mcp-"));
+const project=path.join(run,"project with spaces");
+await mkdir(project);
+const exec=promisify(execFile);
+const git=(...args)=>exec("git",args,{cwd:project,windowsHide:true});
+await git("init","-b","main");
+await mkdir(path.join(project,".captain-sdlc"));
+await writeFile(path.join(project,".captain-sdlc","codex-policy.json"),JSON.stringify({profile:"feature",visualRequired:false,commands:{build:"node gate.cjs",ticket:"node gate.cjs","feature-smoke":"node gate.cjs","affected-regression":"node gate.cjs"}}));
+await writeFile(path.join(project,"gate.cjs"),"console.log('fixture');\n");
+await writeFile(path.join(project,".gitignore"),".captain-sdlc/worktrees/\n");
+await git("add",".");await git("-c","user.name=Captain Fixture","-c","user.email=captain@example.invalid","commit","-m","fixture");
+const declaration=JSON.parse(await readFile(path.join(root,".mcp.json"),"utf8")).mcpServers["captain-sdlc"];
+const env={...process.env,CAPTAIN_PLUGIN_DATA:path.join(run,"authority"),CODEX_PLUGIN_ROOT:root,PLUGIN_ROOT:root};
+const transport=new StdioClientTransport({command:declaration.command,args:declaration.args,cwd:root,env,stderr:"pipe"});
+const client=new Client({name:"captain-objective-consent-smoke",version:"1"});
+const outcomes=[];
+async function call(name,args,expectError=false){
+ const reply=await client.callTool({name,arguments:args},undefined,{timeout:60000});
+ if(expectError){assert.equal(reply.isError,true);return reply;}
+ assert.notEqual(reply.isError,true,JSON.stringify(reply));
+ return reply.structuredContent??JSON.parse(reply.content.find(item=>item.type==="text").text);
+}
+const prompt="When the commit is done - run a full edittest/playtest/build/smoke-test (do a single full run).\nThen list all files that are marked changed and show evidence of system level churn during one of those phases (test/build/smoke).\nFinally make it so test/build/smoke sequence produces no visible churn on the repo - and the repo is clean after building.";
+try{
+ await client.connect(transport);
+ assert.equal(client.getServerVersion()?.version,version);
+ const tools=(await client.listTools()).tools.map(tool=>tool.name);
+ assert.ok(tools.includes("captain_user_request_status"));
+ const issued=await call("captain_issue_intent",{session_id:"first",turn_id:"goal",project_root:project,prompt,task_id:"CHURN",action:"start",request_kind:"goal"});
+ assert.equal(issued.user_request.status,"expressed");assert.equal(issued.user_request.originalText,prompt);
+ assert.deepEqual(issued.user_request.objectiveLines,prompt.split("\n"));outcomes.push("original goal recorded before Begin");
+ await call("captain_begin_implementation",{intent_id:issued.intent_id,objective:"agent-expanded objective",project_root:project,task_id:"CHURN",plan_paths:["missing.md"]},true);
+ const diagArgs={intent_id:issued.intent_id,session_id:"first",project_root:project,target_worktree:path.join(project,".captain-sdlc","worktrees",issued.intent_id),target_branch:"main"};
+ const diagnosed=await call("captain_begin_diagnose",diagArgs);
+ assert.equal(diagnosed.user_request.originalText,prompt);outcomes.push("public failed-Begin diagnosis recollects original authority");
+ const foreign=await call("captain_begin_diagnose",{...diagArgs,session_id:"different"});
+ assert.equal(foreign.user_request,undefined);outcomes.push("foreign caller diagnosis hides source context");
+ const begun=await call("captain_begin_implementation",{intent_id:issued.intent_id,objective:"agent-expanded objective",project_root:project,task_id:"CHURN"});
+ assert.equal(begun.user_request.originalText,prompt);
+ const paused=await call("captain_pause_implementation",{intent_id:issued.intent_id,summary:"fixture checkpoint",next_steps:["continue the retained task"]});
+ assert.equal(paused.user_request.originalText,prompt);outcomes.push("signed pause retains human objective");
+ const resumedIntent=await call("captain_issue_intent",{session_id:"second",turn_id:"continue",project_root:project,prompt:"do it",task_id:"CHURN",action:"resume",resume_of:issued.intent_id});
+ assert.equal(resumedIntent.user_request.status,"expressed");assert.equal(resumedIntent.user_request.originalText,prompt);
+ const resumed=await call("captain_resume_implementation",{resume_intent_id:resumedIntent.intent_id});
+ assert.equal(resumed.intentId,issued.intent_id);assert.equal(resumed.worktreePath,begun.worktreePath);assert.equal(resumed.user_request.originalText,prompt);
+ outcomes.push("ordinary direction resumes same run without second approval");
+ const stale=await call("captain_user_request_status",{project_root:project,intent_id:issued.intent_id,expected_scope_sha256:"0".repeat(64)});
+ assert.equal(stale.status,"stale");outcomes.push("scope mismatch remains visible");
+ const proof={schema_version:1,smoke:"mcp-objective-consent",status:"green",created_at:new Date().toISOString(),plugin_version:version,server_sha256:createHash("sha256").update(await readFile(path.join(root,"dist/server.js"))).digest("hex"),outcomes,fixture:run};
+ const proofDir=path.join(root,".captain-proof");await mkdir(proofDir,{recursive:true});await writeFile(path.join(proofDir,"smoke.json"),JSON.stringify(proof,null,2)+"\n");
+ console.log(JSON.stringify(proof));
+}finally{await client.close();}

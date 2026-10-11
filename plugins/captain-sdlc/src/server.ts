@@ -1,4 +1,3 @@
-import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { captainCancelFailedBegin } from "./failed-begin-cancellation.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -16,7 +15,7 @@ import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, c
 export type CaptainBeginStage = "reservation" | "lease-acquired" | "worktree-created" | "run" | "permit" | "active";
 export type ClientOwnerArgs = { client_pid?: number; close_token_hash?: string };
 export type CaptainBeginArgs = ClientOwnerArgs & { intent_id: string; objective: string; project_root: string; task_id?: string; plan_paths?: string[]; hitl_checks?: HitlCheck[] };
-export type CaptainIssueIntentArgs = { session_id: string; turn_id: string; project_root: string; prompt: string; task_id?: string; resume_of?: string; target_branch?: string; action?: "start" | "resume" };
+export type CaptainIssueIntentArgs = { session_id: string; turn_id: string; project_root: string; prompt: string; task_id?: string; resume_of?: string; target_branch?: string; action?: "start" | "resume"; request_kind?: "instruction" | "goal"; source_request_id?: string };
 export type CaptainBeginDependencies = { repositoryIdentity: typeof repositoryIdentity; loadPolicy: typeof loadPolicy; ensureWorktree: typeof ensureWorktree; afterStage?: (stage: CaptainBeginStage) => Promise<void> };
 const beginDependencies: CaptainBeginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 export async function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }: CaptainBeginArgs, dependencies: CaptainBeginDependencies = beginDependencies) {
@@ -28,7 +27,7 @@ export async function captainBegin(store: LifecycleStore, { intent_id, objective
     if (JSON.stringify(requestedPolicy.approvedPlans ?? []) !== JSON.stringify(activated.policy.approvedPlans ?? [])) throw new Error("begin retry changes the frozen plan selection");
     if (JSON.stringify(requestedPolicy.hitlChecks ?? []) !== JSON.stringify(activated.policy.hitlChecks ?? [])) throw new Error("begin retry changes the frozen HITL checks");
     await bindClientOwner(store, activated, { client_pid, close_token_hash });
-    return activated;
+    return store.status(activated.intentId);
   }
   const identified = await dependencies.repositoryIdentity(project_root, operation.targetBranch, operation.targetOid), policy = await dependencies.loadPolicy(identified.projectRoot, identified.baseHead, plan_paths, hitl_checks), repository = await store.checkpointBeginRepository(operation, identified, policy);
   const lease = await store.ensureBeginTargetLease(operation, repository); await dependencies.afterStage?.("lease-acquired"); await store.checkpointBeginLease(operation, repository, lease);
@@ -48,14 +47,18 @@ export async function captainDoctor(store: Pick<LifecycleStore, "doctor">) {
 }
 
 
-export async function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action }: CaptainIssueIntentArgs) {
+export async function captainIssueIntent(store: LifecycleStore, { session_id, turn_id, project_root, prompt, task_id, resume_of, target_branch, action, request_kind, source_request_id }: CaptainIssueIntentArgs) {
+  const source = await store.userRequestSource({ projectRoot: project_root, sessionId: session_id, turnId: turn_id, sourceId: source_request_id });
+  if (source_request_id && !source) throw new Error("Original user request source is unavailable for these exact selectors");
+  const adapterPrompt = prompt;
+  if (source) { prompt = source.originalText; request_kind = source.requestKind ?? request_kind; }
   const directiveTarget = extractAuthorizedTargetBranch(prompt), directiveResume = extractCaptainResumeIntent(prompt);
   if (target_branch !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target_branch) || extractAuthorizedTargetBranch(`[Captain target: ${target_branch}]`) !== target_branch)) throw new Error("target_branch is invalid");
   if (target_branch && directiveTarget && target_branch !== directiveTarget) throw new Error("target branch selectors conflict");
   if (resume_of && directiveResume && resume_of !== directiveResume) throw new Error("resume selectors conflict");
   target_branch ??= directiveTarget; resume_of ??= directiveResume;
   if (action === "start" && resume_of) throw new Error("start action conflicts with resume selector");
-  const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action }, async () => {
+  const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action, requestKind: request_kind, sourceRequestId: source_request_id, ...(source ? { adapterPrompt } : {}) }, async () => {
   if (!resume_of && task_id && action !== "start") {
     const selected = (await store.doctor()).activeRuns.filter(run => run.taskId === task_id && path.resolve(run.projectRoot) === path.resolve(project_root));
     const candidates = await Promise.all(selected.map(run => store.status(run.intentId)));
@@ -83,11 +86,14 @@ export async function captainIssueIntent(store: LifecycleStore, { session_id, tu
     await repositoryIdentity(project_root, target_branch, targetOid);
   }
   const intentId = `intent-${randomUUID()}`;
-  return { intentId, sessionId: session_id, turnId: turn_id, projectRoot: path.resolve(project_root), prompt, ...(task_id ? { taskId: task_id } : {}), ...(resume_of ? { resumeOf: resume_of } : {}), ...(targetOid ? { targetBranch: target_branch, targetOid } : {}) };
+  return { intentId, issuedAt: source?.recordedAt ?? new Date().toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path.resolve(project_root), prompt, ...(task_id ? { taskId: task_id } : {}), ...(resume_of ? { resumeOf: resume_of } : {}), ...(targetOid ? { targetBranch: target_branch, targetOid } : {}) };
   });
   const intentId = issued.intentId; resume_of = issued.resumeOf;
+  const prior = resume_of ? await store.status(resume_of) : undefined;
+  await store.recordUserRequest({ projectRoot: issued.projectRoot, sessionId: issued.sessionId, turnId: issued.turnId, prompt: issued.prompt, source: source ? "UserPromptSubmit" : "client-adapter", sourceRecordedAt: source?.recordedAt ?? issued.issuedAt, sourceIntentId: intentId, intentId: resume_of ?? intentId, taskId: prior?.taskId ?? task_id, targetBranch: prior?.targetBranch ?? issued.targetBranch, requestKind: request_kind });
+  const user_request = await store.userRequests({ projectRoot: issued.projectRoot, intentId: resume_of ?? intentId });
   await store.recordUserAuthorization({ projectRoot: project_root, sessionId: session_id, turnId: turn_id, prompt, intentId: resume_of ?? intentId, taskId: task_id, source: "client-adapter" });
-  return { intent_id: intentId, ...(resume_of ? { resume_instruction: `Call captain_resume_implementation with resume_intent_id=${intentId}.` } : { begin_instruction: `Call captain_begin_implementation with intent_id=${intentId}.` }) };
+  return { intent_id: intentId, user_request, ...(resume_of ? { resume_instruction: `Call captain_resume_implementation with resume_intent_id=${intentId}.` } : { begin_instruction: `Call captain_begin_implementation with intent_id=${intentId}.` }) };
 }
 async function bindClientOwner(store: LifecycleStore, run: { intentId: string; sessionId: string }, client: ClientOwnerArgs) {
   if (client.client_pid !== undefined) {
@@ -118,7 +124,7 @@ export async function captainResume(store: LifecycleStore, resumeIntentId: strin
   }
   const resumed = await store.resume(resumeIntentId);
   await bindClientOwner(store, resumed, client);
-  return resumed;
+  return store.status(resumed.intentId);
 }
 export type CaptainCommitDependencies = { applyPreparedCommit: typeof applyPreparedCommit; assertWorktreeBinding: typeof assertWorktreeBinding; commitAtomic: typeof commitAtomic; commitEvidence: typeof commitEvidence; reconcilePreparedCommit: typeof reconcilePreparedCommit };
 const commitDependencies: CaptainCommitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
@@ -167,7 +173,7 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.3.1" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.4.0" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {
@@ -180,7 +186,7 @@ const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string;
   return { isError: true, content: [{ type: "text" as const, text: error.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error.message, ...(merge_id ? { merge_id } : {}), ...(next_step ? { next_step } : {}) } };
 });
 server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string(), client_pid: z.number().int().positive().optional(), close_token_hash: z.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: z.array(z.string().min(1)).optional(), hitl_checks: z.array(z.object({ id: z.string().trim().min(1), criterionId: z.string().trim().min(1), setup: z.string().trim().min(1), action: z.string().trim().min(1), expected: z.string().trim().min(1), evidence: z.string().trim().min(1) })).optional() } }, async args => guarded(async () => { const run = await captainBegin(store, args); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
-server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
+server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional(), request_kind: z.enum(["instruction", "goal"]).optional(), source_request_id: z.string().regex(/^[a-f0-9]{64}$/).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
 const interruptionSchema = {
   intent_id: z.string(), session_id: z.string().min(1).max(256),
   expected_run_revision: z.number().int().nonnegative(),
@@ -216,6 +222,7 @@ server.registerTool("captain_record_session_closed", {
   inputSchema: { ...interruptionSchema, owner_token: z.string().min(16).max(1024), reason: z.enum(["closed", "crashed"]) },
 }, async args => guarded(() => store.recordSessionClosed({ ...interruptionArgs(args), ownerToken: args.owner_token, reason: args.reason })));
 
+server.registerTool("captain_user_request_status", { annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }, description: "Recollect signed original human objectives and expressed task consent. Reports ambiguity, withdrawal or scope/target mismatch; ordinary session changes do not expire approval. This evidence does not bypass ownership guards or extend consent to unrelated operations.", inputSchema: { project_root: z.string().min(1), intent_id: z.string().min(1), session_id: z.string().optional(), expected_scope_sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(), expected_target_branch: z.string().optional() } }, async args => guarded(() => store.userRequests({ projectRoot: args.project_root, intentId: args.intent_id, sessionId: args.session_id, expectedScopeSha256: args.expected_scope_sha256, expectedTargetBranch: args.expected_target_branch })));
 server.registerTool("captain_user_authorization_status", { description: "Retrieve durable commit/merge approval and revocation receipts, including original user wording, source turn, repository, task and merge target. Reuse existing authorization for the same task; missing parser receipts never negate explicit conversational approval. This is evidence, not a new approval gate or a waiver of Git hygiene.", inputSchema: { project_root: z.string().min(1), session_id: z.string().optional(), intent_id: z.string().optional(), operation: z.enum(["commit", "merge"]).optional(), target_branch: z.string().optional() } }, async args => guarded(() => store.userAuthorizations({ projectRoot: args.project_root, sessionId: args.session_id, intentId: args.intent_id, operation: args.operation, targetBranch: args.target_branch })));
 server.registerTool("captain_record_red", { description: "Run the trusted ticket test and require it to fail before implementation.", inputSchema: { intent_id: z.string(), ticket_filter: z.string().min(1).max(512).regex(/^[A-Za-z_][A-Za-z0-9_.]*$/).optional() } }, async ({ intent_id, ticket_filter }) => guarded(() => store.recordRed(intent_id, undefined, ticket_filter)));
 server.registerTool("captain_run_check", { description: "Run a trusted ticket/smoke/regression check during the implementation loop.", inputSchema: { intent_id: z.string(), scope: z.enum(["ticket", "feature-smoke", "affected-regression"]), ticket_filter: z.string().min(1).max(512).regex(/^[A-Za-z_][A-Za-z0-9_.]*$/).optional() } }, async ({ intent_id, scope, ticket_filter }) => guarded(() => store.runCheck(intent_id, scope, ticket_filter)));
@@ -228,7 +235,7 @@ server.registerTool("captain_begin_diagnose", {
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   description: "Read-only diagnosis of an exact caller-owned Begin intent and target lease. Authenticates existing signed records without migration, repair, key creation or lease release; foreign/missing ownership is generic and legacy owners require separate supported recovery.",
   inputSchema: { intent_id: z.string().regex(/^[A-Za-z0-9_-]+$/), session_id: z.string().min(1).max(256), project_root: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1) }
-}, async args => guarded(() => createBeginDiagnosticAdapter(dataRoot)(args)));
+}, async args => guarded(() => store.diagnoseBegin(args)));
 server.registerTool("captain_cancel_failed_begin", {
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   description: "Cancel only an exact authenticated terminal pre-workspace Begin after its logical request has returned and the caller confirms no same-intent attempt is active or planned. Uses a shared signed attempt gate and exact target-lease generation; never changes Git refs or retires progressed work.",

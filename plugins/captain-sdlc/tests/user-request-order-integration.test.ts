@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdir,mkdtemp,writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { LifecycleStore } from "../src/lifecycle.js";
+import { captainBegin,captainIssueIntent } from "../src/server.js";
+import { git } from "../src/workspace.js";
+test("interrupted old reapproval issuance cannot override a later task withdrawal on replay",async()=>{
+ const base=await mkdtemp(path.join(tmpdir(),"captain-approval-order-")),root=path.join(base,"repo"),data=path.join(base,"data");
+ await mkdir(root);await git(["init","-b","main"],root);await mkdir(path.join(root,".captain-sdlc"));
+ await writeFile(path.join(root,".captain-sdlc","codex-policy.json"),JSON.stringify({profile:"feature",visualRequired:false,commands:{build:"node gate.cjs",ticket:"node gate.cjs","feature-smoke":"node gate.cjs","affected-regression":"node gate.cjs"}}));
+ await writeFile(path.join(root,"gate.cjs"),"");await git(["add","."],root);await git(["-c","user.name=Fixture","-c","user.email=captain@example.invalid","commit","-m","fixture"],root);
+ const store=new LifecycleStore(data,async()=>({exitCode:0,stdout:"",stderr:""}));
+ const original=await captainIssueIntent(store,{session_id:"s",turn_id:"initial",project_root:root,prompt:"Fix the churn",action:"start"});
+ const run=await captainBegin(store,{intent_id:original.intent_id,objective:"fix",project_root:root});
+ await store.pause(run.intentId,{summary:"checkpoint",nextSteps:["finish repair"]});
+ const approval={session_id:"s",turn_id:"approval",project_root:root,prompt:"I approve this task again",action:"resume" as const,resume_of:run.intentId};
+ const record=store.recordUserRequest.bind(store);
+ store.recordUserRequest=async()=>{throw new Error("fixture interrupted capture");};
+ await assert.rejects(()=>captainIssueIntent(store,approval),/interrupted capture/);
+ store.recordUserRequest=record;
+ await store.recordUserRequest({projectRoot:root,sessionId:"s",turnId:"new-stop",prompt:"Stop this task.",source:"client-adapter",sourceIntentId:"later-stop",intentId:run.intentId,sourceRecordedAt:new Date().toISOString()});
+ const replay=await captainIssueIntent(store,approval);
+ assert.equal(replay.user_request.status,"revoked");
+ assert.equal(replay.user_request.originalText,"Fix the churn");
+ assert.equal((await store.status(run.intentId)).user_request?.status,"revoked");
+});

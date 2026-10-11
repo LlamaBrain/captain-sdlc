@@ -14,6 +14,9 @@ test("task resume discovery inspects only signed candidates for the selected pro
     ] }),
     status: async (id: string) => { calls.push(id); if (id !== matching.intentId) throw new Error("unrelated ownership defect"); return matching; },
     recordUserAuthorization: async () => undefined,
+    recordUserRequest: async () => undefined,
+    userRequestSource: async () => undefined,
+    userRequests: async () => ({ status: "missing", receipts: [], objectiveLines: [], guidance: "" }),
   };
   const result = await captainIssueIntent(store as any, { session_id: "same-session", turn_id: "new-turn", project_root: projectRoot, prompt: "Resume this task", task_id: "selected-task", action: "resume" });
   assert.ok(result.resume_instruction);

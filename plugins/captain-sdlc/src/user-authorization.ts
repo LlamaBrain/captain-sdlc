@@ -52,7 +52,7 @@ export function parseUserAuthorizations(prompt: string): UserAuthorization[] {
     const negative = /^(?:do not|don't|stop|cancel)\s+/i.test(text);
     const action = negative ? text.replace(/^(?:do not|don't|stop|cancel)\s+/i, "") : text.replace(/^(?:approve|authorize)\s+(?:the\s+)?/i, "");
     const decision = negative ? "revoke" : "approve";
-    if (/^commit(?:ting)?(?:\s+(?:it|this|that|the changes|these changes|your work|the work))?(?:\s+(?:now|already|please))?$/i.test(action)) {
+    if (/^(?:do (?:a |the )?)?commit(?:ting)?(?:\s+(?:it|this|that|the changes|these changes|your work|the work))?(?:\s+(?:now|already|please))?$/i.test(action)) {
       result.push({ operation: "commit", decision, quote }); continue;
     }
     const mergeBack = /^(?:(revoke)\s+(?:the\s+)?)?merge(?:\s+(?:back|finish)|-(?:back|finish))(?:\s+(?:it|this|that|the changes|these changes))?(?:\s+(?:to|into)\s+([A-Za-z0-9_][A-Za-z0-9._/-]*))?$/i.exec(action);

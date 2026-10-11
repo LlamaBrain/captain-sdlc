@@ -1,5 +1,5 @@
 import path from "node:path";
-const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_(?:status|user_authorization_status|merge_status|doctor))$/i;
+const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_(?:status|user_authorization_status|user_request_status|merge_status|doctor))$/i;
 const entryTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(issue_intent|begin_implementation|resume_implementation|merge_prep|merge_back|merge_begin|merge_finish|recover_merge_lease)$/i;
 const governedTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(record_red|run_check|prepare_merge|abort_merge|commit|record_commit|prove|migrate_plan_state|record_plan_review|record_hitl_feedback|pause_implementation)$/i;
 export function mutationDecision(input) {

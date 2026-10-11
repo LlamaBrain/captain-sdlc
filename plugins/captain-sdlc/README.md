@@ -28,6 +28,14 @@ Doxygen can be repaired in that new commit. Every candidate version surface must
 
 Each governed repository must commit `.captain-sdlc/codex-policy.json`. When `commitPolicyPath` is configured, its schema-versioned repository policy is also loaded from the captured base. Proof commands and commit rules come only from that trusted state; MCP callers cannot replace them with `exit 0` or mutable working-tree policy.
 
+## Original objectives and task consent
+
+Captain keeps the exact human request and its objective lines separately from the agent-supplied implementation objective. Prompt hooks capture repository-bound source events even before a task exists; intent adapters bind them to the validated task. `captain_issue_intent` accepts `request_kind: "goal"` for a user-requested goal and an optional `source_request_id` from the prompt hook. These are internal adapter fields, not phrases the human must repeat.
+
+Issuance, status, failed-Begin diagnosis and signed pause/resume return `user_request` context automatically. `captain_user_request_status` provides read-only lookup for an exact repository and task. Its `expected_scope_sha256` and `expected_target_branch` selectors make mismatches visible. Requests such as "do it" continue an existing authorized task; ordinary supporting steps retain the defining objective and the source history. Sessions and elapsed time alone do not expire consent.
+
+The record distinguishes expressed, unclear, revoked, stale and missing evidence. A source-only prompt does not create a task or approval for an unrelated operation. Later withdrawals and scope changes must be assessed against the original objective; "do not commit" restricts that operation without cancelling still-authorized implementation. Missing legacy records remain advisory. The caller still checks task ownership, recovery generations, current conditions and any declared human review. Source labels distinguish prompt-hook evidence from the client adapter's supplied wording; signatures protect recorded bytes and provenance rather than independently authenticating an adapter's human origin.
+
 ## Merge Prep and Merge Back
 
 Integration uses two explicit MCP operations in the existing task checkout:

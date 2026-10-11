@@ -46,7 +46,10 @@ test("low merge strictness bypasses intent, mutation, and completion hooks", asy
   await exec("git", ["init"], { cwd: repo }); await exec("git", ["config", "user.name", "Captain Test"], { cwd: repo }); await exec("git", ["config", "user.email", "captain@example.invalid"], { cwd: repo });
   await mkdir(path.join(repo, ".captain-sdlc")); await writeFile(path.join(repo, ".captain-sdlc", "merge-policy.json"), JSON.stringify({ schema_version: 1, strictness: "low" })); await exec("git", ["add", "."], { cwd: repo }); await exec("git", ["commit", "-m", "baseline"], { cwd: repo });
   assert.equal(await repositoryUsesLowStrictness(repo), true);
-  assert.equal((await hook("user-prompt.mjs", { session_id: "s", turn_id: "t", cwd: repo, prompt: "implement x" }, data)).stdout, "");
+  const prompt = await hook("user-prompt.mjs", { session_id: "s", turn_id: "t", cwd: repo, prompt: "implement x" }, data);
+  const context = JSON.parse(prompt.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /CAPTAIN USER REQUEST SOURCE/);
+  assert.doesNotMatch(context, /CAPTAIN SDLC ENFORCEMENT|captain_begin_implementation/);
   assert.equal((await hook("mutation-gate.mjs", { session_id: "s", turn_id: "t", cwd: repo, tool_name: "apply_patch", tool_input: { command: `*** Update File: ${path.join(repo, "x.ts")}` } }, data)).stdout, "");
   await writeFile(path.join(repo, "x.ts"), "changed\n");
   assert.equal((await hook("completion-gate.mjs", { session_id: "s", turn_id: "t" , cwd: repo }, data)).stdout, "");
@@ -139,7 +142,7 @@ test("mutation hook rejects a signed permit whose run revision is historical", a
 
 test("mutation hook admits terminal final-commit recovery from authoritative prove phase", async () => {
   const data = await mkdtemp(path.join(tmpdir(), "captain-hook-")), projectRoot = await mkdtemp(path.join(tmpdir(), "captain-owned-root-")), worktreePath = path.join(projectRoot, ".captain-sdlc", "worktrees", "terminal"), store = await seedActive(data, projectRoot, worktreePath, "terminal");
-  const current = await store.status("terminal"), terminal = { ...current, revision: current.revision + 1, previousRevisionSha256: createHash("sha256").update(JSON.stringify(current)).digest("hex"), phase: "prove", terminalCommit: { requestSha256: "b".repeat(64), commitLeaseId: "lease", commitLeaseToken: "token", candidate: "d".repeat(40), outcome: "committed", final: true, commit: { head: "d".repeat(40), commitCount: 1, clean: true, subject: "fix(x): recover (v1.0.1)", versionChanged: true, changelogChanged: true } } };
+  const { user_request: _context, ...current } = await store.status("terminal"), terminal = { ...current, revision: current.revision + 1, previousRevisionSha256: createHash("sha256").update(JSON.stringify(current)).digest("hex"), phase: "prove", terminalCommit: { requestSha256: "b".repeat(64), commitLeaseId: "lease", commitLeaseToken: "token", candidate: "d".repeat(40), outcome: "committed", final: true, commit: { head: "d".repeat(40), commitCount: 1, clean: true, subject: "fix(x): recover (v1.0.1)", versionChanged: true, changelogChanged: true } } };
   await writeAuthorized(data, "run-revisions", `terminal-${terminal.revision}`, terminal);
   await writeAuthorized(data, "run-watermarks", `terminal-${terminal.revision}`, { schemaVersion: 1, intentId: "terminal", runId: terminal.runId, revision: terminal.revision, runSha256: createHash("sha256").update(JSON.stringify(terminal)).digest("hex"), previousRevisionSha256: terminal.previousRevisionSha256 });
   const permit = await readAuthorized<any>(data, "permits", "s-t"); await writeAuthorized(data, "permits", "s-t", { ...permit, phase: "prove", runRevision: terminal.revision });

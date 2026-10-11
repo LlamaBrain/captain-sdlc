@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+- Persist signed original human objective lines and task consent before implementation startup, including source-only LOW requests that have no governed task yet.
+- Automatically recollect scoped authority in issuance, status, failed-Begin diagnosis and signed pause/resume; preserve the defining objective across supporting steps and session changes.
+- Report unclear, withdrawn and mismatched scope/target evidence without adding another approval gate; retain separate operation grants and all ownership/recovery guards.
+- Recognize direct commit wording such as "do a commit" and verify the original churn scenario through real public MCP transport.
+
+
 ## 0.3.1
 - v0.3.1: Return verified same-head dirty-source and ignored-input manifest proof failures to implementation for repair in the retained task, preserving committed evidence and policy.
 - v0.3.1: Fence repair by exact run revision, activation and authenticated session lease generation; preserve retry behavior for transport failures and refuse changed identity or concurrent ownership.
