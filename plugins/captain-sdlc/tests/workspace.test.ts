@@ -14,6 +14,8 @@ async function repo() { const root = await mkdtemp(path.join(tmpdir(), "captain-
 const selfHostGeneratedRoots = ["plugins/captain-sdlc/bin", "plugins/captain-sdlc/Temp/automation-scratch", "plugins/captain-sdlc/.captain-proof"];
 async function selfHostConfiguredRepo(t: TestContext) {
   const root = await repo();
+  // Match the scrubbed production Git environment and retain referenced rule bytes.
+  await runGit(root, "config", "core.autocrlf", "false");
   t.after(async () => {
     assert.equal(path.dirname(root), path.resolve(tmpdir()));
     assert.ok(path.basename(root).startsWith("captain-workspace-"));
@@ -23,9 +25,17 @@ async function selfHostConfiguredRepo(t: TestContext) {
   const shippedText = await readFile(path.join(sourceRoot, ".captain-sdlc/codex-policy.json"), "utf8");
   const shipped = JSON.parse(shippedText);
   await writeFile(path.join(root, ".captain-sdlc/codex-policy.json"), shippedText);
+  let commitPolicy = shipped.commit;
   if (shipped.commitPolicyPath) {
+    const text = await readFile(path.join(sourceRoot, shipped.commitPolicyPath), "utf8");
     await mkdir(path.dirname(path.join(root, shipped.commitPolicyPath)), { recursive: true });
-    await writeFile(path.join(root, shipped.commitPolicyPath), await readFile(path.join(sourceRoot, shipped.commitPolicyPath)));
+    await writeFile(path.join(root, shipped.commitPolicyPath), text);
+    commitPolicy = JSON.parse(text).commit;
+  }
+  if (commitPolicy?.bookkeeping?.path_file) {
+    const relative = commitPolicy.bookkeeping.path_file;
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await writeFile(path.join(root, relative), await readFile(path.join(sourceRoot, relative)));
   }
   await writeFile(path.join(root, ".gitignore"), await readFile(path.join(sourceRoot, ".gitignore")));
   const retainedSource = "plugins/captain-sdlc/src/retained-contract.ts";

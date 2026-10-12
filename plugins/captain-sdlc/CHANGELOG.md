@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+- Copy the declared committed bookkeeping rule file with the self-host project-policy fixtures, preserving fail-closed policy loading and future-only adoption.
+- Restore original LF endings in task-owned files after Windows helper edits, avoiding unrelated formatting churn.
+- Retain the failed 0.5.0 ticket proof and repair the same run/worktree through a separate tested commit.
+
 ## 0.5.0
 - Read opt-in bookkeeping path rules from committed `.captain-sdlc/captain.ignore`, using Git's ignore syntax while keeping records tracked.
 - Finalize exact operational records with version-neutral Captain commits or correlated retained stashes in an independent signed journal, including after implementation completion and during Merge Prep/Back.

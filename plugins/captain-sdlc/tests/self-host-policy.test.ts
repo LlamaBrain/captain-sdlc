@@ -18,10 +18,17 @@ const sourceRoot = fileURLToPath(new URL("../../../", import.meta.url));
 
 async function copyReferencedCommitPolicy(project: string, shippedPolicy: string) {
   const policy = JSON.parse(shippedPolicy);
+  let commitPolicy = policy.commit;
   if (policy.commitPolicyPath) {
-    const target = path.join(project, policy.commitPolicyPath);
+    const target = path.join(project, policy.commitPolicyPath), text = await readFile(path.join(sourceRoot, policy.commitPolicyPath), "utf8");
     await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, await readFile(path.join(sourceRoot, policy.commitPolicyPath)));
+    await writeFile(target, text);
+    commitPolicy = JSON.parse(text).commit;
+  }
+  if (commitPolicy?.bookkeeping?.path_file) {
+    const relative = commitPolicy.bookkeeping.path_file, target = path.join(project, relative);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, await readFile(path.join(sourceRoot, relative)));
   }
 }
 
