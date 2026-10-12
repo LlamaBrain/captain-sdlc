@@ -161,7 +161,11 @@ export class MergeWorkflowStore {
         const inputs = await captureInputs(record.source_worktree, record.captured_policy);
         if (record.ready_inputs) {
           const retained = await this.associateBookkeepingInputs(record, inputs);
-          if (retained) { record = await this.update({ ...retained, state: "ready", failure: undefined }); await this.assertReady(record); return this.output(record, true); }
+          if (retained) {
+            const ready = { ...retained, state: "ready" as const, failure: undefined };
+            if (digest(ready) !== digest(record)) record = await this.update(ready);
+            await this.assertReady(record); return this.output(record, true);
+          }
         }
         if (record.state === "failed" && digest(inputs) === digest(record.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
         record = await this.update({ ...record, state: "verifying", ready_inputs: undefined, integration_inputs: undefined, attempted_inputs: inputs, gates: [], failure: undefined });

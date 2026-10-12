@@ -414,3 +414,11 @@ test("preflight-refused finalization selection can be corrected on the same read
   assert.equal(back.state, "merged"); assert.equal(back.finalizations!.length, 1); assert.deepEqual(gates, ["trusted build"]);
   assert.equal(await git(f.target, "show", `${back.finalizations![0].stash_oid}:${selection.paths[0]}`), '{"retained":true}');
 });
+
+test("unchanged ready bookkeeping Prep preserves its signed revision and checks", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n"); const ready = await store.prep(f.args);
+  const repeated = await store.prep({ ...f.args, merge_id: ready.merge_id });
+  assert.equal(repeated.revision, ready.revision); assert.deepEqual(repeated.ready_inputs, ready.ready_inputs);
+  assert.deepEqual(repeated.gates, ready.gates); assert.deepEqual(gates, ["trusted build"]);
+});

@@ -25858,7 +25858,8 @@ var MergeWorkflowStore = class {
           if (record3.ready_inputs) {
             const retained = await this.associateBookkeepingInputs(record3, inputs);
             if (retained) {
-              record3 = await this.update({ ...retained, state: "ready", failure: void 0 });
+              const ready = { ...retained, state: "ready", failure: void 0 };
+              if (digest6(ready) !== digest6(record3)) record3 = await this.update(ready);
               await this.assertReady(record3);
               return this.output(record3, true);
             }
@@ -26670,7 +26671,7 @@ async function startCaptainMcp() {
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.5.1" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.5.2" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

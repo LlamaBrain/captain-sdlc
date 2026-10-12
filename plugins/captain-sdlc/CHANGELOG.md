@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+- Preserve an unchanged ready Merge Prep receipt's revision, including exact-owner lease recovery; write a new association only when inputs or state actually change.
+- Cover ready-receipt idempotency with bookkeeping enabled and retain both earlier failed ticket proof attempts in the same run.
+
 ## 0.5.1
 - Copy the declared committed bookkeeping rule file with the self-host project-policy fixtures, preserving fail-closed policy loading and future-only adoption.
 - Restore original LF endings in task-owned files after Windows helper edits, avoiding unrelated formatting churn.

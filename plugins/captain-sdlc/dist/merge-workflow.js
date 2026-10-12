@@ -157,7 +157,9 @@ export class MergeWorkflowStore {
                     if (record.ready_inputs) {
                         const retained = await this.associateBookkeepingInputs(record, inputs);
                         if (retained) {
-                            record = await this.update({ ...retained, state: "ready", failure: undefined });
+                            const ready = { ...retained, state: "ready", failure: undefined };
+                            if (digest(ready) !== digest(record))
+                                record = await this.update(ready);
                             await this.assertReady(record);
                             return this.output(record, true);
                         }
