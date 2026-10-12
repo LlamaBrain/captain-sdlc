@@ -30,4 +30,15 @@ export declare function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>
     state: "held" | "released";
     payload: T;
 } | undefined>;
+/** Migrate and release only one fully bound inspected raw legacy generation. */
+export declare function releaseAuthorizedLegacyLeaseAtGeneration(root: string, id: string, intentId: string, leaseToken: string, resourceGeneration: string, afterMigration?: () => Promise<void>, afterRevision?: () => Promise<void>): Promise<void>;
+/** Read the single incomplete legacy migration checkpoint without repairing it. */
+export declare function readAuthorizedLegacyLeaseMigrationReadOnly<T extends LeasePayload = LeasePayload>(root: string, id: string, intentId: string, resourceGeneration: string): Promise<{
+    state: "held";
+    payload: T;
+    revision: 0;
+    legacy: false;
+}>;
+/** A repossessed intent can never publish a new Begin, even after projection replay. */
+export declare function assertIntentNotRepossessed(root: string, intentId: string): Promise<void>;
 export {};

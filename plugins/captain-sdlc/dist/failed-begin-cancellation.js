@@ -190,3 +190,16 @@ export async function captainCancelFailedBegin(store, args) {
         return { intent_id: args.intent_id, state: "cancelled", cancelled: true };
     });
 }
+/** Validate the original immutable checkpoint graph; contains no owner-stop assertion. */
+export function verifiedFailedBeginCancellationMarker(args, evidence) {
+    const operation = evidence.operation, repository = evidence.repository, lease = evidence.lease;
+    if (operation.schemaVersion !== 1 || operation.intentId !== args.intent_id || operation.sessionId !== args.session_id || !samePath(operation.projectRoot, args.project_root) || operation.targetBranch !== args.target_branch ||
+        evidence.consumed.schemaVersion !== 1 || evidence.consumed.operationToken !== operation.operationToken || evidence.consumed.intentId !== args.intent_id ||
+        repository.schemaVersion !== 1 || repository.operationToken !== operation.operationToken || !samePath(repository.projectRoot, args.project_root) ||
+        lease.schemaVersion !== 1 || lease.operationToken !== operation.operationToken || !lease.leaseId || lease.leaseToken !== operation.leaseToken || lease.targetBranch !== operation.targetBranch || lease.targetOid !== operation.targetOid ||
+        typeof lease.commonGitDir !== "string" || !lease.commonGitDir || !samePath(lease.commonGitDir, repository.commonGitDir))
+        throw new Error("signed Begin checkpoint graph does not match its exact selectors");
+    // buildMarker does not inspect the original caller's confirmation field.
+    return { schemaVersion: 1, kind: "failed_begin_cancelled", intentId: args.intent_id, sessionId: args.session_id, turnId: operation.turnId, operationToken: operation.operationToken,
+        projectRoot: evidence.intent.projectRoot, targetWorktree: args.target_worktree, targetBranch: args.target_branch, leaseId: lease.leaseId, leaseToken: lease.leaseToken, expectedLeaseRevision: args.expected_lease_revision, resourceGeneration: args.resource_generation };
+}

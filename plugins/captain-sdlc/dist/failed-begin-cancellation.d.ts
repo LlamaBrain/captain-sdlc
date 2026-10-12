@@ -1,5 +1,5 @@
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
-import type { LifecycleStore } from "./lifecycle.js";
+import type { BeginCancellationMarker, LifecycleStore } from "./lifecycle.js";
 export type CancelFailedBeginArgs = BeginDiagnosticArgs & {
     expected_lease_revision: number;
     resource_generation: string;
@@ -11,3 +11,5 @@ export declare function captainCancelFailedBegin(store: LifecycleStore, args: Ca
     state: "cancelled";
     cancelled: true;
 }>;
+/** Validate the original immutable checkpoint graph; contains no owner-stop assertion. */
+export declare function verifiedFailedBeginCancellationMarker(args: Omit<CancelFailedBeginArgs, "confirm_owner_stopped">, evidence: Awaited<ReturnType<LifecycleStore["readBeginCancellationEvidence"]>>): BeginCancellationMarker;

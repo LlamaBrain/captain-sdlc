@@ -1059,10 +1059,10 @@ var require_util = __commonJS({
     var codegen_1 = require_codegen();
     var code_1 = require_code();
     function toHash(arr) {
-      const hash7 = {};
+      const hash8 = {};
       for (const item of arr)
-        hash7[item] = true;
-      return hash7;
+        hash8[item] = true;
+      return hash8;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it, schema) {
@@ -3259,8 +3259,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path14) {
-      let input = path14;
+    function removeDotSegments(path15) {
+      let input = path15;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3665,8 +3665,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path14 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path14 && path14 !== "/" ? path14 : void 0;
+        const path15 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path15 && path15 !== "/" ? path15 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -7446,6 +7446,66 @@ async function readAuthorizedLeaseStateReadOnly(root, id) {
   const snapshot = await readAuthorizedLeaseSnapshotReadOnly(root, id);
   return snapshot && { state: snapshot.state, payload: snapshot.payload };
 }
+async function releaseAuthorizedLegacyLeaseAtGeneration(root, id, intentId, leaseToken, resourceGeneration, afterMigration, afterRevision) {
+  const leaseId = safe(id);
+  let current;
+  let partial2 = false;
+  try {
+    current = await readAuthorizedLeaseSnapshotReadOnly(root, leaseId);
+  } catch {
+    current = await readAuthorizedLegacyLeaseMigrationReadOnly(root, leaseId, intentId, resourceGeneration);
+    partial2 = true;
+  }
+  if (!current || current.payload.intentId !== intentId || current.payload.leaseToken !== leaseToken) throw new Error("authorized legacy lease generation owner mismatch");
+  const payload = current.payload;
+  if (typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash("sha256").update(`${path2.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId) throw new Error("authorized legacy lease resource binding is invalid");
+  if (!/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("authorized legacy lease generation changed");
+  if (!current.legacy && current.revision !== 0 && !(current.revision === 1 && current.state === "released")) throw new Error("authorized legacy lease generation changed");
+  if (current.legacy || partial2) {
+    const initial = { schemaVersion: 1, leaseId, revision: 0, state: "held", payload };
+    await putAuthorizedOnceExact(root, "lease-revisions", `${leaseId}-0`, initial);
+    if (!partial2) await afterRevision?.();
+    await writeLeaseWatermark(root, initial);
+    await afterMigration?.();
+  }
+  await releaseAuthorizedLeaseAtGeneration(root, leaseId, intentId, leaseToken, 0, digest({ leaseId, revision: 0, state: "held", payload }));
+}
+async function readAuthorizedLegacyLeaseMigrationReadOnly(root, id, intentId, resourceGeneration) {
+  const leaseId = safe(id), payload = await readAuthorizedReadOnly(root, "leases", leaseId);
+  if (payload.intentId !== intentId || typeof payload.leaseToken !== "string" || !payload.leaseToken || typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash("sha256").update(`${path2.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId || !/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("partial legacy lease migration binding is invalid");
+  const names = async (bucket3) => {
+    try {
+      return await readdir(path2.join(root, bucket3));
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      return [];
+    }
+  };
+  const expression = new RegExp(`^${leaseId}-[0-9]+\\.json$`);
+  const revisions = (await names("lease-revisions")).filter((name) => expression.test(name)), marks = (await names("lease-watermarks")).filter((name) => expression.test(name));
+  if (revisions.length !== 1 || revisions[0] !== `${leaseId}-0.json` || marks.length) throw new Error("partial legacy lease migration is not the exact missing-watermark checkpoint");
+  const current = await readAuthorizedReadOnly(root, "lease-revisions", `${leaseId}-0`);
+  const initial = { schemaVersion: 1, leaseId, revision: 0, state: "held", payload };
+  if (digest(current) !== digest(initial)) throw new Error("partial legacy lease migration revision binding is invalid");
+  return { state: "held", payload, revision: 0, legacy: false };
+}
+async function assertIntentNotRepossessed(root, intentId) {
+  const id = safe(intentId);
+  const optional2 = async (bucket3) => {
+    try {
+      return await readAuthorizedReadOnly(root, bucket3, id);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return void 0;
+      throw error2;
+    }
+  };
+  const [marker, watermark, result] = await Promise.all([optional2("branch-lease-repossessions"), optional2("branch-lease-repossession-watermarks"), optional2("branch-lease-repossession-results")]);
+  if (!marker && !watermark && !result) return;
+  if (!marker || marker.schema_version !== 1 || marker.kind !== "orphan_branch_lease_repossessed" || marker.old_intent_id !== intentId || typeof marker.recovery_id !== "string" || !/^[0-9a-f]{64}$/.test(marker.recovery_id)) throw new Error("signed repossessed intent marker is invalid or regressed");
+  if (watermark && (watermark.schema_version !== 1 || watermark.old_intent_id !== intentId || watermark.recovery_id !== marker.recovery_id || watermark.marker_sha256 !== digest(marker))) throw new Error("signed repossessed intent watermark is invalid");
+  if (result && (result.schema_version !== 1 || result.old_intent_id !== intentId || result.recovery_id !== marker.recovery_id || result.state !== "released")) throw new Error("signed repossessed intent result is invalid");
+  throw new Error("implementation intent was repossessed and revoked; retain the existing task checkout and use its normal operation");
+}
 var tag, digest, safe;
 var init_authority = __esm({
   "src/authority.ts"() {
@@ -8680,6 +8740,7 @@ var init_lifecycle = __esm({
         return releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, intentId, leaseToken, expectedRevision, resourceGeneration);
       }
       async assertBeginNotCancelled(intentId) {
+        await assertIntentNotRepossessed(this.dataRoot, intentId);
         const marker = await this.beginCancellationFor(intentId);
         if (marker && marker.schemaVersion === 1 && marker.kind === "failed_begin_cancelled" && marker.intentId === intentId) {
           throw new Error("implementation Begin was cancelled and this intent cannot be retried");
@@ -8689,9 +8750,9 @@ var init_lifecycle = __esm({
       async markIntent(intent) {
         await this.save("intents", intent.intentId, intent);
       }
-      async issueIdempotentIntent(request, factory) {
-        const normalized = JSON.parse(JSON.stringify({ ...request, projectRoot: path8.resolve(request.projectRoot) }));
-        const id = digest3(JSON.stringify([normalized.projectRoot, request.sessionId, request.turnId]));
+      async issueIdempotentIntent(request2, factory) {
+        const normalized = JSON.parse(JSON.stringify({ ...request2, projectRoot: path8.resolve(request2.projectRoot) }));
+        const id = digest3(JSON.stringify([normalized.projectRoot, request2.sessionId, request2.turnId]));
         let receipt;
         try {
           receipt = await this.load("intent-issuance", id);
@@ -8736,6 +8797,7 @@ var init_lifecycle = __esm({
         return readUserRequestSource(this.dataRoot, query);
       }
       async validateIntent(intentId, projectRoot) {
+        await this.assertBeginNotCancelled(intentId);
         const intent = await this.load("intents", intentId);
         if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed");
         if (path8.resolve(intent.projectRoot) !== path8.resolve(projectRoot)) throw new Error("intent project root mismatch");
@@ -8861,8 +8923,8 @@ var init_lifecycle = __esm({
             throw new Error("target lease generation is missing from the signed Begin checkpoint");
           }
           const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
-          const generation2 = current && typeof current.revision === "number" ? digest3(JSON.stringify({ leaseId: lease.leaseId, revision: current.revision, state: current.state, payload: current.payload })) : void 0;
-          if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation2 !== lease.resourceGeneration || current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken || current.payload.operationToken !== void 0 && current.payload.operationToken !== operation.operationToken || current.payload.targetBranch !== operation.targetBranch || current.payload.targetOid !== operation.targetOid || !samePath4(current.payload.commonGitDir, repository.commonGitDir)) {
+          const generation3 = current && typeof current.revision === "number" ? digest3(JSON.stringify({ leaseId: lease.leaseId, revision: current.revision, state: current.state, payload: current.payload })) : void 0;
+          if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation3 !== lease.resourceGeneration || current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken || current.payload.operationToken !== void 0 && current.payload.operationToken !== operation.operationToken || current.payload.targetBranch !== operation.targetBranch || current.payload.targetOid !== operation.targetOid || !samePath4(current.payload.commonGitDir, repository.commonGitDir)) {
             throw new Error("target lease generation changed before run revision 0; Begin was fenced");
           }
         }
@@ -9240,11 +9302,11 @@ ${result.stderr}`) }] });
         if (!latest || JSON.stringify(latest) !== JSON.stringify(prepared)) throw new Error("only the latest signed prepared merge can be discarded");
         return this.update({ ...run, preparedMerges: values.slice(0, -1), evidence: [...run.evidence, { kind: "merge_aborted", ...prepared }] });
       }
-      async acquireWorktreeMutation(intentId, kind, request) {
+      async acquireWorktreeMutation(intentId, kind, request2) {
         await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
-        const requestSha256 = digest3(JSON.stringify(request)), leaseId = digest3(`worktree-mutation\0${run.runId}`);
+        const requestSha256 = digest3(JSON.stringify(request2)), leaseId = digest3(`worktree-mutation\0${run.runId}`);
         if (run.mutationOperation) {
           if (run.mutationOperation.kind !== kind || run.mutationOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation or worktree mutation is already active for this run");
           await ensureAuthorizedLease(this.dataRoot, leaseId, { intentId, leaseToken: run.mutationOperation.leaseToken, runId: run.runId, operation: "worktree-mutation" });
@@ -9316,15 +9378,15 @@ ${result.stderr}`) }] });
         if (!run.preparedMerges?.some((value) => JSON.stringify(value) === JSON.stringify(prepared)) || expectedKind === "merge" && prepared.operationToken !== operation.leaseToken || operation.kind !== expectedKind) throw new Error("signed prepared merge authority changed before Git mutation");
         await this.assertWorktreeMutation(intentId, operation);
       }
-      async acquireCommitOperation(intentId, request) {
-        const operation = await this.reserveCommitOperation(intentId, request), run = await this.run(intentId);
+      async acquireCommitOperation(intentId, request2) {
+        const operation = await this.reserveCommitOperation(intentId, request2), run = await this.run(intentId);
         return this.authorizeCommitOperation(run, operation);
       }
-      async reserveCommitOperation(intentId, request) {
+      async reserveCommitOperation(intentId, request2) {
         await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
-        const requestSha256 = commitRequestSha256(request);
+        const requestSha256 = commitRequestSha256(request2);
         if (run.preparedCommit && !run.commitOperation) throw new Error("signed prepared commit has no operation lease ownership");
         if (run.commitOperation) {
           if (run.commitOperation.requestSha256 !== requestSha256) throw new Error("another Captain commit operation is already active for this run");
@@ -9345,11 +9407,11 @@ ${result.stderr}`) }] });
         run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256 }] });
         return run.commitOperation;
       }
-      async commitOperationFor(intentId, request) {
+      async commitOperationFor(intentId, request2) {
         const run = await this.run(intentId);
         this.phase(run, "implement");
         const operation = run.commitOperation;
-        if (!operation || operation.stage !== "prepared" || operation.requestSha256 !== commitRequestSha256(request)) throw new Error("prepared commit recovery requires the exact approved commit request");
+        if (!operation || operation.stage !== "prepared" || operation.requestSha256 !== commitRequestSha256(request2)) throw new Error("prepared commit recovery requires the exact approved commit request");
         await this.assertCommitOperation(run, operation);
         return operation;
       }
@@ -9450,8 +9512,8 @@ ${result.stderr}`) }] });
         await this.hooks?.afterTerminalCommit?.(terminal2);
         return this.finishTerminalCommit(intentId, operation.requestSha256);
       }
-      async completedCommitFor(intentId, request) {
-        const requestSha256 = commitRequestSha256(request), run = await this.run(intentId);
+      async completedCommitFor(intentId, request2) {
+        const requestSha256 = commitRequestSha256(request2), run = await this.run(intentId);
         if (run.terminalCommit) {
           if (run.terminalCommit.requestSha256 !== requestSha256) throw new Error("terminal commit recovery requires the exact approved commit request");
           return this.finishTerminalCommit(intentId, requestSha256);
@@ -9839,8 +9901,8 @@ ${result.stderr}`) }] });
         const run = await this.interruptionRunReadOnly(args.intentId);
         if (run.sessionId !== args.sessionId || run.revision !== args.expectedRunRevision || run.status === "paused" || run.status === "green") throw new Error("session interruption run revision or session binding changed");
         const lease = await this.interruptionLeaseReadOnly(run);
-        const generation2 = digest3(JSON.stringify({ leaseId: run.sessionLeaseId, revision: lease.revision, state: "held", payload: lease.payload }));
-        if (lease.revision !== args.expectedSessionLeaseRevision || generation2 !== args.resourceGeneration.toLowerCase()) throw new Error("session interruption lease generation changed");
+        const generation3 = digest3(JSON.stringify({ leaseId: run.sessionLeaseId, revision: lease.revision, state: "held", payload: lease.payload }));
+        if (lease.revision !== args.expectedSessionLeaseRevision || generation3 !== args.resourceGeneration.toLowerCase()) throw new Error("session interruption lease generation changed");
         return run;
       }
       interruptionSelectorId(args) {
@@ -9980,7 +10042,7 @@ ${result.stderr}`) }] });
     };
     samePath4 = (left, right) => path8.resolve(left).toLowerCase() === path8.resolve(right).toLowerCase();
     digest3 = (text) => createHash6("sha256").update(text).digest("hex");
-    commitRequestSha256 = (request) => digest3(JSON.stringify({ paths: request.paths, subject: request.subject, taskOutcome: request.taskOutcome ?? null, final: request.final }));
+    commitRequestSha256 = (request2) => digest3(JSON.stringify({ paths: request2.paths, subject: request2.subject, taskOutcome: request2.taskOutcome ?? null, final: request2.final }));
   }
 });
 
@@ -10211,16 +10273,16 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
   let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
   const matchedPrepared = /* @__PURE__ */ new Set();
-  for (const hash7 of hashes) {
-    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash7], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash7], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash7], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash7], worktree));
+  for (const hash8 of hashes) {
+    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash8], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash8], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash8], worktree));
     if (parents.length > 2) {
       const index = preparedMerges.findIndex((prepared2, candidate) => !matchedPrepared.has(candidate) && prepared2.preMergeHead === parent && prepared2.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : void 0, bookkeeping2 = /* @__PURE__ */ new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map((surface) => surface.path)]);
       if (!prepared || parents.length !== 3 || prepared.strategy === "ours" && phaseChanged.some((changedPath) => !bookkeeping2.has(changedPath))) preparedMergesValid = false;
       else matchedPrepared.add(index);
     }
-    const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash7, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash7, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash7, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash7, phaseSubject, commitPolicy))) phaseCommitsValid = false;
-    expectedParent = hash7;
+    const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash8, phaseSubject, commitPolicy);
+    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
+    expectedParent = hash8;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
   phaseCommitsValid &&= preparedMergesValid;
@@ -10561,14 +10623,14 @@ function hasTaskTrailer(message, taskId) {
   const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
   return matches.length === 1 && matches[0] === taskId;
 }
-async function candidateCommitValid(worktree, hash7, expectedParent, policy, taskId, preparedMerges) {
-  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash7], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash7], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash7], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash7], worktree));
+async function candidateCommitValid(worktree, hash8, expectedParent, policy, taskId, preparedMerges) {
+  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash8], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash8], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash8], worktree));
   let mergeValid = parents.length === 2;
   if (parents.length === 3) {
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash7, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash7, subject, policy) && await versionTransitionValid(worktree, parent, hash7, subject, policy) && await changelogAddsVersion(worktree, parent, hash7, subject, policy));
+  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
 }
 async function bookkeepingPathAllowed(relative, policy) {
   return bookkeepingPathAllowedCore(relative, policy, git);
@@ -10577,11 +10639,11 @@ async function bookkeepingBlobAllowed(worktree, oid) {
   if (!/^[0-9a-f]{40,64}$/.test(oid) || /^0+$/.test(oid)) return false;
   return Number(await git(["cat-file", "-s", oid], worktree)) <= maxPolicyInput && bookkeepingTextAllowed((await gitInvocation(["cat-file", "blob", oid], worktree)).stdout);
 }
-async function bookkeepingCommitValid(worktree, parent, hash7, subject, policy) {
+async function bookkeepingCommitValid(worktree, parent, hash8, subject, policy) {
   if (!bookkeepingCaptured(policy) || !bookkeepingSubjectAllowed(subject)) return false;
-  const parents = (await git(["rev-list", "--parents", "-n", "1", hash7], worktree)).split(" ");
-  if (parents[1] !== parent || parents.length < 2 || parents.length > 3 || await git(["show", "-s", "--format=%s", hash7], worktree) !== subject) return false;
-  const raw = (await git(["diff-tree", "--no-commit-id", "--raw", "--no-renames", "--no-ext-diff", "--no-textconv", "-r", "-z", parent, hash7, "--"], worktree)).split("\0");
+  const parents = (await git(["rev-list", "--parents", "-n", "1", hash8], worktree)).split(" ");
+  if (parents[1] !== parent || parents.length < 2 || parents.length > 3 || await git(["show", "-s", "--format=%s", hash8], worktree) !== subject) return false;
+  const raw = (await git(["diff-tree", "--no-commit-id", "--raw", "--no-renames", "--no-ext-diff", "--no-textconv", "-r", "-z", parent, hash8, "--"], worktree)).split("\0");
   if (!raw[0]) return false;
   for (let index = 0; index < raw.length && raw[index]; index += 2) {
     const match = /^:(000000|100644) (000000|100644) ([0-9a-f]{40,64}) ([0-9a-f]{40,64}) ([AMD])$/.exec(raw[index]), relative = raw[index + 1];
@@ -10598,15 +10660,15 @@ async function bookkeepingHistoryValid(worktree, base, head, policy) {
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${base}..${head}`], worktree));
   if (!hashes.length || hashes.at(-1) !== head) return false;
   let parent = base;
-  for (const hash7 of hashes) {
-    const subject = await git(["show", "-s", "--format=%s", hash7], worktree);
-    if (!await bookkeepingCommitValid(worktree, parent, hash7, subject, policy)) return false;
+  for (const hash8 of hashes) {
+    const subject = await git(["show", "-s", "--format=%s", hash8], worktree);
+    if (!await bookkeepingCommitValid(worktree, parent, hash8, subject, policy)) return false;
     if (policy.require_task_trailer) {
-      const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash7], worktree);
+      const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree);
       const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
       if (matches.length !== 1) return false;
     }
-    parent = hash7;
+    parent = hash8;
   }
   return true;
 }
@@ -10614,14 +10676,14 @@ function compilePattern(pattern) {
   const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern;
   return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern");
 }
-async function versionSurfacesMatch(worktree, hash7, subject, policy) {
+async function versionSurfacesMatch(worktree, hash8, subject, policy) {
   const surfaces = policy.version_surfaces ?? [];
   if (!surfaces.length) return !(policy.require_version_suffix ?? true);
   const expected = subjectVersion(subject);
   if (!expected) return false;
   for (const surface of surfaces) {
     try {
-      const content = await boundedGitShow(worktree, `${hash7}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
       if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false;
     } catch {
       return false;
@@ -10629,11 +10691,11 @@ async function versionSurfacesMatch(worktree, hash7, subject, policy) {
   }
   return true;
 }
-async function versionAt(worktree, hash7, policy) {
+async function versionAt(worktree, hash8, policy) {
   const values = [];
   for (const surface of policy.version_surfaces ?? []) {
     try {
-      const content = await boundedGitShow(worktree, `${hash7}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
       if (!value || !parseStrictSemVer(value)) return null;
       values.push(value);
     } catch {
@@ -10642,23 +10704,23 @@ async function versionAt(worktree, hash7, policy) {
   }
   return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
 }
-async function versionTransitionValid(worktree, parent, hash7, subject, policy) {
+async function versionTransitionValid(worktree, parent, hash8, subject, policy) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
   const canonical = policy.version_surfaces?.filter((surface) => surface.path === policy.version_file) ?? [];
   const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
-  const afterValue = await versionAt(worktree, hash7, policy);
+  const afterValue = await versionAt(worktree, hash8, policy);
   if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
   const before = parseStrictSemVer(beforeValue);
   if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }
-async function changelogAddsVersion(worktree, parent, hash7, subject, policy) {
+async function changelogAddsVersion(worktree, parent, hash8, subject, policy) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const version2 = subjectVersion(subject);
   if (!version2) return false;
-  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash7, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
+  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash8, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
   return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
 }
 async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy) {
@@ -10969,6 +11031,25 @@ async function captainCancelFailedBegin(store, args) {
     );
     return { intent_id: args.intent_id, state: "cancelled", cancelled: true };
   });
+}
+function verifiedFailedBeginCancellationMarker(args, evidence) {
+  const operation = evidence.operation, repository = evidence.repository, lease = evidence.lease;
+  if (operation.schemaVersion !== 1 || operation.intentId !== args.intent_id || operation.sessionId !== args.session_id || !samePath(operation.projectRoot, args.project_root) || operation.targetBranch !== args.target_branch || evidence.consumed.schemaVersion !== 1 || evidence.consumed.operationToken !== operation.operationToken || evidence.consumed.intentId !== args.intent_id || repository.schemaVersion !== 1 || repository.operationToken !== operation.operationToken || !samePath(repository.projectRoot, args.project_root) || lease.schemaVersion !== 1 || lease.operationToken !== operation.operationToken || !lease.leaseId || lease.leaseToken !== operation.leaseToken || lease.targetBranch !== operation.targetBranch || lease.targetOid !== operation.targetOid || typeof lease.commonGitDir !== "string" || !lease.commonGitDir || !samePath(lease.commonGitDir, repository.commonGitDir)) throw new Error("signed Begin checkpoint graph does not match its exact selectors");
+  return {
+    schemaVersion: 1,
+    kind: "failed_begin_cancelled",
+    intentId: args.intent_id,
+    sessionId: args.session_id,
+    turnId: operation.turnId,
+    operationToken: operation.operationToken,
+    projectRoot: evidence.intent.projectRoot,
+    targetWorktree: args.target_worktree,
+    targetBranch: args.target_branch,
+    leaseId: lease.leaseId,
+    leaseToken: lease.leaseToken,
+    expectedLeaseRevision: args.expected_lease_revision,
+    resourceGeneration: args.resource_generation
+  };
 }
 
 // node_modules/zod/v3/external.js
@@ -11449,8 +11530,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path14, errorMaps, issueData } = params;
-  const fullPath = [...path14, ...issueData.path || []];
+  const { data, path: path15, errorMaps, issueData } = params;
+  const fullPath = [...path15, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -11566,11 +11647,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path14, key2) {
+  constructor(parent, value, path15, key2) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path14;
+    this._path = path15;
     this._key = key2;
   }
   get path() {
@@ -15208,10 +15289,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path14) {
-  if (!path14)
+function getElementAtPath(obj, path15) {
+  if (!path15)
     return obj;
-  return path14.reduce((acc, key2) => acc?.[key2], obj);
+  return path15.reduce((acc, key2) => acc?.[key2], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -15531,11 +15612,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path14, issues) {
+function prefixIssues(path15, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path14);
+    iss.path.unshift(path15);
     return iss;
   });
 }
@@ -18948,11 +19029,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path14) {
-  if (path14.length === 0) {
+function getDotPath(path15) {
+  if (path15.length === 0) {
     return "object root";
   }
-  return path14.reduce((acc, seg, index) => {
+  return path15.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -21093,17 +21174,17 @@ var CompleteRequestSchema = RequestSchema.extend({
   method: literal("completion/complete"),
   params: CompleteRequestParamsSchema
 });
-function assertCompleteRequestPrompt(request) {
-  if (request.params.ref.type !== "ref/prompt") {
-    throw new TypeError(`Expected CompleteRequestPrompt, but got ${request.params.ref.type}`);
+function assertCompleteRequestPrompt(request2) {
+  if (request2.params.ref.type !== "ref/prompt") {
+    throw new TypeError(`Expected CompleteRequestPrompt, but got ${request2.params.ref.type}`);
   }
-  void request;
+  void request2;
 }
-function assertCompleteRequestResourceTemplate(request) {
-  if (request.params.ref.type !== "ref/resource") {
-    throw new TypeError(`Expected CompleteRequestResourceTemplate, but got ${request.params.ref.type}`);
+function assertCompleteRequestResourceTemplate(request2) {
+  if (request2.params.ref.type !== "ref/resource") {
+    throw new TypeError(`Expected CompleteRequestResourceTemplate, but got ${request2.params.ref.type}`);
   }
-  void request;
+  void request2;
 }
 var CompleteResultSchema = ResultSchema.extend({
   completion: looseObject({
@@ -22610,8 +22691,8 @@ var Protocol = class {
     this._taskStore = _options?.taskStore;
     this._taskMessageQueue = _options?.taskMessageQueue;
     if (this._taskStore) {
-      this.setRequestHandler(GetTaskRequestSchema, async (request, extra) => {
-        const task = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
+      this.setRequestHandler(GetTaskRequestSchema, async (request2, extra) => {
+        const task = await this._taskStore.getTask(request2.params.taskId, extra.sessionId);
         if (!task) {
           throw new McpError(ErrorCode.InvalidParams, "Failed to retrieve task: Task not found");
         }
@@ -22619,9 +22700,9 @@ var Protocol = class {
           ...task
         };
       });
-      this.setRequestHandler(GetTaskPayloadRequestSchema, async (request, extra) => {
+      this.setRequestHandler(GetTaskPayloadRequestSchema, async (request2, extra) => {
         const handleTaskResult = async () => {
-          const taskId = request.params.taskId;
+          const taskId = request2.params.taskId;
           if (this._taskMessageQueue) {
             let queuedMessage;
             while (queuedMessage = await this._taskMessageQueue.dequeue(taskId, extra.sessionId)) {
@@ -22672,9 +22753,9 @@ var Protocol = class {
         };
         return await handleTaskResult();
       });
-      this.setRequestHandler(ListTasksRequestSchema, async (request, extra) => {
+      this.setRequestHandler(ListTasksRequestSchema, async (request2, extra) => {
         try {
-          const { tasks, nextCursor } = await this._taskStore.listTasks(request.params?.cursor, extra.sessionId);
+          const { tasks, nextCursor } = await this._taskStore.listTasks(request2.params?.cursor, extra.sessionId);
           return {
             tasks,
             nextCursor,
@@ -22684,20 +22765,20 @@ var Protocol = class {
           throw new McpError(ErrorCode.InvalidParams, `Failed to list tasks: ${error2 instanceof Error ? error2.message : String(error2)}`);
         }
       });
-      this.setRequestHandler(CancelTaskRequestSchema, async (request, extra) => {
+      this.setRequestHandler(CancelTaskRequestSchema, async (request2, extra) => {
         try {
-          const task = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
+          const task = await this._taskStore.getTask(request2.params.taskId, extra.sessionId);
           if (!task) {
-            throw new McpError(ErrorCode.InvalidParams, `Task not found: ${request.params.taskId}`);
+            throw new McpError(ErrorCode.InvalidParams, `Task not found: ${request2.params.taskId}`);
           }
           if (isTerminal(task.status)) {
             throw new McpError(ErrorCode.InvalidParams, `Cannot cancel task in terminal status: ${task.status}`);
           }
-          await this._taskStore.updateTaskStatus(request.params.taskId, "cancelled", "Client cancelled task execution.", extra.sessionId);
-          this._clearTaskQueue(request.params.taskId);
-          const cancelledTask = await this._taskStore.getTask(request.params.taskId, extra.sessionId);
+          await this._taskStore.updateTaskStatus(request2.params.taskId, "cancelled", "Client cancelled task execution.", extra.sessionId);
+          this._clearTaskQueue(request2.params.taskId);
+          const cancelledTask = await this._taskStore.getTask(request2.params.taskId, extra.sessionId);
           if (!cancelledTask) {
-            throw new McpError(ErrorCode.InvalidParams, `Task not found after cancellation: ${request.params.taskId}`);
+            throw new McpError(ErrorCode.InvalidParams, `Task not found after cancellation: ${request2.params.taskId}`);
           }
           return {
             _meta: {},
@@ -22818,14 +22899,14 @@ var Protocol = class {
     }
     Promise.resolve().then(() => handler(notification)).catch((error2) => this._onerror(new Error(`Uncaught error in notification handler: ${error2}`)));
   }
-  _onrequest(request, extra) {
-    const handler = this._requestHandlers.get(request.method) ?? this.fallbackRequestHandler;
+  _onrequest(request2, extra) {
+    const handler = this._requestHandlers.get(request2.method) ?? this.fallbackRequestHandler;
     const capturedTransport = this._transport;
-    const relatedTaskId = request.params?._meta?.[RELATED_TASK_META_KEY]?.taskId;
+    const relatedTaskId = request2.params?._meta?.[RELATED_TASK_META_KEY]?.taskId;
     if (handler === void 0) {
       const errorResponse = {
         jsonrpc: "2.0",
-        id: request.id,
+        id: request2.id,
         error: {
           code: ErrorCode.MethodNotFound,
           message: "Method not found"
@@ -22843,17 +22924,17 @@ var Protocol = class {
       return;
     }
     const abortController = new AbortController();
-    this._requestHandlerAbortControllers.set(request.id, abortController);
-    const taskCreationParams = isTaskAugmentedRequestParams(request.params) ? request.params.task : void 0;
-    const taskStore = this._taskStore ? this.requestTaskStore(request, capturedTransport?.sessionId) : void 0;
+    this._requestHandlerAbortControllers.set(request2.id, abortController);
+    const taskCreationParams = isTaskAugmentedRequestParams(request2.params) ? request2.params.task : void 0;
+    const taskStore = this._taskStore ? this.requestTaskStore(request2, capturedTransport?.sessionId) : void 0;
     const fullExtra = {
       signal: abortController.signal,
       sessionId: capturedTransport?.sessionId,
-      _meta: request.params?._meta,
+      _meta: request2.params?._meta,
       sendNotification: async (notification) => {
         if (abortController.signal.aborted)
           return;
-        const notificationOptions = { relatedRequestId: request.id };
+        const notificationOptions = { relatedRequestId: request2.id };
         if (relatedTaskId) {
           notificationOptions.relatedTask = { taskId: relatedTaskId };
         }
@@ -22863,7 +22944,7 @@ var Protocol = class {
         if (abortController.signal.aborted) {
           throw new McpError(ErrorCode.ConnectionClosed, "Request was cancelled");
         }
-        const requestOptions = { ...options, relatedRequestId: request.id };
+        const requestOptions = { ...options, relatedRequestId: request2.id };
         if (relatedTaskId && !requestOptions.relatedTask) {
           requestOptions.relatedTask = { taskId: relatedTaskId };
         }
@@ -22874,7 +22955,7 @@ var Protocol = class {
         return await this.request(r, resultSchema, requestOptions);
       },
       authInfo: extra?.authInfo,
-      requestId: request.id,
+      requestId: request2.id,
       requestInfo: extra?.requestInfo,
       taskId: relatedTaskId,
       taskStore,
@@ -22884,16 +22965,16 @@ var Protocol = class {
     };
     Promise.resolve().then(() => {
       if (taskCreationParams) {
-        this.assertTaskHandlerCapability(request.method);
+        this.assertTaskHandlerCapability(request2.method);
       }
-    }).then(() => handler(request, fullExtra)).then(async (result) => {
+    }).then(() => handler(request2, fullExtra)).then(async (result) => {
       if (abortController.signal.aborted) {
         return;
       }
       const response = {
         result,
         jsonrpc: "2.0",
-        id: request.id
+        id: request2.id
       };
       if (relatedTaskId && this._taskMessageQueue) {
         await this._enqueueTaskMessage(relatedTaskId, {
@@ -22910,7 +22991,7 @@ var Protocol = class {
       }
       const errorResponse = {
         jsonrpc: "2.0",
-        id: request.id,
+        id: request2.id,
         error: {
           code: Number.isSafeInteger(error2["code"]) ? error2["code"] : ErrorCode.InternalError,
           message: error2.message ?? "Internal error",
@@ -22927,8 +23008,8 @@ var Protocol = class {
         await capturedTransport?.send(errorResponse);
       }
     }).catch((error2) => this._onerror(new Error(`Failed to send response: ${error2}`))).finally(() => {
-      if (this._requestHandlerAbortControllers.get(request.id) === abortController) {
-        this._requestHandlerAbortControllers.delete(request.id);
+      if (this._requestHandlerAbortControllers.get(request2.id) === abortController) {
+        this._requestHandlerAbortControllers.delete(request2.id);
       }
     });
   }
@@ -23032,11 +23113,11 @@ var Protocol = class {
    *
    * @experimental Use `client.experimental.tasks.requestStream()` to access this method.
    */
-  async *requestStream(request, resultSchema, options) {
+  async *requestStream(request2, resultSchema, options) {
     const { task } = options ?? {};
     if (!task) {
       try {
-        const result = await this.request(request, resultSchema, options);
+        const result = await this.request(request2, resultSchema, options);
         yield { type: "result", result };
       } catch (error2) {
         yield {
@@ -23048,7 +23129,7 @@ var Protocol = class {
     }
     let taskId;
     try {
-      const createResult = await this.request(request, CreateTaskResultSchema, options);
+      const createResult = await this.request(request2, CreateTaskResultSchema, options);
       if (createResult.task) {
         taskId = createResult.task.taskId;
         yield { type: "taskCreated", task: createResult.task };
@@ -23096,7 +23177,7 @@ var Protocol = class {
    *
    * Do not use this method to emit notifications! Use notification() instead.
    */
-  request(request, resultSchema, options) {
+  request(request2, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
     return new Promise((resolve, reject) => {
       const earlyReject = (error2) => {
@@ -23108,9 +23189,9 @@ var Protocol = class {
       }
       if (this._options?.enforceStrictCapabilities === true) {
         try {
-          this.assertCapabilityForMethod(request.method);
+          this.assertCapabilityForMethod(request2.method);
           if (task) {
-            this.assertTaskCapability(request.method);
+            this.assertTaskCapability(request2.method);
           }
         } catch (e) {
           earlyReject(e);
@@ -23120,16 +23201,16 @@ var Protocol = class {
       options?.signal?.throwIfAborted();
       const messageId = this._requestMessageId++;
       const jsonrpcRequest = {
-        ...request,
+        ...request2,
         jsonrpc: "2.0",
         id: messageId
       };
       if (options?.onprogress) {
         this._progressHandlers.set(messageId, options.onprogress);
         jsonrpcRequest.params = {
-          ...request.params,
+          ...request2.params,
           _meta: {
-            ...request.params?._meta || {},
+            ...request2.params?._meta || {},
             progressToken: messageId
           }
         };
@@ -23333,8 +23414,8 @@ var Protocol = class {
   setRequestHandler(requestSchema, handler) {
     const method = getMethodLiteral(requestSchema);
     this.assertRequestHandlerCapability(method);
-    this._requestHandlers.set(method, (request, extra) => {
-      const parsed = parseWithCompat(requestSchema, request);
+    this._requestHandlers.set(method, (request2, extra) => {
+      const parsed = parseWithCompat(requestSchema, request2);
       return Promise.resolve(handler(parsed, extra));
     });
   }
@@ -23449,19 +23530,19 @@ var Protocol = class {
       }, { once: true });
     });
   }
-  requestTaskStore(request, sessionId) {
+  requestTaskStore(request2, sessionId) {
     const taskStore = this._taskStore;
     if (!taskStore) {
       throw new Error("No task store configured");
     }
     return {
       createTask: async (taskParams) => {
-        if (!request) {
+        if (!request2) {
           throw new Error("No request provided");
         }
-        return await taskStore.createTask(taskParams, request.id, {
-          method: request.method,
-          params: request.params
+        return await taskStore.createTask(taskParams, request2.id, {
+          method: request2.method,
+          params: request2.params
         }, sessionId);
       },
       getTask: async (taskId) => {
@@ -23622,8 +23703,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  requestStream(request, resultSchema, options) {
-    return this._server.requestStream(request, resultSchema, options);
+  requestStream(request2, resultSchema, options) {
+    return this._server.requestStream(request2, resultSchema, options);
   }
   /**
    * Sends a sampling request and returns an AsyncGenerator that yields response messages.
@@ -23868,12 +23949,12 @@ var Server = class extends Protocol {
     this._capabilities = options?.capabilities ?? {};
     this._instructions = options?.instructions;
     this._jsonSchemaValidator = options?.jsonSchemaValidator ?? new AjvJsonSchemaValidator();
-    this.setRequestHandler(InitializeRequestSchema, (request) => this._oninitialize(request));
+    this.setRequestHandler(InitializeRequestSchema, (request2) => this._oninitialize(request2));
     this.setNotificationHandler(InitializedNotificationSchema, () => this.oninitialized?.());
     if (this._capabilities.logging) {
-      this.setRequestHandler(SetLevelRequestSchema, async (request, extra) => {
+      this.setRequestHandler(SetLevelRequestSchema, async (request2, extra) => {
         const transportSessionId = extra.sessionId || extra.requestInfo?.headers["mcp-session-id"] || void 0;
-        const { level } = request.params;
+        const { level } = request2.params;
         const parseResult = LoggingLevelSchema.safeParse(level);
         if (parseResult.success) {
           this._loggingLevels.set(transportSessionId, parseResult.data);
@@ -23923,14 +24004,14 @@ var Server = class extends Protocol {
     }
     const method = methodValue;
     if (method === "tools/call") {
-      const wrappedHandler = async (request, extra) => {
-        const validatedRequest = safeParse2(CallToolRequestSchema, request);
+      const wrappedHandler = async (request2, extra) => {
+        const validatedRequest = safeParse2(CallToolRequestSchema, request2);
         if (!validatedRequest.success) {
           const errorMessage = validatedRequest.error instanceof Error ? validatedRequest.error.message : String(validatedRequest.error);
           throw new McpError(ErrorCode.InvalidParams, `Invalid tools/call request: ${errorMessage}`);
         }
         const { params } = validatedRequest.data;
-        const result = await Promise.resolve(handler(request, extra));
+        const result = await Promise.resolve(handler(request2, extra));
         if (params.task) {
           const taskValidationResult = safeParse2(CreateTaskResultSchema, result);
           if (!taskValidationResult.success) {
@@ -24061,10 +24142,10 @@ var Server = class extends Protocol {
     }
     assertToolsCallTaskCapability(this._capabilities.tasks?.requests, method, "Server");
   }
-  async _oninitialize(request) {
-    const requestedVersion = request.params.protocolVersion;
-    this._clientCapabilities = request.params.capabilities;
-    this._clientVersion = request.params.clientInfo;
+  async _oninitialize(request2) {
+    const requestedVersion = request2.params.protocolVersion;
+    this._clientCapabilities = request2.params.capabilities;
+    this._clientVersion = request2.params.clientInfo;
     const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.includes(requestedVersion) ? requestedVersion : LATEST_PROTOCOL_VERSION;
     return {
       protocolVersion,
@@ -24391,33 +24472,33 @@ var McpServer = class {
         return toolDefinition;
       })
     }));
-    this.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request2, extra) => {
       try {
-        const tool = this._registeredTools[request.params.name];
+        const tool = this._registeredTools[request2.params.name];
         if (!tool) {
-          throw new McpError(ErrorCode.InvalidParams, `Tool ${request.params.name} not found`);
+          throw new McpError(ErrorCode.InvalidParams, `Tool ${request2.params.name} not found`);
         }
         if (!tool.enabled) {
-          throw new McpError(ErrorCode.InvalidParams, `Tool ${request.params.name} disabled`);
+          throw new McpError(ErrorCode.InvalidParams, `Tool ${request2.params.name} disabled`);
         }
-        const isTaskRequest = !!request.params.task;
+        const isTaskRequest = !!request2.params.task;
         const taskSupport = tool.execution?.taskSupport;
         const isTaskHandler = "createTask" in tool.handler;
         if ((taskSupport === "required" || taskSupport === "optional") && !isTaskHandler) {
-          throw new McpError(ErrorCode.InternalError, `Tool ${request.params.name} has taskSupport '${taskSupport}' but was not registered with registerToolTask`);
+          throw new McpError(ErrorCode.InternalError, `Tool ${request2.params.name} has taskSupport '${taskSupport}' but was not registered with registerToolTask`);
         }
         if (taskSupport === "required" && !isTaskRequest) {
-          throw new McpError(ErrorCode.MethodNotFound, `Tool ${request.params.name} requires task augmentation (taskSupport: 'required')`);
+          throw new McpError(ErrorCode.MethodNotFound, `Tool ${request2.params.name} requires task augmentation (taskSupport: 'required')`);
         }
         if (taskSupport === "optional" && !isTaskRequest && isTaskHandler) {
-          return await this.handleAutomaticTaskPolling(tool, request, extra);
+          return await this.handleAutomaticTaskPolling(tool, request2, extra);
         }
-        const args = await this.validateToolInput(tool, request.params.arguments, request.params.name);
+        const args = await this.validateToolInput(tool, request2.params.arguments, request2.params.name);
         const result = await this.executeToolHandler(tool, args, extra);
         if (isTaskRequest) {
           return result;
         }
-        await this.validateToolOutput(tool, result, request.params.name);
+        await this.validateToolOutput(tool, result, request2.params.name);
         return result;
       } catch (error2) {
         if (error2 instanceof McpError) {
@@ -24518,11 +24599,11 @@ var McpServer = class {
   /**
    * Handles automatic task polling for tools with taskSupport 'optional'.
    */
-  async handleAutomaticTaskPolling(tool, request, extra) {
+  async handleAutomaticTaskPolling(tool, request2, extra) {
     if (!extra.taskStore) {
       throw new Error("No task store provided for task-capable tool.");
     }
-    const args = await this.validateToolInput(tool, request.params.arguments, request.params.name);
+    const args = await this.validateToolInput(tool, request2.params.arguments, request2.params.name);
     const handler = tool.handler;
     const taskExtra = { ...extra, taskStore: extra.taskStore };
     const createTaskResult = args ? await Promise.resolve(handler.createTask(args, taskExtra)) : (
@@ -24550,21 +24631,21 @@ var McpServer = class {
     this.server.registerCapabilities({
       completions: {}
     });
-    this.server.setRequestHandler(CompleteRequestSchema, async (request) => {
-      switch (request.params.ref.type) {
+    this.server.setRequestHandler(CompleteRequestSchema, async (request2) => {
+      switch (request2.params.ref.type) {
         case "ref/prompt":
-          assertCompleteRequestPrompt(request);
-          return this.handlePromptCompletion(request, request.params.ref);
+          assertCompleteRequestPrompt(request2);
+          return this.handlePromptCompletion(request2, request2.params.ref);
         case "ref/resource":
-          assertCompleteRequestResourceTemplate(request);
-          return this.handleResourceCompletion(request, request.params.ref);
+          assertCompleteRequestResourceTemplate(request2);
+          return this.handleResourceCompletion(request2, request2.params.ref);
         default:
-          throw new McpError(ErrorCode.InvalidParams, `Invalid completion reference: ${request.params.ref}`);
+          throw new McpError(ErrorCode.InvalidParams, `Invalid completion reference: ${request2.params.ref}`);
       }
     });
     this._completionHandlerInitialized = true;
   }
-  async handlePromptCompletion(request, ref) {
+  async handlePromptCompletion(request2, ref) {
     const prompt = this._registeredPrompts[ref.name];
     if (!prompt) {
       throw new McpError(ErrorCode.InvalidParams, `Prompt ${ref.name} not found`);
@@ -24576,7 +24657,7 @@ var McpServer = class {
       return EMPTY_COMPLETION_RESULT;
     }
     const promptShape = getObjectShape(prompt.argsSchema);
-    const field = promptShape?.[request.params.argument.name];
+    const field = promptShape?.[request2.params.argument.name];
     if (!isCompletable(field)) {
       return EMPTY_COMPLETION_RESULT;
     }
@@ -24584,22 +24665,22 @@ var McpServer = class {
     if (!completer) {
       return EMPTY_COMPLETION_RESULT;
     }
-    const suggestions = await completer(request.params.argument.value, request.params.context);
+    const suggestions = await completer(request2.params.argument.value, request2.params.context);
     return createCompletionResult(suggestions);
   }
-  async handleResourceCompletion(request, ref) {
+  async handleResourceCompletion(request2, ref) {
     const template = Object.values(this._registeredResourceTemplates).find((t) => t.resourceTemplate.uriTemplate.toString() === ref.uri);
     if (!template) {
       if (this._registeredResources[ref.uri]) {
         return EMPTY_COMPLETION_RESULT;
       }
-      throw new McpError(ErrorCode.InvalidParams, `Resource template ${request.params.ref.uri} not found`);
+      throw new McpError(ErrorCode.InvalidParams, `Resource template ${request2.params.ref.uri} not found`);
     }
-    const completer = template.resourceTemplate.completeCallback(request.params.argument.name);
+    const completer = template.resourceTemplate.completeCallback(request2.params.argument.name);
     if (!completer) {
       return EMPTY_COMPLETION_RESULT;
     }
-    const suggestions = await completer(request.params.argument.value, request.params.context);
+    const suggestions = await completer(request2.params.argument.value, request2.params.context);
     return createCompletionResult(suggestions);
   }
   setResourceRequestHandlers() {
@@ -24614,7 +24695,7 @@ var McpServer = class {
         listChanged: true
       }
     });
-    this.server.setRequestHandler(ListResourcesRequestSchema, async (request, extra) => {
+    this.server.setRequestHandler(ListResourcesRequestSchema, async (request2, extra) => {
       const resources = Object.entries(this._registeredResources).filter(([_, resource]) => resource.enabled).map(([uri, resource]) => ({
         uri,
         name: resource.name,
@@ -24644,8 +24725,8 @@ var McpServer = class {
       }));
       return { resourceTemplates };
     });
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request, extra) => {
-      const uri = new URL(request.params.uri);
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request2, extra) => {
+      const uri = new URL(request2.params.uri);
       const resource = this._registeredResources[uri.toString()];
       if (resource) {
         if (!resource.enabled) {
@@ -24684,21 +24765,21 @@ var McpServer = class {
         };
       })
     }));
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request, extra) => {
-      const prompt = this._registeredPrompts[request.params.name];
+    this.server.setRequestHandler(GetPromptRequestSchema, async (request2, extra) => {
+      const prompt = this._registeredPrompts[request2.params.name];
       if (!prompt) {
-        throw new McpError(ErrorCode.InvalidParams, `Prompt ${request.params.name} not found`);
+        throw new McpError(ErrorCode.InvalidParams, `Prompt ${request2.params.name} not found`);
       }
       if (!prompt.enabled) {
-        throw new McpError(ErrorCode.InvalidParams, `Prompt ${request.params.name} disabled`);
+        throw new McpError(ErrorCode.InvalidParams, `Prompt ${request2.params.name} disabled`);
       }
       if (prompt.argsSchema) {
         const argsObj = normalizeObjectSchema(prompt.argsSchema);
-        const parseResult = await safeParseAsync2(argsObj, request.params.arguments);
+        const parseResult = await safeParseAsync2(argsObj, request2.params.arguments);
         if (!parseResult.success) {
           const error2 = "error" in parseResult ? parseResult.error : "Unknown error";
           const errorMessage = getParseErrorMessage(error2);
-          throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage}`);
+          throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request2.params.name}: ${errorMessage}`);
         }
         const args = parseResult.data;
         const cb = prompt.callback;
@@ -25210,9 +25291,9 @@ var StdioServerTransport = class {
 
 // src/server.ts
 import { fileURLToPath } from "node:url";
-import os4 from "node:os";
-import path13 from "node:path";
-import { randomUUID as randomUUID4 } from "node:crypto";
+import os5 from "node:os";
+import path14 from "node:path";
+import { randomUUID as randomUUID5 } from "node:crypto";
 
 // src/bookkeeping-finalization.ts
 init_authority();
@@ -25454,9 +25535,9 @@ var BookkeepingFinalizationStore = class {
   }
   async assertNoOwner(binding, ownId) {
     for (const run of await signedRunsReadOnly(this.dataRoot)) {
-      const applies = typeof run.worktreePath === "string" && samePath5(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath5(run.commonGitDir, binding.commonGitDir);
+      const applies2 = typeof run.worktreePath === "string" && samePath5(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath5(run.commonGitDir, binding.commonGitDir);
       const pendingReview = run.phase === "hitl" || Boolean(run.policy?.hitlChecks?.length && run.evidence?.filter((item) => item.kind === "plan_review").at(-1)?.decision !== "accept");
-      if (applies && (run.phase !== "complete" || run.status !== "green" || pendingReview)) throw new Error("worktree has an active Captain lifecycle owner; use its normal captain_commit path");
+      if (applies2 && (run.phase !== "complete" || run.status !== "green" || pendingReview)) throw new Error("worktree has an active Captain lifecycle owner; use its normal captain_commit path");
     }
     const revisionNames = await directoryNames(path11.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path11.join(this.dataRoot, "leases"));
     const leaseIds = [...new Set([...revisionNames.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]), ...legacyNames.map((name) => /^(.+)\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))];
@@ -26314,15 +26395,15 @@ async function directoryNames2(directory) {
 async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
   const owned = path12.resolve(worktree), real = await realpath2(owned);
   if (!samePath6(real, owned)) throw new Error("worktree path resolves through a reparse point");
-  const readGit = (args) => git(["--no-optional-locks", ...args], owned);
-  const topLevel = path12.resolve(await readGit(["rev-parse", "--show-toplevel"]));
+  const readGit2 = (args) => git(["--no-optional-locks", ...args], owned);
+  const topLevel = path12.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
   if (!samePath6(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
-  const branch = await readGit(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const branch = await readGit2(["symbolic-ref", "--quiet", "--short", "HEAD"]);
   if (!branch || expectedBranch !== void 0 && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path12.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path12.resolve(await readGit(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  const commonGitDir = path12.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path12.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
   if (expectedCommonGitDir && !samePath6(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
-  const head = await readGit(["rev-parse", "--verify", "HEAD^{commit}"]);
-  if (head !== await readGit(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
+  const head = await readGit2(["rev-parse", "--verify", "HEAD^{commit}"]);
+  if (head !== await readGit2(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
   return { branch, commonGitDir, gitDir, topLevel, head };
 }
 async function optionalGit2(args, cwd) {
@@ -26468,6 +26549,767 @@ function extractAuthorizedTargetBranch(prompt) {
 // src/server.ts
 init_workspace();
 init_workspace();
+
+// src/branch-lease-recovery.ts
+init_authority();
+init_workspace();
+init_lifecycle();
+init_begin_diagnostic_adapter();
+import { createHash as createHash11, randomUUID as randomUUID4 } from "node:crypto";
+import { lstat as lstat5, readdir as readdir9, realpath as realpath3 } from "node:fs/promises";
+import os4 from "node:os";
+import path13 from "node:path";
+var FailedBeginVerificationError = class extends Error {
+  constructor(details) {
+    super(String(details.refusal_code));
+    this.details = details;
+  }
+};
+var hash7 = (value) => createHash11("sha256").update(value).digest("hex");
+var digest7 = (value) => hash7(JSON.stringify(value));
+var samePath7 = (a, b) => path13.resolve(a).toLowerCase() === path13.resolve(b).toLowerCase();
+var safeId4 = (id) => {
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("unsafe lease recovery id");
+  return id;
+};
+var resourceId2 = (binding) => hash7(`${path13.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
+var generation2 = (id, revision, payload) => digest7({ leaseId: id, revision, state: "held", payload });
+var gateId = (intent) => `begin-attempt-${hash7(intent)}`;
+var signedBuckets = [
+  "intents",
+  "intent-issuance",
+  "begin-operations",
+  "begin-repositories",
+  "begin-leases",
+  "begin-workspaces",
+  "begin-active",
+  "begin-activated",
+  "begin-permits",
+  "begin-turn-resumes",
+  "begin-intent-consumed",
+  "begin-cancellations",
+  "runs",
+  "run-revisions",
+  "run-watermarks",
+  "active",
+  "permits",
+  "pause-handoffs",
+  "blocker-links",
+  "commit-outcomes",
+  "session-owner-bindings",
+  "session-interruption-drafts",
+  "session-interruption-results",
+  "resume-operations",
+  "resume-runs",
+  "resume-activated",
+  "resume-intent-consumed",
+  "merge-revisions",
+  "merge-watermarks",
+  "bookkeeping-revisions",
+  "bookkeeping-watermarks",
+  "user-authorizations",
+  "user-requests",
+  "user-request-sources"
+];
+var BranchLeaseRecoveryStore = class {
+  constructor(dataRoot, hooks) {
+    this.dataRoot = dataRoot;
+    this.hooks = hooks;
+  }
+  async diagnoseFailedBegin(input) {
+    const args = normalizeDiagnostic(input), binding = await readBinding(args), id = resourceId2(binding);
+    const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    const summary = lease ? { state: lease.state, intent_id: safeId4(lease.payload.intentId), revision: lease.revision, legacy_storage: lease.legacy } : { state: "absent" };
+    if (!lease || lease.legacy || lease.revision === null) return { read_only: true, eligible: false, reason: "no_revisioned_begin_reservation", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    const journal = await this.failedJournal(lease.payload.intentId);
+    if (journal && (journal.session_id !== args.session_id || !samePath7(journal.project_root, args.project_root) || !samePath7(journal.target_worktree, args.target_worktree) || journal.target_branch !== args.target_branch)) return { read_only: true, eligible: false, reason: "operator_selection_owned_elsewhere", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    const selection = journal ? request(journal) : { ...args, old_intent_id: lease.payload.intentId, expected_lease_revision: lease.revision, resource_generation: generation2(id, lease.revision, lease.payload), expected_head: binding.head };
+    if (!selectionMatches(binding, id, lease, selection, Boolean(journal))) return { read_only: true, eligible: false, reason: "generation_changed", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    const completed = await optionalRead(this.dataRoot, "failed-begin-operator-results", lease.payload.intentId);
+    if (completed) {
+      if (!journal || completed.recovery_id !== journal.recovery_id || lease.state !== "released" || completed.released_lease_revision !== lease.revision) throw new Error("signed operator revocation result conflicts with branch lease tail");
+      return { read_only: true, eligible: false, reason: "operator_revocation_completed", verified_pre_workspace: true, original_session_match: "unknown", lease: summary };
+    }
+    if (lease.state === "released" && !journal) return { read_only: true, eligible: false, reason: "lease_not_held", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    try {
+      const checked = await this.verifiedFailedBegin(binding, id, lease, selection, journal);
+      return { read_only: true, eligible: true, reason: journal ? "operator_revocation_interrupted" : "verified_terminal_pre_workspace_reservation", verified_pre_workspace: true, original_session_match: checked.originalSession === args.session_id ? "same" : "other", lease: summary, original_state: checked.publicState, recovery: { next_tool: "captain_repossess_failed_begin", args: selection } };
+    } catch (error2) {
+      const details = error2 instanceof FailedBeginVerificationError ? error2.details : { refusal_code: "untrusted_original_graph" };
+      return { read_only: true, eligible: false, reason: String(details.refusal_code), verified_pre_workspace: false, original_session_match: ["same", "other"].includes(String(details.original_session_match)) ? details.original_session_match : "unknown", lease: summary, original_state: details };
+    }
+  }
+  async repossessFailedBegin(input) {
+    const args = normalizeRequest(input), binding = await readBinding(args), id = resourceId2(binding);
+    const prior = await this.failedJournal(args.old_intent_id);
+    if (prior && (digest7(request(prior)) !== digest7(args) || digest7(prior.binding) !== digest7(binding))) throw new Error("operator revocation selection or worktree binding changed");
+    const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    if (!lease || !selectionMatches(binding, id, lease, args, Boolean(prior))) throw new Error("operator revocation owner or generation changed");
+    let verified;
+    try {
+      verified = await this.verifiedFailedBegin(binding, id, lease, args, prior);
+    } catch {
+      throw new Error("operator revocation refused: original Begin is not verified terminal pre-workspace or its attempt is active");
+    }
+    const completed = await optionalRead(this.dataRoot, "failed-begin-operator-results", args.old_intent_id);
+    if (completed) {
+      if (!prior || completed.recovery_id !== prior.recovery_id || digest7(request(completed)) !== digest7(args) || lease.state !== "released" || completed.released_lease_revision !== lease.revision) throw new Error("signed operator revocation result binding changed");
+      return completed;
+    }
+    const recoveryId = digest7({ kind: "failed_begin_operator_revocation", ...args });
+    const journal = prior ?? { schema_version: 1, kind: "failed_begin_operator_selection", ...args, recovery_id: recoveryId, lease_id: id, binding, graph_sha256: verified.graphHash };
+    if (journal.graph_sha256 !== verified.graphHash) throw new Error("signed original Begin graph changed");
+    await putAuthorizedOnceExact(this.dataRoot, "failed-begin-operator-selections", args.old_intent_id, journal);
+    return this.withGuard(args, recoveryId, async (guard) => {
+      await this.hooks?.afterGuard?.();
+      const currentBinding = await readBinding(args), currentLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+      if (!currentLease || digest7(currentBinding) !== digest7(binding) || !selectionMatches(currentBinding, id, currentLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
+      let checked;
+      try {
+        checked = await this.verifiedFailedBegin(currentBinding, id, currentLease, args, journal, guard);
+      } catch {
+        throw new Error("operator revocation refused: original Begin progressed or its evidence changed");
+      }
+      if (checked.graphHash !== journal.graph_sha256) throw new Error("signed original Begin graph changed");
+      const lifecycle = new LifecycleStore(this.dataRoot, async () => {
+        throw new Error("operator revocation cannot run a gate");
+      });
+      const existing = await lifecycle.beginCancellationFor(args.old_intent_id);
+      if (existing && digest7(existing) !== digest7(checked.cancellation)) throw new Error("a different cancellation owns the original Begin");
+      await lifecycle.recordBeginCancellation(checked.cancellation);
+      await this.hooks?.afterTombstone?.();
+      const finalBinding = await readBinding(args), finalLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+      if (!finalLease || digest7(finalBinding) !== digest7(binding) || !selectionMatches(finalBinding, id, finalLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
+      let finalChecked;
+      try {
+        finalChecked = await this.verifiedFailedBegin(finalBinding, id, finalLease, args, journal, guard);
+      } catch {
+        throw new Error("operator revocation refused: original Begin progressed or its evidence changed");
+      }
+      if (finalChecked.graphHash !== journal.graph_sha256 || digest7(finalChecked.cancellation) !== digest7(checked.cancellation)) throw new Error("signed original Begin graph changed");
+      await this.assertGuard(guard);
+      await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, finalLease.payload.leaseToken, args.expected_lease_revision, args.resource_generation);
+      await this.hooks?.afterRelease?.();
+      const released = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+      if (!released || released.state !== "released" || !selectionMatches(await readBinding(args), id, released, args, true) || released.revision === null) throw new Error("operator revocation release changed before receipt");
+      return putAuthorizedOnceExact(this.dataRoot, "failed-begin-operator-results", args.old_intent_id, { schema_version: 1, ...args, recovery_id: recoveryId, state: "revoked", released_lease_revision: released.revision });
+    }, journal);
+  }
+  async failedJournal(intent) {
+    const journal = await optionalRead(this.dataRoot, "failed-begin-operator-selections", safeId4(intent));
+    if (journal && (journal.schema_version !== 1 || journal.kind !== "failed_begin_operator_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest7({ kind: "failed_begin_operator_revocation", ...request(journal) }) || !/^[0-9a-f]{64}$/.test(journal.graph_sha256))) throw new Error("signed operator revocation journal is invalid");
+    if (!journal && await optionalRead(this.dataRoot, "failed-begin-operator-results", intent)) throw new Error("signed operator revocation journal tail regressed");
+    return journal;
+  }
+  async verifiedFailedBegin(binding, id, lease, selection, journal, ownGuard) {
+    if (lease.legacy || selection.expected_lease_revision === null || !selectionMatches(binding, id, lease, selection, Boolean(journal))) throw new Error("original Begin lease selector is invalid");
+    const lifecycle = new LifecycleStore(this.dataRoot, async () => {
+      throw new Error("operator revocation cannot run a gate");
+    });
+    let evidence;
+    try {
+      evidence = await lifecycle.readBeginCancellationEvidence(selection.old_intent_id);
+    } catch (error2) {
+      const bucket3 = typeof error2.path === "string" ? path13.basename(path13.dirname(error2.path)) : void 0;
+      throw new FailedBeginVerificationError({ refusal_code: "original_checkpoint_read_failed", error_class: error2.code === "ENOENT" ? "missing_checkpoint" : "untrusted_checkpoint", ...bucket3 && signedBuckets.includes(bucket3) ? { checkpoint_bucket: bucket3 } : {} });
+    }
+    const intent = evidence.intent, operation = evidence.operation;
+    const relation = intent.sessionId === selection.session_id ? "same" : "other";
+    let originalPinExists = false;
+    if (typeof operation.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(operation.targetOid)) {
+      try {
+        originalPinExists = (await readGit(binding.topLevel, ["rev-parse", "--verify", `${operation.targetOid}^{commit}`])).toLowerCase() === operation.targetOid.toLowerCase();
+      } catch {
+      }
+    }
+    const resourceFlags = {
+      original_intent_matches: intent.intentId === selection.old_intent_id,
+      original_branch_matches: operation.targetBranch === binding.branch,
+      original_oid_matches_current_head: operation.targetOid === binding.head,
+      original_pin_exists: originalPinExists,
+      original_signed_pin_matches: typeof operation.targetOid === "string" && [intent.targetOid, evidence.repository.baseHead, evidence.lease.targetOid, lease.payload.targetOid].every((value) => value === operation.targetOid),
+      original_common_git_matches: samePath7(evidence.repository.commonGitDir, binding.commonGitDir),
+      original_lease_id_matches: evidence.lease.leaseId === id,
+      original_lease_token_matches: evidence.lease.leaseToken === lease.payload.leaseToken
+    };
+    if (Object.entries(resourceFlags).some(([key2, value]) => key2 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
+    const original = { intent_id: selection.old_intent_id, session_id: intent.sessionId, project_root: intent.projectRoot, target_worktree: intent.projectRoot, target_branch: binding.branch, expected_lease_revision: selection.expected_lease_revision, resource_generation: selection.resource_generation };
+    const diagnosis = await createBeginDiagnosticAdapter(this.dataRoot)(original);
+    const later = diagnosis.later_state;
+    const sessionActivity = await this.sessionActivity(binding, evidence);
+    const unrelatedPausedSession = sessionActivity.projection_kind === "task_owner" && sessionActivity.projection_shape_recognized && sessionActivity.correlated_run_verified && sessionActivity.projection_matches_correlated_run && sessionActivity.correlated_run_status === "paused" && sessionActivity.session_lease_state === "released" && !sessionActivity.correlated_run_is_original && !sessionActivity.correlated_run_owns_actual_target && !sessionActivity.active_projection_claims_original && !sessionActivity.active_projection_original_operation_matches && !sessionActivity.active_projection_original_run_matches && !sessionActivity.session_lease_claims_original && !sessionActivity.session_lease_original_operation_matches && !sessionActivity.session_lease_original_run_matches;
+    const publicState = {
+      original_session_match: relation,
+      diagnosis: diagnosis.diagnosis,
+      stage: diagnosis.stage ?? "unknown",
+      issuance: diagnosis.issuance ?? "unknown",
+      reservation: diagnosis.reservation ?? "unknown",
+      repository_checkpoint: diagnosis.repository_checkpoint ?? "unknown",
+      lease_checkpoint: diagnosis.lease_checkpoint ?? "unknown",
+      resource_binding_matches: true,
+      ...resourceFlags,
+      project_root_matches: diagnosis.project_root_matches === true,
+      target_branch_matches: diagnosis.target_branch_matches === true,
+      target_ref_matches: diagnosis.target_ref_matches === true,
+      owner_state: diagnosis.target_lease?.owner ?? "unknown",
+      lease_bindings_match: diagnosis.target_lease?.bindings_match === true,
+      generation_revisioned: diagnosis.target_lease?.generation_revisioned === true,
+      completed_session_tombstone_verified: evidence.completedSessionTombstone,
+      session_activity: sessionActivity,
+      unrelated_paused_session_projection_verified: unrelatedPausedSession,
+      later_state: later ? { workspace: later.workspace, run: later.run, active: later.active, activated: later.activated, permit: later.permit, canonical_path_exists: later.canonical_path_exists, canonical_worktree_registered: later.canonical_worktree_registered, pending_git_operation: later.pending_git_operation } : { unknown: true }
+    };
+    if (diagnosis.diagnosis !== "inspected" || diagnosis.session_match !== "same" || diagnosis.project_root_matches !== true || diagnosis.target_branch_matches !== true || diagnosis.issuance !== "verified" || diagnosis.reservation !== "verified" || diagnosis.repository_checkpoint !== "verified" || diagnosis.lease_checkpoint !== "verified" || diagnosis.stage !== "lease_checkpointed" || diagnosis.target_lease?.bindings_match !== true || diagnosis.target_lease?.generation_revisioned !== true || !["legacy", "stopped"].includes(diagnosis.target_lease?.owner) || !later || later.workspace !== false || later.run !== false || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false || later.active !== false && !evidence.completedSessionTombstone && !unrelatedPausedSession) throw new FailedBeginVerificationError({ ...publicState, refusal_code: diagnosis.stage !== "lease_checkpointed" ? "original_stage_not_terminal_pre_workspace" : "original_graph_or_later_state_refused" });
+    const entries = await inventory(this.dataRoot);
+    const leases = await leaseInventory(this.dataRoot);
+    const lifecycleCandidates = entries.filter((entry) => ownerApplies(entry, binding) && isActive(entry));
+    const candidates = await Promise.all(lifecycleCandidates.map(async (entry) => {
+      const candidate = { ...targetOwnerDiagnostic(entry, entries, binding, evidence), ...entry.bucket === "merge-revisions" ? { merge: await this.mergeOwnerDiagnostic(entry, entries, binding, evidence, leases) } : {} };
+      return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) };
+    }));
+    const activeCandidates = candidates.filter((candidate) => candidate.exclusive_target_owner);
+    const inventoryState = { ...publicState, idle_failed_merge_records_verified: candidates.length - activeCandidates.length, target_lifecycle_candidates: candidates.slice(0, 32), active_target_candidate_count: activeCandidates.length, active_target_candidates: activeCandidates.slice(0, 32) };
+    if (activeCandidates.length) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_lifecycle_owner" });
+    if (await hasTaskWorkspaceFootprint(binding, selection.old_intent_id)) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "retained_task_workspace_at_primary_or_registered_ref" });
+    const guardLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, gateId(selection.old_intent_id));
+    if (guardLease?.state === "held" && !(ownGuard && guardLease.revision === ownGuard.revision && digest7(guardLease.payload) === digest7(ownGuard.payload)) && !(journal && this.recoverableGuard(guardLease, journal))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_or_ambiguous_begin_attempt" });
+    for (const held of leases) {
+      if (held.id === id || held.id === gateId(selection.old_intent_id)) continue;
+      if (held.snapshot.state === "held" && (applies(held.snapshot.payload, binding) || contains(held.snapshot.payload, selection.old_intent_id) || contains(held.snapshot.payload, operation.operationToken))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_or_original_operation_lease" });
+    }
+    const cancellation = verifiedFailedBeginCancellationMarker(original, evidence);
+    return { cancellation, originalSession: intent.sessionId, publicState: inventoryState, graphHash: digest7({ intent: evidence.intent, operation: evidence.operation, repository: evidence.repository, lease: evidence.lease, consumed: evidence.consumed }) };
+  }
+  async sessionActivity(binding, evidence) {
+    const original = evidence.intent, operation = evidence.operation;
+    const projection = await optionalRead(this.dataRoot, "active", original.sessionId);
+    const sessionId = hash7(`session-active\0${original.sessionId}`), sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionId);
+    const owner = sessionLease?.payload;
+    const entries = await inventory(this.dataRoot);
+    const run = owner && typeof owner.runId === "string" ? entries.find((entry) => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : void 0;
+    const r = run?.value, activation = r?.activationToken ?? r?.operationToken;
+    const verified = Boolean(r && r.schemaVersion === 1 && sessionLease && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && typeof activation === "string" && activation && r.sessionId === original.sessionId && owner?.sessionId === original.sessionId && owner?.operation === "session-active" && owner?.operationToken === activation && owner?.leaseToken === activation && typeof r.phase === "string" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(r.phase) && ["running", "paused", "green", "red"].includes(r.status));
+    const terminalShape = Boolean(projection && digest7(Object.keys(projection).sort()) === digest7(["complete", "intentId", "operationToken"]) && projection.intentId === "none" && projection.complete === true && typeof projection.operationToken === "string");
+    const ownerShape = Boolean(projection && projection.schemaVersion === 1 && digest7(Object.keys(projection).sort()) === digest7(["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]) && typeof projection.intentId === "string" && typeof projection.operationToken === "string");
+    return {
+      active_projection_present: Boolean(projection),
+      projection_shape_recognized: terminalShape || ownerShape,
+      projection_kind: terminalShape ? "terminal_none" : ownerShape ? "task_owner" : projection ? "unrecognized" : "absent",
+      active_projection_claims_original: projection?.intentId === original.intentId,
+      active_projection_original_operation_matches: projection?.operationToken === operation.operationToken,
+      active_projection_original_run_matches: projection?.runId === operation.runId,
+      active_projection_complete_flag: projection?.complete === true,
+      session_lease_state: sessionLease?.state ?? "absent",
+      session_lease_claims_original: owner?.intentId === original.intentId,
+      session_lease_original_operation_matches: owner?.operationToken === operation.operationToken,
+      session_lease_original_run_matches: owner?.runId === operation.runId,
+      correlated_run_verified: verified,
+      correlated_run_phase: verified ? r.phase : "unknown",
+      correlated_run_status: verified ? r.status : "unknown",
+      correlated_run_is_original: Boolean(verified && r.intentId === original.intentId),
+      correlated_run_owns_actual_target: Boolean(verified && ownerApplies(run, binding)),
+      correlated_run_has_pending_work_or_review: Boolean(verified && isActive(run)),
+      projection_matches_correlated_run: Boolean(verified && projection?.operationToken === activation && (terminalShape || ownerShape && projection.intentId === r.intentId && projection.runId === r.runId && projection.sessionId === original.sessionId && projection.leaseId === sessionId && projection.leaseToken === activation))
+    };
+  }
+  async mergeOwnerDiagnostic(entry, entries, binding, evidence, leases) {
+    const v = entry.value, states = ["preparing", "needs_resolution", "needs_commit", "verifying", "failed", "ready", "integrating", "merged"];
+    const shape = v.schema_version === 1 && typeof v.merge_id === "string" && /^[A-Za-z0-9_-]+$/.test(v.merge_id) && typeof v.session_id === "string" && states.includes(v.state);
+    const leaseSummary = async (id, operation, expected) => {
+      if (!id) return { state: "unknown", read_verified: false, revisioned: false, record_owner_matches: false, merge_owner_reference: false, original_begin_owner_matches: false, held_by_this_merge: false, held_by_original_begin: false, held_integration_resource: false, distinct_nonintegration_legacy_owner: false, owner_state: "unknown" };
+      let lease;
+      try {
+        lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+      } catch {
+        return { state: "unknown", read_verified: false, revisioned: false, record_owner_matches: false, merge_owner_reference: false, original_begin_owner_matches: false, held_by_this_merge: false, held_by_original_begin: false, held_integration_resource: false, distinct_nonintegration_legacy_owner: false, owner_state: "unknown" };
+      }
+      const p = lease?.payload, matches = Boolean(shape && p?.intentId === v.merge_id && p?.sessionId === v.session_id && p?.operation === operation);
+      let owner = "unknown";
+      if (p) owner = p.ownerPid === void 0 && p.ownerHost === void 0 ? "legacy" : typeof p.ownerHost !== "string" || !Number.isSafeInteger(p.ownerPid) || p.ownerPid <= 0 ? "unknown" : p.ownerHost.toLowerCase() !== os4.hostname().toLowerCase() ? "foreign_host" : stopped(p.ownerPid) ? "stopped" : "live";
+      const mergeOwner = p?.intentId === v.merge_id, originalOwner = p?.intentId === evidence.intent.intentId, integration = ["integration", "integration-branch", "integration-worktree"].includes(String(p?.operation));
+      const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key2) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key2)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
+      let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath7(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
+      if (legacyBinding) {
+        try {
+          legacyBinding = await readGit(binding.topLevel, ["rev-parse", "--verify", `${p.targetOid}^{commit}`]) === p.targetOid;
+        } catch {
+          legacyBinding = false;
+        }
+      }
+      return {
+        state: lease?.state ?? "absent",
+        read_verified: true,
+        revisioned: Boolean(lease && !lease.legacy && Number.isSafeInteger(lease.revision)),
+        record_owner_matches: matches,
+        merge_owner_reference: mergeOwner,
+        original_begin_owner_matches: originalOwner,
+        held_by_this_merge: lease?.state === "held" && mergeOwner,
+        held_by_original_begin: lease?.state === "held" && originalOwner,
+        held_integration_resource: lease?.state === "held" && integration,
+        legacy_branch_reservation_shape_recognized: legacyShape,
+        legacy_branch_binding_verified: legacyBinding,
+        distinct_nonintegration_legacy_owner: Boolean(lease?.state === "held" && legacyBinding && !mergeOwner && !originalOwner && !contains(p, evidence.operation.operationToken) && !contains(p, evidence.operation.runId)),
+        owner_state: owner
+      };
+    };
+    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path13.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
+    const [sourceBinding2, targetBinding, operationLease, sourceResource, targetResource] = await Promise.all([
+      savedMergeBindingDiagnostic(v.source_worktree, v.source_binding, binding),
+      savedMergeBindingDiagnostic(v.target_worktree, v.target_binding, binding),
+      leaseSummary(shape ? hash7(`merge-operation\0${v.merge_id}`) : void 0, "integration"),
+      leaseSummary(resource(v.source_binding), "integration-branch", v.source_binding),
+      leaseSummary(resource(v.target_binding), "integration-branch", v.target_binding)
+    ]);
+    const sourceOwners = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath7(candidate.value.worktreePath, v.source_worktree));
+    const worktreeResources = await Promise.all(sourceOwners.map((owner) => leaseSummary(hash7(`worktree-mutation\0${owner.value.runId}`), "integration-worktree")));
+    let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath7(v.source_binding.topLevel, v.source_worktree) && samePath7(v.target_binding.topLevel, v.target_worktree) && !samePath7(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath7(v.source_binding.commonGitDir, binding.commonGitDir) && samePath7(v.target_binding.commonGitDir, binding.commonGitDir));
+    if (staticBindings) {
+      try {
+        staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async (oid) => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid}^{commit}`]) === oid))).every(Boolean);
+      } catch {
+        staticBindings = false;
+      }
+    }
+    return {
+      state: shape ? v.state : "unknown",
+      schema_recognized: shape,
+      static_bindings_verified: staticBindings,
+      prepared_merge_present: v.prepared_merge !== void 0,
+      prepared_commit_present: v.prepared_commit !== void 0 || v.prepared_commit_request !== void 0,
+      finalization_request_present: v.finalization_requests !== void 0 && (typeof v.finalization_requests !== "object" || !v.finalization_requests || Object.keys(v.finalization_requests).length > 0),
+      source_binding: sourceBinding2,
+      target_binding: targetBinding,
+      operation_lease: operationLease,
+      source_resource: sourceResource,
+      target_resource: targetResource,
+      correlated_worktree_resource_count: worktreeResources.length,
+      correlated_worktree_resource_reads_verified: worktreeResources.every((resource2) => resource2.read_verified),
+      held_correlated_worktree_resource: worktreeResources.some((resource2) => resource2.state === "held"),
+      held_this_merge_worktree_resource: worktreeResources.some((resource2) => resource2.held_by_this_merge),
+      held_merge_reference_resource: Boolean(shape && leases.some((lease) => lease.snapshot.state === "held" && (lease.id === v.merge_id || contains(lease.snapshot.payload, v.merge_id))))
+    };
+  }
+  async diagnose(input) {
+    const args = normalizeDiagnostic(input), binding = await readBinding(args), id = resourceId2(binding);
+    const lease = await this.readLease(id);
+    if (!lease) return { read_only: true, captain_green: false, eligible: false, reason: "lease_absent", lease: { state: "absent" } };
+    const summary = {
+      state: lease.state,
+      intent_id: safeId4(lease.payload.intentId),
+      revision: lease.revision,
+      legacy_storage: lease.legacy,
+      payload_fields: Object.keys(lease.payload).filter((key2) => !["intentId", "leaseToken"].includes(key2) && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key2)).sort()
+    };
+    const marker = await this.marker(lease.payload.intentId);
+    const pending = marker ?? await this.journal(lease.payload.intentId);
+    if (pending && (!samePath7(pending.project_root, args.project_root) || !samePath7(pending.target_worktree, args.target_worktree) || pending.target_branch !== args.target_branch || pending.session_id !== args.session_id)) {
+      return { read_only: true, captain_green: false, eligible: false, reason: "repossession_owned_by_other_selection", lease: summary };
+    }
+    if (pending && (digest7(pending.binding) !== digest7(binding) || !selectionMatches(binding, id, lease, pending, Boolean(marker)))) return { read_only: true, captain_green: false, eligible: false, reason: "generation_changed", lease: summary };
+    if (lease.state !== "held" && (!marker || await optionalRead(this.dataRoot, "branch-lease-repossession-results", lease.payload.intentId))) return { read_only: true, captain_green: false, eligible: false, reason: "lease_not_held", lease: summary };
+    const reason = await this.inspect(binding, id, lease, pending);
+    const result = pending && await optionalRead(this.dataRoot, "branch-lease-repossession-results", lease.payload.intentId);
+    if (result && (lease.state !== "released" || lease.revision !== result.released_lease_revision)) throw new Error("signed lease repossession result conflicts with regressed branch lease tail");
+    const selection = pending ? request(pending) : { ...args, old_intent_id: lease.payload.intentId, expected_lease_revision: lease.revision, resource_generation: generation2(id, lease.revision, lease.payload), expected_head: binding.head };
+    return {
+      read_only: true,
+      captain_green: false,
+      eligible: !reason,
+      reason: reason ?? (pending ? "repossession_interrupted" : "unclaimed_legacy_branch_reservation"),
+      lease: summary,
+      ...!reason ? { recovery: { next_tool: "captain_repossess_branch_lease", args: selection } } : {},
+      ...reason === "surviving_authority" ? { authority: await this.provenance(args, binding, lease) } : {}
+    };
+  }
+  async repossess(input) {
+    const args = normalizeRequest(input), binding = await readBinding(args), id = resourceId2(binding);
+    if (binding.head !== args.expected_head) throw new Error("lease recovery target HEAD binding changed");
+    const existing = await this.marker(args.old_intent_id);
+    const pending = existing ?? await this.journal(args.old_intent_id);
+    if (pending && digest7(request(pending)) !== digest7(args)) throw new Error("signed lease repossession selection changed");
+    if (pending && digest7(pending.binding) !== digest7(binding)) throw new Error("lease repossession worktree Git binding changed");
+    let lease = await this.readLease(id);
+    if (!lease || !selectionMatches(binding, id, lease, args, Boolean(existing))) throw new Error("branch lease owner or generation selector changed");
+    const result = await optionalRead(this.dataRoot, "branch-lease-repossession-results", args.old_intent_id);
+    if (result) {
+      if (!existing || result.schema_version !== 1 || result.state !== "released" || digest7(request(result)) !== digest7(args) || result.recovery_id !== existing.recovery_id || lease.state !== "released" || result.released_lease_revision !== lease.revision) throw new Error("signed lease repossession result binding is invalid");
+      return result;
+    }
+    const reason = await this.inspect(binding, id, lease, pending);
+    if (reason) throw new Error(`branch lease repossession refused: ${reason}`);
+    const recoveryId = digest7({ kind: "orphan_branch_lease_repossessed", ...args });
+    const journal = { schema_version: 1, kind: "orphan_branch_lease_selection", ...args, recovery_id: recoveryId, lease_id: id, binding };
+    await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-selections", args.old_intent_id, journal);
+    return this.withGuard(args, recoveryId, async (guard) => {
+      await this.hooks?.afterGuard?.();
+      lease = await this.readLease(id);
+      const currentBinding = await readBinding(args);
+      if (digest7(currentBinding) !== digest7(binding)) throw new Error("lease repossession worktree Git binding changed");
+      if (!lease || !selectionMatches(currentBinding, id, lease, args, Boolean(existing))) throw new Error("branch lease owner or generation selector changed");
+      const before = await this.inspect(currentBinding, id, lease, pending ?? journal, guard);
+      if (before) throw new Error(`branch lease repossession refused: ${before}`);
+      const marker = existing ?? { schema_version: 1, kind: "orphan_branch_lease_repossessed", ...args, recovery_id: recoveryId, lease_id: id, binding: currentBinding };
+      await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossessions", args.old_intent_id, marker);
+      await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-watermarks", args.old_intent_id, { schema_version: 1, old_intent_id: args.old_intent_id, recovery_id: recoveryId, marker_sha256: digest7(marker) });
+      await this.hooks?.afterTombstone?.();
+      const finalBinding = await readBinding(args), finalLease = await this.readLease(id);
+      if (digest7(finalBinding) !== digest7(marker.binding)) throw new Error("lease repossession worktree Git binding changed");
+      if (!finalLease || !selectionMatches(finalBinding, id, finalLease, args, true)) throw new Error("branch lease owner or generation selector changed");
+      const finalReason = await this.inspect(finalBinding, id, finalLease, marker, guard);
+      if (finalReason) throw new Error(`branch lease repossession refused: ${finalReason}`);
+      await this.assertGuard(guard);
+      if (args.expected_lease_revision === null) await releaseAuthorizedLegacyLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, finalLease.payload.leaseToken, args.resource_generation, this.hooks?.afterLegacyMigration, this.hooks?.afterLegacyRevision);
+      else await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, finalLease.payload.leaseToken, args.expected_lease_revision, args.resource_generation);
+      await this.hooks?.afterRelease?.();
+      const released = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+      if (!released || !selectionMatches(await readBinding(args), id, released, args, true) || released.state !== "released" || released.revision === null) throw new Error("branch lease repossession release changed before receipt");
+      return putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-results", args.old_intent_id, { schema_version: 1, ...args, recovery_id: recoveryId, state: "released", released_lease_revision: released.revision });
+    });
+  }
+  async journal(intent) {
+    const journal = await optionalRead(this.dataRoot, "branch-lease-repossession-selections", safeId4(intent));
+    if (journal && (journal.schema_version !== 1 || journal.kind !== "orphan_branch_lease_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest7({ kind: "orphan_branch_lease_repossessed", ...request(journal) }))) throw new Error("signed lease repossession selection journal is invalid");
+    return journal;
+  }
+  async readLease(id) {
+    try {
+      return await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    } catch (original) {
+      const raw = await optionalRead(this.dataRoot, "leases", id);
+      const marker = raw && await this.marker(raw.intentId);
+      if (!marker || marker.lease_id !== id || marker.expected_lease_revision !== null || await optionalRead(this.dataRoot, "branch-lease-repossession-results", marker.old_intent_id)) throw original;
+      return readAuthorizedLegacyLeaseMigrationReadOnly(this.dataRoot, id, marker.old_intent_id, marker.resource_generation);
+    }
+  }
+  async provenance(args, binding, lease) {
+    const entries = await inventory(this.dataRoot), owner = lease.payload;
+    const intentMatches = (entry) => entry.id === owner.intentId || contains(entry.value, owner.intentId);
+    const operationMatches = (entry) => typeof owner.operationToken === "string" && (entry.id === owner.operationToken || contains(entry.value, owner.operationToken));
+    const matching = entries.filter((entry) => intentMatches(entry) || operationMatches(entry));
+    const intent = matching.find((entry) => entry.bucket === "intents" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
+    const operation = matching.find((entry) => entry.bucket === "begin-operations" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
+    const session = typeof intent?.sessionId === "string" ? intent.sessionId : typeof operation?.sessionId === "string" ? operation.sessionId : void 0;
+    const sessionMatch = session === void 0 ? "unknown" : session === args.session_id ? "same" : "other";
+    let recordedRootMatches = false;
+    if (typeof intent?.projectRoot === "string") {
+      try {
+        recordedRootMatches = samePath7(await realpath3(intent.projectRoot), intent.projectRoot) && samePath7(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
+      } catch {
+      }
+    }
+    const exactCaller = intent && operation && sessionMatch === "same" && operation.sessionId === args.session_id && operation.schemaVersion === 1 && typeof operation.operationToken === "string" && (owner.operationToken === void 0 || owner.operationToken === operation.operationToken) && typeof operation.projectRoot === "string" && samePath7(operation.projectRoot, intent.projectRoot) && operation.targetBranch === binding.branch && intent.targetBranch === binding.branch && recordedRootMatches;
+    return {
+      matched_buckets: [...new Set(matching.map((entry) => entry.bucket))].sort(),
+      intent_reference: matching.some(intentMatches),
+      operation_reference: matching.some(operationMatches),
+      session_match: sessionMatch,
+      recorded_root_matches_repository: recordedRootMatches,
+      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path13.resolve(intent.projectRoot), target_worktree: path13.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
+    };
+  }
+  async marker(intent) {
+    const marker = await optionalRead(this.dataRoot, "branch-lease-repossessions", safeId4(intent));
+    const mark = await optionalRead(this.dataRoot, "branch-lease-repossession-watermarks", intent);
+    if (!marker) {
+      if (mark || await optionalRead(this.dataRoot, "branch-lease-repossession-results", intent)) throw new Error("lease repossession marker tail regressed behind signed watermark");
+      return void 0;
+    }
+    if (marker.schema_version !== 1 || marker.kind !== "orphan_branch_lease_repossessed" || marker.old_intent_id !== intent || marker.recovery_id !== digest7({ kind: marker.kind, ...request(marker) })) throw new Error("signed lease repossession marker is invalid");
+    if (mark && (mark.schema_version !== 1 || mark.old_intent_id !== intent || mark.recovery_id !== marker.recovery_id || mark.marker_sha256 !== digest7(marker))) throw new Error("signed lease repossession watermark is invalid");
+    return marker;
+  }
+  async inspect(binding, selectedId, lease, marker, ownGuard) {
+    const owner = lease.payload;
+    if (!/^intent-[A-Za-z0-9_-]+$/.test(owner.intentId)) return "nonlegacy_resource_owner";
+    if (Object.keys(owner).some((key2) => !["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key2))) return "owner_metadata_present";
+    if (typeof owner.leaseToken !== "string" || !owner.leaseToken) throw new Error("signed branch lease token is invalid");
+    if (owner.operationToken !== void 0 && (typeof owner.operationToken !== "string" || owner.operationToken.length > 256 || !/^[A-Za-z0-9_-]+$/.test(owner.operationToken))) return "lease_binding_mismatch";
+    if (lease.legacy && (typeof owner.commonGitDir !== "string" || typeof owner.targetBranch !== "string" || typeof owner.targetOid !== "string")) return "unbound_legacy_storage";
+    if (owner.commonGitDir !== void 0 && (typeof owner.commonGitDir !== "string" || !samePath7(owner.commonGitDir, binding.commonGitDir))) return "lease_binding_mismatch";
+    if (owner.targetBranch !== void 0 && owner.targetBranch !== binding.branch) return "lease_binding_mismatch";
+    if (owner.targetOid !== void 0) {
+      if (typeof owner.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(owner.targetOid)) return "lease_binding_mismatch";
+      try {
+        if ((await readGit(binding.topLevel, ["rev-parse", "--verify", `${owner.targetOid}^{commit}`])).toLowerCase() !== owner.targetOid.toLowerCase()) return "lease_binding_mismatch";
+      } catch {
+        return "lease_binding_mismatch";
+      }
+    }
+    const entries = await inventory(this.dataRoot);
+    const selectors = [owner.intentId, ...typeof owner.operationToken === "string" ? [owner.operationToken] : []];
+    if (entries.some((entry) => selectors.some((selector) => entry.id === selector || contains(entry.value, selector)))) return "surviving_authority";
+    if (entries.some((entry) => ownerApplies(entry, binding) && isActive(entry))) return "active_worktree_owner";
+    const names = [...await directoryNames3(path13.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path13.join(this.dataRoot, "lease-watermarks"))];
+    const ids = new Set(names.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
+    for (const name of await directoryNames3(path13.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
+    for (const id of ids) {
+      if (id === selectedId) continue;
+      const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, safeId4(id));
+      if (!current || current.state !== "held") continue;
+      if (ownGuard && id === ownGuard.id && current.revision === ownGuard.revision && digest7(current.payload) === digest7(ownGuard.payload)) continue;
+      if (marker && id === gateId(owner.intentId) && this.recoverableGuard(current, marker)) continue;
+      if (selectors.some((selector) => contains(current.payload, selector))) return "surviving_authority";
+      if (applies(current.payload, binding)) return "active_worktree_owner";
+    }
+    if (await hasTaskWorkspaceFootprint(binding, owner.intentId)) return "surviving_task_workspace";
+    return void 0;
+  }
+  recoverableGuard(lease, marker) {
+    const p = lease.payload;
+    const operation = marker.kind === "failed_begin_operator_selection" ? "failed-begin-repossession-attempt" : "branch-repossession-attempt";
+    return !lease.legacy && lease.revision !== null && p.intentId === marker.old_intent_id && p.operation === operation && p.sessionId === marker.session_id && p.recoveryId === marker.recovery_id && p.resourceGeneration === marker.resource_generation && p.ownerHost === os4.hostname() && stopped(p.ownerPid);
+  }
+  async withGuard(args, recoveryId, action2, selected) {
+    const id = gateId(args.old_intent_id), previous = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    if (previous?.state === "held") {
+      const marker = selected ?? await this.marker(args.old_intent_id) ?? await this.journal(args.old_intent_id);
+      if (!marker || marker.recovery_id !== recoveryId || !this.recoverableGuard(previous, marker) || previous.revision === null) throw new Error("lease repossession Begin attempt owner is active or ambiguous");
+      await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, previous.payload.leaseToken, previous.revision, generation2(id, previous.revision, previous.payload));
+    }
+    const payload = { intentId: args.old_intent_id, leaseToken: randomUUID4(), operation: selected ? "failed-begin-repossession-attempt" : "branch-repossession-attempt", sessionId: args.session_id, recoveryId, resourceGeneration: args.resource_generation, ownerHost: os4.hostname(), ownerPid: process.pid };
+    await acquireAuthorizedLease(this.dataRoot, id, payload);
+    const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    if (!snapshot || snapshot.state !== "held" || snapshot.revision === null || digest7(snapshot.payload) !== digest7(payload)) throw new Error("lease repossession Begin attempt generation changed");
+    const guard = { id, payload, revision: snapshot.revision, generation: generation2(id, snapshot.revision, payload) };
+    try {
+      return await action2(guard);
+    } finally {
+      await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, payload.leaseToken, guard.revision, guard.generation);
+    }
+  }
+  async assertGuard(guard) {
+    const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, guard.id);
+    if (!current || current.state !== "held" || current.revision !== guard.revision || digest7(current.payload) !== digest7(guard.payload)) throw new Error("lease repossession Begin attempt generation changed");
+  }
+};
+function request(args) {
+  return { project_root: args.project_root, target_worktree: args.target_worktree, target_branch: args.target_branch, session_id: args.session_id, old_intent_id: args.old_intent_id, expected_lease_revision: args.expected_lease_revision, resource_generation: args.resource_generation, expected_head: args.expected_head, reason: args.reason, user_authorization: args.user_authorization };
+}
+function normalizeDiagnostic(args) {
+  for (const [name, value] of Object.entries(args)) if (typeof value !== "string" || !value.trim() || value.length > 4096) throw new Error(`lease recovery ${name} is invalid`);
+  return { project_root: path13.resolve(args.project_root), target_worktree: path13.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
+}
+function normalizeRequest(args) {
+  const base = normalizeDiagnostic({ project_root: args.project_root, target_worktree: args.target_worktree, target_branch: args.target_branch, session_id: args.session_id });
+  safeId4(args.old_intent_id);
+  if (!(args.expected_lease_revision === null || Number.isSafeInteger(args.expected_lease_revision) && args.expected_lease_revision >= 0 && args.expected_lease_revision < Number.MAX_SAFE_INTEGER) || !/^[0-9a-f]{64}$/i.test(args.resource_generation) || !/^[0-9a-f]{40,64}$/i.test(args.expected_head)) throw new Error("lease recovery generation selector is invalid");
+  for (const [name, text] of [["reason", args.reason], ["user authorization", args.user_authorization]]) if (typeof text !== "string" || !text.trim() || text.length > 4096) throw new Error(`lease recovery ${name} is required and bounded`);
+  return { ...base, old_intent_id: args.old_intent_id, expected_lease_revision: args.expected_lease_revision, resource_generation: args.resource_generation.toLowerCase(), expected_head: args.expected_head.toLowerCase(), reason: args.reason, user_authorization: args.user_authorization };
+}
+function selectionMatches(binding, id, lease, args, allowReleased) {
+  if (binding.head !== args.expected_head || resourceId2(binding) !== id || lease.payload.intentId !== args.old_intent_id) return false;
+  if (generation2(id, args.expected_lease_revision, lease.payload) !== args.resource_generation) return false;
+  if (args.expected_lease_revision === null) return lease.legacy && lease.state === "held" || allowReleased && !lease.legacy && (lease.revision === 0 && lease.state === "held" || lease.revision === 1 && lease.state === "released");
+  return !lease.legacy && (lease.revision === args.expected_lease_revision && lease.state === "held" || allowReleased && lease.revision === args.expected_lease_revision + 1 && lease.state === "released");
+}
+var readGit = (cwd, args) => git(["--no-optional-locks", ...args], cwd);
+async function readBinding(args) {
+  const root = path13.resolve(args.project_root), target = path13.resolve(args.target_worktree);
+  for (const location of [root, target]) if (!samePath7(await realpath3(location), location) || !samePath7(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
+  const commonGitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  if (!samePath7(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
+  if (!samePath7(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
+  const branch = await readGit(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(target, ["rev-parse", "--verify", "HEAD^{commit}"]);
+  if (branch !== args.target_branch || head !== await readGit(target, ["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("lease recovery target branch HEAD binding changed");
+  for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
+    const file = await readGit(target, ["rev-parse", "--path-format=absolute", "--git-path", name]);
+    try {
+      await lstat5(file);
+      throw new Error(`lease recovery refuses unfinished Git operation ${name}`);
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+  }
+  return { projectRoot: root, branch, head, commonGitDir, gitDir: path13.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
+}
+async function directoryNames3(directory) {
+  try {
+    return await readdir9(directory);
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+    return [];
+  }
+}
+async function hasTaskWorkspaceFootprint(binding, intentId) {
+  const refs = (await readGit(binding.topLevel, ["for-each-ref", "--format=%(refname)"])).split(/\r?\n/);
+  if (refs.includes(`refs/heads/captain/${safeId4(intentId)}`)) return true;
+  const worktrees = await readGit(binding.topLevel, ["worktree", "list", "--porcelain"]);
+  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path13.basename(line.slice(9)) === intentId)) return true;
+  try {
+    await lstat5(path13.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
+    return true;
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+  }
+  return false;
+}
+async function optionalRead(root, bucket3, id) {
+  try {
+    return await readAuthorizedReadOnly(root, bucket3, safeId4(id));
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+    return void 0;
+  }
+}
+function contains(value, selector) {
+  if (value === selector) return true;
+  return Boolean(value && typeof value === "object" && Object.values(value).some((child) => contains(child, selector)));
+}
+function applies(value, binding) {
+  if ([value.worktree, value.worktreePath, value.source_worktree, value.target_worktree, value.topLevel].some((location) => typeof location === "string" && samePath7(location, binding.topLevel))) return true;
+  if ([value.branch, value.targetBranch, value.target_branch].includes(binding.branch) && typeof value.commonGitDir === "string" && samePath7(value.commonGitDir, binding.commonGitDir)) return true;
+  return [value.before, value.source_binding, value.target_binding].some((child) => child && typeof child === "object" && applies(child, binding));
+}
+function ownerApplies(entry, binding) {
+  if (entry.bucket === "runs" || entry.bucket === "run-revisions") {
+    const { targetBranch: _targetBranch, target_branch: _targetBranchAlias, ...owned } = entry.value;
+    return applies(owned, binding);
+  }
+  return applies(entry.value, binding);
+}
+function targetOwnerDiagnostic(entry, entries, binding, evidence) {
+  const v = entry.value;
+  const references = ["intentId", "runId", "operationToken"];
+  const supplied = references.filter((key2) => typeof v[key2] === "string");
+  const correlated = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && candidate.value.schemaVersion === 1 && supplied.length && supplied.every((key2) => key2 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key2]) : candidate.value[key2] === v[key2]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
+  const run = correlated.length === 1 ? correlated[0] : void 0;
+  const verified = Boolean(run && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(run.value.phase) && ["running", "paused", "green", "red"].includes(run.value.status));
+  const commonMatches = typeof v.commonGitDir === "string" && samePath7(v.commonGitDir, binding.commonGitDir);
+  return {
+    bucket: entry.bucket,
+    schema_recognized: v.schemaVersion === 1 || v.schema_version === 1,
+    actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some((location) => typeof location === "string" && samePath7(location, binding.topLevel)),
+    actual_branch_matches: v.branch === binding.branch && commonMatches,
+    common_git_matches: commonMatches,
+    planned_target_branch_matches: [v.targetBranch, v.target_branch].includes(binding.branch),
+    nested_actual_target_binding_matches: [v.before, v.source_binding, v.target_binding].some((child) => child && typeof child === "object" && applies(child, binding)),
+    original_intent_reference: entry.id === evidence.intent.intentId || contains(v, evidence.intent.intentId),
+    original_operation_reference: entry.id === evidence.operation.operationToken || contains(v, evidence.operation.operationToken),
+    original_run_reference: entry.id === evidence.operation.runId || contains(v, evidence.operation.runId),
+    correlated_latest_run_verified: verified,
+    correlated_run_phase: verified ? run.value.phase : "unknown",
+    correlated_run_status: verified ? run.value.status : "unknown",
+    correlated_run_owns_actual_target: Boolean(verified && ownerApplies(run, binding))
+  };
+}
+async function savedMergeBindingDiagnostic(location, saved, selected) {
+  const shape = typeof location === "string" && saved && ["topLevel", "branch", "commonGitDir", "gitDir", "head"].every((key2) => typeof saved[key2] === "string" && saved[key2]) && /^[0-9a-f]{40,64}$/i.test(saved.head);
+  const basic = {
+    read_verified: false,
+    schema_recognized: Boolean(shape),
+    saved_binding_matches_current: false,
+    saved_head_matches_current: false,
+    saved_commit_exists: false,
+    pending_git_operation: "unknown",
+    matches_selected_target: Boolean(shape && saved.branch === selected.branch && samePath7(saved.commonGitDir, selected.commonGitDir)),
+    saved_head_matches_selected_target: Boolean(shape && saved.head === selected.head)
+  };
+  if (!shape) return basic;
+  try {
+    const root = await realpath3(location), top = path13.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
+    const branch = await readGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]);
+    const exists2 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
+    let pending = false;
+    for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
+      const file = await readGit(root, ["rev-parse", "--path-format=absolute", "--git-path", name]);
+      try {
+        await lstat5(file);
+        pending = true;
+      } catch (error2) {
+        if (error2.code !== "ENOENT") throw error2;
+      }
+    }
+    return {
+      ...basic,
+      read_verified: true,
+      saved_binding_matches_current: samePath7(root, top) && samePath7(saved.topLevel, top) && samePath7(saved.commonGitDir, common) && samePath7(saved.gitDir, gitDir) && saved.branch === branch,
+      saved_head_matches_current: saved.head === head,
+      saved_commit_exists: exists2,
+      pending_git_operation: pending
+    };
+  } catch {
+    return basic;
+  }
+}
+function idleFailedMerge(candidate) {
+  const m = candidate.merge;
+  if (candidate.bucket !== "merge-revisions" || candidate.original_intent_reference || candidate.original_operation_reference || candidate.original_run_reference || !m || !m.schema_recognized || !m.static_bindings_verified || m.state !== "failed" || m.prepared_merge_present || m.prepared_commit_present || m.finalization_request_present || !m.operation_lease.read_verified || !m.operation_lease.revisioned || m.operation_lease.state !== "released" || !m.operation_lease.record_owner_matches || !m.source_binding.read_verified || !m.source_binding.saved_binding_matches_current || !m.source_binding.saved_commit_exists || m.source_binding.pending_git_operation !== false || m.target_binding.read_verified && m.target_binding.pending_git_operation !== false || !m.source_resource.read_verified || !m.target_resource.read_verified || m.source_resource.held_by_this_merge || m.source_resource.held_by_original_begin || m.source_resource.held_integration_resource || m.target_resource.held_by_this_merge || m.target_resource.held_integration_resource || !m.correlated_worktree_resource_reads_verified || m.held_correlated_worktree_resource || m.held_merge_reference_resource) return false;
+  const sourceIdle = ["absent", "released"].includes(m.source_resource.state) || m.source_resource.state === "held" && m.source_resource.distinct_nonintegration_legacy_owner;
+  return sourceIdle && ["held", "released"].includes(m.target_resource.state) && m.target_resource.original_begin_owner_matches;
+}
+function isActive(entry) {
+  if (entry.historical) return false;
+  const v = entry.value;
+  if (entry.bucket === "runs" || entry.bucket === "run-revisions") return v.phase !== "complete" || v.status !== "green" || Boolean(v.preparedCommit || v.commitOperation || v.mutationOperation || v.phase === "hitl" || v.policy?.hitlChecks?.length && v.evidence?.filter((e) => e.kind === "plan_review").at(-1)?.decision !== "accept");
+  if (entry.bucket === "merge-revisions") return !["merged", "aborted"].includes(v.state);
+  if (entry.bucket === "bookkeeping-revisions") return !["committed", "stashed"].includes(v.state);
+  return ["active", "permits", "begin-workspaces", "begin-active", "begin-activated", "resume-operations"].includes(entry.bucket) && v.complete !== true;
+}
+function stopped(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error2) {
+    return error2.code === "ESRCH";
+  }
+}
+async function leaseInventory(root) {
+  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path13.join(root, bucket3))));
+  const ids = new Set([...revisions, ...watermarks].map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
+  for (const name of projections) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
+  const snapshots = await Promise.all([...ids].map(async (id) => ({ id: safeId4(id), snapshot: await readAuthorizedLeaseSnapshotReadOnly(root, safeId4(id)) })));
+  return snapshots.filter((entry) => Boolean(entry.snapshot));
+}
+async function inventory(root) {
+  const entries = [], byBucket = /* @__PURE__ */ new Map();
+  for (const bucket3 of signedBuckets) {
+    const map = /* @__PURE__ */ new Map();
+    byBucket.set(bucket3, map);
+    for (const name of await directoryNames3(path13.join(root, bucket3))) {
+      if (!name.endsWith(".json")) continue;
+      const id = safeId4(name.slice(0, -5)), value = await readAuthorizedReadOnly(root, bucket3, id);
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("signed lease recovery authority record is invalid");
+      const entry = { bucket: bucket3, id, value };
+      entries.push(entry);
+      map.set(id, entry);
+    }
+  }
+  const obsolete = /* @__PURE__ */ new Set();
+  for (const [kind, idField, previousField, hashField] of [["run", "intentId", "previousRevisionSha256", "runSha256"], ["merge", "merge_id", "previous_sha256", "sha256"], ["bookkeeping", "finalization_id", "previous_sha256", "sha256"]]) {
+    const revisions = byBucket.get(`${kind}-revisions`), marks = byBucket.get(`${kind}-watermarks`);
+    const ids = new Set([...revisions.keys(), ...marks.keys()].map((name) => /^(.+)-[0-9]+$/.exec(name)?.[1]).filter((id) => Boolean(id)));
+    for (const id of ids) {
+      const expression = new RegExp(`^${safeId4(id)}-([0-9]+)$`);
+      const numbers = [...revisions.keys()].map((name) => expression.exec(name)).filter((m) => Boolean(m)).map((m) => Number(m[1])).sort((a, b) => a - b);
+      if (!numbers.length || numbers.some((n, i) => n !== i) || [...marks.keys()].some((name) => {
+        const m = expression.exec(name);
+        return Boolean(m && Number(m[1]) >= numbers.length);
+      })) throw new Error("signed ownership revision tail regressed or chain is missing behind watermark");
+      let previous;
+      for (const revision of numbers) {
+        const entry = revisions.get(`${id}-${revision}`), current = entry.value, mark = marks.get(`${id}-${revision}`)?.value;
+        if (!mark || current[idField] !== id || current.revision !== revision || current[previousField] !== (previous ? digest7(previous) : void 0) || mark[idField] !== id || mark.revision !== revision || mark[hashField] !== digest7(current)) throw new Error("signed ownership revision chain or watermark is invalid");
+        if (revision < numbers.length - 1) obsolete.add(entry);
+        previous = current;
+      }
+      if (kind === "run") {
+        const projection = byBucket.get("runs")?.get(id);
+        if (projection) obsolete.add(projection);
+      }
+    }
+  }
+  const latestRuns = entries.filter((entry) => !obsolete.has(entry) && ["runs", "run-revisions"].includes(entry.bucket));
+  for (const entry of entries) {
+    if (!["begin-workspaces", "begin-active", "begin-activated", "permits", "resume-operations"].includes(entry.bucket)) continue;
+    const v = entry.value;
+    const completed = latestRuns.find((run) => !isActive(run) && (typeof v.intentId === "string" && v.intentId === run.value.intentId || typeof v.runId === "string" && v.runId === run.value.runId || typeof v.operationToken === "string" && [run.value.operationToken, run.value.activationToken].includes(v.operationToken)));
+    if (completed) obsolete.add(entry);
+  }
+  return entries.map((entry) => obsolete.has(entry) ? { ...entry, historical: true } : entry);
+}
+
+// src/server.ts
 var beginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }, dependencies = beginDependencies) {
   if (close_token_hash && client_pid === void 0) throw new Error("client close capability requires a real client PID");
@@ -26530,16 +27372,16 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   if (action2 === "start" && resume_of) throw new Error("start action conflicts with resume selector");
   const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action: action2, requestKind: request_kind, sourceRequestId: source_request_id, ...source ? { adapterPrompt } : {} }, async () => {
     if (!resume_of && task_id && action2 !== "start") {
-      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path13.resolve(run.projectRoot) === path13.resolve(project_root));
+      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path14.resolve(run.projectRoot) === path14.resolve(project_root));
       const candidates = await Promise.all(selected.map((run) => store.status(run.intentId)));
-      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path13.resolve(run.projectRoot) === path13.resolve(project_root));
+      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path14.resolve(run.projectRoot) === path14.resolve(project_root));
       if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
       resume_of = matching[0]?.intentId;
     }
     if (action2 === "resume" && !resume_of) throw new Error("no unfinished run found; supply task_id or resume_of");
     if (resume_of) {
       const run = await store.status(resume_of);
-      if (run.status === "green" && !isPendingPlanReview(run) || path13.resolve(run.projectRoot) !== path13.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
+      if (run.status === "green" && !isPendingPlanReview(run) || path14.resolve(run.projectRoot) !== path14.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
       if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
       if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
       if (run.status !== "paused" && run.status !== "green" && run.sessionId !== session_id) {
@@ -26557,8 +27399,8 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
       targetOid = await git(["rev-parse", "--verify", `refs/heads/${target_branch}^{commit}`], project_root);
       await repositoryIdentity(project_root, target_branch, targetOid);
     }
-    const intentId2 = `intent-${randomUUID4()}`;
-    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path13.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
+    const intentId2 = `intent-${randomUUID5()}`;
+    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path14.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
   });
   const intentId = issued.intentId;
   resume_of = issued.resumeOf;
@@ -26600,13 +27442,13 @@ async function captainResume(store, resumeIntentId, dependencies = resumeDepende
 var commitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
 async function captainCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
   if (!final && task_outcome === "Completes") throw new Error("an intermediate phase commit cannot complete the governed task");
-  const request = { paths, subject, taskOutcome: task_outcome, final }, completed = await store.completedCommitFor(intent_id, request);
+  const request2 = { paths, subject, taskOutcome: task_outcome, final }, completed = await store.completedCommitFor(intent_id, request2);
   if (completed) return completed;
-  const mutation = await store.acquireWorktreeMutation(intent_id, "commit", request);
+  const mutation = await store.acquireWorktreeMutation(intent_id, "commit", request2);
   let run = await store.status(intent_id);
   try {
     if (run.preparedCommit) {
-      const prepared = run.preparedCommit, operation2 = await store.commitOperationFor(intent_id, request);
+      const prepared = run.preparedCommit, operation2 = await store.commitOperationFor(intent_id, request2);
       if (JSON.stringify(prepared.paths) !== JSON.stringify(paths) || prepared.subject !== subject || prepared.taskOutcome !== task_outcome || prepared.final !== final) throw new Error("prepared commit recovery requires the exact approved commit request");
       const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, false, run.gitDir);
       if (binding.head === prepared.preCommitHead) await dependencies.applyPreparedCommit(run.worktreePath, prepared, run.branch, run.commonGitDir, run.gitDir, async (value) => {
@@ -26619,12 +27461,12 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
       await store.releaseWorktreeMutation(intent_id, mutation);
       return committed2;
     }
-    const operation = await store.acquireCommitOperation(intent_id, request);
+    const operation = await store.acquireCommitOperation(intent_id, request2);
     run = await store.status(intent_id);
     const expectedHead = executionHead(run);
     await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, (prepared) => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final }, operation).then(() => void 0), (prepared) => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => void 0), void 0, async (prepared) => {
       await store.assertWorktreeMutation(intent_id, mutation);
-      await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request));
+      await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request2));
     });
     const committed = await store.recordCommit(intent_id, await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head), final);
     await store.releaseWorktreeMutation(intent_id, mutation);
@@ -26667,11 +27509,12 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   return discarded;
 }
 async function startCaptainMcp() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path13.join(process.env.CODEX_HOME || path13.join(os4.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path14.join(process.env.CODEX_HOME || path14.join(os5.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
+  const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.5.2" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -26772,6 +27615,46 @@ async function startCaptainMcp() {
       confirm_owner_stopped: external_exports.boolean()
     }
   }, async (args) => guarded(() => captainCancelFailedBegin(store, args)));
+  const branchLeaseBindingSchema = {
+    project_root: external_exports.string().min(1),
+    target_worktree: external_exports.string().min(1),
+    target_branch: external_exports.string().min(1),
+    session_id: external_exports.string().min(1).max(256)
+  };
+  server.registerTool("captain_branch_lease_diagnose", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    description: "Authenticate an exact target branch lease and diagnose strict orphan eligibility without writes. Return opaque generation/HEAD selectors; surviving authority, task workspaces, active/foreign owners and unfinished Git operations remain protected.",
+    inputSchema: branchLeaseBindingSchema
+  }, async (args) => guarded(() => branchLeases.diagnose(args)));
+  server.registerTool("captain_failed_begin_lease_diagnose", {
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    description: "Read-only full verification of a failed pre-workspace Begin reservation using its original signed root/session graph and the actual current target binding separately. Return exact operator-revocation selectors only when no task worktree, progressed work or active attempt exists.",
+    inputSchema: branchLeaseBindingSchema
+  }, async (args) => guarded(() => branchLeases.diagnoseFailedBegin(args)));
+  server.registerTool("captain_repossess_failed_begin", {
+    description: "Under explicit operator repossession direction, revoke only a fully verified unstarted failed Begin reservation and release its exact branch-lease generation. Preserve original records and both existing worktrees; never assert the original client stopped or adopt progressed/active work. Publish the standard cancellation fence for older supported runtimes.",
+    inputSchema: {
+      ...branchLeaseBindingSchema,
+      old_intent_id: external_exports.string().regex(/^[A-Za-z0-9_-]+$/),
+      expected_lease_revision: external_exports.number().int().nonnegative().nullable(),
+      resource_generation: external_exports.string().regex(/^[0-9a-f]{64}$/i),
+      expected_head: external_exports.string().regex(/^[0-9a-f]{40,64}$/i),
+      reason: external_exports.string().trim().min(1).max(4e3),
+      user_authorization: external_exports.string().trim().min(1).max(4096)
+    }
+  }, async (args) => guarded(() => branchLeases.repossessFailedBegin(args)));
+  server.registerTool("captain_repossess_branch_lease", {
+    description: "Record explicit operator-directed repossession and release only the diagnosed orphan legacy branch reservation generation. Preserve the same worktrees, Git refs/files and old evidence. Never assert an unknown owner stopped; refuse surviving ownership and stale selectors, and fence the retired intent from later Begin.",
+    inputSchema: {
+      ...branchLeaseBindingSchema,
+      old_intent_id: external_exports.string().regex(/^[A-Za-z0-9_-]+$/),
+      expected_lease_revision: external_exports.number().int().nonnegative().nullable(),
+      resource_generation: external_exports.string().regex(/^[0-9a-f]{64}$/i),
+      expected_head: external_exports.string().regex(/^[0-9a-f]{40,64}$/i),
+      reason: external_exports.string().trim().min(1).max(4e3),
+      user_authorization: external_exports.string().trim().min(1).max(4096)
+    }
+  }, async (args) => guarded(() => branchLeases.repossess(args)));
   server.registerTool("captain_merge_diagnose", {
     description: "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -26856,7 +27739,7 @@ async function startCaptainMcp() {
   }));
   await server.connect(new StdioServerTransport());
 }
-if (process.argv[1] && path13.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
+if (process.argv[1] && path14.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
 export {
   captainAbortMerge,
   captainBegin,

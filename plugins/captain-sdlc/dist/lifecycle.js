@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
+import { acquireAuthorizedLease, assertIntentNotRepossessed, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { probeSessionOwner, validateSessionOwner } from "./session-interruption.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
@@ -204,6 +204,7 @@ export class LifecycleStore {
         return releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, intentId, leaseToken, expectedRevision, resourceGeneration);
     }
     async assertBeginNotCancelled(intentId) {
+        await assertIntentNotRepossessed(this.dataRoot, intentId);
         const marker = await this.beginCancellationFor(intentId);
         if (marker && marker.schemaVersion === 1 && marker.kind === "failed_begin_cancelled" && marker.intentId === intentId) {
             throw new Error("implementation Begin was cancelled and this intent cannot be retried");
@@ -256,7 +257,7 @@ export class LifecycleStore {
     async recordUserRequest(input) { return recordUserRequest(this.dataRoot, input); }
     async userRequests(query) { return userRequestStatus(this.dataRoot, query); }
     async userRequestSource(query) { return readUserRequestSource(this.dataRoot, query); }
-    async validateIntent(intentId, projectRoot) { const intent = await this.load("intents", intentId); if (intent.consumed || intent.resumeOf)
+    async validateIntent(intentId, projectRoot) { await this.assertBeginNotCancelled(intentId); const intent = await this.load("intents", intentId); if (intent.consumed || intent.resumeOf)
         throw new Error("implementation intent is invalid or consumed"); if (path.resolve(intent.projectRoot) !== path.resolve(projectRoot))
         throw new Error("intent project root mismatch"); return intent; }
     async beginOperationFor(intentId) { return this.load("begin-operations", safeId(intentId)); }

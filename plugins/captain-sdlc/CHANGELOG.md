@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+- Verify and revoke authenticated terminal pre-workspace Begin reservations under explicit operator direction, preserving original roots and historical pins, older-runtime cancellation fences and unrelated session resources; bind legitimate target advances separately to the current HEAD.
+- Diagnose authenticated orphan branch leases through public exact-generation selectors and preserve all existing worktrees and dirty files.
+- Repossess only a stranded legacy reservation under explicit operator direction, with immutable release, signed audit, old-intent fencing and interruption/replay protection; surviving authority and active or foreign ownership remain protected.
+- Distinguish authenticated unrelated paused session projections from this request's ownership, preserving their records and released session resources unchanged.
+- Keep idle authenticated failed merge records as retained evidence while guarding their actual held resources, unknown legacy metadata and detached mutation fences.
+- Prove fresh Merge Prep lease acquisition in the same checkouts through focused regressions and public MCP smoke.
+
 ## 0.5.2
 - Preserve an unchanged ready Merge Prep receipt's revision, including exact-owner lease recovery; write a new association only when inputs or state actually change.
 - Cover ready-receipt idempotency with bookkeeping enabled and retain both earlier failed ticket proof attempts in the same run.

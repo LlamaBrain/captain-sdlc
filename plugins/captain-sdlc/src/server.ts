@@ -13,6 +13,7 @@ import { LifecycleStore, effectiveGateDisclosure, executionHead, isPendingPlanRe
 import { extractAuthorizedTargetBranch, extractCaptainResumeIntent } from "./intent.js";
 import { git } from "./workspace.js";
 import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, ensureWorktree, gateRunner, loadPolicy, prepareMerge, preparedMergeState, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState } from "./workspace.js";
+import { BranchLeaseRecoveryStore } from "./branch-lease-recovery.js";
 export type CaptainBeginStage = "reservation" | "lease-acquired" | "worktree-created" | "run" | "permit" | "active";
 export type ClientOwnerArgs = { client_pid?: number; close_token_hash?: string };
 export type CaptainBeginArgs = ClientOwnerArgs & { intent_id: string; objective: string; project_root: string; task_id?: string; plan_paths?: string[]; hitl_checks?: HitlCheck[] };
@@ -174,8 +175,9 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
+const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
 const finalizations = new BookkeepingFinalizationStore(dataRoot);
-const server = new McpServer({ name: "captain-sdlc", version: "0.5.2" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.6.0" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedFinalization = <T>(operation: () => Promise<T>, args: { finalization_id?: string; session_id: string; worktree: string }) => operation().then(reply).catch((error: Error) => {
@@ -259,6 +261,41 @@ server.registerTool("captain_cancel_failed_begin", {
     confirm_owner_stopped: z.boolean(),
   },
 }, async args => guarded(() => captainCancelFailedBegin(store, args)));
+const branchLeaseBindingSchema = {
+  project_root: z.string().min(1), target_worktree: z.string().min(1),
+  target_branch: z.string().min(1), session_id: z.string().min(1).max(256)
+};
+server.registerTool("captain_branch_lease_diagnose", {
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  description: "Authenticate an exact target branch lease and diagnose strict orphan eligibility without writes. Return opaque generation/HEAD selectors; surviving authority, task workspaces, active/foreign owners and unfinished Git operations remain protected.",
+  inputSchema: branchLeaseBindingSchema
+}, async args => guarded(() => branchLeases.diagnose(args)));
+server.registerTool("captain_failed_begin_lease_diagnose", {
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  description: "Read-only full verification of a failed pre-workspace Begin reservation using its original signed root/session graph and the actual current target binding separately. Return exact operator-revocation selectors only when no task worktree, progressed work or active attempt exists.",
+  inputSchema: branchLeaseBindingSchema
+}, async args => guarded(() => branchLeases.diagnoseFailedBegin(args)));
+server.registerTool("captain_repossess_failed_begin", {
+  description: "Under explicit operator repossession direction, revoke only a fully verified unstarted failed Begin reservation and release its exact branch-lease generation. Preserve original records and both existing worktrees; never assert the original client stopped or adopt progressed/active work. Publish the standard cancellation fence for older supported runtimes.",
+  inputSchema: { ...branchLeaseBindingSchema,
+    old_intent_id: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    expected_lease_revision: z.number().int().nonnegative().nullable(),
+    resource_generation: z.string().regex(/^[0-9a-f]{64}$/i),
+    expected_head: z.string().regex(/^[0-9a-f]{40,64}$/i),
+    reason: z.string().trim().min(1).max(4000), user_authorization: z.string().trim().min(1).max(4096)
+  }
+}, async args => guarded(() => branchLeases.repossessFailedBegin(args)));
+server.registerTool("captain_repossess_branch_lease", {
+  description: "Record explicit operator-directed repossession and release only the diagnosed orphan legacy branch reservation generation. Preserve the same worktrees, Git refs/files and old evidence. Never assert an unknown owner stopped; refuse surviving ownership and stale selectors, and fence the retired intent from later Begin.",
+  inputSchema: { ...branchLeaseBindingSchema,
+    old_intent_id: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    expected_lease_revision: z.number().int().nonnegative().nullable(),
+    resource_generation: z.string().regex(/^[0-9a-f]{64}$/i),
+    expected_head: z.string().regex(/^[0-9a-f]{40,64}$/i),
+    reason: z.string().trim().min(1).max(4000), user_authorization: z.string().trim().min(1).max(4096)
+  }
+}, async args => guarded(() => branchLeases.repossess(args)));
+
 server.registerTool("captain_merge_diagnose", {
   description: "Read-only discovery of this caller session's signed merge operations matching exact source, target and branch bindings, plus allowlisted target lease owner metadata. Verifies existing authority without allocating, migrating, repairing or changing leases; does not certify readiness or Captain green.",
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

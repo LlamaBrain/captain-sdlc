@@ -242,3 +242,61 @@ export async function readAuthorizedLeaseStateReadOnly<T extends LeasePayload>(r
   const snapshot = await readAuthorizedLeaseSnapshotReadOnly<T>(root, id);
   return snapshot && { state: snapshot.state, payload: snapshot.payload };
 }
+
+/** Migrate and release only one fully bound inspected raw legacy generation. */
+export async function releaseAuthorizedLegacyLeaseAtGeneration(
+  root: string, id: string, intentId: string, leaseToken: string,
+  resourceGeneration: string, afterMigration?: () => Promise<void>, afterRevision?: () => Promise<void>,
+): Promise<void> {
+  const leaseId = safe(id);
+  let current: Awaited<ReturnType<typeof readAuthorizedLeaseSnapshotReadOnly>>;
+  let partial = false;
+  try { current = await readAuthorizedLeaseSnapshotReadOnly(root, leaseId); }
+  catch { current = await readAuthorizedLegacyLeaseMigrationReadOnly(root, leaseId, intentId, resourceGeneration); partial = true; }
+  if (!current || current.payload.intentId !== intentId || current.payload.leaseToken !== leaseToken) throw new Error("authorized legacy lease generation owner mismatch");
+  const payload = current.payload;
+  if (typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) ||
+      createHash("sha256").update(`${path.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId) throw new Error("authorized legacy lease resource binding is invalid");
+  if (!/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("authorized legacy lease generation changed");
+  if (!current.legacy && current.revision !== 0 && !(current.revision === 1 && current.state === "released")) throw new Error("authorized legacy lease generation changed");
+  if (current.legacy || partial) {
+    const initial: LeaseRevision = { schemaVersion: 1, leaseId, revision: 0, state: "held", payload };
+    await putAuthorizedOnceExact(root, "lease-revisions", `${leaseId}-0`, initial);
+    if (!partial) await afterRevision?.();
+    await writeLeaseWatermark(root, initial);
+    await afterMigration?.();
+  }
+  await releaseAuthorizedLeaseAtGeneration(root, leaseId, intentId, leaseToken, 0, digest({ leaseId, revision: 0, state: "held", payload }));
+}
+
+/** Read the single incomplete legacy migration checkpoint without repairing it. */
+export async function readAuthorizedLegacyLeaseMigrationReadOnly<T extends LeasePayload = LeasePayload>(
+  root: string, id: string, intentId: string, resourceGeneration: string,
+): Promise<{ state: "held"; payload: T; revision: 0; legacy: false }> {
+  const leaseId = safe(id), payload = await readAuthorizedReadOnly<T>(root, "leases", leaseId);
+  if (payload.intentId !== intentId || typeof payload.leaseToken !== "string" || !payload.leaseToken || typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) ||
+      createHash("sha256").update(`${path.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId || !/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("partial legacy lease migration binding is invalid");
+  const names = async (bucket: string) => { try { return await readdir(path.join(root, bucket)); } catch (error: any) { if (error.code !== "ENOENT") throw error; return []; } };
+  const expression = new RegExp(`^${leaseId}-[0-9]+\\.json$`);
+  const revisions = (await names("lease-revisions")).filter(name => expression.test(name)), marks = (await names("lease-watermarks")).filter(name => expression.test(name));
+  if (revisions.length !== 1 || revisions[0] !== `${leaseId}-0.json` || marks.length) throw new Error("partial legacy lease migration is not the exact missing-watermark checkpoint");
+  const current = await readAuthorizedReadOnly<LeaseRevision<T>>(root, "lease-revisions", `${leaseId}-0`);
+  const initial = { schemaVersion: 1, leaseId, revision: 0, state: "held", payload };
+  if (digest(current) !== digest(initial)) throw new Error("partial legacy lease migration revision binding is invalid");
+  return { state: "held", payload, revision: 0, legacy: false };
+}
+
+/** A repossessed intent can never publish a new Begin, even after projection replay. */
+export async function assertIntentNotRepossessed(root: string, intentId: string): Promise<void> {
+  const id = safe(intentId);
+  const optional = async (bucket: string) => {
+    try { return await readAuthorizedReadOnly<Record<string, unknown>>(root, bucket, id); }
+    catch (error: any) { if (error.code === "ENOENT") return undefined; throw error; }
+  };
+  const [marker, watermark, result] = await Promise.all([optional("branch-lease-repossessions"), optional("branch-lease-repossession-watermarks"), optional("branch-lease-repossession-results")]);
+  if (!marker && !watermark && !result) return;
+  if (!marker || marker.schema_version !== 1 || marker.kind !== "orphan_branch_lease_repossessed" || marker.old_intent_id !== intentId || typeof marker.recovery_id !== "string" || !/^[0-9a-f]{64}$/.test(marker.recovery_id)) throw new Error("signed repossessed intent marker is invalid or regressed");
+  if (watermark && (watermark.schema_version !== 1 || watermark.old_intent_id !== intentId || watermark.recovery_id !== marker.recovery_id || watermark.marker_sha256 !== digest(marker))) throw new Error("signed repossessed intent watermark is invalid");
+  if (result && (result.schema_version !== 1 || result.old_intent_id !== intentId || result.recovery_id !== marker.recovery_id || result.state !== "released")) throw new Error("signed repossessed intent result is invalid");
+  throw new Error("implementation intent was repossessed and revoked; retain the existing task checkout and use its normal operation");
+}

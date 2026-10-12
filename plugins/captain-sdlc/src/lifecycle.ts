@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
+import { acquireAuthorizedLease, assertIntentNotRepossessed, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { probeSessionOwner, validateSessionOwner, type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
@@ -194,6 +194,7 @@ export class LifecycleStore {
     return releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, intentId, leaseToken, expectedRevision, resourceGeneration);
   }
   private async assertBeginNotCancelled(intentId: string) {
+    await assertIntentNotRepossessed(this.dataRoot, intentId);
     const marker = await this.beginCancellationFor(intentId);
     if (marker && marker.schemaVersion === 1 && marker.kind === "failed_begin_cancelled" && marker.intentId === intentId) {
       throw new Error("implementation Begin was cancelled and this intent cannot be retried");
@@ -222,7 +223,7 @@ export class LifecycleStore {
   async recordUserRequest(input: UserRequestInput) { return recordUserRequest(this.dataRoot, input); }
   async userRequests(query: UserRequestQuery) { return userRequestStatus(this.dataRoot, query); }
   async userRequestSource(query: UserRequestSourceQuery) { return readUserRequestSource(this.dataRoot, query); }
-  async validateIntent(intentId: string, projectRoot: string): Promise<Intent> { const intent = await this.load<Intent>("intents", intentId); if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed"); if (path.resolve(intent.projectRoot) !== path.resolve(projectRoot)) throw new Error("intent project root mismatch"); return intent; }
+  async validateIntent(intentId: string, projectRoot: string): Promise<Intent> { await this.assertBeginNotCancelled(intentId); const intent = await this.load<Intent>("intents", intentId); if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed"); if (path.resolve(intent.projectRoot) !== path.resolve(projectRoot)) throw new Error("intent project root mismatch"); return intent; }
   async beginOperationFor(intentId: string): Promise<BeginOperation> { return this.load("begin-operations", safeId(intentId)); }
   async activatedBeginRun(operation: BeginOperation): Promise<Run | undefined> { await this.assertBeginOperation(operation); try { const activated = await this.load<any>("begin-activated", operation.operationToken); if (activated.intentId !== operation.intentId || activated.runId !== operation.runId) throw new Error("activated begin checkpoint does not match its reservation"); const run = await this.run(operation.intentId); await this.assertSessionLease(run); const active = await this.load<any>("begin-active", operation.operationToken); await this.project("active", operation.sessionId, active); await this.project("runs", operation.intentId, run); await this.project("permits", `${run.sessionId}-${run.turnId}`, this.permit(run)); return run; } catch (error: any) { if (error.code === "ENOENT") return undefined; throw error; } }
   async reserveBegin(input: { intentId: string; objective: string; projectRoot: string; taskId?: string; leaseToken?: string }): Promise<BeginOperation> {

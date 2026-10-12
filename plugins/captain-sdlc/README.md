@@ -216,3 +216,69 @@ identity, objective, current phase, next steps, blockers, context, source head/t
 `evidenceCount` and exact `handoffId`. Full signed source snapshots and evidence
 remain in the authority store and are used by ordinary resume. Large retained
 handoffs therefore do not overflow the MCP message buffer during task discovery.
+
+## Orphan branch reservations
+
+When the ordinary task/merge recovery APIs cannot identify a legacy target lease,
+call `captain_branch_lease_diagnose` with `project_root`, `target_worktree`,
+`target_branch` and the actual `session_id`. The read-only tool authenticates the
+lease generation and Git binding, then checks for surviving authority, task
+workspaces and unfinished Git operations. A missing run or elapsed time alone
+does not qualify. Raw pre-revision storage must explicitly bind its repository,
+branch and historical commit.
+
+For a diagnosed orphan and existing explicit repossession direction, call
+`captain_repossess_branch_lease` with its exact `recovery.args`, a concrete `reason`
+and the original `user_authorization`. This records operator-directed repossession;
+it does not manufacture stopped-owner evidence. The signed tombstone fences the
+old intent and exact-generation release protects replacements and interrupted
+retries. Surviving requests, runs, workspaces and active/foreign owners remain
+refused. Do not replace a refused operation with raw authority-file edits.
+
+Continue the original authorized Prep in the same source and target checkouts.
+Normal Prep acquires a fresh branch lease. Recovery creates no worktree, changes
+no Git refs/index/files, and does not grant merge-back or push authority. See
+[the decision](docs/decisions/0002-orphan-branch-lease-repossession.md).
+
+## Failed pre-workspace Begin reservations
+
+A surviving Begin record is verified separately from an orphan. Use
+`captain_failed_begin_lease_diagnose` with the actual primary root, target
+checkout/branch and current operator session. It authenticates the original
+issuance, recorded root/session, reservation and lease checkpoints without
+rewriting those bindings. A wrong issued root remains visible in the retained
+history; the actual target binding is checked independently. A legitimate target
+advance does not invalidate the original signed graph: its historical commit must
+still exist and all original checkpoints must agree. Recovery separately pins
+the current HEAD and refuses a concurrent change.
+
+An authenticated projection for a different paused task can remain present while
+its session lease is released. The operator diagnostic reports that broad active
+flag honestly and verifies the latest signed task/activation correlation separately.
+Such a task can coexist with retirement of this unstarted request when every
+original reference is absent and it owns no actual target resource. Recovery
+preserves its task, projection and session records unchanged; running, ambiguous,
+original or actual-target ownership remains refused.
+
+A saved failed merge is not an exclusive target owner after its authenticated
+operation and matching integration/mutation resources are released. The operator
+path verifies its signed history, historical repository bindings and resource
+states without changing it. Stale saved target locations and advanced source
+HEADs remain retained evidence. Unknown state, retained preparation, pending Git
+work or a held matching merge resource still refuses recovery. Any unrelated
+held source reservation must match the recognized legacy producer shape and
+remain untouched. Ordinary Merge Prep and Back keep their existing binding and
+readiness checks.
+
+Only a verified terminal pre-workspace reservation with no task checkout,
+progressed run, activation, permit, active attempt or unfinished Git state can
+receive operator-revocation selectors. With explicit existing repossession
+direction, call `captain_repossess_failed_begin` using the exact selectors,
+concrete reason and original instruction. The separate signed operator record
+does not assert that an unknown original client stopped. Its standard Begin
+cancellation marker also fences older supported runtimes. Original records and
+unrelated session ownership remain intact.
+
+Then continue the original authorized Prep in the same task and target worktrees.
+This companion does not extend orphan eligibility or permit takeover of active
+or progressed work.

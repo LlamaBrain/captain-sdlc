@@ -188,3 +188,23 @@ Never bypass hook decisions or mark untrusted changed hooks as trusted. Actual
 Codex hook trust prompts still belong to the human.
 
 If the repository's committed `HEAD` lacks `.captain-sdlc/codex-policy.json`, Captain does not govern that repository yet; use its normal project workflow. This opt-in behavior allows a repository to bootstrap or repair its policy without deadlocking behind unavailable Captain entry points.
+
+For a legacy target reservation with no discoverable owning run/merge, use
+`captain_branch_lease_diagnose` with the exact project root, target checkout,
+branch and session. Only an authenticated orphan diagnosis plus explicit existing
+human repossession direction permits `captain_repossess_branch_lease`, using the
+returned generation/HEAD selectors, reason and original instruction. This is
+operator-directed retirement, not a claim that an unknown owner stopped. Surviving
+authority, workspaces and active/foreign owners remain protected. Preserve the
+signed receipt and continue the original operation in the SAME source/target
+worktrees; normal Prep acquires the replacement lease. No new checkout, reset,
+authority-file editing, repeated permission or old-proof relabeling is needed.
+
+If diagnosis instead finds authenticated failed Begin records, use
+`captain_failed_begin_lease_diagnose` against the actual primary/target bindings.
+Only verified terminal pre-workspace state plus explicit existing human
+repossession direction permits `captain_repossess_failed_begin` with its exact
+operator selectors. It preserves the ORIGINAL signed root/session graph, publishes
+the standard cancellation fence, records operator revocation without claiming the
+old client stopped, and retains the same worktrees. Any progressed task or active
+attempt remains refused; never supply a false confirm_owner_stopped value.
