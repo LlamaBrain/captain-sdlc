@@ -1,3 +1,4 @@
+import { type FinalizationArgs, type FinalizationReceipt } from "./bookkeeping-finalization.js";
 import { type GateRunner, type ProjectPolicy } from "./lifecycle.js";
 import { assertWorktreeBinding, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
 export type MergeCommitInput = {
@@ -6,6 +7,11 @@ export type MergeCommitInput = {
     task_outcome?: "Implements" | "Completes" | "Needs-QA";
     task_id?: string;
 };
+export type MergeFinalizationSelection = Omit<FinalizationArgs, "worktree" | "session_id">;
+export type MergeFinalizationInput = {
+    source?: MergeFinalizationSelection;
+    target?: MergeFinalizationSelection;
+};
 export type MergePrepArgs = {
     source_worktree: string;
     target_worktree: string;
@@ -13,6 +19,7 @@ export type MergePrepArgs = {
     session_id: string;
     merge_id?: string;
     commit?: MergeCommitInput;
+    finalization?: MergeFinalizationInput;
 };
 export type MergeBackArgs = {
     merge_id: string;
@@ -20,6 +27,7 @@ export type MergeBackArgs = {
     source_worktree?: string;
     target_worktree?: string;
     target_branch?: string;
+    finalization?: MergeFinalizationInput;
 };
 export type MergeLeaseRecoveryArgs = MergeBackArgs & {
     source_worktree: string;
@@ -64,6 +72,17 @@ export type MergeRecord = {
     prepared_commit_request?: MergeCommitInput;
     conflicts: string[];
     gates: GateEvidence[];
+    finalizations?: FinalizationReceipt[];
+    finalization_requests?: Partial<Record<"source" | "target", {
+        selection: MergeFinalizationSelection;
+        expected_head: string;
+    }>>;
+    bookkeeping_extensions?: Array<{
+        kind: "source" | "target";
+        from_head: string;
+        to_head: string;
+    }>;
+    integration_inputs?: Inputs;
     attempted_inputs?: Inputs;
     ready_inputs?: Inputs;
     failure?: string;
@@ -140,6 +159,12 @@ export declare class MergeWorkflowStore {
     private bindings;
     private assertInputs;
     private assertReady;
+    private deliveryInputs;
+    /** Rules captured by Prep can excuse records, never new product or dependency inputs. */
+    private associateBookkeepingInputs;
+    private advanceBookkeepingTarget;
+    private finalizeSelected;
+    private assertRecordContinuity;
     private lock;
     private resources;
     private initial;

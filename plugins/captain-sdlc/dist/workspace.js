@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { approvedPlanDigest } from "./lifecycle.js";
 import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
+import { bookkeepingCaptured, bookkeepingPathAllowedCore, bookkeepingSubjectAllowed, bookkeepingTextAllowed, validateBookkeepingPolicy } from "./bookkeeping.js";
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
 const approvedGeneratedPaths = new Set([
@@ -115,6 +116,15 @@ export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     else if (raw.commit !== undefined) {
         parsed.commit = validateCommitPolicy(raw.commit);
         parsed.commitPolicySha256 = digest(JSON.stringify(raw.commit));
+    }
+    if (parsed.commit?.bookkeeping) {
+        const relative = parsed.commit.bookkeeping.path_file, listing = await git(["ls-tree", "-z", baseHead, "--", relative], projectRoot);
+        if (!/^100644 blob [0-9a-f]{40,64}\t/.test(listing) || listing.split("\0").filter(Boolean).length !== 1)
+            throw new Error("bookkeeping rule file must be a regular non-executable committed file");
+        const patterns = (await gitInvocation(["show", `${baseHead}:${relative}`], projectRoot)).stdout;
+        if (!bookkeepingTextAllowed(patterns))
+            throw new Error("bookkeeping rule file must be bounded text");
+        parsed.commit.bookkeeping = { path_file: relative, patterns, sha256: digest(patterns) };
     }
     const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
     if (raw.sourceManifestExcludes !== undefined && !Array.isArray(raw.sourceManifestExcludes))
@@ -249,7 +259,8 @@ export async function commitEvidence(worktree, baseHead, policy, taskId, prepare
             else
                 matchedPrepared.add(index);
         }
-        if (parent !== expectedParent || !validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)))
+        const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash, phaseSubject, commitPolicy);
+        if (parent !== expectedParent || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || (!bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)))))
             phaseCommitsValid = false;
         expectedParent = hash;
     }
@@ -258,7 +269,8 @@ export async function commitEvidence(worktree, baseHead, policy, taskId, prepare
     phaseCommitsValid &&= preparedMergesValid;
     const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
     const previousPhaseRetained = !previousPhaseHead || hashes.includes(previousPhaseHead);
-    return { head, tree, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || hasTaskTrailer(trailers, taskId), versionSurfacesValid: await versionSurfacesMatch(worktree, head, subject, commitPolicy), preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
+    const headParent = splitLines(await git(["rev-list", "--parents", "-n", "1", head], worktree))[0]?.split(" ")[1], bookkeepingOnly = Boolean(headParent && await bookkeepingCommitValid(worktree, headParent, head, subject, commitPolicy));
+    return { head, tree, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || hasTaskTrailer(trailers, taskId), versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...(commitPolicy.bookkeeping ? { bookkeepingOnly } : {}), preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
 export async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority) {
     if (!paths.length)
@@ -268,7 +280,7 @@ export async function commitAtomic(worktree, paths, subject, taskOutcome, taskId
     const safePaths = paths.map(value => safeRepositoryPath(value, "commit"));
     if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/")))
         throw new Error("commit paths must be canonical safe repository-relative paths");
-    if (!validSubject(subject, commitPolicy))
+    if (!validSubject(subject, commitPolicy) && !(bookkeepingCaptured(commitPolicy) && bookkeepingSubjectAllowed(subject)))
         throw new Error("commit subject does not satisfy repository policy");
     const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : undefined;
     if ((taskOutcome && !taskId) || (!taskOutcome && taskId && commitPolicy.require_task_trailer) || (taskTrailer && !hasTaskTrailer(taskTrailer, taskId)) || (commitPolicy.require_task_trailer && !taskTrailer))
@@ -423,7 +435,12 @@ export async function preparedMergeState(worktree, prepared) { const mergeHead =
 export async function reconcilePreparedMerge(worktree, prepared) { if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree))
     throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state"); }
 const normalizeSourceStatus = (status) => status.split(/\r?\n/).filter(line => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
-export async function sourceState(worktree, policy) { const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? undefined, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : undefined, commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree), manifest = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? []), finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)); return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), manifest, branch, branchHead, commonGitDir, topLevel, gitDir }; }
+export async function sourceState(worktree, policy) {
+    const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? undefined, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : undefined, commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+    const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : undefined);
+    const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
+    return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
+}
 export async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) { const real = await realpath(worktree), owned = path.resolve(worktree); if (path.resolve(real).toLowerCase() !== owned.toLowerCase())
     throw new Error("worktree path resolves through a reparse point"); const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)); if (topLevel.toLowerCase() !== owned.toLowerCase())
     throw new Error("Git top-level does not match the owned worktree"); const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree); if (!branch || (expectedBranch && branch !== expectedBranch))
@@ -484,7 +501,7 @@ catch (error) {
         throw error;
 } }
 async function trackedWorktreePaths(cwd) { return splitLines(await git(["ls-files"], cwd)); }
-async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) { await assertSafeGitMetadataAttributes(cwd); const files = new Set(); const collect = async (target) => { let info; try {
+export async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) { await assertSafeGitMetadataAttributes(cwd); const files = new Set(); const collect = async (target) => { let info; try {
     info = await lstat(target);
 }
 catch (error) {
@@ -576,14 +593,66 @@ function validateCommitPolicy(input) { const value = objectValue(input, "trusted
     throw new Error("version surface path and pattern are required"); const surfacePath = safeRepositoryPath(surface.path, "version surface"); compilePattern(surface.pattern); if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, "")))
     throw new Error("version surface pattern must capture the version"); return { path: surfacePath, pattern: surface.pattern }; }); if (new Set(versionSurfaces.map((surface) => surface.path)).size !== versionSurfaces.length)
     throw new Error("version surface paths must be unique"); if (requireVersionSuffix && !versionSurfaces.some((surface) => surface.path === versionFile))
-    throw new Error("version surfaces must include version_file"); return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles }; }
+    throw new Error("version surfaces must include version_file"); return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles, ...(value.bookkeeping !== undefined ? { bookkeeping: validateBookkeepingPolicy(value.bookkeeping) } : {}) }; }
 function validSubject(subject, policy) { const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null; return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned); }
 function hasTaskTrailer(message, taskId) { if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId))
     return false; const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map(match => match[1].trim()); return matches.length === 1 && matches[0] === taskId; }
 async function candidateCommitValid(worktree, hash, expectedParent, policy, taskId, preparedMerges) { const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree)); let mergeValid = parents.length === 2; if (parents.length === 3) {
     const prepared = preparedMerges.find(value => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map(surface => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every(changedPath => bookkeeping.has(changedPath)));
-} return parent === expectedParent && mergeValid && validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy); }
+} return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash, subject, policy) || (validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy))); }
+export async function bookkeepingPathAllowed(relative, policy) { return bookkeepingPathAllowedCore(relative, policy, git); }
+/** Blob validation preserves raw bytes at whitespace/control boundaries. */
+export async function bookkeepingBlobAllowed(worktree, oid) {
+    if (!/^[0-9a-f]{40,64}$/.test(oid) || /^0+$/.test(oid))
+        return false;
+    return Number(await git(["cat-file", "-s", oid], worktree)) <= maxPolicyInput && bookkeepingTextAllowed((await gitInvocation(["cat-file", "blob", oid], worktree)).stdout);
+}
+/** Classifies the real first-parent tree delta, including rename source paths and modes. */
+export async function bookkeepingCommitValid(worktree, parent, hash, subject, policy) {
+    if (!bookkeepingCaptured(policy) || !bookkeepingSubjectAllowed(subject))
+        return false;
+    const parents = (await git(["rev-list", "--parents", "-n", "1", hash], worktree)).split(" ");
+    if (parents[1] !== parent || parents.length < 2 || parents.length > 3 || await git(["show", "-s", "--format=%s", hash], worktree) !== subject)
+        return false;
+    const raw = (await git(["diff-tree", "--no-commit-id", "--raw", "--no-renames", "--no-ext-diff", "--no-textconv", "-r", "-z", parent, hash, "--"], worktree)).split("\0");
+    if (!raw[0])
+        return false;
+    for (let index = 0; index < raw.length && raw[index]; index += 2) {
+        const match = /^:(000000|100644) (000000|100644) ([0-9a-f]{40,64}) ([0-9a-f]{40,64}) ([AMD])$/.exec(raw[index]), relative = raw[index + 1];
+        if (!match || !relative || !await bookkeepingPathAllowed(relative, policy))
+            return false;
+        for (const oid of [match[3], match[4]]) {
+            if (/^0+$/.test(oid))
+                continue;
+            if (!await bookkeepingBlobAllowed(worktree, oid))
+                return false;
+        }
+    }
+    return true;
+}
+/** Proof extension admits only descendant record commits; old proof stays at base. */
+export async function bookkeepingHistoryValid(worktree, base, head, policy) {
+    if (!bookkeepingCaptured(policy) || base === head)
+        return false;
+    const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${base}..${head}`], worktree));
+    if (!hashes.length || hashes.at(-1) !== head)
+        return false;
+    let parent = base;
+    for (const hash of hashes) {
+        const subject = await git(["show", "-s", "--format=%s", hash], worktree);
+        if (!await bookkeepingCommitValid(worktree, parent, hash, subject, policy))
+            return false;
+        if (policy.require_task_trailer) {
+            const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree);
+            const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
+            if (matches.length !== 1)
+                return false;
+        }
+        parent = hash;
+    }
+    return true;
+}
 function compilePattern(pattern) { const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern; return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern"); }
 async function versionSurfacesMatch(worktree, hash, subject, policy) { const surfaces = policy.version_surfaces ?? []; if (!surfaces.length)
     return !(policy.require_version_suffix ?? true); const expected = subjectVersion(subject); if (!expected)
@@ -630,17 +699,29 @@ async function versionTransitionValid(worktree, parent, hash, subject, policy) {
 async function changelogAddsVersion(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
     return true; const version = subjectVersion(subject); if (!version)
     return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes) { const lines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/"))); async function walk(dir) { for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-    const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
-    if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || (relative.toLowerCase().endsWith(".meta") && !tracked.has(relative)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
-        continue;
-    const full = path.join(dir, entry.name), info = await lstat(full);
-    if (info.isSymbolicLink())
-        throw new Error(`source manifest crosses reparse point: ${relative}`);
-    if (info.isDirectory())
-        await walk(full);
-    else if (info.isFile())
-        lines.push(`${relative}:${createHash("sha256").update(await readFile(full)).digest("hex")}`);
-} } await walk(root); return digest(lines.join("\n")); }
+async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy) {
+    const lines = [], productLines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/")));
+    async function walk(dir) {
+        for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+            const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
+            if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || (relative.toLowerCase().endsWith(".meta") && !tracked.has(relative)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
+                continue;
+            const full = path.join(dir, entry.name), info = await lstat(full);
+            if (info.isSymbolicLink())
+                throw new Error(`source manifest crosses reparse point: ${relative}`);
+            if (info.isDirectory())
+                await walk(full);
+            else if (info.isFile()) {
+                const content = await readFile(full), value = `${relative}:${createHash("sha256").update(content).digest("hex")}`;
+                lines.push(value);
+                if (bookkeepingPolicy && (info.mode & 0o111) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy))
+                    continue;
+                productLines.push(value);
+            }
+        }
+    }
+    await walk(root);
+    return { manifest: digest(lines.join("\n")), ...(bookkeepingPolicy ? { productManifest: digest(productLines.join("\n")) } : {}) };
+}
 function rootFilePatternMatches(file, pattern) { const lower = file.toLowerCase(), expected = pattern.toLowerCase(); return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected; }
 const digest = (text) => createHash("sha256").update(text).digest("hex"), splitLines = (value) => value.split(/\r?\n/).filter(Boolean);

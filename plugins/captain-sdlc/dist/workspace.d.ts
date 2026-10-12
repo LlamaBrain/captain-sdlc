@@ -29,6 +29,11 @@ export declare function ensureWorktree(projectRoot: string, baseHead: string, in
     gitDir: string;
 }>;
 export declare function commitEvidence(worktree: string, baseHead: string, policy?: ProjectPolicy, taskId?: string, preparedMerges?: PreparedMerge[], previousPhaseHead?: string): Promise<{
+    preparedMergesValid: boolean;
+    phaseCommitsValid: boolean;
+    previousPhaseHead: string | undefined;
+    previousPhaseRetained: boolean;
+    bookkeepingOnly?: boolean | undefined;
     head: string;
     tree: string;
     commitCount: number;
@@ -38,10 +43,6 @@ export declare function commitEvidence(worktree: string, baseHead: string, polic
     changelogChanged: boolean;
     taskTrailerValid: boolean;
     versionSurfacesValid: boolean;
-    preparedMergesValid: boolean;
-    phaseCommitsValid: boolean;
-    previousPhaseHead: string | undefined;
-    previousPhaseRetained: boolean;
 }>;
 export declare function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy?: CommitPolicy, preparedMerges?: PreparedMerge[], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>): Promise<{
     mergeHead?: string | undefined;
@@ -68,15 +69,16 @@ export declare function abortMerge(worktree: string, prepared: PreparedMerge, va
 export declare function preparedMergeState(worktree: string, prepared: PreparedMerge): Promise<"clean" | "pinned" | "diverged">;
 export declare function reconcilePreparedMerge(worktree: string, prepared: PreparedMerge): Promise<void>;
 export declare function sourceState(worktree: string, policy?: ProjectPolicy): Promise<{
-    head: string;
-    tree: string;
-    status: string;
-    manifest: string;
     branch: string | undefined;
     branchHead: string | undefined;
     commonGitDir: string;
     topLevel: string;
     gitDir: string;
+    manifest: string;
+    productManifest?: string;
+    head: string;
+    tree: string;
+    status: string;
 }>;
 export declare function assertWorktreeBinding(worktree: string, expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, requireClean?: boolean, expectedGitDir?: string): Promise<{
     branch: string;
@@ -85,3 +87,11 @@ export declare function assertWorktreeBinding(worktree: string, expectedBranch?:
     topLevel: string;
     head: string;
 }>;
+export declare function assertSafeGitAttributesInWorktree(cwd: string, selectedPaths: string[]): Promise<void>;
+export declare function bookkeepingPathAllowed(relative: string, policy: CommitPolicy): Promise<boolean>;
+/** Blob validation preserves raw bytes at whitespace/control boundaries. */
+export declare function bookkeepingBlobAllowed(worktree: string, oid: string): Promise<boolean>;
+/** Classifies the real first-parent tree delta, including rename source paths and modes. */
+export declare function bookkeepingCommitValid(worktree: string, parent: string, hash: string, subject: string, policy: CommitPolicy): Promise<boolean>;
+/** Proof extension admits only descendant record commits; old proof stays at base. */
+export declare function bookkeepingHistoryValid(worktree: string, base: string, head: string, policy: CommitPolicy): Promise<boolean>;

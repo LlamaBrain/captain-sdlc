@@ -74,6 +74,26 @@ proof; integration has its own signed record. Caller-supplied commands cannot re
 The existing `captain_prepare_merge`/`captain_abort_merge` tools retain their low-level contracts
 for current implementation clients. A request for Merge Prep never implies Merge Back.
 
+## Tracked bookkeeping and captain.ignore
+
+Commit `.captain-sdlc/captain.ignore` and opt in through the repository's trusted commit policy:
+
+```json
+"bookkeeping": { "path_file": ".captain-sdlc/captain.ignore" }
+```
+
+The file contains one Git ignore pattern per line; blank lines, `#` comments, `*`, `**`, directory rules and `!` exclusions use Git's parser. See [the starter file](templates/captain.ignore). These are Captain bookkeeping exclusions: the files remain tracked by Git. The rule file and policy adoption/change use ordinary versioned commits. Existing captured runs do not gain new exclusions retroactively.
+
+Rules may narrow supported notebook, handoff, closeout, text-evidence and `Churn/*.md` paths. A fixed ceiling refuses product/control files regardless of broad patterns, as well as binary files, symlinks, executable modes and mixed changes. Frozen plans, AGENTS.md, hooks, dependency locks, version surfaces and changelogs remain governed normally.
+
+`captain_finalize_bookkeeping` accepts `worktree`, `session_id`, `task_id`, exact `paths`, a `docs(captain): ...` or `chore(captain): ...` subject, and `disposition: "commit" | "stash"`. A commit retains version/changelog unchanged and carries the configured task trailer. A stash retains tracked and untracked selected records under a correlation marker and exact `stash_oid`; it is never dropped automatically. All dirty/staged paths must belong to the explicit selection. Another active task or foreign branch lease is refused. Completed implementation proof remains untouched.
+
+The receipt's `finalization_id` can be read with `captain_bookkeeping_status` and reused to recover an interrupted request. Keep the same selection and ID after mutation starts. A completed ID refers to its old records; omit it to finalize newly changed records with a fresh generation.
+
+Merge Prep and Back accept `finalization: { source?: selection, target?: selection }`, using the same selection fields without worktree/session. Necessary task-owned finalization is part of an authorized Prep/Back request; no repeated conversational approval is needed. Commit source records or park target records before clean binding checks. A target bookkeeping commit must be reconciled through Prep in the source; Back can park target dirt with a retained stash.
+
+After readiness, audited record-only descendants can inherit existing checks through `integration_inputs`. `ready_inputs` and gate evidence retain the tested revision. Product/policy/dependency changes and raw ignored product inputs still invalidate readiness. Report tested and integrated revisions separately. [Decision rationale](docs/decisions/0001-captain-bookkeeping-exclusions.md).
+
 ## Read-only Begin diagnosis
 
 `captain_begin_diagnose` inspects an exact caller-owned startup using `intent_id`,

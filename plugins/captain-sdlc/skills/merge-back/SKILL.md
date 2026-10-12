@@ -20,6 +20,23 @@ preserve Captain's session ownership checks; authority does not permit adopting 
 Use the signed operation's source, target and branch bindings, never an ancestor branch, current
 checkout HEAD or superseded handoff. Do not require the human to repeat the target or internal ID.
 
+Necessary finalization belongs to the authorized merge operation. Inspect exact dirty paths
+before invoking it. With captured `commit.bookkeeping.path_file` opt-in and committed
+`.captain-sdlc/captain.ignore`, supply `finalization.source`/`finalization.target` with exact
+`paths`, a Captain record subject, `task_id` and `disposition: commit | stash`. Source records
+can be committed without a version bump; target records can be parked in a retained correlated
+stash. Preserve the receipt's exact OID. Never auto-drop the stash or ignore unrelated dirt.
+Prep and Back can each finalize new records with fresh generations; reuse an unfinished
+`finalization_id` only for its identical selected data. Standalone `captain_finalize_bookkeeping`
+also works after implementation completion, with independent signed status. Active/foreign
+ownership, product/control changes and mixed paths remain refused. A rule/policy adoption or
+change still uses an ordinary versioned commit; legacy captured operations retain their policy.
+After readiness, retain original checks/revisions; audited record-only descendants receive a
+separate integration association. Report tested and integrated heads distinctly. If a target
+record was committed after Prep, reconcile it in the existing source through Prep before Back.
+Without opt-in, finish necessary owned records with the ordinary authorized commit/stash
+workflow before clean checks. Do not request the same task's approval again.
+
 Call `captain_merge_back` for that operation and the current client session ID. Captain checks
 the prepared identities, revisions, policy and dependency inputs before fast-forwarding the
 target. Back retains the test/build evidence from Prep and does not repeat those checks.

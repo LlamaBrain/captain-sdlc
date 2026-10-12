@@ -1,0 +1,9 @@
+# Captain bookkeeping exclusions; these files remain Git-tracked.
+# One Git ignore pattern per line. Blank lines, # comments and ! exclusions work.
+# This file and policy files themselves always use ordinary versioned commits.
+/.captain-sdlc/notebook/notes.json
+/.captain-sdlc/notebook/history.jsonl
+/.captain-sdlc/notebook/dashboard.md
+/.captain-sdlc/handoffs/*.md
+/.captain-sdlc/closeouts/*.md
+/Churn/*.md

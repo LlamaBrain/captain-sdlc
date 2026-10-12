@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+- Read opt-in bookkeeping path rules from committed `.captain-sdlc/captain.ignore`, using Git's ignore syntax while keeping records tracked.
+- Finalize exact operational records with version-neutral Captain commits or correlated retained stashes in an independent signed journal, including after implementation completion and during Merge Prep/Back.
+- Retain Prep checks at their tested revision and associate only audited bookkeeping descendants with integration; product, policy, dependency, mode, binary and foreign-owner changes remain guarded.
+- Cover finalization recovery, repeated Prep/Back records, exact stash preservation, public MCP transport and refusal paths with focused tests and the captured feature gates.
+
 ## 0.4.1
 - Return the same consent context on fresh and idempotent Begin responses.
 - Preserve signed predecessor integrity and diagnostic redaction while adapting existing fixtures to caller-owned consent provenance and repository-bound issuance.

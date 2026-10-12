@@ -7,13 +7,14 @@ import { probeSessionOwner, validateSessionOwner, type SessionOwner, type Sessio
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
+import { bookkeepingCaptured, bookkeepingSubjectAllowed, type BookkeepingPolicy } from "./bookkeeping.js";
 import { recordUserAuthorizations, userAuthorizationStatus, type AuthorizationQuery } from "./user-authorization.js";
 import { recordUserRequest, userRequestStatus, type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
 import { readUserRequestSource, type UserRequestSourceQuery } from "./user-request-source.js";
 export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = { exitCode: number; stdout: string; stderr: string };
 export type GateRunner = (command: string, cwd: string) => Promise<GateResult>;
-export type SourceState = { head: string; tree: string; status: string; manifest?: string; branch?: string; branchHead?: string; commonGitDir?: string; topLevel?: string; gitDir?: string };
+export type SourceState = { head: string; tree: string; status: string; manifest?: string; productManifest?: string; branch?: string; branchHead?: string; commonGitDir?: string; topLevel?: string; gitDir?: string };
 export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
 type ProofSourceRepairFence = { runId: string; runRevision: number; committedStateSha256: string; activationToken: string; sessionLeaseRevision: number; sessionLeaseSha256: string };
 class ProofSourceDivergenceError extends Error {
@@ -21,7 +22,7 @@ class ProofSourceDivergenceError extends Error {
     super("proof source state diverged from the clean committed tree or ignored-input manifest");
   }
 }
-export type CommitPolicy = { conventional?: boolean; require_version_suffix?: boolean; require_task_trailer?: boolean; version_file: string; version_surfaces?: Array<{ path: string; pattern: string }>; changelog_files: string[] };
+export type CommitPolicy = { conventional?: boolean; require_version_suffix?: boolean; require_task_trailer?: boolean; version_file: string; version_surfaces?: Array<{ path: string; pattern: string }>; changelog_files: string[]; bookkeeping?: BookkeepingPolicy };
 export type HitlCheck = { id: string; criterionId: string; setup: string; action: string; expected: string; evidence: string };
 export type HitlFeedbackInput = { decision: "accept" | "needs_changes"; humanFeedback: string; checkIds: string[]; evidenceReferences: string[]; reviewedRevision?: string };
 export type HitlFeedback = HitlFeedbackInput & { kind: "hitl_feedback"; recordedAt: string; recordedSource: SourceState };
@@ -43,7 +44,7 @@ export type TerminalCommit = { requestSha256: string; commitLeaseId: string; com
 export type TaskTicket = { filter: string; command: string; commandSha256: string; policyCommandSha256: string };
 export type Run = { user_request?: UserRequestStatus; schemaVersion: 1; revision: number; previousRevisionSha256?: string; runId: string; operationToken: string; intentId: string; sessionId: string; turnId: string; activationToken?: string; taskId?: string; objective: string; projectRoot: string; worktreePath: string; baseHead: string; branch: string; targetBranch?: string; commonGitDir: string; gitDir: string; leaseId?: string; leaseToken?: string; sessionLeaseId?: string; sessionLeaseToken?: string; profile: Profile; visualRequired: boolean; startedAt: string; phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete"; status: "running" | "paused" | "green" | "red"; policy: ProjectPolicy; taskTicket?: TaskTicket; preparedMerges?: PreparedMerge[]; mutationOperation?: WorktreeMutationOperation; commitOperation?: CommitOperation; preparedCommit?: PreparedCommit; terminalCommit?: TerminalCommit; committedState?: SourceState; continuityState?: SourceState; evidence: Array<Record<string, unknown>> };
 export type BeginInput = Omit<Run, "user_request" | "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
-export type CommitEvidence = { head: string; tree?: string; commitCount: number; clean: boolean; subject: string; versionChanged: boolean; changelogChanged: boolean; taskTrailerValid?: boolean; versionSurfacesValid?: boolean; preparedMergesValid?: boolean; phaseCommitsValid?: boolean; previousPhaseHead?: string; previousPhaseRetained?: boolean };
+export type CommitEvidence = { head: string; tree?: string; commitCount: number; clean: boolean; subject: string; versionChanged: boolean; changelogChanged: boolean; bookkeepingOnly?: boolean; taskTrailerValid?: boolean; versionSurfacesValid?: boolean; preparedMergesValid?: boolean; phaseCommitsValid?: boolean; previousPhaseHead?: string; previousPhaseRetained?: boolean };
 export type SessionInterruptionArgs = { intentId: string; sessionId: string; expectedRunRevision: number; expectedSessionLeaseRevision: number; resourceGeneration: string; summary: string; nextSteps: string[] };
 type SessionInterruptionDraft = { handoff: Omit<PauseHandoff, "evidence">; selectors: Omit<SessionInterruptionArgs, "summary" | "nextSteps"> };
 export type SessionOwnerBinding = { schemaVersion: 1; intentId: string; runId: string; sessionId: string; activationToken: string; sessionLeaseId: string; sessionLeaseToken: string; owner: SessionOwner };
@@ -603,7 +604,7 @@ export class LifecycleStore {
     await this.assertCommitOperation(run, operation);
     if (candidateVerification.tree !== prepared.tree || candidateVerification.subject !== prepared.subject) throw new Error("prepared candidate tree or subject diverged from signed authority");
     if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length) throw new Error("prepared candidate is not retained in the advanced first-parent history");
-    if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.versionChanged || !commit.changelogChanged) throw new Error("advanced commit history does not satisfy the signed commit policy");
+    if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || ((!commit.versionChanged || !commit.changelogChanged) && !(commit.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit.subject)))) throw new Error("advanced commit history does not satisfy the signed commit policy");
     if (!this.probe) throw new Error("source-state probe is required");
     const current = await this.probe(run.worktreePath, run.policy); this.assertWorktreeBinding(run, current);
     if (current.head !== commit.head || current.tree !== commit.tree) throw new Error("advanced commit evidence changed during recovery");
@@ -619,12 +620,14 @@ export class LifecycleStore {
     if (run.preparedCommit && !operation) throw new Error("signed prepared commit has no operation lease ownership");
     if (operation) { if (!run.preparedCommit || operation.stage !== "prepared") throw new Error("commit operation cannot finalize before signed candidate authorization"); await this.assertCommitOperation(run, operation); }
     if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
+    const bookkeeping = commit.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit.subject);
+    if (commit.bookkeepingOnly && !bookkeeping) throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
     const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
     if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
-    if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
-    if (!commit.versionChanged || !commit.changelogChanged) throw new Error("commit must update the configured version file and changelog");
+    if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
+    if (!bookkeeping && (!commit.versionChanged || !commit.changelogChanged)) throw new Error("commit must update the configured version file and changelog");
     if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
-    if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
+    if (!bookkeeping && run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
     if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
     if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
     if (run.committedState && (commit.previousPhaseHead !== run.committedState.head || !commit.previousPhaseRetained || commit.commitCount <= Number(run.evidence.filter(value => value.kind === "phase_commit" || value.kind === "commit").at(-1)?.commitCount ?? 0))) throw new Error("each atomic commit must extend the preceding phase commit without replacing history");

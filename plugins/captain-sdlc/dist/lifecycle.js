@@ -5,6 +5,7 @@ import { acquireAuthorizedLease, ensureAuthorizedLease, putAuthorizedOnceExact, 
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { probeSessionOwner, validateSessionOwner } from "./session-interruption.js";
 import { compileSafeRegex, subjectVersion } from "./validation.js";
+import { bookkeepingCaptured, bookkeepingSubjectAllowed } from "./bookkeeping.js";
 import { recordUserAuthorizations, userAuthorizationStatus } from "./user-authorization.js";
 import { recordUserRequest, userRequestStatus } from "./user-request.js";
 import { readUserRequestSource } from "./user-request-source.js";
@@ -965,7 +966,7 @@ export class LifecycleStore {
             throw new Error("prepared candidate tree or subject diverged from signed authority");
         if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length)
             throw new Error("prepared candidate is not retained in the advanced first-parent history");
-        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.versionChanged || !commit.changelogChanged)
+        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || ((!commit.versionChanged || !commit.changelogChanged) && !(commit.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit.subject))))
             throw new Error("advanced commit history does not satisfy the signed commit policy");
         if (!this.probe)
             throw new Error("source-state probe is required");
@@ -993,16 +994,19 @@ export class LifecycleStore {
         }
         if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead)
             throw new Error("commit gate requires at least one clean atomic phase commit after base");
+        const bookkeeping = commit.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit.subject);
+        if (commit.bookkeepingOnly && !bookkeeping)
+            throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
         const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
         if ((run.policy.commit?.conventional ?? true) && !conventional)
             throw new Error("commit must use a Conventional Commit subject");
-        if ((run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject))
+        if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject))
             throw new Error("commit must include a strict SemVer suffix");
-        if (!commit.versionChanged || !commit.changelogChanged)
+        if (!bookkeeping && (!commit.versionChanged || !commit.changelogChanged))
             throw new Error("commit must update the configured version file and changelog");
         if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid)
             throw new Error("commit must include a configured task trailer");
-        if (run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid)
+        if (!bookkeeping && run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid)
             throw new Error("commit version surfaces must match the subject SemVer suffix");
         if (!commit.preparedMergesValid)
             throw new Error("commit parent vector does not match signed prepared merge state");

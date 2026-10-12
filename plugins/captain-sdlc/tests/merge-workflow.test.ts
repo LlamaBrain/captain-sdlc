@@ -287,3 +287,130 @@ test("Back treats an exact independently prepared target as idempotent", async (
 test("an unfinished target task owner without branch lease prevents integration", async () => {
   const f = await fixture(), targetBinding = await assertWorktreeBinding(f.target), owner = { schemaVersion: 1, intentId: "target-owner", revision: 0, runId: "target-run", phase: "implement", status: "running", sessionId: f.args.session_id, worktreePath: f.target, branch: targetBinding.branch, commonGitDir: targetBinding.commonGitDir, gitDir: targetBinding.gitDir, policy: await loadPolicy(f.target, targetBinding.head), evidence: [] }; await putAuthorizedOnceExact(f.data, "run-revisions", "target-owner-0", owner); const store = new MergeWorkflowStore(f.data, async () => ok); await commit(f.source, "task.txt", "task\n"); await assert.rejects(() => store.prep(f.args), /target.*owner/);
 });
+
+
+async function bookkeepingFixture() {
+  const f = await fixture();
+  const policyPath = path.join(f.target, ".captain-sdlc/codex-policy.json");
+  const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  policy.commit.bookkeeping = { path_file: ".captain-sdlc/captain.ignore" };
+  await writeFile(policyPath, JSON.stringify(policy));
+  await mkdir(path.join(f.target, ".captain-sdlc/notebook"));
+  await writeFile(path.join(f.target, ".captain-sdlc/notebook/notes.json"), "{}\n");
+  await writeFile(path.join(f.target, ".captain-sdlc/captain.ignore"), "# Operational records stay tracked\n/.captain-sdlc/notebook/\n/Churn/*.md\n");
+  await git(f.target, "add", ".captain-sdlc/codex-policy.json", ".captain-sdlc/captain.ignore", ".captain-sdlc/notebook/notes.json");
+  await git(f.target, "commit", "-m", "fixture bookkeeping opt-in");
+  await git(f.source, "merge", "--ff-only", await git(f.target, "rev-parse", "HEAD"));
+  return f;
+}
+
+test("bookkeeping source finalization after Prep retains gates at their tested revision through Back", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args), tested = ready.ready_inputs!.source.head;
+  await commit(f.source, ".captain-sdlc/notebook/notes.json", '{"completed":true}\n');
+  await git(f.source, "commit", "--amend", "-m", "docs(captain): record completion");
+  const integration = await git(f.source, "rev-parse", "HEAD");
+  const back = await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }) as any;
+  assert.equal(back.state, "merged");
+  assert.equal(back.ready_inputs.source.head, tested, "proof must remain at the actually tested revision");
+  assert.equal(back.integration_inputs.source.head, integration);
+  assert.equal(await git(f.target, "rev-parse", "HEAD"), integration);
+  assert.deepEqual(gates, ["trusted build"]);
+  assert.ok(back.bookkeeping_extensions.length > 0);
+});
+
+test("bookkeeping target advancement is reconciled in the same Prep without rerunning product gates", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args), tested = ready.ready_inputs!.source.head;
+  await commit(f.target, ".captain-sdlc/notebook/notes.json", '{"targetRecord":true}\n');
+  await git(f.target, "commit", "--amend", "-m", "docs(captain): retain target record");
+  const targetHead = await git(f.target, "rev-parse", "HEAD");
+  const pending = await store.prep({ ...f.args, merge_id: ready.merge_id });
+  assert.equal(pending.state, "needs_commit");
+  const combined = await store.prep({ ...f.args, merge_id: ready.merge_id, commit: { paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): reconcile target record" } }) as any;
+  assert.equal(combined.state, "ready");
+  assert.equal(combined.ready_inputs.source.head, tested);
+  assert.equal(combined.target_binding.head, targetHead);
+  assert.deepEqual(gates, ["trusted build"]);
+  assert.equal((await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id })).state, "merged");
+  assert.deepEqual(gates, ["trusted build"]);
+});
+
+test("bookkeeping-labeled product change after Prep cannot inherit readiness", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args), targetHead = await git(f.target, "rev-parse", "HEAD");
+  await commit(f.source, "task.txt", "changed behavior\n");
+  await git(f.source, "commit", "--amend", "-m", "docs(captain): disguised product change");
+  await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /bookkeeping|stale|input|diverg/);
+  assert.equal(await git(f.target, "rev-parse", "HEAD"), targetHead);
+  assert.deepEqual(gates, ["trusted build"]);
+});
+
+test("Back can park declared target bookkeeping dirt with an exact retained stash", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args);
+  await writeFile(path.join(f.target, ".captain-sdlc/notebook/notes.json"), '{"humanRecord":true}\n');
+  const back = await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id, finalization: { target: { paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): park target records", task_id: "merge-records", disposition: "stash" } } } as any) as any;
+  assert.equal(back.state, "merged");
+  assert.deepEqual(gates, ["trusted build"]);
+  assert.equal(await git(f.target, "status", "--porcelain"), "");
+  const receipt = back.finalizations[0];
+  assert.match(receipt.stash_oid, /^[0-9a-f]{40}$/);
+  assert.equal(await git(f.target, "show", `${receipt.stash_oid}:.captain-sdlc/notebook/notes.json`), '{"humanRecord":true}');
+});
+
+test("Prep and Back each park newly changed target records with separate retained stashes", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n");
+  const selection = { paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): preserve target records", task_id: "records", disposition: "stash" as const };
+  await writeFile(path.join(f.target, selection.paths[0]), '{"phase":"prep"}\n');
+  const ready = await store.prep({ ...f.args, finalization: { target: selection } });
+  assert.equal(ready.state, "ready");
+  const first = ready.finalizations![0];
+  await writeFile(path.join(f.target, selection.paths[0]), '{"phase":"back"}\n');
+  await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id,
+    finalization: { target: { ...selection, finalization_id: first.finalization_id } } }), /completed|new.*generation/);
+  assert.equal(await readFile(path.join(f.target, selection.paths[0]), "utf8"), '{"phase":"back"}\n');
+  const back = await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id, finalization: { target: selection } });
+  assert.equal(back.state, "merged"); assert.equal(back.finalizations!.length, 2);
+  const second = back.finalizations![1];
+  assert.notEqual(first.finalization_id, second.finalization_id); assert.notEqual(first.stash_oid, second.stash_oid);
+  assert.equal(await git(f.target, "show", `${first.stash_oid}:${selection.paths[0]}`), '{"phase":"prep"}');
+  assert.equal(await git(f.target, "show", `${second.stash_oid}:${selection.paths[0]}`), '{"phase":"back"}');
+  assert.deepEqual(gates, ["trusted build"]);
+});
+
+test("same-HEAD foreign branch is refused before merge finalization changes it", async () => {
+  const f = await bookkeepingFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await commit(f.source, "task.txt", "implemented task\n"); const ready = await store.prep(f.args);
+  await git(f.target, "switch", "-c", "human-branch"); const before = await git(f.target, "rev-parse", "HEAD");
+  await writeFile(path.join(f.target, ".captain-sdlc/notebook/notes.json"), '{"human":true}\n');
+  await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id, finalization: { target: {
+    paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): preserve records", task_id: "records", disposition: "commit" } } }), /branch|binding/);
+  assert.equal(await git(f.target, "rev-parse", "HEAD"), before);
+  assert.equal(await readFile(path.join(f.target, ".captain-sdlc/notebook/notes.json"), "utf8"), '{"human":true}\n');
+});
+
+test("ignored raw product change invalidates bookkeeping-only delivery extension", async () => {
+  const f = await bookkeepingFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await mkdir(path.join(f.source, "vendor")); await writeFile(path.join(f.source, "vendor/code.txt"), "before\n");
+  await commit(f.source, "task.txt", "implemented task\n"); const ready = await store.prep(f.args);
+  await commit(f.source, ".captain-sdlc/notebook/notes.json", '{"done":true}\n'); await git(f.source, "commit", "--amend", "-m", "docs(captain): completion");
+  await writeFile(path.join(f.source, "vendor/code.txt"), "changed product input\n");
+  await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /input|stale/);
+});
+
+test("preflight-refused finalization selection can be corrected on the same ready merge", async () => {
+  const f = await bookkeepingFixture(), gates: string[] = [], store = new MergeWorkflowStore(f.data, async command => { gates.push(command); return ok; });
+  await commit(f.source, "task.txt", "implemented task\n"); const ready = await store.prep(f.args);
+  await writeFile(path.join(f.target, ".captain-sdlc/notebook/notes.json"), '{"retained":true}\n');
+  const selection = { paths: [".captain-sdlc/notebook/notes.json", ".captain-sdlc/captain.ignore"], subject: "docs(captain): retain records", task_id: "records", disposition: "stash" as const };
+  await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id, finalization: { target: selection } }), /bookkeeping|selection|path|dirty/);
+  const back = await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id, finalization: { target: { ...selection, paths: [selection.paths[0]] } } });
+  assert.equal(back.state, "merged"); assert.equal(back.finalizations!.length, 1); assert.deepEqual(gates, ["trusted build"]);
+  assert.equal(await git(f.target, "show", `${back.finalizations![0].stash_oid}:${selection.paths[0]}`), '{"retained":true}');
+});

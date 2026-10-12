@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { BookkeepingFinalizationError, BookkeepingFinalizationStore } from "./bookkeeping-finalization.js";
 import { MergeWorkflowError, MergeWorkflowStore } from "./merge-workflow.js";
 import { z } from "zod";
 import { captureClientSessionOwner, probeSessionOwner } from "./session-interruption.js";
@@ -173,9 +174,17 @@ export async function startCaptainMcp() {
 const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
 const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
-const server = new McpServer({ name: "captain-sdlc", version: "0.4.1" });
+const finalizations = new BookkeepingFinalizationStore(dataRoot);
+const server = new McpServer({ name: "captain-sdlc", version: "0.5.0" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
+const guardedFinalization = <T>(operation: () => Promise<T>, args: { finalization_id?: string; session_id: string; worktree: string }) => operation().then(reply).catch((error: Error) => {
+  const finalization_id = args.finalization_id ?? (error instanceof BookkeepingFinalizationError ? error.finalization_id : undefined);
+  const next_step = finalization_id ? { tool: "captain_bookkeeping_status", arguments: { finalization_id, session_id: args.session_id, worktree: args.worktree },
+    guidance: "Read the retained journal; repair the diagnosed cause and retry the same selection/id. A preflight refusal may have no durable record. Never drop a retained stash automatically." } : undefined;
+  return { isError: true, content: [{ type: "text" as const, text: error.message }], structuredContent: { error: error.message,
+    ...(finalization_id ? { finalization_id } : {}), ...(next_step ? { next_step } : {}) } };
+});
 const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string; session_id: string }) => operation().then(reply).catch((error: Error) => {
   const merge_id = args.merge_id ?? (error instanceof MergeWorkflowError ? error.merge_id : undefined);
   const next_step = merge_id ? {
@@ -255,10 +264,23 @@ server.registerTool("captain_merge_diagnose", {
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   inputSchema: { session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1) }
 }, async args => guarded(() => merges.diagnose(args)));
+const finalizationSelectionSchema = z.object({
+  paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/),
+  disposition: z.enum(["commit", "stash"]), finalization_id: z.string().regex(/^[A-Za-z0-9_-]+$/).optional()
+}).strict();
+const mergeFinalizationSchema = z.object({ source: finalizationSelectionSchema.optional(), target: finalizationSelectionSchema.optional() }).strict().optional();
+server.registerTool("captain_finalize_bookkeeping", {
+  description: "Finalize exact Captain records using the committed captain.ignore opt-in. Create a version-neutral docs(captain) commit or a correlated retained stash with a separate signed receipt. Preserve completed implementation proof and all foreign ownership; reuse finalization_id after interruption.",
+  inputSchema: { ...finalizationSelectionSchema.shape, worktree: z.string().min(1), session_id: z.string().min(1).max(256) }
+}, async args => guardedFinalization(() => finalizations.finalize(args), args));
+server.registerTool("captain_bookkeeping_status", {
+  description: "Read the independent signed bookkeeping finalization receipt without modifying implementation proof.",
+  inputSchema: { finalization_id: z.string().regex(/^[A-Za-z0-9_-]+$/), session_id: z.string().min(1).max(256), worktree: z.string().optional() }
+}, async args => guarded(() => finalizations.status(args)));
 const mergePrepConfig = {
   description: "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
   inputSchema: {
-    session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1), merge_id: z.string().optional(),
+    session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1), merge_id: z.string().optional(), finalization: mergeFinalizationSchema,
     commit: z.object({ paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional() }).optional()
   }
 };
@@ -267,7 +289,7 @@ for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
 }
 const mergeBackConfig = {
   description: "Merge Back: under matching user integration authorization, verify an existing signed Merge Prep receipt and fast-forward its prepared source into the pinned target. Retain Prep gates at their tested revision; do not rerun them or modify prior implementation proof.",
-  inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().optional(), target_worktree: z.string().optional(), target_branch: z.string().optional() }
+  inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().optional(), target_worktree: z.string().optional(), target_branch: z.string().optional(), finalization: mergeFinalizationSchema }
 };
 for (const name of ["captain_merge_back", "captain_merge_finish"]) {
   server.registerTool(name, mergeBackConfig, async args => guardedMerge(() => merges.back(args), args));

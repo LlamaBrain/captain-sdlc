@@ -1,6 +1,7 @@
 import { type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
+import { type BookkeepingPolicy } from "./bookkeeping.js";
 import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
 import { type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
 import { type UserRequestSourceQuery } from "./user-request-source.js";
@@ -16,6 +17,7 @@ export type SourceState = {
     tree: string;
     status: string;
     manifest?: string;
+    productManifest?: string;
     branch?: string;
     branchHead?: string;
     commonGitDir?: string;
@@ -33,6 +35,7 @@ export type CommitPolicy = {
         pattern: string;
     }>;
     changelog_files: string[];
+    bookkeeping?: BookkeepingPolicy;
 };
 export type HitlCheck = {
     id: string;
@@ -284,6 +287,7 @@ export type CommitEvidence = {
     subject: string;
     versionChanged: boolean;
     changelogChanged: boolean;
+    bookkeepingOnly?: boolean;
     taskTrailerValid?: boolean;
     versionSurfacesValid?: boolean;
     preparedMergesValid?: boolean;

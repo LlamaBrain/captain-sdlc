@@ -25,6 +25,9 @@
     ],
     "changelog_files": [
       "plugins/captain-sdlc/CHANGELOG.md"
-    ]
+    ],
+    "bookkeeping": {
+      "path_file": ".captain-sdlc/captain.ignore"
+    }
   }
 }
