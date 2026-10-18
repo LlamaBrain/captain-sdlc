@@ -23,7 +23,7 @@ const safeId = (id) => { if (!/^[a-zA-Z0-9_-]+$/.test(id))
 const relativePath = (value) => { if (!value || value.includes("\0") || path.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value))
     throw new Error("dependency input must use a safe repository-relative path"); return value.replaceAll("\\", "/"); };
 const resourceId = (common, branch) => hash(`${path.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
-/** Independent integration ledger. Implementation run phases and proof are never rewritten. */
+/** Independent integration ledger. Signed candidates may append intermediate phase evidence; prior proof is retained. */
 export class MergeWorkflowStore {
     dataRoot;
     runner;
@@ -146,6 +146,7 @@ export class MergeWorkflowStore {
                         throw new Error("Merge Prep commit metadata is only valid for its signed pending target merge");
                     await assertNoOperation(record.source_worktree);
                     await assertWorktreeBinding(record.source_worktree, record.source_binding.branch, record.source_binding.commonGitDir, undefined, true, record.source_binding.gitDir);
+                    await this.reconcileOwnedImplementation(record, assertAuthority);
                     if (!await ancestor(record.target_binding.head, await git(["rev-parse", "HEAD"], record.source_worktree), record.source_worktree)) {
                         const currentHead = await git(["rev-parse", "HEAD"], record.source_worktree);
                         const result = await prepareMerge(record.source_worktree, record.target_binding.head, "ort", async (prepared) => { record = await this.update({ ...record, state: "preparing", prepared_merge: prepared, ...(record.ready_inputs ? {} : { ready_inputs: undefined, integration_inputs: undefined, gates: [] }) }); }, async () => { record = await this.update({ ...record, prepared_merge: undefined, state: "failed", failure: "target merge preparation was rejected" }); }, record.source_binding.branch, record.source_binding.commonGitDir, currentHead, record.source_binding.gitDir, undefined, mergeId, async (prepared) => { await assertAuthority(); await this.bindings(record, false); const latest = await this.read(mergeId); if (digest(latest.prepared_merge) !== digest(prepared))
@@ -196,6 +197,59 @@ export class MergeWorkflowStore {
                 throw new MergeWorkflowError(durableMergeId, error);
             throw error;
         }
+    }
+    /** Recover an older signed Prep candidate without trusting caller-supplied source evidence. */
+    async reconcileImplementation(args) {
+        this.session(args.session_id);
+        safeId(args.merge_id);
+        safeId(args.intent_id);
+        return this.lock(args.merge_id, args.session_id, async (assertOperation) => {
+            const record = await this.read(args.merge_id);
+            this.match(record, args);
+            return this.resources(record, async (assertResources) => {
+                const assertAuthority = async () => { await assertOperation(); await assertResources(); };
+                await assertNoOperation(record.source_worktree);
+                await assertNoOperation(record.target_worktree);
+                const targetHead = await git(["rev-parse", "HEAD"], record.target_worktree);
+                await this.bindings(record, Boolean(this.deliveryInputs(record) && targetHead === this.deliveryInputs(record).source.head));
+                const implementation = await this.reconcileOwnedImplementation(record, assertAuthority, args.intent_id);
+                if (!implementation)
+                    throw new Error("no exact signed merge candidate belongs to this implementation owner");
+                return { merge_id: record.merge_id, implementation, captain_green: false };
+            });
+        });
+    }
+    async reconcileOwnedImplementation(record, assertAuthority, intentId) {
+        const lifecycle = new LifecycleStore(this.dataRoot, this.runner, sourceState);
+        const owners = (await lifecycle.doctor()).activeRuns.filter(owner => samePath(owner.worktreePath, record.source_worktree));
+        if (owners.length > 1 || owners.some(owner => owner.sessionId !== record.session_id))
+            throw new Error("source implementation session owner mismatch");
+        const owner = owners[0];
+        if (!owner || intentId && owner.intentId !== intentId) {
+            if (intentId)
+                throw new Error("signed merge does not belong to the selected implementation intent");
+            return undefined;
+        }
+        const head = await git(["rev-parse", "HEAD"], record.source_worktree);
+        // read() authenticates the complete revision/watermark chain before selecting a candidate.
+        const verified = await this.read(record.merge_id);
+        if (verified.revision !== record.revision || digest(verified) !== digest(record))
+            throw new Error("signed merge changed before lifecycle reconciliation");
+        let candidate;
+        for (let revision = record.revision; revision >= 0; revision--) {
+            const historical = await readAuthorized(this.dataRoot, "merge-revisions", `${record.merge_id}-${revision}`);
+            if (historical.prepared_commit?.candidate === head && historical.prepared_merge && historical.prepared_commit_request) {
+                candidate = historical;
+                break;
+            }
+        }
+        if (!candidate) {
+            if (intentId)
+                throw new Error("source HEAD is not an exact authenticated signed Prep candidate");
+            return undefined;
+        }
+        await assertAuthority();
+        return lifecycle.recordMergeIntegration(owner.intentId, record.merge_id, candidate.revision, assertAuthority);
     }
     async back(args) {
         this.session(args.session_id);
@@ -454,6 +508,13 @@ export class MergeWorkflowStore {
                 await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, undefined, false, binding.gitDir);
             let pending = record.finalization_requests?.[side];
             const selection = requested?.[side];
+            if (pending && !selection && !record.finalizations?.some(receipt => receipt.finalization_id === pending.selection.finalization_id)
+                && !await new BookkeepingFinalizationStore(this.dataRoot).hasStarted({ finalization_id: pending.selection.finalization_id, session_id: record.session_id, worktree })
+                && await git(["rev-parse", "HEAD"], worktree) === pending.expected_head && !await git(["status", "--porcelain"], worktree)) {
+                await assertOperation();
+                record = await this.retireFinalizationRequest(record, side);
+                pending = undefined;
+            }
             if (pending && selection && record.finalizations?.some(receipt => receipt.finalization_id === pending.selection.finalization_id)) {
                 const worktree = side === "source" ? record.source_worktree : record.target_worktree;
                 const dirty = Boolean(await git(["status", "--porcelain"], worktree));
@@ -479,12 +540,27 @@ export class MergeWorkflowStore {
             if (!pending || record.finalizations?.some(receipt => receipt.finalization_id === pending.selection.finalization_id))
                 continue;
             await assertOperation();
-            const receipt = await new BookkeepingFinalizationStore(this.dataRoot).finalize({ ...pending.selection,
-                session_id: record.session_id, worktree: side === "source" ? record.source_worktree : record.target_worktree }, { policy: record.captured_policy, expected_head: pending.expected_head, expected_binding: binding });
+            let receipt;
+            try {
+                receipt = await new BookkeepingFinalizationStore(this.dataRoot).finalize({ ...pending.selection,
+                    session_id: record.session_id, worktree: side === "source" ? record.source_worktree : record.target_worktree }, { policy: record.captured_policy, expected_head: pending.expected_head, expected_binding: binding });
+            }
+            catch (error) {
+                if (!await new BookkeepingFinalizationStore(this.dataRoot).hasStarted({ finalization_id: pending.selection.finalization_id, session_id: record.session_id, worktree })) {
+                    await assertOperation();
+                    record = await this.retireFinalizationRequest(record, side);
+                }
+                throw error;
+            }
             await assertOperation();
             record = await this.update({ ...record, finalizations: [...(record.finalizations ?? []), receipt] });
         }
         return record;
+    }
+    async retireFinalizationRequest(record, side) {
+        const requests = { ...record.finalization_requests };
+        delete requests[side];
+        return this.update({ ...record, finalization_requests: Object.keys(requests).length ? requests : undefined });
     }
     assertRecordContinuity(current, previous) {
         const identity = (r) => [r.session_id, r.source_worktree, r.target_worktree, r.target_branch,

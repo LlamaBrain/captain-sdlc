@@ -9,7 +9,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLease, releaseAuthorizedLease } from "../src/authority.js";
 import { LifecycleStore } from "../src/lifecycle.js";
-import { assertWorktreeBinding, commitAtomic, loadPolicy } from "../src/workspace.js";
+import { assertWorktreeBinding, commitAtomic, commitEvidence, sourceState, loadPolicy } from "../src/workspace.js";
 import { MergeWorkflowStore } from "../src/merge-workflow.js";
 const exec = promisify(execFile);
 const git = async (cwd: string, ...args: string[]) => (await exec("git", args, { cwd, windowsHide: true })).stdout.trim();
@@ -421,4 +421,169 @@ test("unchanged ready bookkeeping Prep preserves its signed revision and checks"
   const repeated = await store.prep({ ...f.args, merge_id: ready.merge_id });
   assert.equal(repeated.revision, ready.revision); assert.deepEqual(repeated.ready_inputs, ready.ready_inputs);
   assert.deepEqual(repeated.gates, ready.gates); assert.deepEqual(gates, ["trusted build"]);
+});
+
+async function governedMergeFixture() {
+  const f = await fixture();
+  const binding = await assertWorktreeBinding(f.source), policy = await loadPolicy(f.source, binding.head);
+  policy.redGate = { expectedExitCodes: [1], outputPattern: "AssertionError" };
+  const lifecycle = new LifecycleStore(f.data, async () => ({ exitCode: 1, stdout: "AssertionError: expected feature is missing", stderr: "" }), sourceState);
+  await lifecycle.markIntent({ intentId: "active", sessionId: f.args.session_id, turnId: "turn", projectRoot: f.target, prompt: "active implementation" });
+  await lifecycle.begin({ intentId: "active", objective: "active implementation", projectRoot: f.target, worktreePath: f.source, baseHead: binding.head, branch: binding.branch, commonGitDir: binding.commonGitDir, gitDir: binding.gitDir, policy });
+  await lifecycle.recordRed("active");
+  await writeFile(path.join(f.source, "task.txt"), "implemented task\n");
+  await writeFile(path.join(f.source, "VERSION"), "1.0.1\n");
+  await writeFile(path.join(f.source, "CHANGELOG.md"), "task\n");
+  await git(f.source, "add", "task.txt", "VERSION", "CHANGELOG.md");
+  await git(f.source, "commit", "-m", "feat(test): implemented task");
+  await lifecycle.recordCommit("active", await commitEvidence(f.source, binding.head, policy), false);
+  const before = await lifecycle.status("active");
+  await commit(f.target, "target.txt", "target\n");
+  return { ...f, lifecycle, before };
+}
+async function finishGovernedMerge(f: Awaited<ReturnType<typeof governedMergeFixture>>, store: MergeWorkflowStore) {
+  const pending = await store.prep(f.args);
+  await writeFile(path.join(f.source, "VERSION"), "1.0.2\n");
+  await writeFile(path.join(f.source, "CHANGELOG.md"), "task\nmerge\n");
+  const request = { paths: ["target.txt", "VERSION", "CHANGELOG.md"], subject: "chore(merge): prepare target" };
+  const ready = await store.prep({ ...f.args, merge_id: pending.merge_id, commit: request });
+  assert.equal(ready.state, "ready");
+  return ready;
+}
+
+test("owned implementation Prep records its signed merge as an intermediate phase", async () => {
+  const f = await governedMergeFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  const ready = await finishGovernedMerge(f, store), after = await f.lifecycle.status("active");
+  assert.equal(after.committedState?.head, ready.ready_inputs!.source.head);
+  assert.equal(after.phase, "implement"); assert.equal(after.status, "running");
+  assert.deepEqual(after.evidence.slice(0, f.before.evidence.length), f.before.evidence);
+  assert.ok(after.preparedMerges?.some(value => value.preMergeHead === f.before.committedState!.head));
+  assert.equal(after.evidence.filter(value => value.kind === "merge_integration_commit").length, 1);
+  const evidence = await commitEvidence(f.source, after.baseHead, after.policy, after.taskId, after.preparedMerges, f.before.committedState!.head);
+  assert.equal(evidence.preparedMergesValid, true); assert.equal(evidence.phaseCommitsValid, true);
+});
+
+test("owned implementation historical recovery is exact and idempotent after target fast-forward", async () => {
+  const f = await governedMergeFixture(), old = new MergeWorkflowStore(f.data, async () => ok);
+  (old as any).reconcileOwnedImplementation = async () => undefined;
+  const ready = await finishGovernedMerge(f, old);
+  assert.equal((await f.lifecycle.status("active")).committedState?.head, f.before.committedState!.head);
+  await git(f.target, "merge", "--ff-only", ready.ready_inputs!.source.head);
+  const store = new MergeWorkflowStore(f.data, async () => ok), args = { merge_id: ready.merge_id, session_id: f.args.session_id, intent_id: "active" };
+  await (store as any).reconcileImplementation(args);
+  const after = await f.lifecycle.status("active");
+  assert.equal(after.committedState?.head, ready.ready_inputs!.source.head);
+  await (store as any).reconcileImplementation(args);
+  assert.equal((await f.lifecycle.status("active")).revision, after.revision);
+  assert.equal((await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id })).state, "merged");
+});
+
+test("owned implementation recovery refuses foreign session and unsigned advanced HEAD", async () => {
+  const f = await governedMergeFixture(), old = new MergeWorkflowStore(f.data, async () => ok);
+  (old as any).reconcileOwnedImplementation = async () => undefined;
+  const ready = await finishGovernedMerge(f, old), store = new MergeWorkflowStore(f.data, async () => ok);
+  const args = { merge_id: ready.merge_id, session_id: f.args.session_id, intent_id: "active" };
+  assert.equal(typeof (store as any).reconcileImplementation, "function", "Recovery needs a public signed merge association API.");
+  await assert.rejects(() => (store as any).reconcileImplementation({ ...args, session_id: "foreign" }), /session|owner/);
+  await commit(f.source, "unrelated.txt", "unsigned advancement\n");
+  await assert.rejects(() => (store as any).reconcileImplementation(args), /candidate|HEAD|signed|source/);
+  assert.equal((await f.lifecycle.status("active")).revision, f.before.revision);
+});
+
+test("unstarted refused finalization does not poison Back after owned records are restored", async () => {
+  const f = await bookkeepingFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args);
+  await activeOwner(f, f.args.session_id);
+  const recordPath = ".captain-sdlc/notebook/notes.json", original = await readFile(path.join(f.source, recordPath), "utf8");
+  await writeFile(path.join(f.source, recordPath), '{"pending":true}\n');
+  await assert.rejects(() => store.prep({ ...f.args, merge_id: ready.merge_id, finalization: { source: { paths: [recordPath], subject: "docs(captain): retain records", task_id: "records", disposition: "commit" } } }), /active Captain lifecycle owner/);
+  const failed = await store.status({ merge_id: ready.merge_id, session_id: f.args.session_id });
+  assert.equal(failed.finalization_requests?.source, undefined, "An unstarted rejected selection must retire without deleting signed history.");
+  await writeFile(path.join(f.source, recordPath), original);
+  assert.equal((await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id })).state, "merged");
+});
+
+test("legacy unstarted finalization on a now-clean side is retired without waiving ownership", async () => {
+  const f = await bookkeepingFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args); await activeOwner(f, f.args.session_id);
+  const legacy = { ...ready, revision: ready.revision + 1, previous_sha256: createHash("sha256").update(JSON.stringify(JSON.parse(await readFile(path.join(f.data, "merge-revisions", `${ready.merge_id}-${ready.revision}.json`), "utf8")).payload)).digest("hex") } as any;
+  delete legacy.receipt_valid; delete legacy.captain_green;
+  legacy.finalization_requests = { source: { selection: { paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): retain records", task_id: "records", disposition: "commit", finalization_id: "legacy-unstarted" }, expected_head: ready.ready_inputs!.source.head } };
+  await putAuthorizedOnceExact(f.data, "merge-revisions", `${legacy.merge_id}-${legacy.revision}`, legacy);
+  await putAuthorizedOnceExact(f.data, "merge-watermarks", `${legacy.merge_id}-${legacy.revision}`, { merge_id: legacy.merge_id, revision: legacy.revision, sha256: createHash("sha256").update(JSON.stringify(legacy)).digest("hex") });
+  const back = await store.back({ merge_id: ready.merge_id, session_id: f.args.session_id });
+  assert.equal(back.state, "merged"); assert.equal(back.finalization_requests?.source, undefined);
+});
+test("owned implementation recovery refuses an unrelated merge even with a clean status", async () => {
+  const f = await governedMergeFixture(), old = new MergeWorkflowStore(f.data, async () => ok);
+  (old as any).reconcileOwnedImplementation = async () => undefined;
+  const ready = await finishGovernedMerge(f, old), head = ready.ready_inputs!.source.head;
+  const foreign = await git(f.source, "commit-tree", await git(f.source, "rev-parse", `${head}^{tree}`), "-p", ready.target_binding.head, "-m", "unrelated clean merge");
+  await git(f.source, "merge", "--no-commit", "--no-ff", foreign);
+  assert.equal(await git(f.source, "status", "--porcelain"), "");
+  assert.equal(await git(f.source, "rev-parse", "MERGE_HEAD"), foreign);
+  const store = new MergeWorkflowStore(f.data, async () => ok);
+  await assert.rejects(() => store.reconcileImplementation({ merge_id: ready.merge_id, session_id: f.args.session_id, intent_id: "active" }), /unfinished|operation|MERGE_HEAD/);
+  assert.equal((await f.lifecycle.status("active")).revision, f.before.revision);
+});
+test("owned implementation recovery preserves foreign intent, mutation and live session fences", async () => {
+  const f = await governedMergeFixture(), old = new MergeWorkflowStore(f.data, async () => ok);
+  (old as any).reconcileOwnedImplementation = async () => undefined;
+  const ready = await finishGovernedMerge(f, old), store = new MergeWorkflowStore(f.data, async () => ok);
+  const args = { merge_id: ready.merge_id, session_id: f.args.session_id, intent_id: "active" };
+  await assert.rejects(() => store.reconcileImplementation({ ...args, intent_id: "foreign-intent" }), /intent|owner/);
+  await git(f.source, "switch", "-c", "foreign-same-head");
+  await assert.rejects(() => store.reconcileImplementation(args), /binding|branch/);
+  await git(f.source, "switch", "task");
+  const mutation = await f.lifecycle.acquireWorktreeMutation("active", "commit", { test: "overlap" });
+  await assert.rejects(() => store.reconcileImplementation(args), /lease|held|active|owner/);
+  await f.lifecycle.releaseWorktreeMutation("active", mutation);
+  const before = await f.lifecycle.status("active"), lease = await readAuthorizedLease<any>(f.data, before.sessionLeaseId!);
+  await releaseAuthorizedLease(f.data, before.sessionLeaseId!, lease.intentId, lease.leaseToken);
+  await assert.rejects(() => store.reconcileImplementation(args), /lease|ownership|held/);
+  assert.equal((await f.lifecycle.status("active")).revision, before.revision);
+  assert.equal((await f.lifecycle.status("active")).committedState!.head, f.before.committedState!.head);
+});
+
+for (const stage of ["before-association", "after-association"] as const) test(`owned implementation crash ${stage} resumes its signed candidate once`, async () => {
+  const f = await governedMergeFixture(), interrupted = new MergeWorkflowStore(f.data, async () => ok);
+  const reconcile = (interrupted as any).reconcileOwnedImplementation.bind(interrupted);
+  (interrupted as any).reconcileOwnedImplementation = async (...args: any[]) => {
+    const advanced = await git(f.source, "rev-parse", "HEAD") !== f.before.committedState!.head;
+    if (advanced && stage === "before-association") throw new Error("simulated association interruption");
+    const result = await reconcile(...args);
+    if (advanced) throw new Error("simulated association interruption");
+    return result;
+  };
+  const pending = await interrupted.prep(f.args);
+  await writeFile(path.join(f.source, "VERSION"), "1.0.2\n");
+  await writeFile(path.join(f.source, "CHANGELOG.md"), "task\nmerge\n");
+  await assert.rejects(() => interrupted.prep({ ...f.args, merge_id: pending.merge_id,
+    commit: { paths: ["target.txt", "VERSION", "CHANGELOG.md"], subject: "chore(merge): prepare target" } }), /simulated association interruption/);
+  const candidate = await git(f.source, "rev-parse", "HEAD"), resumed = new MergeWorkflowStore(f.data, async () => ok);
+  const ready = await resumed.prep({ ...f.args, merge_id: pending.merge_id });
+  assert.equal(ready.state, "ready"); assert.equal(ready.ready_inputs!.source.head, candidate);
+  const after = await f.lifecycle.status("active");
+  assert.equal(after.committedState!.head, candidate);
+  assert.equal(after.evidence.filter(value => value.kind === "merge_integration_commit").length, 1);
+});
+
+test("started pre-journal finalization cannot be retired or replaced on a clean side", async () => {
+  const f = await bookkeepingFixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await commit(f.source, "task.txt", "implemented task\n");
+  const ready = await store.prep(f.args); await activeOwner(f, f.args.session_id);
+  const original = JSON.parse(await readFile(path.join(f.data, "merge-revisions", `${ready.merge_id}-${ready.revision}.json`), "utf8")).payload;
+  const id = "held-pre-journal", pending = { selection: { paths: [".captain-sdlc/notebook/notes.json"], subject: "docs(captain): retain records", task_id: "records", disposition: "commit", finalization_id: id }, expected_head: ready.ready_inputs!.source.head };
+  const legacy = { ...original, revision: original.revision + 1, previous_sha256: createHash("sha256").update(JSON.stringify(original)).digest("hex"), finalization_requests: { source: pending } };
+  await putAuthorizedOnceExact(f.data, "merge-revisions", `${legacy.merge_id}-${legacy.revision}`, legacy);
+  await putAuthorizedOnceExact(f.data, "merge-watermarks", `${legacy.merge_id}-${legacy.revision}`, { merge_id: legacy.merge_id, revision: legacy.revision, sha256: createHash("sha256").update(JSON.stringify(legacy)).digest("hex") });
+  const leaseId = createHash("sha256").update(`bookkeeping-operation\0${id}`).digest("hex");
+  await acquireAuthorizedLease(f.data, leaseId, { intentId: id, leaseToken: "held-attempt", sessionId: f.args.session_id, operation: "bookkeeping-attempt", ownerPid: process.pid, ownerHost: hostname() });
+  const args = { merge_id: ready.merge_id, session_id: f.args.session_id };
+  await assert.rejects(() => store.back(args), /active|ambiguous|owner/);
+  assert.deepEqual((await store.status(args)).finalization_requests!.source, pending);
+  await assert.rejects(() => store.back({ ...args, finalization: { source: { ...pending.selection, disposition: "stash" } } }), /same signed selection/);
+  assert.deepEqual((await store.status(args)).finalization_requests!.source, pending);
 });

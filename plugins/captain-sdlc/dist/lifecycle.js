@@ -1024,6 +1024,75 @@ export class LifecycleStore {
         await this.update({ ...run, committedState: current, continuityState: undefined, terminalCommit, evidence: [...run.evidence, { kind: "advanced_prepared_commit_recovered", candidate: prepared.candidate, head: commit.head, commitCount: commit.commitCount, firstParent, originalRequestSha256: operation.requestSha256, dirty: current.status !== "" }] });
         return this.finishTerminalCommit(intentId, operation.requestSha256);
     }
+    /** Associate only an authenticated standalone Prep candidate, under its existing resource fence. */
+    async recordMergeIntegration(intentId, mergeId, mergeRevision, assertAuthority) {
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        if (run.status !== "running")
+            throw new Error("merge integration requires the active running implementation owner");
+        await this.assertSessionLease(run);
+        await this.assertFrozenScope(intentId);
+        await assertAuthority();
+        if (run.preparedCommit || run.commitOperation || run.terminalCommit || run.mutationOperation)
+            throw new Error("implementation has an active commit or mutation operation; recover it before merge reconciliation");
+        const record = await readAuthorized(this.dataRoot, "merge-revisions", `${safeId(mergeId)}-${mergeRevision}`);
+        const watermark = await readAuthorized(this.dataRoot, "merge-watermarks", `${mergeId}-${mergeRevision}`);
+        const prepared = record.prepared_commit, pending = record.prepared_merge, request = record.prepared_commit_request;
+        if (record.merge_id !== mergeId || record.revision !== mergeRevision || watermark.sha256 !== digest(JSON.stringify(record))
+            || !prepared || !pending || !request)
+            throw new Error("signed merge candidate authority is incomplete");
+        if (run.sessionId !== record.session_id || run.branch !== record.source_binding.branch
+            || !samePath(run.worktreePath, record.source_worktree) || !samePath(run.commonGitDir, record.source_binding.commonGitDir)
+            || !samePath(run.gitDir, record.source_binding.gitDir))
+            throw new Error("merge source session or implementation binding diverged");
+        if (digest(JSON.stringify(run.policy.commit)) !== digest(JSON.stringify(record.captured_policy.commit)))
+            throw new Error("merge and implementation captured commit policy differ");
+        const fence = await readAuthorizedLease(this.dataRoot, digest(`worktree-mutation\0${run.runId}`));
+        const operation = await readAuthorizedLease(this.dataRoot, digest(`merge-operation\0${mergeId}`));
+        if (fence.intentId !== mergeId || fence.sessionId !== run.sessionId || fence.operation !== "integration-worktree"
+            || operation.intentId !== mergeId || operation.sessionId !== run.sessionId || operation.operation !== "integration")
+            throw new Error("merge operation or implementation mutation fence ownership changed");
+        const { commitEvidence, git } = await import("./workspace.js");
+        const current = await this.probe(run.worktreePath, run.policy);
+        this.assertWorktreeBinding(run, current, prepared.candidate);
+        if (current.status || current.tree !== prepared.tree || prepared.preCommitHead !== pending.preMergeHead
+            || prepared.mergeHead !== pending.targetOid || pending.targetOid !== record.target_binding.head
+            || record.source_binding.head !== pending.preMergeHead)
+            throw new Error("source HEAD, tree or signed integration transition diverged");
+        const parents = (await git(["rev-list", "--parents", "-n", "1", prepared.candidate], run.worktreePath)).split(" ");
+        if (parents.length !== 3 || parents[1] !== pending.preMergeHead || parents[2] !== pending.targetOid
+            || await git(["show", "-s", "--format=%s", prepared.candidate], run.worktreePath) !== request.subject)
+            throw new Error("signed integration candidate parent vector or subject diverged");
+        const prior = run.evidence.find(value => value.kind === "merge_integration_commit" && value.mergeId === mergeId
+            && value.candidate === prepared.candidate);
+        if (prior) {
+            if (run.committedState?.head !== prepared.candidate || current.tree !== run.committedState.tree)
+                throw new Error("recorded integration no longer matches the implementation phase");
+            return run;
+        }
+        if (!run.committedState || run.committedState.head !== pending.preMergeHead
+            || run.continuityState && run.continuityState.head !== pending.preMergeHead && run.continuityState.head !== prepared.candidate)
+            throw new Error("signed merge does not extend the preceding implementation phase head");
+        const preparedMerges = [...(run.preparedMerges ?? []), pending];
+        const commit = await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, preparedMerges, run.committedState.head);
+        if (!commit.clean || commit.head !== prepared.candidate || commit.tree !== prepared.tree || !commit.phaseCommitsValid
+            || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.taskTrailerValid || !commit.versionSurfacesValid
+            || !commit.versionChanged || !commit.changelogChanged)
+            throw new Error("signed merge commit does not satisfy captured implementation phase policy");
+        await assertAuthority();
+        await this.assertSessionLease(run);
+        const latest = await this.run(intentId);
+        if (latest.revision !== run.revision)
+            throw new Error("implementation changed during merge reconciliation");
+        const finalState = await this.probe(run.worktreePath, run.policy);
+        this.assertWorktreeBinding(run, finalState, prepared.candidate);
+        if (digest(JSON.stringify(current)) !== digest(JSON.stringify(finalState)))
+            throw new Error("merge source changed during reconciliation");
+        return this.update({ ...run, committedState: finalState, continuityState: undefined, preparedMerges,
+            evidence: [...run.evidence, { kind: "phase_commit", final: false, ...commit, integrationMergeId: mergeId },
+                { kind: "merge_integration_commit", mergeId, mergeRevision, mergeRevisionSha256: watermark.sha256,
+                    candidate: prepared.candidate, preMergeHead: pending.preMergeHead, tree: prepared.tree, proofRecorded: false }] });
+    }
     async recordCommit(intentId, commit, final = true) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);

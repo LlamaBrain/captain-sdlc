@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.4
+- Associate authenticated standalone Merge Prep commits with the same active implementation without claiming completed proof or human acceptance; recover older signed preparations through an exact-owner public API.
+- Discard only provably unstarted rejected bookkeeping requests so later merge-back can continue, retaining started journals and ownership guards.
+- Cover ordinary continuation and an old-runtime upgrade after an authorized exact Git fast-forward through isolated public MCP smoke fixtures.
+
 ## 0.6.3
 - Keep legacy paused-session recovery separate from completed-owner proof: an absent legacy revision chain grants no completed exception; incomplete or corrupt chains remain refused.
 - Preserve complete progressed-Begin stage and lease diagnostics while retaining the wrong-checkout refusal code and ineligible checkout binding.

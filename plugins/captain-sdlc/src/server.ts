@@ -177,7 +177,7 @@ const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessi
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
 const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
 const finalizations = new BookkeepingFinalizationStore(dataRoot);
-const server = new McpServer({ name: "captain-sdlc", version: "0.6.3" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.6.4" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedFinalization = <T>(operation: () => Promise<T>, args: { finalization_id?: string; session_id: string; worktree: string }) => operation().then(reply).catch((error: Error) => {
@@ -331,6 +331,10 @@ const mergeBackConfig = {
 for (const name of ["captain_merge_back", "captain_merge_finish"]) {
   server.registerTool(name, mergeBackConfig, async args => guardedMerge(() => merges.back(args), args));
 }
+server.registerTool("captain_reconcile_merge_implementation", {
+  description: "Associate an exact authenticated standalone Merge Prep candidate with its same-session active implementation as an intermediate phase. Derive authority from signed merge history; preserve prior proof and human feedback without granting completion or green proof.",
+  inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), intent_id: z.string().min(1) }
+}, async args => guardedMerge(() => merges.reconcileImplementation(args), args));
 server.registerTool("captain_merge_status", {
   description: "Read the signed Merge Prep/Back operation, source/target bindings, retained gate evidence, and authenticated operation lease owner/recovery context. Use operation_lease.recovery.args for exact-generation recovery after verifying its owner is stopped; no internal storage inspection is needed. Merge readiness and integration are separate from implementation complete/green.",
   inputSchema: { merge_id: z.string().min(1), session_id: z.string().min(1).max(256), source_worktree: z.string().optional(), target_worktree: z.string().optional(), target_branch: z.string().optional() }

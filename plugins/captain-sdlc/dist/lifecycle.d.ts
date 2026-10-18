@@ -624,6 +624,8 @@ export declare class LifecycleStore {
         tree: string;
         subject: string;
     }): Promise<Run>;
+    /** Associate only an authenticated standalone Prep candidate, under its existing resource fence. */
+    recordMergeIntegration(intentId: string, mergeId: string, mergeRevision: number, assertAuthority: () => Promise<void>): Promise<Run>;
     recordCommit(intentId: string, commit: CommitEvidence, final?: boolean): Promise<Run>;
     completedCommitFor(intentId: string, request: CommitOperationRequest): Promise<Run | undefined>;
     finishTerminalCommit(intentId: string, requestSha256: string): Promise<Run>;

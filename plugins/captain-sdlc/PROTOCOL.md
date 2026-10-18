@@ -32,6 +32,19 @@ checks readiness freshness, and fast-forwards only the signed prepared source re
 Prep evidence without running gates again. `captain_merge_status` is read-only discovery for
 the same operation. Keep prior signed implementation/plan proof at its actual revision.
 
+Standalone Prep associates its authenticated merge commit with the exact active
+implementation as an intermediate commit, only in its running `implement` phase
+and live owning session. Paused, proof and HITL phases are not reopened. Legacy
+clients use
+`captain_reconcile_merge_implementation({ merge_id, session_id, intent_id })`;
+the response is `{ merge_id, implementation, captain_green: false }`. Repeated
+matching recovery is idempotent. It retains original proof revisions and signed
+merge provenance; it does not grant integration authority or alter Git state.
+Recovery after an operator-authorized fast-forward requires the target to equal
+the signed prepared source exactly. Back records that exact integration separately
+and retains Prep gate evidence. Foreign identities and arbitrary advanced targets
+remain refused.
+
 ## Plan projection
 
 `captain_migrate_plan_state` migrates explicitly selected Markdown plan files to the bounded `captain:work-state` block. Clients must not edit outside that block when projecting lifecycle state.

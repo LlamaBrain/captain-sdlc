@@ -1,5 +1,5 @@
 import { type FinalizationArgs, type FinalizationReceipt } from "./bookkeeping-finalization.js";
-import { type GateRunner, type ProjectPolicy } from "./lifecycle.js";
+import { type GateRunner, type ProjectPolicy, type Run } from "./lifecycle.js";
 import { assertWorktreeBinding, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
 export type MergeCommitInput = {
     paths: string[];
@@ -131,7 +131,7 @@ export declare class MergeWorkflowError extends Error {
     readonly merge_id: string;
     constructor(merge_id: string, cause: unknown);
 }
-/** Independent integration ledger. Implementation run phases and proof are never rewritten. */
+/** Independent integration ledger. Signed candidates may append intermediate phase evidence; prior proof is retained. */
 export declare class MergeWorkflowStore {
     private readonly dataRoot;
     private readonly runner;
@@ -139,6 +139,17 @@ export declare class MergeWorkflowStore {
     constructor(dataRoot: string, runner?: GateRunner);
     diagnose(args: MergeDiagnosticArgs): Promise<MergeDiagnostic>;
     prep(args: MergePrepArgs): Promise<MergeStatus>;
+    /** Recover an older signed Prep candidate without trusting caller-supplied source evidence. */
+    reconcileImplementation(args: {
+        merge_id: string;
+        session_id: string;
+        intent_id: string;
+    }): Promise<{
+        merge_id: string;
+        implementation: Run;
+        captain_green: false;
+    }>;
+    private reconcileOwnedImplementation;
     back(args: MergeBackArgs): Promise<MergeStatus>;
     status(args: MergeBackArgs): Promise<MergeStatus>;
     private operationLeaseStatus;
@@ -164,6 +175,7 @@ export declare class MergeWorkflowStore {
     private associateBookkeepingInputs;
     private advanceBookkeepingTarget;
     private finalizeSelected;
+    private retireFinalizationRequest;
     private assertRecordContinuity;
     private lock;
     private resources;

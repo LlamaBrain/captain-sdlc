@@ -74,6 +74,29 @@ proof; integration has its own signed record. Caller-supplied commands cannot re
 The existing `captain_prepare_merge`/`captain_abort_merge` tools retain their low-level contracts
 for current implementation clients. A request for Merge Prep never implies Merge Back.
 
+### Active implementation association and legacy recovery
+
+A standalone Prep commit is recorded as an intermediate commit of its exact owned
+implementation in its running `implement` phase and live owning session. Paused,
+proof and HITL phases are not reopened. Its signed merge provenance remains available to later ordinary
+commits. Existing proof stays at its tested revision; the association grants no
+`complete/green`, HITL acceptance, Merge Back authorization or push authority.
+
+For an older preparation whose implementation ledger still names the pre-Prep
+commit, call `captain_reconcile_merge_implementation` with the existing `merge_id`,
+`session_id` and implementation `intent_id`. It authenticates the signed prepared
+commit and original parent bindings under the merge and lifecycle fences. It
+changes neither Git refs nor source files. Foreign ownership, unsigned commits,
+dirty source, changed source HEAD/tree and unsupported target advances remain
+refused. An already completed
+fast-forward is recoverable only when the target exactly equals the signed
+prepared source; Back must separately acknowledge that integration without rerunning
+Prep gates. Use the same operation and worktrees throughout recovery.
+
+A rejected bookkeeping request can be forgotten only when its journal and attempt
+state prove mutation never started. Started or held attempts retain their normal
+recovery requirements; a clean checkout alone is insufficient to discard them.
+
 ## Tracked bookkeeping and captain.ignore
 
 Commit `.captain-sdlc/captain.ignore` and opt in through the repository's trusted commit policy:
