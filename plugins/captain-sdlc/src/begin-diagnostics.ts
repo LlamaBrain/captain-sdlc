@@ -370,6 +370,15 @@ export async function diagnoseBeginTargetLease(
         args.intent_id.replace(/[^A-Za-z0-9_-]/g, ""),
       ),
     });
+    if (!samePath(git.targetWorktree, args.target_worktree)) {
+      return {
+        ...base, diagnosis: "inspected" as const, session_match: "same" as const,
+        project_root_matches: projectRootMatches, target_branch_matches: branchMatches,
+        target_worktree_matches: false,
+        issuance: issuedIntentMatches ? "verified" as const : "missing_or_mismatched" as const,
+        recovery_disposition: "refused_request_binding_mismatch" as const,
+      };
+    }
     const gitBindingMatches =
       samePath(git.projectRoot, intent.projectRoot) &&
       samePath(git.targetWorktree, args.target_worktree) &&

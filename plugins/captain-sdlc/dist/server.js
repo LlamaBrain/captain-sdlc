@@ -7701,6 +7701,18 @@ async function diagnoseBeginTargetLease(args, deps) {
         args.intent_id.replace(/[^A-Za-z0-9_-]/g, "")
       )
     });
+    if (!samePath2(git2.targetWorktree, args.target_worktree)) {
+      return {
+        ...base,
+        diagnosis: "inspected",
+        session_match: "same",
+        project_root_matches: projectRootMatches,
+        target_branch_matches: branchMatches,
+        target_worktree_matches: false,
+        issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
+        recovery_disposition: "refused_request_binding_mismatch"
+      };
+    }
     const gitBindingMatches = samePath2(git2.projectRoot, intent.projectRoot) && samePath2(git2.targetWorktree, args.target_worktree) && git2.targetRefOid.toLowerCase() === oid.toLowerCase();
     let repositoryPresent = false, repositoryMatches = false;
     let leaseCheckpointPresent = false, leaseCheckpointMatches = false;
@@ -27534,7 +27546,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.1" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.2" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

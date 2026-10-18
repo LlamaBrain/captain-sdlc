@@ -34,3 +34,11 @@ Repair owner runs final configured proof and installs the tested public runtime.
 ## Follow-ups for human review
 
 The full FEATURE ticket performs51 real Git merge fixtures and took about11minutes for red. Its executor has no timeout and buffers stdout until completion; a300second host transport timeout obscured the transcript while children correctly continued. This diagnostic limitation is separate from the bounded recovery repair.
+
+## Update - 2026-10-17, compatibility repair
+
+The0.6.1candidate passed the real public recovery smoke: the game root owner diagnosed the exact b184 reservation as eligible with completed_session_owner_verified=true and used its returned selectors to revoke it at2026-10-18T02:13:23Z. Evidence remains in the retained game checkout Logs/nighttime-visibility/recovery-diagnose.json and recovery-applied.json.
+
+The first final FEATURE proof passed build but failed ticket at2026-10-18T02:19:48Z. It remains recorded against925096ef95e973bbc957451302311f98556691f6. The public proof runner buffers and then discards failed-gate stdout; targeted Begin diagnosis reproduced exactly one assertion: wrong checkout returned refused_binding_or_lease_mismatch rather than the existing refused_request_binding_mismatch code. The old test additionally assumed no inspection was needed when checkout differed from primary.
+
+The same-run0.6.2repair preserves that public refusal after one inspection derived solely from the signed root and branch. The existing test now asserts those trusted inputs and one inspection. Focused compatibility red14total13pass1fail; green14/14. Global installation remains held for complete final proof.

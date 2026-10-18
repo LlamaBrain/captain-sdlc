@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+- Preserve the public wrong-checkout request-refusal code after resolving the signed branch checkout; verify that caller paths never drive Git inspection.
+- Retain the failed0.6.1full ticket and repair its obsolete primary-equals-checkout test assumption in the same governed run.
+
 ## 0.6.1
 - Authenticate a completed retained task-owner projection from its latest signed run revision and released session lease before retiring a separate failed Begin reservation.
 - Resolve the signed target branch's registered checkout separately from the primary repository root, including retained canonical task checkouts, without relaxing new-intent progress or exact-generation ownership guards.

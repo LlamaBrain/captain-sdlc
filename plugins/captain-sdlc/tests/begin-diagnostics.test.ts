@@ -303,12 +303,18 @@ test("project, target branch, and target checkout mismatches are explicit refusa
   assert.equal(wrongBranch.recovery_disposition, "refused_request_binding_mismatch");
   assert.equal(f.inspectCalls(), 0);
 
+  const inspectTrusted = f.deps.inspectGit;
+  f.deps.inspectGit = async input => {
+    assert.equal(input.projectRoot, f.root);
+    assert.equal(input.targetWorktree, f.root, "caller-supplied checkout never drives Git inspection");
+    return inspectTrusted(input);
+  };
   const wrongTarget: any = await diagnoseBeginTargetLease({
     ...f.args, target_worktree: path.join(f.root, "unrelated"),
   }, f.deps);
   assert.equal(wrongTarget.target_worktree_matches, false);
   assert.equal(wrongTarget.recovery_disposition, "refused_request_binding_mismatch");
-  assert.equal(f.inspectCalls(), 0);
+  assert.equal(f.inspectCalls(), 1, "registered checkout is resolved from the signed root before comparison");
 
   const h = fixture();
   (h.deps.inspectGit as any) = async () => ({
