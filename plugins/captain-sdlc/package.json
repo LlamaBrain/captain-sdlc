@@ -1,11 +1,12 @@
 {
   "name": "@captain-sdlc/codex-plugin",
-  "version": "0.6.4",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json && esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js && node scripts/build-windows-launcher.mjs",
     "test:windows": "node --test tests/windows-launcher.test.mjs",
+    "test:pending-work": "node --import tsx --test tests/pending-work.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --import tsx --test tests/*.test.ts",
     "smoke": "node scripts/mcp-smoke.mjs && node scripts/bookkeeping-mcp-smoke.mjs && node scripts/orphan-lease-mcp-smoke.mjs && node scripts/failed-begin-mcp-smoke.mjs",

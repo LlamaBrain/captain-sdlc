@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0
+- Add the pending-work skill to inventory unmerged branch chains, retained worktrees, outstanding proof and unresolved decisions without changing repository or lifecycle state.
+- Bundle an explicit-target local Git helper that groups pending descendants and aliases, reports detached or unreadable worktrees and flags observed snapshot changes.
+- Verify ancestry, merged-descendant coverage, squash caveats and retained-work safety against real Git fixtures, plus an independent read-only audit of the consuming repositories.
+
 ## 0.6.4
 - Associate authenticated standalone Merge Prep commits with the same active implementation without claiming completed proof or human acceptance; recover older signed preparations through an exact-owner public API.
 - Discard only provably unstarted rejected bookkeeping requests so later merge-back can continue, retaining started journals and ownership guards.
