@@ -932,8 +932,8 @@ export class LifecycleStore {
                 throw new Error("another Captain commit operation is already active for this run");
             await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
         }
-        const operation = { leaseId, leaseToken: randomUUID(), requestSha256, stage: "reserved" };
-        run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256 }] });
+        const operation = { leaseId, leaseToken: randomUUID(), requestSha256, request, stage: "reserved" };
+        run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256, request }] });
         return run.commitOperation;
     }
     async commitOperationFor(intentId, request) {
@@ -958,7 +958,7 @@ export class LifecycleStore {
         if (run.preparedCommit)
             throw new Error("a signed prepared commit must use prepared recovery");
         await this.assertCommitOperation(run, operation);
-        const discarded = await this.update({ ...run, commitOperation: undefined, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId }] });
+        const discarded = await this.update({ ...run, commitOperation: undefined, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId, requestSha256: operation.requestSha256, ...(operation.request ? { request: operation.request } : {}) }] });
         await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
         return discarded;
     }
@@ -1094,12 +1094,56 @@ export class LifecycleStore {
                     candidate: prepared.candidate, preMergeHead: pending.preMergeHead, tree: prepared.tree, proofRecorded: false }] });
     }
     async recordCommit(intentId, commit, final = true) {
+        return this.recordCommitCore(intentId, commit, final);
+    }
+    async reconcileAuthorizedCommit(intentId, request, commit) {
+        await this.assertFrozenScope(intentId);
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        if (run.status !== "running" || !run.taskId)
+            throw new Error("authorized commit reconciliation requires the active task run");
+        if (run.targetBranch && run.targetBranch !== run.branch)
+            throw new Error("unprepared commits on a separate merge target cannot be reconciled");
+        if (run.preparedCommit || run.commitOperation)
+            throw new Error("a pending signed commit operation must use prepared recovery");
+        if (!request.final)
+            throw new Error("authorized commit reconciliation only accepts a final task commit");
+        const expectedHead = this.expectedHead(run), requestSha256 = commitRequestSha256(request);
+        if (!commit.clean || commit.commitCount !== 1 || commit.firstParent !== expectedHead || commit.subject !== request.subject || !commit.taskTrailerPresent)
+            throw new Error("reconciliation requires the exact clean, single-parent task commit");
+        const safePaths = (values) => values.length > 0 && new Set(values).size === values.length && values.every(value => typeof value === "string" && value.length > 0 && !value.startsWith("/") && !/^[A-Za-z]:/.test(value) && !value.includes("\\") && !value.split("/").some(part => !part || part === "." || part === ".."));
+        if (!safePaths(request.paths) || !commit.changedPaths || !safePaths(commit.changedPaths) || JSON.stringify([...request.paths].sort()) !== JSON.stringify([...commit.changedPaths].sort()))
+            throw new Error("reconciliation paths must exactly match the authorized selection and committed tree");
+        const requests = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId });
+        const authorized = requests.status === "expressed" && requests.receipts.some(receipt => receipt.decision === "expressed" && receipt.basis === "direct_instruction" && receipt.sessionId === run.sessionId && samePath(receipt.projectRoot, run.projectRoot) && receipt.intentId === run.intentId && receipt.taskId === run.taskId && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
+        if (!authorized)
+            throw new Error("reconciliation requires the expressed user request for this repository, task, run, and session");
+        let operation;
+        let discardedOperation;
+        for (const event of run.evidence) {
+            if (event.kind === "commit_operation_reserved")
+                operation = { leaseId: String(event.leaseId), requestSha256: String(event.requestSha256), request: event.request, authorized: false, prepared: false };
+            else if (event.kind === "commit_operation_authorized" && operation && event.leaseId === operation.leaseId)
+                operation.authorized = true;
+            else if (event.kind === "commit_prepared" && operation && event.operationLeaseId === operation.leaseId)
+                operation.prepared = true;
+            else if (event.kind === "commit_operation_discarded" && operation && event.leaseId === operation.leaseId) {
+                if (operation.authorized && !operation.prepared && operation.requestSha256 === requestSha256 && (!event.requestSha256 || event.requestSha256 === requestSha256) && (!operation.request || commitRequestSha256(operation.request) === requestSha256))
+                    discardedOperation = { leaseId: operation.leaseId, requestSha256 };
+                operation = undefined;
+            }
+        }
+        if (!discardedOperation)
+            throw new Error("no matching signed failed commit operation exists for this exact request");
+        return this.recordCommitCore(intentId, commit, request.final, true, { ...discardedOperation, paths: request.paths, subject: request.subject, sessionId: run.sessionId, taskId: run.taskId, branch: run.branch, worktreePath: run.worktreePath });
+    }
+    async recordCommitCore(intentId, commit, final = true, authorizedRecovery = false, recoveryAudit) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
         const operation = run.commitOperation;
-        if (run.targetBranch && (!run.preparedCommit || !operation))
-            throw new Error("governed target commit requires signed prepared operation ownership");
+        if (run.targetBranch && (!run.preparedCommit || !operation) && !authorizedRecovery)
+            throw new Error("governed target commits require signed prepared operation ownership");
         if (run.preparedCommit && !operation)
             throw new Error("signed prepared commit has no operation lease ownership");
         if (operation) {
@@ -1139,7 +1183,7 @@ export class LifecycleStore {
             throw new Error("commit evidence no longer matches the clean probed commit");
         if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final))
             throw new Error("commit evidence does not match the signed prepared candidate");
-        const next = { ...run, continuityState: undefined, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...(operation ? { operationLeaseId: operation.leaseId } : {}) }] };
+        const next = { ...run, continuityState: undefined, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, ...(recoveryAudit ? [{ kind: "authorized_commit_reconciled", ...recoveryAudit, head: commit.head, tree: commit.tree }] : []), { kind: final ? "commit" : "phase_commit", final, ...commit, ...(operation ? { operationLeaseId: operation.leaseId } : {}) }] };
         if (!operation || !run.preparedCommit)
             return this.update({ ...next, commitOperation: undefined, preparedCommit: undefined });
         const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...(run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}), candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
@@ -1464,7 +1508,7 @@ export class LifecycleStore {
         return operation;
     } if (operation.stage !== "reserved")
         throw new Error("prepared commit recovery must complete before a new commit operation"); const latest = await this.run(run.intentId); if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved")
-        throw new Error("Captain commit operation changed during lease authorization"); const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] }); return updated.commitOperation; }
+        throw new Error("Captain commit operation changed during lease authorization"); const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId, requestSha256: operation.requestSha256 }] }); return updated.commitOperation; }
     async proofSourceRepairFence(run) {
         const activationToken = run.activationToken ?? run.operationToken;
         const permit = await this.permitFor(run.sessionId, run.turnId);

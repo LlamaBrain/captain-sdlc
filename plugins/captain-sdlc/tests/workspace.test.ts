@@ -244,6 +244,7 @@ test("commit evidence validates first-parent integration commits and grandfather
   assert.equal(evidence.versionChanged, true);
   assert.equal(evidence.changelogChanged, true);
   assert.equal(evidence.taskTrailerValid, true);
+  assert.equal(evidence.taskTrailerPresent, true);
   assert.equal(evidence.versionSurfacesValid, true);
   assert.equal(evidence.phaseCommitsValid, true);
 });

@@ -9433,8 +9433,8 @@ ${result.stderr}`) }] });
           if (stale.intentId !== intentId || stale.runId !== run.runId || stale.operation !== "prepared-commit") throw new Error("another Captain commit operation is already active for this run");
           await releaseAuthorizedLease(this.dataRoot, leaseId, stale.intentId, stale.leaseToken);
         }
-        const operation = { leaseId, leaseToken: randomUUID(), requestSha256, stage: "reserved" };
-        run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256 }] });
+        const operation = { leaseId, leaseToken: randomUUID(), requestSha256, request: request2, stage: "reserved" };
+        run = await this.update({ ...run, commitOperation: operation, evidence: [...run.evidence, { kind: "commit_operation_reserved", leaseId, requestSha256, request: request2 }] });
         return run.commitOperation;
       }
       async commitOperationFor(intentId, request2) {
@@ -9456,7 +9456,7 @@ ${result.stderr}`) }] });
         this.phase(run, "implement");
         if (run.preparedCommit) throw new Error("a signed prepared commit must use prepared recovery");
         await this.assertCommitOperation(run, operation);
-        const discarded = await this.update({ ...run, commitOperation: void 0, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId }] });
+        const discarded = await this.update({ ...run, commitOperation: void 0, evidence: [...run.evidence, { kind: "commit_operation_discarded", leaseId: operation.leaseId, requestSha256: operation.requestSha256, ...operation.request ? { request: operation.request } : {} }] });
         await releaseAuthorizedLease(this.dataRoot, operation.leaseId, intentId, operation.leaseToken);
         return discarded;
       }
@@ -9576,11 +9576,43 @@ ${result.stderr}`) }] });
         });
       }
       async recordCommit(intentId, commit, final = true) {
+        return this.recordCommitCore(intentId, commit, final);
+      }
+      async reconcileAuthorizedCommit(intentId, request2, commit) {
+        await this.assertFrozenScope(intentId);
+        const run = await this.run(intentId);
+        this.phase(run, "implement");
+        if (run.status !== "running" || !run.taskId) throw new Error("authorized commit reconciliation requires the active task run");
+        if (run.targetBranch && run.targetBranch !== run.branch) throw new Error("unprepared commits on a separate merge target cannot be reconciled");
+        if (run.preparedCommit || run.commitOperation) throw new Error("a pending signed commit operation must use prepared recovery");
+        if (!request2.final) throw new Error("authorized commit reconciliation only accepts a final task commit");
+        const expectedHead = this.expectedHead(run), requestSha256 = commitRequestSha256(request2);
+        if (!commit.clean || commit.commitCount !== 1 || commit.firstParent !== expectedHead || commit.subject !== request2.subject || !commit.taskTrailerPresent) throw new Error("reconciliation requires the exact clean, single-parent task commit");
+        const safePaths = (values) => values.length > 0 && new Set(values).size === values.length && values.every((value) => typeof value === "string" && value.length > 0 && !value.startsWith("/") && !/^[A-Za-z]:/.test(value) && !value.includes("\\") && !value.split("/").some((part) => !part || part === "." || part === ".."));
+        if (!safePaths(request2.paths) || !commit.changedPaths || !safePaths(commit.changedPaths) || JSON.stringify([...request2.paths].sort()) !== JSON.stringify([...commit.changedPaths].sort())) throw new Error("reconciliation paths must exactly match the authorized selection and committed tree");
+        const requests = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId });
+        const authorized = requests.status === "expressed" && requests.receipts.some((receipt) => receipt.decision === "expressed" && receipt.basis === "direct_instruction" && receipt.sessionId === run.sessionId && samePath4(receipt.projectRoot, run.projectRoot) && receipt.intentId === run.intentId && receipt.taskId === run.taskId && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
+        if (!authorized) throw new Error("reconciliation requires the expressed user request for this repository, task, run, and session");
+        let operation;
+        let discardedOperation;
+        for (const event of run.evidence) {
+          if (event.kind === "commit_operation_reserved") operation = { leaseId: String(event.leaseId), requestSha256: String(event.requestSha256), request: event.request, authorized: false, prepared: false };
+          else if (event.kind === "commit_operation_authorized" && operation && event.leaseId === operation.leaseId) operation.authorized = true;
+          else if (event.kind === "commit_prepared" && operation && event.operationLeaseId === operation.leaseId) operation.prepared = true;
+          else if (event.kind === "commit_operation_discarded" && operation && event.leaseId === operation.leaseId) {
+            if (operation.authorized && !operation.prepared && operation.requestSha256 === requestSha256 && (!event.requestSha256 || event.requestSha256 === requestSha256) && (!operation.request || commitRequestSha256(operation.request) === requestSha256)) discardedOperation = { leaseId: operation.leaseId, requestSha256 };
+            operation = void 0;
+          }
+        }
+        if (!discardedOperation) throw new Error("no matching signed failed commit operation exists for this exact request");
+        return this.recordCommitCore(intentId, commit, request2.final, true, { ...discardedOperation, paths: request2.paths, subject: request2.subject, sessionId: run.sessionId, taskId: run.taskId, branch: run.branch, worktreePath: run.worktreePath });
+      }
+      async recordCommitCore(intentId, commit, final = true, authorizedRecovery = false, recoveryAudit) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
         const operation = run.commitOperation;
-        if (run.targetBranch && (!run.preparedCommit || !operation)) throw new Error("governed target commit requires signed prepared operation ownership");
+        if (run.targetBranch && (!run.preparedCommit || !operation) && !authorizedRecovery) throw new Error("governed target commits require signed prepared operation ownership");
         if (run.preparedCommit && !operation) throw new Error("signed prepared commit has no operation lease ownership");
         if (operation) {
           if (!run.preparedCommit || operation.stage !== "prepared") throw new Error("commit operation cannot finalize before signed candidate authorization");
@@ -9604,7 +9636,7 @@ ${result.stderr}`) }] });
         this.assertWorktreeBinding(run, committedState, commit.head);
         if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
         if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final)) throw new Error("commit evidence does not match the signed prepared candidate");
-        const next = { ...run, continuityState: void 0, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, { kind: final ? "commit" : "phase_commit", final, ...commit, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
+        const next = { ...run, continuityState: void 0, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, ...recoveryAudit ? [{ kind: "authorized_commit_reconciled", ...recoveryAudit, head: commit.head, tree: commit.tree }] : [], { kind: final ? "commit" : "phase_commit", final, ...commit, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
         if (!operation || !run.preparedCommit) return this.update({ ...next, commitOperation: void 0, preparedCommit: void 0 });
         const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
         const terminal2 = await this.update({ ...next, terminalCommit });
@@ -9937,7 +9969,7 @@ ${result.stderr}`) }] });
         if (operation.stage !== "reserved") throw new Error("prepared commit recovery must complete before a new commit operation");
         const latest = await this.run(run.intentId);
         if (!latest.commitOperation || latest.commitOperation.leaseToken !== operation.leaseToken || latest.commitOperation.stage !== "reserved") throw new Error("Captain commit operation changed during lease authorization");
-        const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId }] });
+        const authorized = { ...operation, stage: "authorized" }, updated = await this.update({ ...latest, commitOperation: authorized, evidence: [...latest.evidence, { kind: "commit_operation_authorized", leaseId: operation.leaseId, requestSha256: operation.requestSha256 }] });
         return updated.commitOperation;
       }
       async proofSourceRepairFence(run) {
@@ -10388,7 +10420,8 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = await git(["status", "--porcelain"], worktree);
   const previousPhaseRetained = !previousPhaseHead || hashes.includes(previousPhaseHead);
   const headParent = splitLines(await git(["rev-list", "--parents", "-n", "1", head], worktree))[0]?.split(" ")[1], bookkeepingOnly = Boolean(headParent && await bookkeepingCommitValid(worktree, headParent, head, subject, commitPolicy));
-  return { head, tree, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || hasTaskTrailer(trailers, taskId), versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
+  const taskTrailerPresent = hasTaskTrailer(trailers, taskId);
+  return { head, tree, firstParent: headParent, changedPaths: changed, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
 async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths");
@@ -27650,6 +27683,13 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
   }
 }
 var mergeDependencies = { prepareMerge, abortMerge, preparedMergeState, assertWorktreeBinding, reconcilePreparedMerge };
+async function captainReconcileAuthorizedCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
+  const run = await store.status(intent_id);
+  await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, true, run.gitDir);
+  const request2 = { paths, subject, taskOutcome: task_outcome, final };
+  const evidence = await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head);
+  return store.reconcileAuthorizedCommit(intent_id, request2, evidence);
+}
 async function captainPrepareMerge(store, { intent_id, commit_oid, strategy }, dependencies = mergeDependencies) {
   const mutation = await store.acquireWorktreeMutation(intent_id, "merge", { commitOid: commit_oid, strategy });
   try {
@@ -27684,7 +27724,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.4" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.5" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -27713,7 +27753,7 @@ async function startCaptainMcp() {
     const run = await captainBegin(store, args);
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
   }));
-  server.registerTool("captain_issue_intent", { description: "Client-neutral adapter entrypoint. Issues one signed implementation or resume intent for an explicitly supplied client session and turn.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional(), request_kind: external_exports.enum(["instruction", "goal"]).optional(), source_request_id: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
+  server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional(), request_kind: external_exports.enum(["instruction", "goal"]).optional(), source_request_id: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
   const interruptionSchema = {
     intent_id: external_exports.string(),
     session_id: external_exports.string().min(1).max(256),
@@ -27898,6 +27938,7 @@ async function startCaptainMcp() {
     await assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, true, run.gitDir);
     return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head));
   }));
+  server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainReconcileAuthorizedCommit(store, args)));
   server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
   server.registerTool("captain_record_hitl_feedback", { description: "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.", inputSchema: { intent_id: external_exports.string(), decision: external_exports.enum(["accept", "needs_changes"]), human_feedback: external_exports.string().min(1).max(12e3), check_ids: external_exports.array(external_exports.string()).min(1).max(50), evidence_references: external_exports.array(external_exports.string().min(1).max(2e3)).max(50), reviewed_revision: external_exports.string().regex(/^[0-9a-f]{40,64}$/i).optional() } }, async ({ intent_id, decision, human_feedback, check_ids, evidence_references, reviewed_revision }) => guarded(async () => {
     const run = await store.recordHitlFeedback(intent_id, { decision, humanFeedback: human_feedback, checkIds: check_ids, evidenceReferences: evidence_references, ...reviewed_revision ? { reviewedRevision: reviewed_revision } : {} });
@@ -27922,6 +27963,7 @@ export {
   captainDoctor,
   captainIssueIntent,
   captainPrepareMerge,
+  captainReconcileAuthorizedCommit,
   captainResume,
   startCaptainMcp
 };

@@ -36,12 +36,15 @@ export declare function commitEvidence(worktree: string, baseHead: string, polic
     bookkeepingOnly?: boolean | undefined;
     head: string;
     tree: string;
+    firstParent: string;
+    changedPaths: string[];
     commitCount: number;
     clean: boolean;
     subject: string;
     versionChanged: boolean;
     changelogChanged: boolean;
     taskTrailerValid: boolean;
+    taskTrailerPresent: boolean;
     versionSurfacesValid: boolean;
 }>;
 export declare function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy?: CommitPolicy, preparedMerges?: PreparedMerge[], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>): Promise<{

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.5
+- Document the public client-neutral start/resume intent route as a direct fallback when host commands cannot issue an intent after explicit user direction.
+- Reconcile an externally-created commit only against its exact signed discarded operation and same-run expressed request; require a clean single-parent commit, exact selected paths, task trailer, and captured version/changelog policy while preserving merge-target protections.
+
 ## 0.6.4
 - Associate authenticated standalone Merge Prep commits with the same active implementation without claiming completed proof or human acceptance; recover older signed preparations through an exact-owner public API.
 - Discard only provably unstarted rejected bookkeeping requests so later merge-back can continue, retaining started journals and ownership guards.

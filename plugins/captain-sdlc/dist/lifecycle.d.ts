@@ -207,6 +207,7 @@ export type CommitOperation = {
     leaseId: string;
     leaseToken: string;
     requestSha256: string;
+    request?: CommitOperationRequest;
     stage: "reserved" | "authorized" | "prepared";
 };
 export type WorktreeMutationOperation = {
@@ -282,6 +283,8 @@ export type BeginInput = Omit<Run, "user_request" | "schemaVersion" | "revision"
 export type CommitEvidence = {
     head: string;
     tree?: string;
+    firstParent?: string;
+    changedPaths?: string[];
     commitCount: number;
     clean: boolean;
     subject: string;
@@ -289,6 +292,7 @@ export type CommitEvidence = {
     changelogChanged: boolean;
     bookkeepingOnly?: boolean;
     taskTrailerValid?: boolean;
+    taskTrailerPresent?: boolean;
     versionSurfacesValid?: boolean;
     preparedMergesValid?: boolean;
     phaseCommitsValid?: boolean;
@@ -627,6 +631,8 @@ export declare class LifecycleStore {
     /** Associate only an authenticated standalone Prep candidate, under its existing resource fence. */
     recordMergeIntegration(intentId: string, mergeId: string, mergeRevision: number, assertAuthority: () => Promise<void>): Promise<Run>;
     recordCommit(intentId: string, commit: CommitEvidence, final?: boolean): Promise<Run>;
+    reconcileAuthorizedCommit(intentId: string, request: CommitOperationRequest, commit: CommitEvidence): Promise<Run>;
+    private recordCommitCore;
     completedCommitFor(intentId: string, request: CommitOperationRequest): Promise<Run | undefined>;
     finishTerminalCommit(intentId: string, requestSha256: string): Promise<Run>;
     runCheck(intentId: string, scope: string, ticketFilter?: string): Promise<Run>;

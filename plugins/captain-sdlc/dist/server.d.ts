@@ -106,6 +106,7 @@ export type CaptainMergeDependencies = {
     assertWorktreeBinding: typeof assertWorktreeBinding;
     reconcilePreparedMerge: typeof reconcilePreparedMerge;
 };
+export declare function captainReconcileAuthorizedCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final }: CaptainCommitArgs, dependencies?: Pick<CaptainCommitDependencies, "assertWorktreeBinding" | "commitEvidence">): Promise<import("./lifecycle.js").Run>;
 export declare function captainPrepareMerge(store: LifecycleStore, { intent_id, commit_oid, strategy }: {
     intent_id: string;
     commit_oid: string;
