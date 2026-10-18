@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+- Authenticate a completed retained task-owner projection from its latest signed run revision and released session lease before retiring a separate failed Begin reservation.
+- Resolve the signed target branch's registered checkout separately from the primary repository root, including retained canonical task checkouts, without relaxing new-intent progress or exact-generation ownership guards.
+
 ## 0.6.0
 - Verify and revoke authenticated terminal pre-workspace Begin reservations under explicit operator direction, preserving original roots and historical pins, older-runtime cancellation fences and unrelated session resources; bind legitimate target advances separately to the current HEAD.
 - Diagnose authenticated orphan branch leases through public exact-generation selectors and preserve all existing worktrees and dirty files.

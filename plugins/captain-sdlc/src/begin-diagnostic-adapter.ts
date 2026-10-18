@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { access, readdir } from "node:fs/promises";
+import { access, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly } from "./authority.js";
 import { diagnoseBeginTargetLease, type BeginDiagnosticArgs, type BeginDiagnosticDependencies } from "./begin-diagnostics.js";
@@ -75,10 +75,19 @@ export function createBeginDiagnosticAdapter(dataRoot: string) {
       const worktrees = parseWorktrees(gitRead(projectRoot, "worktree", "list", "--porcelain"));
       const target = worktrees.find(item => item.branch === `refs/heads/${input.targetBranch}`);
       const canonicalWorktrees = worktrees.filter(item => typeof item.path === "string" && samePath(item.path, input.canonicalProposedPath));
-      const pendingGitOperation = await pendingOperation(projectRoot);
+      const targetWorktree = path.resolve(target?.path ?? projectRoot);
+      if (!samePath(await realpath(targetWorktree), targetWorktree) ||
+          !samePath(gitRead(targetWorktree, "rev-parse", "--show-toplevel"), targetWorktree) ||
+          !samePath(gitRead(targetWorktree, "rev-parse", "--path-format=absolute", "--git-common-dir"), commonGitDir) ||
+          gitRead(targetWorktree, "symbolic-ref", "--quiet", "--short", "HEAD") !== input.targetBranch ||
+          gitRead(targetWorktree, "rev-parse", "HEAD").toLowerCase() !== targetRefOid.toLowerCase()) {
+        throw new Error("registered target worktree binding does not match its signed branch");
+      }
+      const pendingGitOperation = await pendingOperation(projectRoot) ||
+        (!samePath(targetWorktree, projectRoot) && await pendingOperation(targetWorktree));
       return {
         projectRoot,
-        targetWorktree: projectRoot,
+        targetWorktree,
         commonGitDir,
         targetRefOid,
         targetBranchWorktreePath: target?.path,

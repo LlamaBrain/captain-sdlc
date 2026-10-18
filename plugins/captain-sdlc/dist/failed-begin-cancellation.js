@@ -38,7 +38,6 @@ function assertDiagnosticBinding(diagnostic, args, requireHeld, completedSession
         diagnostic.stage !== "lease_checkpointed" ||
         diagnostic.target_lease?.bindings_match !== true ||
         diagnostic.target_lease?.generation_revisioned !== true ||
-        diagnostic.observed_branch_checkout_outside_canonical !== true ||
         diagnostic.target_worktree_matches !== true) {
         fail("failed Begin identity or pre-workspace eligibility could not be verified");
     }
@@ -128,7 +127,7 @@ export async function captainCancelFailedBegin(store, args) {
         if (!selectorMatches(existing, args, initialEvidence)) {
             throw new Error("a different signed cancellation already owns this Begin intent");
         }
-        assertDiagnosticBinding(initial, args, false, initialEvidence.completedSessionTombstone);
+        assertDiagnosticBinding(initial, args, false, (initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner));
         return store.withBeginAttemptGate(args.intent_id, async () => {
             const current = await store.beginCancellationFor(args.intent_id);
             if (!current)
@@ -140,13 +139,13 @@ export async function captainCancelFailedBegin(store, args) {
             const fresh = await store.diagnoseBegin(diagnosticArgs(args));
             if (!isRecord(fresh))
                 throw new Error("signed Begin diagnosis is unavailable");
-            assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone);
+            assertDiagnosticBinding(fresh, args, false, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
             // The authority CAS accepts only the original held generation or its exact
             // released N+1 successor; it never follows a same-token replacement.
             return retryExactCancellation(store, current, args, evidence);
         });
     }
-    assertDiagnosticBinding(initial, args, true, initialEvidence.completedSessionTombstone);
+    assertDiagnosticBinding(initial, args, true, (initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner));
     return store.withBeginAttemptGate(args.intent_id, async () => {
         // A retry may have committed the terminal marker before a failed release.
         const fresh = await store.diagnoseBegin(diagnosticArgs(args));
@@ -158,10 +157,10 @@ export async function captainCancelFailedBegin(store, args) {
             if (!selectorMatches(priorMarker, args, evidence)) {
                 throw new Error("a different signed cancellation already owns this Begin intent");
             }
-            assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone);
+            assertDiagnosticBinding(fresh, args, false, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
             return retryExactCancellation(store, priorMarker, args, evidence);
         }
-        assertDiagnosticBinding(fresh, args, true, evidence.completedSessionTombstone);
+        assertDiagnosticBinding(fresh, args, true, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
         const operation = evidence.operation;
         const repository = evidence.repository;
         const lease = evidence.lease;

@@ -597,3 +597,74 @@ for (const variant of ["held-operation", "held-source-resource", "held-worktree-
   else assert.equal((await (f.store as any).diagnoseFailedBegin(f.args)).eligible, false);
   await assert.rejects((f.store as any).repossessFailedBegin(args), /refused|unfinished|progress|active/); assert.deepEqual(await tree(f.container), before);
 });
+
+async function canonicalRetainedFailedBeginFixture(t: TestContext) {
+  const f = await fixture(t);
+  await releaseAuthorizedLease(f.data, f.leaseId, oldIntent, f.payload.leaseToken);
+  const primary = f.target, target = path.join(primary, ".captain-sdlc", "worktrees", "intent-retained-completed"), branch = "retained-completed-task";
+  await git(primary, "worktree", "add", "-b", branch, target);
+  await writeFile(path.join(target, "diagnostic-notes.md"), "retain diagnostic notes\n");
+  const { captainIssueIntent, captainBegin } = await import("../src/server.js"), workspace = await import("../src/workspace.js");
+  const lifecycle = new LifecycleStore(f.data, async () => ({ exitCode: 0, stdout: "", stderr: "" }));
+  const issued = await captainIssueIntent(lifecycle, { session_id: "original-private-session", turn_id: "canonical-dirty-begin", project_root: primary, prompt: "Continue the retained task", action: "start", target_branch: branch });
+  await assert.rejects(captainBegin(lifecycle, { intent_id: issued.intent_id, objective: "Continue the retained task", project_root: primary }, {
+    repositoryIdentity: workspace.repositoryIdentity, ensureWorktree: workspace.ensureWorktree,
+    loadPolicy: async () => ({ profile: "low", visualRequired: false, commands: { build: "fixture build", ticket: "fixture ticket" } }),
+  }), /worktree must be clean/);
+  const evidence = await lifecycle.readBeginCancellationEvidence(issued.intent_id);
+  return { ...f, primary, target, lifecycle, intent: issued.intent_id, leaseId: evidence.lease.leaseId!,
+    args: { ...f.args, project_root: primary, target_worktree: target, target_branch: branch } };
+}
+async function completedOwnerProjection(f: Awaited<ReturnType<typeof failedBeginFixture>> | Awaited<ReturnType<typeof canonicalRetainedFailedBeginFixture>>, variant = "complete") {
+  const priorIntent = "intent-completed-retained-owner", session = "original-private-session", base = "completed-base-operation", activation = "completed-resumed-activation", runId = "completed-retained-run";
+  const sessionLeaseId = createHash("sha256").update(`session-active\0${session}`).digest("hex");
+  await putAuthorizedOnceExact(f.data, "begin-operations", priorIntent, { schemaVersion: 1, intentId: priorIntent, sessionId: session, operationToken: base, runId });
+  const run: any = { schemaVersion: 1, revision: 0, intentId: priorIntent, sessionId: session, operationToken: base, activationToken: activation, runId, phase: "complete", status: "green", worktreePath: f.target, branch: f.args.target_branch, projectRoot: f.args.project_root, commonGitDir: f.commonGitDir, evidence: [], policy: { profile: "low", commands: {}, visualRequired: false } };
+  if (variant === "pending-commit") run.preparedCommit = { candidate: "pending" };
+  if (variant === "pending-mutation") run.mutationOperation = { stage: "pending" };
+  if (variant === "pending-review") run.policy.hitlChecks = [{ id: "human-review" }];
+  await putAuthorizedOnceExact(f.data, "runs", priorIntent, run);
+  await putAuthorizedOnceExact(f.data, "run-revisions", `${priorIntent}-0`, run);
+  await putAuthorizedOnceExact(f.data, "run-watermarks", `${priorIntent}-0`, { schemaVersion: 1, intentId: priorIntent, runId, revision: 0, runSha256: digest(run) });
+  if (variant === "latest-running") {
+    const current = { ...run, revision: 1, previousRevisionSha256: digest(run), phase: "implement", status: "running" };
+    await putAuthorizedOnceExact(f.data, "run-revisions", `${priorIntent}-1`, current);
+    await putAuthorizedOnceExact(f.data, "run-watermarks", `${priorIntent}-1`, { schemaVersion: 1, intentId: priorIntent, runId, revision: 1, runSha256: digest(current), previousRevisionSha256: digest(run) });
+  }
+  const projection = { schemaVersion: 1, intentId: priorIntent, operationToken: activation, runId, sessionId: session, leaseId: sessionLeaseId, leaseToken: activation };
+  await putAuthorizedOnceExact(f.data, "active", session, variant === "malformed" ? { ...projection, extra: true } : variant === "wrong-projection-token" ? { ...projection, leaseToken: "wrong-token" } : projection);
+  await acquireAuthorizedLease(f.data, sessionLeaseId, { intentId: priorIntent, leaseToken: activation, operationToken: activation, runId, sessionId: session, operation: "session-active" });
+  if (variant !== "held-session") await releaseAuthorizedLease(f.data, sessionLeaseId, priorIntent, activation);
+  return { priorIntent, session, projection };
+}
+test("completed retained task-owner projection permits failed-Begin retirement without changing prior authority", async t => {
+  const f = await failedBeginFixture(t), prior = await completedOwnerProjection(f), before = await tree(f.container);
+  const diagnosis = await (f.store as any).diagnoseFailedBegin(f.args);
+  assert.equal(diagnosis.eligible, true, JSON.stringify(diagnosis));
+  assert.deepEqual(await tree(f.container), before, "diagnosis stays read-only");
+  const priorBefore = await readAuthorizedReadOnly(f.data, "active", prior.session);
+  assert.equal((await (f.store as any).repossessFailedBegin(await failedRecovery(f))).state, "revoked");
+  assert.deepEqual(await readAuthorizedReadOnly(f.data, "active", prior.session), priorBefore);
+});
+test("failed Begin on an existing registered canonical target authenticates primary and checkout separately", async t => {
+  const f = await canonicalRetainedFailedBeginFixture(t), { createBeginDiagnosticAdapter } = await import("../src/begin-diagnostic-adapter.js"), before = await tree(f.container);
+  const diagnosis = await createBeginDiagnosticAdapter(f.data)({ ...f.args, intent_id: f.intent, session_id: "original-private-session" });
+  assert.equal(diagnosis.diagnosis, "inspected"); assert.equal(diagnosis.project_root_matches, true);
+  assert.equal(diagnosis.target_worktree_matches, true, JSON.stringify(diagnosis));
+  assert.equal(diagnosis.stage, "lease_checkpointed"); assert.equal(diagnosis.observed_branch_checkout_outside_canonical, false);
+  assert.deepEqual(await tree(f.container), before);
+});
+test("operator retires only the dirty canonical target's new reservation and preserves its completed owner", async t => {
+  const f = await canonicalRetainedFailedBeginFixture(t), prior = await completedOwnerProjection(f), beforeTarget = await tree(f.target);
+  const diagnosis = await (f.store as any).diagnoseFailedBegin(f.args);
+  assert.equal(diagnosis.eligible, true, JSON.stringify(diagnosis));
+  const receipt = await (f.store as any).repossessFailedBegin({ ...diagnosis.recovery.args, reason: "Retire only the verified failed Begin", user_authorization: "Repair Captain and continue" });
+  assert.equal(receipt.state, "revoked"); assert.deepEqual(await tree(f.target), beforeTarget);
+  assert.deepEqual(await readAuthorizedReadOnly(f.data, "active", prior.session), prior.projection);
+  assert.equal((await readAuthorizedLeaseSnapshotReadOnly(f.data, f.leaseId))?.state, "released");
+});
+for (const variant of ["held-session", "pending-commit", "pending-mutation", "pending-review", "latest-running", "malformed", "wrong-projection-token"]) test(`completed task-owner recovery refuses ${variant}`, async t => {
+  const f = await failedBeginFixture(t); await completedOwnerProjection(f, variant);
+  const before = await tree(f.container), diagnosis = await (f.store as any).diagnoseFailedBegin(f.args);
+  assert.equal(diagnosis.eligible, false); assert.deepEqual(await tree(f.container), before);
+});

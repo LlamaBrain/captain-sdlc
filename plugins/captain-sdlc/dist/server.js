@@ -7652,7 +7652,6 @@ async function diagnoseBeginTargetLease(args, deps) {
     const projectRootMatches = samePath2(intent.projectRoot, args.project_root);
     const signedTargetBranch = typeof intent.targetBranch === "string" ? intent.targetBranch : void 0;
     const branchMatches = signedTargetBranch === args.target_branch;
-    const targetWorktreeMatches = samePath2(intent.projectRoot, args.target_worktree);
     const oid = intent.targetOid;
     if (typeof oid !== "string" || !/^[0-9a-f]{40,64}$/i.test(oid)) {
       return {
@@ -7677,14 +7676,14 @@ async function diagnoseBeginTargetLease(args, deps) {
     const operation = operationRead.present ? operationRead.value : void 0;
     const issuanceRequest = issuance.present && record2(issuance.value.request) ? issuance.value.request : void 0;
     const issuedIntentMatches = issuance.present && record2(issuance.value.intent) && JSON.stringify(withoutConsumed(issuance.value.intent)) === JSON.stringify(withoutConsumed(intent)) && !!issuanceRequest && issuanceRequest.sessionId === intent.sessionId && issuanceRequest.turnId === intent.turnId && issuanceRequest.prompt === intent.prompt && (issuanceRequest.action === void 0 || issuanceRequest.action === "start") && !intent.resumeOf && (intent.taskId === void 0 || issuanceRequest.taskId === intent.taskId) && issuanceRequest.resumeOf === intent.resumeOf && issuanceRequest.targetBranch === intent.targetBranch && typeof issuanceRequest.projectRoot === "string" && samePath2(issuanceRequest.projectRoot, intent.projectRoot);
-    if (!signedTargetBranch || !projectRootMatches || !branchMatches || !targetWorktreeMatches) {
+    if (!signedTargetBranch || !projectRootMatches || !branchMatches) {
       return {
         ...base,
         diagnosis: "inspected",
         session_match: "same",
         project_root_matches: projectRootMatches,
         target_branch_matches: branchMatches,
-        target_worktree_matches: targetWorktreeMatches,
+        target_worktree_matches: false,
         issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
         recovery_disposition: "refused_request_binding_mismatch"
       };
@@ -7792,7 +7791,7 @@ async function diagnoseBeginTargetLease(args, deps) {
     }
     const stage = !operation ? "no_reservation" : !operationMatches ? "reservation_mismatch" : permitPresent ? "permit_published" : activatedPresent ? "activated" : activePresent ? "active_checkpointed" : runPresent ? "run_checkpointed" : workspacePresent ? "workspace_checkpointed" : leaseState2 === "held" && !leaseCheckpointPresent ? "lease_acquired_before_checkpoint" : leaseCheckpointPresent ? "lease_checkpointed" : repositoryPresent ? "repository_checkpointed" : "reserved";
     const hasLaterEvidence = workspacePresent || runPresent || activePresent || activatedPresent || permitPresent || sessionLeaseHeld || projectionActivePresent || projectionPermitPresent || git2.canonicalProposedPathExists || git2.canonicalWorktreeRegistered || git2.pendingGitOperation !== false;
-    const expectedTargetCheckout = !!git2.targetBranchWorktreePath && samePath2(git2.targetBranchWorktreePath, args.target_worktree) && git2.targetBranchWorktreeHead?.toLowerCase() === oid.toLowerCase();
+    const expectedTargetCheckout = !!git2.targetBranchWorktreePath && samePath2(git2.targetBranchWorktreePath, args.target_worktree) && git2.targetBranchWorktreeHead?.toLowerCase() === git2.targetRefOid.toLowerCase();
     const canonicalContainer = path3.join(
       path3.resolve(intent.projectRoot),
       ".captain-sdlc",
@@ -7801,7 +7800,7 @@ async function diagnoseBeginTargetLease(args, deps) {
     const targetCheckoutOutsideCanonical = !!git2.targetBranchWorktreePath && !samePath2(git2.targetBranchWorktreePath, canonicalContainer) && !path3.resolve(git2.targetBranchWorktreePath).toLowerCase().startsWith(
       (canonicalContainer + path3.sep).toLowerCase()
     );
-    const eligibleBindings = projectRootMatches && branchMatches && issuedIntentMatches && operationMatches && repositoryMatches && leaseBindingsMatch && consumedMarkerPresent && leaseGenerationRevisioned && leaseState2 === "held" && gitBindingMatches && expectedTargetCheckout && targetCheckoutOutsideCanonical;
+    const eligibleBindings = projectRootMatches && branchMatches && issuedIntentMatches && operationMatches && repositoryMatches && leaseBindingsMatch && consumedMarkerPresent && leaseGenerationRevisioned && leaseState2 === "held" && gitBindingMatches && expectedTargetCheckout;
     const recoveryDisposition = !eligibleBindings ? "refused_binding_or_lease_mismatch" : hasLaterEvidence ? "refused_later_or_ambiguous_state" : leaseOwner === "stopped" ? "requires_begin_recovery_fence" : leaseOwner === "legacy" ? "refused_legacy_owner_unproven" : "refused_owner_not_proven_stopped";
     return {
       ...base,
@@ -7809,7 +7808,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       session_match: "same",
       project_root_matches: projectRootMatches,
       target_branch_matches: branchMatches,
-      target_worktree_matches: expectedTargetCheckout && targetWorktreeMatches,
+      target_worktree_matches: expectedTargetCheckout && samePath2(git2.targetWorktree, args.target_worktree),
       target_ref_matches: git2.targetRefOid.toLowerCase() === oid.toLowerCase(),
       issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
       reservation: operationMatches ? "verified" : operation ? "mismatched" : "absent",
@@ -7867,7 +7866,7 @@ var init_begin_diagnostics = __esm({
 
 // src/begin-diagnostic-adapter.ts
 import { execFileSync } from "node:child_process";
-import { access, readdir as readdir2 } from "node:fs/promises";
+import { access, readdir as readdir2, realpath } from "node:fs/promises";
 import path4 from "node:path";
 function gitRead(cwd, ...args) {
   return execFileSync("git", ["--no-optional-locks", "-C", cwd, ...args], {
@@ -7940,10 +7939,14 @@ function createBeginDiagnosticAdapter(dataRoot) {
       const worktrees = parseWorktrees(gitRead(projectRoot, "worktree", "list", "--porcelain"));
       const target = worktrees.find((item) => item.branch === `refs/heads/${input.targetBranch}`);
       const canonicalWorktrees = worktrees.filter((item) => typeof item.path === "string" && samePath3(item.path, input.canonicalProposedPath));
-      const pendingGitOperation = await pendingOperation(projectRoot);
+      const targetWorktree = path4.resolve(target?.path ?? projectRoot);
+      if (!samePath3(await realpath(targetWorktree), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--show-toplevel"), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--path-format=absolute", "--git-common-dir"), commonGitDir) || gitRead(targetWorktree, "symbolic-ref", "--quiet", "--short", "HEAD") !== input.targetBranch || gitRead(targetWorktree, "rev-parse", "HEAD").toLowerCase() !== targetRefOid.toLowerCase()) {
+        throw new Error("registered target worktree binding does not match its signed branch");
+      }
+      const pendingGitOperation = await pendingOperation(projectRoot) || !samePath3(targetWorktree, projectRoot) && await pendingOperation(targetWorktree);
       return {
         projectRoot,
-        targetWorktree: projectRoot,
+        targetWorktree,
         commonGitDir,
         targetRefOid,
         targetBranchWorktreePath: target?.path,
@@ -8719,6 +8722,7 @@ var init_lifecycle = __esm({
           if (error2.code !== "ENOENT") throw error2;
         }
         let completedSessionTombstone = false;
+        let completedSessionOwner = false;
         if (activeProjection) {
           const sessionLeaseId = digest3(`session-active\0${operation.sessionId}`);
           const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
@@ -8731,7 +8735,22 @@ var init_lifecycle = __esm({
             completedSessionTombstone = priorOperation.schemaVersion === 1 && priorOperation.intentId === priorIntentId && priorOperation.sessionId === operation.sessionId && priorOperation.operationToken === activeProjection.operationToken && priorOperation.runId === sessionLease.payload.runId && priorRun.schemaVersion === 1 && priorRun.intentId === priorIntentId && priorRun.runId === sessionLease.payload.runId && priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId && priorRun.phase === "complete" && priorRun.status === "green";
           }
         }
-        return { intent, operation, repository, lease, consumed, completedSessionTombstone };
+        if (activeProjection?.schemaVersion === 1 && JSON.stringify(Object.keys(activeProjection).sort()) === JSON.stringify(
+          ["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]
+        ) && typeof activeProjection.intentId === "string" && activeProjection.intentId !== intentId && activeProjection.sessionId === operation.sessionId) {
+          const sessionLeaseId = digest3(`session-active\0${operation.sessionId}`);
+          const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
+          const owner = sessionLease?.payload;
+          if (sessionLease?.state === "released" && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && owner?.operation === "session-active" && owner.intentId === activeProjection.intentId && owner.sessionId === operation.sessionId && owner.runId === activeProjection.runId && owner.operationToken === activeProjection.operationToken && owner.leaseToken === activeProjection.leaseToken && owner.leaseToken === owner.operationToken && activeProjection.leaseId === sessionLeaseId && typeof owner.operationToken === "string" && owner.operationToken && owner.operationToken !== operation.operationToken && owner.runId !== operation.runId) {
+            const [priorOperation, priorRun] = await Promise.all([
+              readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId2(owner.intentId)),
+              this.interruptionRunReadOnly(owner.intentId)
+            ]);
+            const activation = priorRun.activationToken ?? priorRun.operationToken;
+            completedSessionOwner = priorOperation.schemaVersion === 1 && priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId && priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 && priorRun.intentId === owner.intentId && priorRun.runId === owner.runId && priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId && activation === owner.operationToken && (priorRun.sessionLeaseId === void 0 || priorRun.sessionLeaseId === sessionLeaseId) && (priorRun.sessionLeaseToken === void 0 || priorRun.sessionLeaseToken === owner.leaseToken) && priorRun.phase === "complete" && priorRun.status === "green" && !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation && !isPendingPlanReview(priorRun);
+          }
+        }
+        return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };
       }
       async recordBeginCancellation(marker) {
         return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId2(marker.intentId), marker);
@@ -10072,7 +10091,7 @@ __export(workspace_exports, {
 });
 import { execFile as execFile2 } from "node:child_process";
 import { createHash as createHash7 } from "node:crypto";
-import { cp, lstat as lstat2, mkdtemp, readFile as readFile4, readdir as readdir6, realpath, writeFile as writeFile3 } from "node:fs/promises";
+import { cp, lstat as lstat2, mkdtemp, readFile as readFile4, readdir as readdir6, realpath as realpath2, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path9 from "node:path";
 import { promisify as promisify2 } from "node:util";
@@ -10425,7 +10444,7 @@ async function sourceState(worktree, policy) {
   return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
 async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) {
-  const real = await realpath(worktree), owned = path9.resolve(worktree);
+  const real = await realpath2(worktree), owned = path9.resolve(worktree);
   if (path9.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
   const topLevel = path9.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
   if (topLevel.toLowerCase() !== owned.toLowerCase()) throw new Error("Git top-level does not match the owned worktree");
@@ -10915,7 +10934,7 @@ function assertDiagnosticBinding(diagnostic, args, requireHeld, completedSession
   if (!isRecord(later) || later.workspace !== false || later.run !== false || later.active !== false && !(later.active === true && completedSessionTombstone && diagnostic.stage === "lease_checkpointed") || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false) {
     fail("Begin has progressed or has ambiguous later state; cancellation was refused");
   }
-  if (diagnostic.repository_checkpoint !== "verified" || diagnostic.lease_checkpoint !== "verified" || diagnostic.stage !== "lease_checkpointed" || diagnostic.target_lease?.bindings_match !== true || diagnostic.target_lease?.generation_revisioned !== true || diagnostic.observed_branch_checkout_outside_canonical !== true || diagnostic.target_worktree_matches !== true) {
+  if (diagnostic.repository_checkpoint !== "verified" || diagnostic.lease_checkpoint !== "verified" || diagnostic.stage !== "lease_checkpointed" || diagnostic.target_lease?.bindings_match !== true || diagnostic.target_lease?.generation_revisioned !== true || diagnostic.target_worktree_matches !== true) {
     fail("failed Begin identity or pre-workspace eligibility could not be verified");
   }
   if (requireHeld) {
@@ -10985,7 +11004,7 @@ async function captainCancelFailedBegin(store, args) {
     if (!selectorMatches(existing, args, initialEvidence)) {
       throw new Error("a different signed cancellation already owns this Begin intent");
     }
-    assertDiagnosticBinding(initial, args, false, initialEvidence.completedSessionTombstone);
+    assertDiagnosticBinding(initial, args, false, initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner);
     return store.withBeginAttemptGate(args.intent_id, async () => {
       const current = await store.beginCancellationFor(args.intent_id);
       if (!current) throw new Error("signed Begin cancellation marker disappeared");
@@ -10995,11 +11014,11 @@ async function captainCancelFailedBegin(store, args) {
       }
       const fresh = await store.diagnoseBegin(diagnosticArgs(args));
       if (!isRecord(fresh)) throw new Error("signed Begin diagnosis is unavailable");
-      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone);
+      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone || evidence.completedSessionOwner);
       return retryExactCancellation(store, current, args, evidence);
     });
   }
-  assertDiagnosticBinding(initial, args, true, initialEvidence.completedSessionTombstone);
+  assertDiagnosticBinding(initial, args, true, initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner);
   return store.withBeginAttemptGate(args.intent_id, async () => {
     const fresh = await store.diagnoseBegin(diagnosticArgs(args));
     if (!isRecord(fresh)) throw new Error("signed Begin diagnosis is unavailable");
@@ -11009,10 +11028,10 @@ async function captainCancelFailedBegin(store, args) {
       if (!selectorMatches(priorMarker, args, evidence)) {
         throw new Error("a different signed cancellation already owns this Begin intent");
       }
-      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone);
+      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone || evidence.completedSessionOwner);
       return retryExactCancellation(store, priorMarker, args, evidence);
     }
-    assertDiagnosticBinding(fresh, args, true, evidence.completedSessionTombstone);
+    assertDiagnosticBinding(fresh, args, true, evidence.completedSessionTombstone || evidence.completedSessionOwner);
     const operation = evidence.operation;
     const repository = evidence.repository;
     const lease = evidence.lease;
@@ -25753,7 +25772,7 @@ async function assertExpectedBinding(worktree, expected) {
 init_authority();
 import { createHash as createHash10, randomUUID as randomUUID3 } from "node:crypto";
 import os3 from "node:os";
-import { lstat as lstat4, readFile as readFile7, readdir as readdir8, realpath as realpath2 } from "node:fs/promises";
+import { lstat as lstat4, readFile as readFile7, readdir as readdir8, realpath as realpath3 } from "node:fs/promises";
 import path12 from "node:path";
 init_lifecycle();
 init_workspace();
@@ -26393,7 +26412,7 @@ async function directoryNames2(directory) {
   }
 }
 async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
-  const owned = path12.resolve(worktree), real = await realpath2(owned);
+  const owned = path12.resolve(worktree), real = await realpath3(owned);
   if (!samePath6(real, owned)) throw new Error("worktree path resolves through a reparse point");
   const readGit2 = (args) => git(["--no-optional-locks", ...args], owned);
   const topLevel = path12.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
@@ -26482,7 +26501,7 @@ async function captureInputs(cwd, policy) {
     const relative = relativePath(input.path), full = path12.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
     for (const item of volatile) volatilePaths.add(`${relative}/${item}`.toLowerCase());
     if (!samePath6(full, path12.join(cwd, relative)) || path12.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
-    if (!samePath6(full, await realpath2(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
+    if (!samePath6(full, await realpath3(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
     dependencies.push({ kind: "locked-input", path: relative, ...await contentDigest(full, volatile) });
   }
   const manifestText = await committedFile(cwd, source.head, "Packages/manifest.json");
@@ -26492,7 +26511,7 @@ async function captureInputs(cwd, policy) {
       if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
       const supplied = spec.slice(5);
       if (!supplied || supplied.includes("\0")) throw new Error(`local dependency path is invalid: ${name}`);
-      const full = path12.resolve(path12.join(cwd, "Packages"), supplied), canonical = await realpath2(full);
+      const full = path12.resolve(path12.join(cwd, "Packages"), supplied), canonical = await realpath3(full);
       if (!samePath6(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
       const info = await lstat4(full);
       let gitState;
@@ -26556,7 +26575,7 @@ init_workspace();
 init_lifecycle();
 init_begin_diagnostic_adapter();
 import { createHash as createHash11, randomUUID as randomUUID4 } from "node:crypto";
-import { lstat as lstat5, readdir as readdir9, realpath as realpath3 } from "node:fs/promises";
+import { lstat as lstat5, readdir as readdir9, realpath as realpath4 } from "node:fs/promises";
 import os4 from "node:os";
 import path13 from "node:path";
 var FailedBeginVerificationError = class extends Error {
@@ -26733,7 +26752,7 @@ var BranchLeaseRecoveryStore = class {
       original_lease_token_matches: evidence.lease.leaseToken === lease.payload.leaseToken
     };
     if (Object.entries(resourceFlags).some(([key2, value]) => key2 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
-    const original = { intent_id: selection.old_intent_id, session_id: intent.sessionId, project_root: intent.projectRoot, target_worktree: intent.projectRoot, target_branch: binding.branch, expected_lease_revision: selection.expected_lease_revision, resource_generation: selection.resource_generation };
+    const original = { intent_id: selection.old_intent_id, session_id: intent.sessionId, project_root: intent.projectRoot, target_worktree: binding.topLevel, target_branch: binding.branch, expected_lease_revision: selection.expected_lease_revision, resource_generation: selection.resource_generation };
     const diagnosis = await createBeginDiagnosticAdapter(this.dataRoot)(original);
     const later = diagnosis.later_state;
     const sessionActivity = await this.sessionActivity(binding, evidence);
@@ -26755,11 +26774,12 @@ var BranchLeaseRecoveryStore = class {
       lease_bindings_match: diagnosis.target_lease?.bindings_match === true,
       generation_revisioned: diagnosis.target_lease?.generation_revisioned === true,
       completed_session_tombstone_verified: evidence.completedSessionTombstone,
+      completed_session_owner_verified: evidence.completedSessionOwner,
       session_activity: sessionActivity,
       unrelated_paused_session_projection_verified: unrelatedPausedSession,
       later_state: later ? { workspace: later.workspace, run: later.run, active: later.active, activated: later.activated, permit: later.permit, canonical_path_exists: later.canonical_path_exists, canonical_worktree_registered: later.canonical_worktree_registered, pending_git_operation: later.pending_git_operation } : { unknown: true }
     };
-    if (diagnosis.diagnosis !== "inspected" || diagnosis.session_match !== "same" || diagnosis.project_root_matches !== true || diagnosis.target_branch_matches !== true || diagnosis.issuance !== "verified" || diagnosis.reservation !== "verified" || diagnosis.repository_checkpoint !== "verified" || diagnosis.lease_checkpoint !== "verified" || diagnosis.stage !== "lease_checkpointed" || diagnosis.target_lease?.bindings_match !== true || diagnosis.target_lease?.generation_revisioned !== true || !["legacy", "stopped"].includes(diagnosis.target_lease?.owner) || !later || later.workspace !== false || later.run !== false || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false || later.active !== false && !evidence.completedSessionTombstone && !unrelatedPausedSession) throw new FailedBeginVerificationError({ ...publicState, refusal_code: diagnosis.stage !== "lease_checkpointed" ? "original_stage_not_terminal_pre_workspace" : "original_graph_or_later_state_refused" });
+    if (diagnosis.diagnosis !== "inspected" || diagnosis.session_match !== "same" || diagnosis.project_root_matches !== true || diagnosis.target_branch_matches !== true || diagnosis.issuance !== "verified" || diagnosis.reservation !== "verified" || diagnosis.repository_checkpoint !== "verified" || diagnosis.lease_checkpoint !== "verified" || diagnosis.stage !== "lease_checkpointed" || diagnosis.target_lease?.bindings_match !== true || diagnosis.target_lease?.generation_revisioned !== true || !["legacy", "stopped"].includes(diagnosis.target_lease?.owner) || !later || later.workspace !== false || later.run !== false || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false || later.active !== false && !evidence.completedSessionTombstone && !evidence.completedSessionOwner && !unrelatedPausedSession) throw new FailedBeginVerificationError({ ...publicState, refusal_code: diagnosis.stage !== "lease_checkpointed" ? "original_stage_not_terminal_pre_workspace" : "original_graph_or_later_state_refused" });
     const entries = await inventory(this.dataRoot);
     const leases = await leaseInventory(this.dataRoot);
     const lifecycleCandidates = entries.filter((entry) => ownerApplies(entry, binding) && isActive(entry));
@@ -26993,7 +27013,7 @@ var BranchLeaseRecoveryStore = class {
     let recordedRootMatches = false;
     if (typeof intent?.projectRoot === "string") {
       try {
-        recordedRootMatches = samePath7(await realpath3(intent.projectRoot), intent.projectRoot) && samePath7(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
+        recordedRootMatches = samePath7(await realpath4(intent.projectRoot), intent.projectRoot) && samePath7(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
       } catch {
       }
     }
@@ -27105,7 +27125,7 @@ function selectionMatches(binding, id, lease, args, allowReleased) {
 var readGit = (cwd, args) => git(["--no-optional-locks", ...args], cwd);
 async function readBinding(args) {
   const root = path13.resolve(args.project_root), target = path13.resolve(args.target_worktree);
-  for (const location of [root, target]) if (!samePath7(await realpath3(location), location) || !samePath7(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
+  for (const location of [root, target]) if (!samePath7(await realpath4(location), location) || !samePath7(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
   const commonGitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
   if (!samePath7(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
   if (!samePath7(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
@@ -27206,7 +27226,7 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
   };
   if (!shape) return basic;
   try {
-    const root = await realpath3(location), top = path13.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
+    const root = await realpath4(location), top = path13.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
     const branch = await readGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]);
     const exists2 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
     let pending = false;
@@ -27514,7 +27534,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.0" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.1" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

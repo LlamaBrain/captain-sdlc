@@ -480,6 +480,7 @@ export declare class LifecycleStore {
             intentId: string;
         };
         completedSessionTombstone: boolean;
+        completedSessionOwner: boolean;
     }>;
     recordBeginCancellation(marker: BeginCancellationMarker): Promise<BeginCancellationMarker>;
     releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string): Promise<void>;

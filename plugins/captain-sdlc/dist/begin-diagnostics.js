@@ -212,7 +212,6 @@ export async function diagnoseBeginTargetLease(args, deps) {
             ? intent.targetBranch
             : undefined;
         const branchMatches = signedTargetBranch === args.target_branch;
-        const targetWorktreeMatches = samePath(intent.projectRoot, args.target_worktree);
         const oid = intent.targetOid;
         if (typeof oid !== "string" || !/^[0-9a-f]{40,64}$/i.test(oid)) {
             return {
@@ -246,15 +245,15 @@ export async function diagnoseBeginTargetLease(args, deps) {
             typeof issuanceRequest.projectRoot === "string" &&
             samePath(issuanceRequest.projectRoot, intent.projectRoot);
         // Never let caller-supplied paths or branches drive local Git inspection.
-        // The signed project root is the target checkout for target-branch Begin.
-        if (!signedTargetBranch || !projectRootMatches || !branchMatches || !targetWorktreeMatches) {
+        // Resolve the signed branch's registered checkout independently of its primary root.
+        if (!signedTargetBranch || !projectRootMatches || !branchMatches) {
             return {
                 ...base,
                 diagnosis: "inspected",
                 session_match: "same",
                 project_root_matches: projectRootMatches,
                 target_branch_matches: branchMatches,
-                target_worktree_matches: targetWorktreeMatches,
+                target_worktree_matches: false,
                 issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
                 recovery_disposition: "refused_request_binding_mismatch",
             };
@@ -436,7 +435,7 @@ export async function diagnoseBeginTargetLease(args, deps) {
             git.pendingGitOperation !== false;
         const expectedTargetCheckout = !!git.targetBranchWorktreePath &&
             samePath(git.targetBranchWorktreePath, args.target_worktree) &&
-            git.targetBranchWorktreeHead?.toLowerCase() === oid.toLowerCase();
+            git.targetBranchWorktreeHead?.toLowerCase() === git.targetRefOid.toLowerCase();
         const canonicalContainer = path.join(path.resolve(intent.projectRoot), ".captain-sdlc", "worktrees");
         const targetCheckoutOutsideCanonical = !!git.targetBranchWorktreePath &&
             !samePath(git.targetBranchWorktreePath, canonicalContainer) &&
@@ -444,7 +443,7 @@ export async function diagnoseBeginTargetLease(args, deps) {
         const eligibleBindings = projectRootMatches && branchMatches && issuedIntentMatches &&
             operationMatches && repositoryMatches && leaseBindingsMatch &&
             consumedMarkerPresent && leaseGenerationRevisioned && leaseState === "held" &&
-            gitBindingMatches && expectedTargetCheckout && targetCheckoutOutsideCanonical;
+            gitBindingMatches && expectedTargetCheckout;
         const recoveryDisposition = !eligibleBindings ? "refused_binding_or_lease_mismatch" :
             hasLaterEvidence ? "refused_later_or_ambiguous_state" :
                 leaseOwner === "stopped" ? "requires_begin_recovery_fence" :
@@ -456,7 +455,7 @@ export async function diagnoseBeginTargetLease(args, deps) {
             session_match: "same",
             project_root_matches: projectRootMatches,
             target_branch_matches: branchMatches,
-            target_worktree_matches: expectedTargetCheckout && targetWorktreeMatches,
+            target_worktree_matches: expectedTargetCheckout && samePath(git.targetWorktree, args.target_worktree),
             target_ref_matches: git.targetRefOid.toLowerCase() === oid.toLowerCase(),
             issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
             reservation: operationMatches ? "verified" : operation ? "mismatched" : "absent",

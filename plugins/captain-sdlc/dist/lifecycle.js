@@ -170,6 +170,7 @@ export class LifecycleStore {
                 throw error;
         }
         let completedSessionTombstone = false;
+        let completedSessionOwner = false;
         if (activeProjection) {
             const sessionLeaseId = digest(`session-active\0${operation.sessionId}`);
             const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
@@ -195,7 +196,40 @@ export class LifecycleStore {
                     priorRun.phase === "complete" && priorRun.status === "green";
             }
         }
-        return { intent, operation, repository, lease, consumed, completedSessionTombstone };
+        if (activeProjection?.schemaVersion === 1 &&
+            JSON.stringify(Object.keys(activeProjection).sort()) === JSON.stringify(["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]) &&
+            typeof activeProjection.intentId === "string" && activeProjection.intentId !== intentId &&
+            activeProjection.sessionId === operation.sessionId) {
+            const sessionLeaseId = digest(`session-active\0${operation.sessionId}`);
+            const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
+            const owner = sessionLease?.payload;
+            if (sessionLease?.state === "released" && !sessionLease.legacy &&
+                Number.isSafeInteger(sessionLease.revision) && owner?.operation === "session-active" &&
+                owner.intentId === activeProjection.intentId && owner.sessionId === operation.sessionId &&
+                owner.runId === activeProjection.runId && owner.operationToken === activeProjection.operationToken &&
+                owner.leaseToken === activeProjection.leaseToken && owner.leaseToken === owner.operationToken &&
+                activeProjection.leaseId === sessionLeaseId && typeof owner.operationToken === "string" &&
+                owner.operationToken && owner.operationToken !== operation.operationToken &&
+                owner.runId !== operation.runId) {
+                const [priorOperation, priorRun] = await Promise.all([
+                    readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId(owner.intentId)),
+                    this.interruptionRunReadOnly(owner.intentId),
+                ]);
+                const activation = priorRun.activationToken ?? priorRun.operationToken;
+                completedSessionOwner = priorOperation.schemaVersion === 1 &&
+                    priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId &&
+                    priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 &&
+                    priorRun.intentId === owner.intentId && priorRun.runId === owner.runId &&
+                    priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
+                    activation === owner.operationToken &&
+                    (priorRun.sessionLeaseId === undefined || priorRun.sessionLeaseId === sessionLeaseId) &&
+                    (priorRun.sessionLeaseToken === undefined || priorRun.sessionLeaseToken === owner.leaseToken) &&
+                    priorRun.phase === "complete" && priorRun.status === "green" &&
+                    !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation &&
+                    !isPendingPlanReview(priorRun);
+            }
+        }
+        return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };
     }
     async recordBeginCancellation(marker) {
         return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId(marker.intentId), marker);
