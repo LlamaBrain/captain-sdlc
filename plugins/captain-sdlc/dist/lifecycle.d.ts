@@ -669,6 +669,7 @@ export declare class LifecycleStore {
     private assertCommitted;
     private assertCommitOperation;
     private captureSessionOwner;
+    private assertRecoverableSameSessionWithoutLease;
     private readSessionOwner;
     private interruptionLeaseReadOnly;
     private assertInterruptionSelectors;

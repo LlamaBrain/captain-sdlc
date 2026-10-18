@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.6
+- Restore same-session resume from a new turn's expressed request when run lease fields are absent and the session lease is free; refuse held leases.
+- Reconcile authorized final commits against the last committed phase head or run base after a resume advances continuity state.
+
 ## 0.6.5
 - Document the public client-neutral start/resume intent route as a direct fallback when host commands cannot issue an intent after explicit user direction.
 - Reconcile an externally-created commit only against its exact signed discarded operation and same-run expressed request; require a clean single-parent commit, exact selected paths, task trailer, and captured version/changelog policy while preserving merge-target protections.

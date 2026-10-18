@@ -610,9 +610,10 @@ export class LifecycleStore {
         }
         if (priorRun.status !== "paused") {
             const transferringSession = priorRun.sessionId !== intent.sessionId;
+            const hasSessionLease = Boolean(priorRun.sessionLeaseId && priorRun.sessionLeaseToken);
             // A logical session ID can survive an application restart. A positively
             // stopped captured owner still needs a fresh activation in that same ID.
-            if (transferringSession || await this.readSessionOwner(priorRun)) {
+            if (transferringSession || (hasSessionLease && await this.readSessionOwner(priorRun))) {
                 const interruption = await this.sessionInterruptionStatus(priorRun.intentId, priorRun.sessionId);
                 if (interruption.canRecover && interruption.selectors) {
                     await this.recoverInterruptedSession({ ...interruption.selectors, summary: "Client process ended; retain and resume the same task", nextSteps: ["Continue the existing signed task and retained worktree"] });
@@ -636,8 +637,12 @@ export class LifecycleStore {
             const run = await this.run(intent.resumeOf);
             if (run.status === "green" || !samePath(run.projectRoot, intent.projectRoot))
                 throw new Error("completed or unrelated run cannot be resumed");
-            if (run.status !== "paused")
-                await this.assertSessionLease(run);
+            if (run.status !== "paused") {
+                if (run.sessionId === intent.sessionId && !run.sessionLeaseId && !run.sessionLeaseToken)
+                    await this.assertRecoverableSameSessionWithoutLease(run, intent);
+                else
+                    await this.assertSessionLease(run);
+            }
             operation = await putAuthorizedOnceExact(this.dataRoot, "resume-operations", resumeIntentId, { schemaVersion: 1, resumeIntentId, operationToken: randomUUID(), intentId: run.intentId, runId: run.runId, sessionId: intent.sessionId, turnId: intent.turnId });
         }
         if (operation.resumeIntentId !== resumeIntentId || operation.intentId !== intent.resumeOf || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId)
@@ -662,8 +667,12 @@ export class LifecycleStore {
         let run = await this.run(operation.intentId);
         if (run.runId !== operation.runId || run.status === "green")
             throw new Error("resume operation no longer matches an active run");
-        if (run.status !== "paused")
-            await this.assertSessionLease(run);
+        if (run.status !== "paused") {
+            if (run.sessionId === operation.sessionId && !run.sessionLeaseId && !run.sessionLeaseToken)
+                await this.assertRecoverableSameSessionWithoutLease(run, intent);
+            else
+                await this.assertSessionLease(run);
+        }
         if (this.probe) {
             const current = await this.probe(run.worktreePath, run.policy);
             this.assertWorktreeBinding(run, current);
@@ -678,12 +687,12 @@ export class LifecycleStore {
                 run = { ...run, continuityState: handoff.worktreeState, evidence: [...run.evidence, { kind: "resume_source_reconciled", pauseRevision: handoff.revision, previousExpectedHead: this.expectedHead(run), head: current.head, tree: current.tree, proofRecorded: false }] };
             }
         }
-        if (run.status !== "paused" && run.sessionId === operation.sessionId) {
+        if (run.status !== "paused" && run.sessionId === operation.sessionId && run.sessionLeaseId && run.sessionLeaseToken) {
             if (run.turnId !== operation.turnId)
                 run = await this.update({ ...run, turnId: operation.turnId });
         }
         else {
-            const previousLease = run.status === "paused" ? undefined : { id: run.sessionLeaseId, token: run.sessionLeaseToken }, sessionLeaseId = digest(`session-active\0${operation.sessionId}`), sessionLeaseToken = operation.operationToken;
+            const previousLease = run.status === "paused" || !run.sessionLeaseId || !run.sessionLeaseToken ? undefined : { id: run.sessionLeaseId, token: run.sessionLeaseToken }, sessionLeaseId = digest(`session-active\0${operation.sessionId}`), sessionLeaseToken = operation.operationToken;
             await ensureAuthorizedLease(this.dataRoot, sessionLeaseId, { intentId: run.intentId, leaseToken: sessionLeaseToken, operationToken: operation.operationToken, runId: run.runId, sessionId: operation.sessionId, operation: "session-active" });
             run = await this.update({ ...run, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, sessionLeaseId, sessionLeaseToken, status: "running" });
             if (previousLease)
@@ -1108,7 +1117,7 @@ export class LifecycleStore {
             throw new Error("a pending signed commit operation must use prepared recovery");
         if (!request.final)
             throw new Error("authorized commit reconciliation only accepts a final task commit");
-        const expectedHead = this.expectedHead(run), requestSha256 = commitRequestSha256(request);
+        const expectedHead = run.committedState?.head ?? run.baseHead, requestSha256 = commitRequestSha256(request);
         if (!commit.clean || commit.commitCount !== 1 || commit.firstParent !== expectedHead || commit.subject !== request.subject || !commit.taskTrailerPresent)
             throw new Error("reconciliation requires the exact clean, single-parent task commit");
         const safePaths = (values) => values.length > 0 && new Set(values).size === values.length && values.every(value => typeof value === "string" && value.length > 0 && !value.startsWith("/") && !/^[A-Za-z]:/.test(value) && !value.includes("\\") && !value.split("/").some(part => !part || part === "." || part === ".."));
@@ -1539,6 +1548,24 @@ export class LifecycleStore {
         const owner = await this.hooks.sessionOwner(run.sessionId);
         if (owner)
             await this.bindSessionOwner(run.intentId, run.sessionId, owner);
+    }
+    async assertRecoverableSameSessionWithoutLease(run, intent) {
+        if (run.status === "paused" || run.sessionId !== intent.sessionId || !samePath(run.projectRoot, intent.projectRoot)) {
+            throw new Error("missing session lease recovery is limited to the same authorized client session and project");
+        }
+        if (run.sessionLeaseId || run.sessionLeaseToken)
+            throw new Error("partial session lease ownership metadata cannot be recovered");
+        const requests = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId, sessionId: intent.sessionId });
+        const authorized = requests.status === "expressed" && requests.receipts.some(receipt => receipt.decision === "expressed" && ["direct_instruction", "continuation", "explicit_approval"].includes(String(receipt.basis)) &&
+            receipt.sessionId === intent.sessionId && receipt.turnId === intent.turnId && receipt.sourceIntentId === intent.intentId &&
+            receipt.intentId === run.intentId && samePath(receipt.projectRoot, run.projectRoot) && samePath(receipt.commonGitDir, run.commonGitDir) &&
+            (!run.taskId || receipt.taskId === run.taskId) && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
+        if (!authorized)
+            throw new Error("same-session lease recovery requires this turn's expressed task authorization");
+        const leaseId = digest(`session-active\0${intent.sessionId}`);
+        const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
+        if (lease?.state === "held")
+            throw new Error("same-session resume cannot replace an active session lease held by another Captain operation");
     }
     async readSessionOwner(run) {
         const token = run.activationToken ?? run.operationToken;

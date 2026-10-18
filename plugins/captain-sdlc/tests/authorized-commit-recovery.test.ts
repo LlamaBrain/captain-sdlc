@@ -122,6 +122,19 @@ test("reconciles only the exact commit whose signed operation was discarded befo
   await assert.rejects(() => store.reconcileAuthorizedCommit("task-intent", request, commit), /phase|reconciliation/);
 });
 
+test("reconciles the signed commit after resume advanced continuityState to that candidate", async () => {
+  const { store, request, commit } = await makeStore("captain/task");
+  const run = await store.status("task-intent");
+  const resumedState = await sourceState(run.worktreePath);
+  assert.equal(resumedState.head, commit.head);
+  await (store as any).update({ ...run, continuityState: resumedState });
+
+  const accepted = await store.reconcileAuthorizedCommit("task-intent", request, commit);
+
+  assert.equal(accepted.phase, "prove");
+  assert.ok(accepted.evidence.some((event: any) => event.kind === "authorized_commit_reconciled" && event.requestSha256));
+});
+
 test("does not reconcile an unprepared merge commit without signed parent evidence", async () => {
   const { store, request, commit } = await makeStore("captain/task");
   await assert.rejects(() => store.reconcileAuthorizedCommit("task-intent", request, { ...commit, preparedMergesValid: false }), /prepared merge/);

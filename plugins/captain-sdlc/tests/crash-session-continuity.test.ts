@@ -8,7 +8,7 @@ import { mkdtemp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/prom
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { LifecycleStore, type SourceState } from "../src/lifecycle.js";
-import { readAuthorizedLeaseSnapshotReadOnly } from "../src/authority.js";
+import { acquireAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, releaseAuthorizedLease } from "../src/authority.js";
 import { captainIssueIntent } from "../src/server.js";
 import { git } from "../src/workspace.js";
 
@@ -283,6 +283,77 @@ test("ordinary same-session live continuation retains its lease without an inter
   const resumed = await f.store.resume("ordinary-continuation");
   assert.equal(resumed.activationToken, before.activationToken);
   assert.deepEqual(await f.store.handoffs(), []);
+});
+
+test("same-session authorization can restore a missing task lease with a fresh lease generation", async () => {
+  const f = await fixture({ owner: false });
+  await git(["init", "-b", "main"], f.root);
+  const before = await f.store.status("interrupted-task");
+  await releaseAuthorizedLease(f.data, before.sessionLeaseId!, before.intentId, before.sessionLeaseToken!);
+  const legacy = { ...before } as any;
+  delete legacy.sessionLeaseId;
+  delete legacy.sessionLeaseToken;
+  await (f.store as any).update(legacy);
+
+  const issued = await captainIssueIntent(f.store, {
+    session_id: before.sessionId,
+    turn_id: "authorized-self-resume",
+    project_root: f.root,
+    prompt: "Fix the retained task's session ownership",
+    task_id: before.taskId,
+    resume_of: before.intentId,
+    action: "resume",
+  });
+  assert.equal(issued.user_request.status, "expressed");
+
+  const resumed = await f.store.resume(issued.intent_id);
+  const lease = await readAuthorizedLeaseSnapshotReadOnly<any>(f.data, resumed.sessionLeaseId!);
+  assert.equal(resumed.runId, before.runId);
+  assert.equal(resumed.worktreePath, before.worktreePath);
+  assert.equal(resumed.branch, before.branch);
+  assert.equal(resumed.sessionId, before.sessionId);
+  assert.equal(resumed.turnId, "authorized-self-resume");
+  assert.notEqual(resumed.sessionLeaseToken, before.sessionLeaseToken);
+  assert.equal(lease?.state, "held");
+  assert.equal(lease?.payload.runId, before.runId);
+  assert.equal(lease?.payload.sessionId, before.sessionId);
+  assert.ok(await f.store.permitFor(before.sessionId, "authorized-self-resume"));
+});
+
+test("same-session self-resume cannot replace a lease held by another task", async () => {
+  const f = await fixture({ owner: false });
+  await git(["init", "-b", "main"], f.root);
+  const before = await f.store.status("interrupted-task");
+  await releaseAuthorizedLease(f.data, before.sessionLeaseId!, before.intentId, before.sessionLeaseToken!);
+  const legacy = { ...before } as any;
+  delete legacy.sessionLeaseId;
+  delete legacy.sessionLeaseToken;
+  await (f.store as any).update(legacy);
+  await acquireAuthorizedLease(f.data, before.sessionLeaseId!, {
+    intentId: "foreign-task",
+    leaseToken: "foreign-token",
+    operationToken: "foreign-operation",
+    runId: "foreign-run",
+    sessionId: before.sessionId,
+    operation: "session-active",
+  });
+  const issued = await captainIssueIntent(f.store, {
+    session_id: before.sessionId,
+    turn_id: "blocked-self-resume",
+    project_root: f.root,
+    prompt: "Fix the retained task's session ownership",
+    task_id: before.taskId,
+    resume_of: before.intentId,
+    action: "resume",
+  });
+  const beforeAttempt = await f.store.status(before.intentId);
+
+  await assert.rejects(() => f.store.resume(issued.intent_id), /active session lease held by another Captain operation/);
+
+  assert.deepEqual(await f.store.status(before.intentId), beforeAttempt);
+  const lease = await readAuthorizedLeaseSnapshotReadOnly<any>(f.data, before.sessionLeaseId!);
+  assert.equal(lease?.state, "held");
+  assert.equal(lease?.payload.runId, "foreign-run");
 });
 
 test("ordinary resume automatically finishes a signed interruption checkpoint after its client crashed during pause", async () => {
