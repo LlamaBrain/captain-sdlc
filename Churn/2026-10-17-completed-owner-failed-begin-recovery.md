@@ -1,6 +1,6 @@
 # 2026-10-17 - Completed retained owner blocks failed Begin recovery
 
-**Status: ONGOING**
+**Status: RESOLVED**
 
 **Occurrence:** 2026-10-17, America/Los_Angeles. **Recorded:** 2026-10-17.
 
@@ -27,7 +27,7 @@ Version0.6.1 authenticates the exact seven-field projection against a released r
 
 Focused initial green:10/10 (three positive recovery cases and seven ownership/refusal cases); typecheck passed. Reviewer requested the positive fixture match finalized runs whose session-lease fields are cleared; that fixture was adjusted before final proof. Final configured build, full ticket, public smokes and typecheck remain pending at this record revision.
 
-## Next action
+## Original next action
 
 Repair owner runs final configured proof and installs the tested public runtime. Game-task root owner then diagnoses and retires only the exact failed reservation through public tools, preserving the completed owner and both game checkouts. No merge or push is authorized. Incident resolution requires that real public recovery result, not merely passing repair tests.
 
@@ -50,3 +50,18 @@ The 0.6.2 final proof passed build and failed ticket at 2026-10-18T02:34:12Z, re
 All seven failures map to two causes. Five existing legacy paused/current-owner diagnostic cases were cut off by the new completed-owner verifier attempting a nonexistent run revision chain. Two existing progressed-Begin cancellation cases were cut off by the new early wrong-checkout return, hiding their later stage and lease details. No other failures were reported.
 
 The bounded 0.6.3 repair leaves completed-owner verification false when legacy revision history is absent, without suppressing corrupt or partial chain errors; unchanged paused-owner recovery independently authenticates its existing evidence. Prior Begin is read only after the current authenticated run is actually complete/green. Wrong-checkout classification now happens after complete progress inspection, with eligibility still false. The original 10 completed-owner/canonical cases and 12 legacy/ownership neighbors passed 22/22; the pure Begin fixture passed 14/14, and typecheck passed before rebuilding. Final configured proof remains pending.
+
+## Resolution - 2026-10-17
+
+The original exact reservation was revoked through the candidate public operator tool at 2026-10-18T02:13:23Z, preserving the previous completed owner, source/target checkouts and old Begin fence. The game root owner continued its separately governed fix in the retained checkout. No signed authority files were edited directly.
+
+Final implementation 53389a2af9c746c19c0eaccd205772a65c83af3d (v0.6.3) passed signed FEATURE proof at 2026-10-18T03:02:59Z: build, full ticket, public MCP smoke suite and typecheck all exited 0. Focused repair guards passed 22/22 owner/legacy cases, 14/14 Begin diagnostics and 2/2 progressed-Begin SDK/race cases. Both earlier failed final proofs and the complete 613-case diagnostic inventory remain retained at their actual revisions.
+
+Installed 19 owned plugin files atomically into the existing registered runtime directory C:/Users/metag/.codex/plugins/cache/personal/captain-sdlc/0.6.0, which now advertises v0.6.3. Verified source/runtime server SHA256: da36074889c4a38772002d58fd6249f6fb8125cf9037a2c195af6f9dbb7462ab. Fresh installed public MCP status at 2026-10-18T03:03:38Z confirmed complete/green at the same source revision. Registration, hook definitions and authority data were preserved. Existing loaded MCP processes may retain older code; fresh public stdio uses the installed repaired runtime.
+
+Evidence and backups: plugins/captain-sdlc/Temp/automation-scratch/completed-owner-repair/{prove-0.6.3-result.json,install-receipt.json,installed-public-status.json,install-backup-0.6.0/}. Durable closeout: .captain-sdlc/closeouts/2026-10-17-completed-owner-recovery-c5cb40f6.md. No merge, push or hosted CI was performed; local signed proof and installation are separate from source integration.
+
+## Follow-ups for human review
+
+- Failed public proof currently drops raw gate stdout and returns only a generic error. Evidence: the 0.6.1 and 0.6.2 proof results; a separate full diagnostic ticket was required to retain all seven failing assertions. Proposed owner action: a separately scoped Captain diagnostic-output improvement.
+- The FEATURE ticket performs 51 real merge Git fixtures and took roughly ten minutes per attempt. This latency is retained as operational evidence, not a new gate or an additional requirement in the completed repair.
