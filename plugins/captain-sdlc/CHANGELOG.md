@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+- Verify each registered worktree's actual checkout root, Git common directory, HEAD and branch before reporting its status; stale artifact directories that fall back to the parent repository remain explicitly unavailable.
+- Add a real nested-worktree regression proving a missing Git pointer cannot inherit the primary checkout's clean/dirty state.
+
 ## 0.7.0
 - Add the pending-work skill to inventory unmerged branch chains, retained worktrees, outstanding proof and unresolved decisions without changing repository or lifecycle state.
 - Bundle an explicit-target local Git helper that groups pending descendants and aliases, reports detached or unreadable worktrees and flags observed snapshot changes.

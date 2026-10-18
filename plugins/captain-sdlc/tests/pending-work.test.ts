@@ -82,3 +82,17 @@ test('inherited Git redirection cannot replace the explicitly requested reposito
  assert.equal(result.repository.worktree_root.replaceAll('\\','/'),wanted.repo.replaceAll('\\','/'));
  assert.deepEqual(result.branches.map((branch:any)=>branch.name),['main']);assert.equal(result.snapshot.stale,false);
 });
+test('registered leftover directory without its Git pointer is not inspected as the enclosing repository',async()=>{
+ const {repo}=await fixture();const linked=path.join(repo,'retained-artifacts');await git(repo,'worktree','add','-b','retained-task',linked,'main');
+ await rename(path.join(linked,'.git'),path.join(linked,'.git.saved'));await writeFile(path.join(linked,'evidence.txt'),'retained evidence');
+ const before=await git(repo,'status','--porcelain');const result=await audit(repo);const wt=result.worktrees.find((entry:any)=>entry.branch==='refs/heads/retained-task');
+ assert.ok(wt.inspection_error);assert.match(wt.inspection_error,/identity|root|checkout/i);assert.equal(wt.dirty,null);assert.equal(wt.status_porcelain,null);assert.equal(wt.unfinished_operations,null);assert.equal(result.snapshot.inspection_incomplete,true);
+ assert.equal(await git(repo,'status','--porcelain'),before);assert.equal(await readFile(path.join(linked,'evidence.txt'),'utf8'),'retained evidence');
+});
+
+test('a registered checkout redirected to a foreign Git directory is reported unknown',async()=>{
+ const {repo}=await fixture(),foreign=await fixture();const linked=path.join(repo,'redirected-worktree');await git(repo,'worktree','add','-b','retained-task',linked,'main');
+ await rename(path.join(linked,'.git'),path.join(linked,'.git.saved'));await writeFile(path.join(linked,'.git'),'gitdir: '+path.join(foreign.repo,'.git')+'\n');
+ const result=await audit(repo);const wt=result.worktrees.find((entry:any)=>entry.branch==='refs/heads/retained-task');
+ assert.ok(wt.inspection_error);assert.match(wt.inspection_error,/identity mismatch/);assert.equal(wt.dirty,null);assert.equal(wt.integrated,null);assert.equal(wt.head_reachable_from_local_branch,null);assert.equal(result.snapshot.inspection_incomplete,true);
+});

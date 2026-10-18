@@ -2,7 +2,7 @@
 /** Local, read-only ancestry inventory. Never fetches, checks out, or edits Git state. */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { access } from 'node:fs/promises';
+import { access, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const execute = promisify(execFile);
@@ -30,11 +30,27 @@ function parseWorktrees(output) {
  }
  if(record)result.push(record);return result;
 }
-async function inspectWorktrees(repo, pinnedTarget) {
+async function samePath(left,right) {
+ const [a,b]=await Promise.all([realpath(left),realpath(right)]);
+ return process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b;
+}
+async function inspectWorktrees(repo, pinnedTarget, expectedCommonDir) {
  const list=parseWorktrees(await git(repo,'worktree','list','--porcelain','-z'));
  const inspect = async entry=>{
   try {
-   const [status, gitdir]=await Promise.all([git(entry.path,'status','--porcelain=v1','-z','--untracked-files=all'),git(entry.path,'rev-parse','--absolute-git-dir')]);
+   const [location,observedHead,observedBranch]=await Promise.all([
+    git(entry.path,'rev-parse','--path-format=absolute','--show-toplevel','--git-common-dir','--absolute-git-dir'),
+    git(entry.path,'rev-parse','--verify','HEAD'),git(entry.path,'rev-parse','--symbolic-full-name','HEAD')
+   ]);
+   const [observedRoot,observedCommonDir,gitdir]=location.trim().split(/\r?\n/);
+   // Git discovery walks upward from ordinary artifact directories. Never attribute
+   // the enclosing checkout's status or operation markers to a stale registered worktree.
+   if(!await samePath(observedRoot,entry.path))throw new Error(`Worktree checkout root identity mismatch: registered ${entry.path}; observed ${observedRoot}`);
+   if(!await samePath(observedCommonDir,expectedCommonDir))throw new Error(`Worktree common Git directory identity mismatch: registered ${expectedCommonDir}; observed ${observedCommonDir}`);
+   if(observedHead.trim()!==entry.head)throw new Error(`Worktree HEAD identity mismatch: registered ${entry.head}; observed ${observedHead.trim()}`);
+   const expectedBranch=entry.detached?'HEAD':entry.branch;
+   if(observedBranch.trim()!==expectedBranch)throw new Error(`Worktree branch identity mismatch: registered ${expectedBranch}; observed ${observedBranch.trim()}`);
+   const status=await git(entry.path,'status','--porcelain=v1','-z','--untracked-files=all');
    const operations=['MERGE_HEAD','CHERRY_PICK_HEAD','REVERT_HEAD','REBASE_HEAD','rebase-apply','rebase-merge','sequencer','BISECT_LOG'];
    const found=await Promise.all(operations.map(async op=>await exists(path.join(gitdir.trim(),op))?op:null));
    let integrated;
@@ -56,7 +72,7 @@ export async function auditPendingWork(repo,target) {
  const [root,common,bare]=await Promise.all([git(requested,'rev-parse','--show-toplevel'),git(requested,'rev-parse','--path-format=absolute','--git-common-dir'),git(requested,'rev-parse','--is-bare-repository')]);
  if(bare.trim()==='true')throw new Error('A worktree repository is required.');
  const rootPath=root.trim(), commonDir=common.trim();const pinnedTarget=await targetOid(rootPath,target);
- const initialRefs=await refs(rootPath);const firstWorktrees=await inspectWorktrees(rootPath,pinnedTarget);
+ const initialRefs=await refs(rootPath);const firstWorktrees=await inspectWorktrees(rootPath,pinnedTarget,commonDir);
  const integrated=new Set((await git(rootPath,'for-each-ref',`--merged=${pinnedTarget}`,'--format=%(refname)','refs/heads/')).trim().split(/\r?\n/).filter(Boolean));
  const counts=new Map();
  const branches=[];
@@ -84,7 +100,7 @@ export async function auditPendingWork(repo,target) {
   for(const ref of new Set([...start.keys(),...end.keys()]))if(start.get(ref)!==end.get(ref))changed.push({ref,before:start.get(ref)||null,after:end.get(ref)||null});
  }
  if(finalTarget && pinnedTarget!==finalTarget)changed.push({ref:target,before:pinnedTarget,after:finalTarget});
- const lastWorktrees=await inspectWorktrees(rootPath,pinnedTarget);const worktreeChanged=JSON.stringify(firstWorktrees)!==JSON.stringify(lastWorktrees);
+ const lastWorktrees=await inspectWorktrees(rootPath,pinnedTarget,commonDir);const worktreeChanged=JSON.stringify(firstWorktrees)!==JSON.stringify(lastWorktrees);
  const inspectionIncomplete=firstWorktrees.some(w=>w.inspection_error)||lastWorktrees.some(w=>w.inspection_error);
  return {schema_version:1,ok:true,repository:{requested_root:requested,worktree_root:rootPath,primary_worktree:firstWorktrees[0]?.path||null,common_git_dir:commonDir},target:{ref:target,oid:pinnedTarget},branches,integrated_branches:branches.filter(branch=>branch.integrated),pending_groups:pendingGroups,worktrees:firstWorktrees,snapshot:{stale:changed.length>0||worktreeChanged,changed_refs:changed,worktree_state_changed:worktreeChanged,inspection_incomplete:Boolean(inspectionIncomplete)},limitations:['Local refs only; no fetch performed.','Ancestry proves integration; squash/cherry-pick equivalence is not treated as integration.','Snapshot checks detect observed changes; concurrent changes that return to the original state cannot be excluded.']};
 }
