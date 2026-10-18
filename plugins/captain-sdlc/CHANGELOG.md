@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.2
+- Base deterministic merge-version bumps on the newer canonical VERSION of authenticated source and imported target parents, preserving ordinary commit rules and refusing rollback, skipped bumps and invalid incoming versions.
+- Cover candidate commits and retained commit evidence with real Git merge fixtures.
+- Preserve paused or preimplementation lifecycle proof when standalone Merge Prep establishes independent readiness; explicit phase reconciliation remains restricted to a running implementation owner.
+
 ## 0.7.1
 - Verify each registered worktree's actual checkout root, Git common directory, HEAD and branch before reporting its status; stale artifact directories that fall back to the parent repository remain explicitly unavailable.
 - Add a real nested-worktree regression proving a missing Git pointer cannot inherit the primary checkout's clean/dirty state.

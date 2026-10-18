@@ -269,6 +269,43 @@ test("ordinary active source owner is protected even without target branch lease
 test("same-session ordinary owner retains signed run while its mutation fence is held", async () => {
   const f = await fixture(), owner = await activeOwner(f, f.args.session_id); await commit(f.source, "task.txt", "task\n"); const before = await readFile(path.join(f.data, "run-revisions", "active-0.json"), "utf8"), fenceId = createHash("sha256").update(`worktree-mutation\0${owner.runId}`).digest("hex"), store = new MergeWorkflowStore(f.data, async () => { assert.equal((await readAuthorizedLease<any>(f.data, fenceId)).operation, "integration-worktree"); return ok; }); assert.equal((await store.prep(f.args)).state, "ready"); assert.equal(await readFile(path.join(f.data, "run-revisions", "active-0.json"), "utf8"), before);
 });
+for (const ownerStatus of ["running", "paused"] as const) test(`divergent Prep preserves a same-session tdd_red ${ownerStatus} owner`, async () => {
+  const f = await fixture();
+  const owner = await activeOwner(f, f.args.session_id);
+  const lifecycle = new LifecycleStore(f.data, async () => { throw new Error("legacy Ticket proof must remain unrun"); });
+  if (ownerStatus === "paused") await lifecycle.pause(owner.intentId, { summary: "legacy Ticket proof unavailable", nextSteps: ["retain original proof while preparing integration"] });
+  const before = await lifecycle.status(owner.intentId);
+  const signedSnapshot = async () => Promise.all(["run-revisions", "run-watermarks"].map(async directory => {
+    const files = (await readdir(path.join(f.data, directory))).sort();
+    return Promise.all(files.map(async file => [file, await readFile(path.join(f.data, directory, file), "utf8")]));
+  }));
+  const signedBefore = await signedSnapshot();
+  await commit(f.source, "task.txt", "retained task implementation\n");
+  await commit(f.target, "target.txt", "incoming target\n");
+  const targetHead = await git(f.target, "rev-parse", "HEAD"), gates: string[] = [];
+  const store = new MergeWorkflowStore(f.data, async command => {
+    gates.push(command);
+    assert.equal(command, "trusted build", "standalone Prep must use its captured merge gate");
+    return ok;
+  });
+  const pending = await store.prep(f.args);
+  assert.equal(pending.state, "needs_commit");
+  const ready = await store.prep({ ...f.args, merge_id: pending.merge_id,
+    commit: await mergeCommit(f.source, ["target.txt"], "chore(merge): prepare legacy task") });
+  assert.equal(ready.state, "ready");
+  assert.equal(ready.captain_green, false);
+  assert.deepEqual(gates, ["trusted build"]);
+  assert.equal(await git(f.target, "rev-parse", "HEAD"), targetHead);
+  const after = await lifecycle.status(owner.intentId);
+  assert.equal(after.phase, "tdd_red");
+  assert.equal(after.status, ownerStatus);
+  assert.equal(after.revision, before.revision);
+  assert.deepEqual(after.evidence, before.evidence);
+  assert.deepEqual(await signedSnapshot(), signedBefore);
+  await assert.rejects(() => store.reconcileImplementation({ merge_id: ready.merge_id, session_id: f.args.session_id, intent_id: owner.intentId }), /implement|phase|running/);
+  assert.deepEqual(await signedSnapshot(), signedBefore);
+});
+
 test("locked volatile metadata may change during a gate; other metadata stays pinned", async () => {
   const f = await fixture(); await mkdir(path.join(f.source, "vendor")); await writeFile(path.join(f.source, "vendor", "stable.txt"), "stable"); await writeFile(path.join(f.source, "vendor", "volatile.meta"), "before"); await commit(f.source, ".captain-sdlc/dependency-lock.json", JSON.stringify({ schema_version: 2, inputs: [{ path: "vendor", volatile_paths: ["volatile.meta"] }] })); const store = new MergeWorkflowStore(f.data, async () => { await writeFile(path.join(f.source, "vendor", "volatile.meta"), "after"); return ok; }); const ready = await store.prep(f.args); assert.equal(ready.state, "ready"); await writeFile(path.join(f.source, "vendor", "stable.meta"), "unexpected"); await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /input|stale/);
 });

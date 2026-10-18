@@ -260,7 +260,7 @@ export async function commitEvidence(worktree, baseHead, policy, taskId, prepare
                 matchedPrepared.add(index);
         }
         const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash, phaseSubject, commitPolicy);
-        if (parent !== expectedParent || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || (!bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)))))
+        if (parent !== expectedParent || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || (!bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy, parents.length === 3 ? parents[2] : undefined)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy)))))
             phaseCommitsValid = false;
         expectedParent = hash;
     }
@@ -600,7 +600,7 @@ function hasTaskTrailer(message, taskId) { if (!taskId || !/^[A-Za-z0-9._-]+$/.t
 async function candidateCommitValid(worktree, hash, expectedParent, policy, taskId, preparedMerges) { const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree)); let mergeValid = parents.length === 2; if (parents.length === 3) {
     const prepared = preparedMerges.find(value => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map(surface => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every(changedPath => bookkeeping.has(changedPath)));
-} return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash, subject, policy) || (validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy) && await changelogAddsVersion(worktree, parent, hash, subject, policy))); }
+} return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash, subject, policy) || (validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy, parents.length === 3 ? parents[2] : undefined) && await changelogAddsVersion(worktree, parent, hash, subject, policy))); }
 export async function bookkeepingPathAllowed(relative, policy) { return bookkeepingPathAllowedCore(relative, policy, git); }
 /** Blob validation preserves raw bytes at whitespace/control boundaries. */
 export async function bookkeepingBlobAllowed(worktree, oid) {
@@ -677,7 +677,7 @@ async function versionAt(worktree, hash, policy) { const values = []; for (const
         return null;
     }
 } return values.length > 0 && values.every(value => value === values[0]) ? values[0] : null; }
-async function versionTransitionValid(worktree, parent, hash, subject, policy) {
+async function versionTransitionValid(worktree, parent, hash, subject, policy, incomingParent) {
     if (!(policy.require_version_suffix ?? true))
         return true;
     const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
@@ -689,7 +689,18 @@ async function versionTransitionValid(worktree, parent, hash, subject, policy) {
     const afterValue = await versionAt(worktree, hash, policy);
     if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue)
         return false;
-    const before = parseStrictSemVer(beforeValue);
+    let before = parseStrictSemVer(beforeValue);
+    // Merge callers separately authenticate both actual parents against prepared-merge authority.
+    // The imported canonical version can be newer than this retained task's first parent.
+    if (incomingParent) {
+        const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
+        if (!incomingValue)
+            return false;
+        const incoming = parseStrictSemVer(incomingValue);
+        if (incoming.major > before.major || (incoming.major === before.major &&
+            (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch))))
+            before = incoming;
+    }
     if (parsedSubject[2])
         return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
     if (parsedSubject[1] === "feat")

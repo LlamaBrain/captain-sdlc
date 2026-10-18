@@ -10380,7 +10380,7 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
       else matchedPrepared.add(index);
     }
     const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash8, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
+    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy, parents.length === 3 ? parents[2] : void 0) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
     expectedParent = hash8;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
@@ -10729,7 +10729,7 @@ async function candidateCommitValid(worktree, hash8, expectedParent, policy, tas
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
+  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy, parents.length === 3 ? parents[2] : void 0) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
 }
 async function bookkeepingPathAllowed(relative, policy) {
   return bookkeepingPathAllowedCore(relative, policy, git);
@@ -10803,14 +10803,20 @@ async function versionAt(worktree, hash8, policy) {
   }
   return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
 }
-async function versionTransitionValid(worktree, parent, hash8, subject, policy) {
+async function versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
   const canonical = policy.version_surfaces?.filter((surface) => surface.path === policy.version_file) ?? [];
   const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
   const afterValue = await versionAt(worktree, hash8, policy);
   if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
-  const before = parseStrictSemVer(beforeValue);
+  let before = parseStrictSemVer(beforeValue);
+  if (incomingParent) {
+    const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
+    if (!incomingValue) return false;
+    const incoming = parseStrictSemVer(incomingValue);
+    if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
+  }
   if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
@@ -26105,6 +26111,10 @@ var MergeWorkflowStore = class {
       if (intentId) throw new Error("signed merge does not belong to the selected implementation intent");
       return void 0;
     }
+    if (owner.phase !== "implement" || owner.status !== "running") {
+      if (intentId) throw new Error(`merge reconciliation requires an implement/running owner; found ${owner.phase}/${owner.status}`);
+      return void 0;
+    }
     const head = await git(["rev-parse", "HEAD"], record3.source_worktree);
     const verified = await this.read(record3.merge_id);
     if (verified.revision !== record3.revision || digest6(verified) !== digest6(record3)) throw new Error("signed merge changed before lifecycle reconciliation");
@@ -27684,7 +27694,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.7.1" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.7.2" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
