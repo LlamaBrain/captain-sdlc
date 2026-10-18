@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.6.3
+- Keep legacy paused-session recovery separate from completed-owner proof: an absent legacy revision chain grants no completed exception; incomplete or corrupt chains remain refused.
+- Preserve complete progressed-Begin stage and lease diagnostics while retaining the wrong-checkout refusal code and ineligible checkout binding.
+
 ## 0.6.2
 - Preserve the public wrong-checkout request-refusal code after resolving the signed branch checkout; verify that caller paths never drive Git inspection.
-- Retain the failed0.6.1full ticket and repair its obsolete primary-equals-checkout test assumption in the same governed run.
+- Retain the failed 0.6.1 full ticket and repair its obsolete primary-equals-checkout test assumption in the same governed run.
 
 ## 0.6.1
 - Authenticate a completed retained task-owner projection from its latest signed run revision and released session lease before retiring a separate failed Begin reservation.

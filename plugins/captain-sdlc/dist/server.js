@@ -7701,18 +7701,7 @@ async function diagnoseBeginTargetLease(args, deps) {
         args.intent_id.replace(/[^A-Za-z0-9_-]/g, "")
       )
     });
-    if (!samePath2(git2.targetWorktree, args.target_worktree)) {
-      return {
-        ...base,
-        diagnosis: "inspected",
-        session_match: "same",
-        project_root_matches: projectRootMatches,
-        target_branch_matches: branchMatches,
-        target_worktree_matches: false,
-        issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
-        recovery_disposition: "refused_request_binding_mismatch"
-      };
-    }
+    const targetWorktreeMatches = samePath2(git2.targetWorktree, args.target_worktree);
     const gitBindingMatches = samePath2(git2.projectRoot, intent.projectRoot) && samePath2(git2.targetWorktree, args.target_worktree) && git2.targetRefOid.toLowerCase() === oid.toLowerCase();
     let repositoryPresent = false, repositoryMatches = false;
     let leaseCheckpointPresent = false, leaseCheckpointMatches = false;
@@ -7813,7 +7802,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       (canonicalContainer + path3.sep).toLowerCase()
     );
     const eligibleBindings = projectRootMatches && branchMatches && issuedIntentMatches && operationMatches && repositoryMatches && leaseBindingsMatch && consumedMarkerPresent && leaseGenerationRevisioned && leaseState2 === "held" && gitBindingMatches && expectedTargetCheckout;
-    const recoveryDisposition = !eligibleBindings ? "refused_binding_or_lease_mismatch" : hasLaterEvidence ? "refused_later_or_ambiguous_state" : leaseOwner === "stopped" ? "requires_begin_recovery_fence" : leaseOwner === "legacy" ? "refused_legacy_owner_unproven" : "refused_owner_not_proven_stopped";
+    const recoveryDisposition = !targetWorktreeMatches ? "refused_request_binding_mismatch" : !eligibleBindings ? "refused_binding_or_lease_mismatch" : hasLaterEvidence ? "refused_later_or_ambiguous_state" : leaseOwner === "stopped" ? "requires_begin_recovery_fence" : leaseOwner === "legacy" ? "refused_legacy_owner_unproven" : "refused_owner_not_proven_stopped";
     return {
       ...base,
       diagnosis: "inspected",
@@ -8754,12 +8743,22 @@ var init_lifecycle = __esm({
           const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
           const owner = sessionLease?.payload;
           if (sessionLease?.state === "released" && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && owner?.operation === "session-active" && owner.intentId === activeProjection.intentId && owner.sessionId === operation.sessionId && owner.runId === activeProjection.runId && owner.operationToken === activeProjection.operationToken && owner.leaseToken === activeProjection.leaseToken && owner.leaseToken === owner.operationToken && activeProjection.leaseId === sessionLeaseId && typeof owner.operationToken === "string" && owner.operationToken && owner.operationToken !== operation.operationToken && owner.runId !== operation.runId) {
-            const [priorOperation, priorRun] = await Promise.all([
-              readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId2(owner.intentId)),
-              this.interruptionRunReadOnly(owner.intentId)
-            ]);
-            const activation = priorRun.activationToken ?? priorRun.operationToken;
-            completedSessionOwner = priorOperation.schemaVersion === 1 && priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId && priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 && priorRun.intentId === owner.intentId && priorRun.runId === owner.runId && priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId && activation === owner.operationToken && (priorRun.sessionLeaseId === void 0 || priorRun.sessionLeaseId === sessionLeaseId) && (priorRun.sessionLeaseToken === void 0 || priorRun.sessionLeaseToken === owner.leaseToken) && priorRun.phase === "complete" && priorRun.status === "green" && !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation && !isPendingPlanReview(priorRun);
+            let priorRun;
+            try {
+              priorRun = await this.interruptionRunReadOnly(owner.intentId);
+            } catch (error2) {
+              const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath4(error2.path, path8.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
+              if (!absentLegacyChain) throw error2;
+            }
+            if (priorRun?.phase === "complete" && priorRun.status === "green") {
+              const priorOperation = await readAuthorizedReadOnly(
+                this.dataRoot,
+                "begin-operations",
+                safeId2(owner.intentId)
+              );
+              const activation = priorRun.activationToken ?? priorRun.operationToken;
+              completedSessionOwner = priorOperation.schemaVersion === 1 && priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId && priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 && priorRun.intentId === owner.intentId && priorRun.runId === owner.runId && priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId && activation === owner.operationToken && (priorRun.sessionLeaseId === void 0 || priorRun.sessionLeaseId === sessionLeaseId) && (priorRun.sessionLeaseToken === void 0 || priorRun.sessionLeaseToken === owner.leaseToken) && !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation && !isPendingPlanReview(priorRun);
+            }
           }
         }
         return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };
@@ -27546,7 +27545,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.2" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.3" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

@@ -459,6 +459,7 @@ test("operator recovery coexists with an unrelated authenticated paused source t
   const diagnosis = await (f.store as any).diagnoseFailedBegin(f.args);
   assert.equal(diagnosis.eligible, true); assert.equal(diagnosis.original_state.later_state.active, true);
   assert.equal(diagnosis.original_state.completed_session_tombstone_verified, false);
+  assert.equal(diagnosis.original_state.completed_session_owner_verified, false, "legacy paused evidence grants no completed-owner exception");
   assert.equal(diagnosis.original_state.unrelated_paused_session_projection_verified, true);
   assert.equal(diagnosis.original_state.session_activity.correlated_run_status, "paused");
   assert.equal((await f.store.diagnose(f.args)).eligible, false, "strict orphan eligibility does not change");

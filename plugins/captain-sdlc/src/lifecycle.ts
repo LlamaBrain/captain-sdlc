@@ -202,22 +202,31 @@ export class LifecycleStore {
           activeProjection.leaseId === sessionLeaseId && typeof owner.operationToken === "string" &&
           owner.operationToken && owner.operationToken !== operation.operationToken &&
           owner.runId !== operation.runId) {
-        const [priorOperation, priorRun] = await Promise.all([
-          readAuthorizedReadOnly<BeginOperation>(this.dataRoot, "begin-operations", safeId(owner.intentId)),
-          this.interruptionRunReadOnly(owner.intentId),
-        ]);
-        const activation = priorRun.activationToken ?? priorRun.operationToken;
-        completedSessionOwner = priorOperation.schemaVersion === 1 &&
-          priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId &&
-          priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 &&
-          priorRun.intentId === owner.intentId && priorRun.runId === owner.runId &&
-          priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
-          activation === owner.operationToken &&
-          (priorRun.sessionLeaseId === undefined || priorRun.sessionLeaseId === sessionLeaseId) &&
-          (priorRun.sessionLeaseToken === undefined || priorRun.sessionLeaseToken === owner.leaseToken) &&
-          priorRun.phase === "complete" && priorRun.status === "green" &&
-          !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation &&
-          !isPendingPlanReview(priorRun);
+        let priorRun: Run | undefined;
+        try { priorRun = await this.interruptionRunReadOnly(owner.intentId); }
+        catch (error: any) {
+          const absentLegacyChain = (error.code === "ENOENT" && typeof error.path === "string" &&
+            samePath(error.path, path.join(this.dataRoot, "run-revisions"))) ||
+            error.message === "legacy run has no authenticated revision chain for interruption recovery";
+          if (!absentLegacyChain) throw error;
+          // An absent legacy chain grants no completed-owner exception. Existing paused-owner
+          // recovery authenticates its own evidence independently.
+        }
+        if (priorRun?.phase === "complete" && priorRun.status === "green") {
+          const priorOperation = await readAuthorizedReadOnly<BeginOperation>(
+            this.dataRoot, "begin-operations", safeId(owner.intentId));
+          const activation = priorRun.activationToken ?? priorRun.operationToken;
+          completedSessionOwner = priorOperation.schemaVersion === 1 &&
+            priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId &&
+            priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 &&
+            priorRun.intentId === owner.intentId && priorRun.runId === owner.runId &&
+            priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
+            activation === owner.operationToken &&
+            (priorRun.sessionLeaseId === undefined || priorRun.sessionLeaseId === sessionLeaseId) &&
+            (priorRun.sessionLeaseToken === undefined || priorRun.sessionLeaseToken === owner.leaseToken) &&
+            !priorRun.preparedCommit && !priorRun.commitOperation && !priorRun.mutationOperation &&
+            !isPendingPlanReview(priorRun);
+        }
       }
     }
     return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };

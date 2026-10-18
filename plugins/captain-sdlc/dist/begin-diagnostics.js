@@ -276,15 +276,7 @@ export async function diagnoseBeginTargetLease(args, deps) {
             targetOid: oid,
             canonicalProposedPath: path.join(path.resolve(intent.projectRoot), ".captain-sdlc", "worktrees", args.intent_id.replace(/[^A-Za-z0-9_-]/g, "")),
         });
-        if (!samePath(git.targetWorktree, args.target_worktree)) {
-            return {
-                ...base, diagnosis: "inspected", session_match: "same",
-                project_root_matches: projectRootMatches, target_branch_matches: branchMatches,
-                target_worktree_matches: false,
-                issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
-                recovery_disposition: "refused_request_binding_mismatch",
-            };
-        }
+        const targetWorktreeMatches = samePath(git.targetWorktree, args.target_worktree);
         const gitBindingMatches = samePath(git.projectRoot, intent.projectRoot) &&
             samePath(git.targetWorktree, args.target_worktree) &&
             git.targetRefOid.toLowerCase() === oid.toLowerCase();
@@ -453,11 +445,12 @@ export async function diagnoseBeginTargetLease(args, deps) {
             operationMatches && repositoryMatches && leaseBindingsMatch &&
             consumedMarkerPresent && leaseGenerationRevisioned && leaseState === "held" &&
             gitBindingMatches && expectedTargetCheckout;
-        const recoveryDisposition = !eligibleBindings ? "refused_binding_or_lease_mismatch" :
-            hasLaterEvidence ? "refused_later_or_ambiguous_state" :
-                leaseOwner === "stopped" ? "requires_begin_recovery_fence" :
-                    leaseOwner === "legacy" ? "refused_legacy_owner_unproven" :
-                        "refused_owner_not_proven_stopped";
+        const recoveryDisposition = !targetWorktreeMatches ? "refused_request_binding_mismatch" :
+            !eligibleBindings ? "refused_binding_or_lease_mismatch" :
+                hasLaterEvidence ? "refused_later_or_ambiguous_state" :
+                    leaseOwner === "stopped" ? "requires_begin_recovery_fence" :
+                        leaseOwner === "legacy" ? "refused_legacy_owner_unproven" :
+                            "refused_owner_not_proven_stopped";
         return {
             ...base,
             diagnosis: "inspected",
