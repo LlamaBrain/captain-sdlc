@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, unlink, writeFile } from "node:fs/promises";
@@ -126,13 +126,46 @@ async function abandonedMerge(owner: Record<string, unknown> = {}) {
   return { ...f, store, ready, leaseId, leaseToken, gates, statusArgs: { merge_id: ready.merge_id, session_id: f.args.session_id } };
 }
 
-async function stoppedOwnerPid() {
-  const result = await exec(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { windowsHide: true });
-  return Number(result.stdout);
+async function stoppedOwnerPid(t: TestContext) {
+  if (process.platform !== "win32") {
+    const result = await exec(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { windowsHide: true });
+    return Number(result.stdout);
+  }
+  // A retained native handle prevents Windows recycling this exited PID during Git-heavy setup.
+  const script = [
+    "$ErrorActionPreference = 'Stop'", "$owner = $null", "try {",
+    "$start = New-Object System.Diagnostics.ProcessStartInfo",
+    "$start.FileName = $env:CAPTAIN_TEST_NODE",
+    "$start.Arguments = '-e \"process.exit(0)\"'",
+    "$start.UseShellExecute = $false", "$start.CreateNoWindow = $true",
+    "$owner = [System.Diagnostics.Process]::Start($start)", "$handle = $owner.Handle",
+    "$owner.WaitForExit()", "[Console]::Out.WriteLine($owner.Id)", "[Console]::Out.Flush()",
+    "[Console]::In.ReadLine() | Out-Null", "} finally { if ($null -ne $owner) { $owner.Dispose() } }",
+  ].join("; ");
+  const keeper = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, env: { ...process.env, CAPTAIN_TEST_NODE: process.execPath }, stdio: ["pipe", "pipe", "pipe"] });
+  const closed = once(keeper, "close");
+  t.after(async () => {
+    const timeout = setTimeout(() => { keeper.kill(); }, 10_000);
+    try { if (!keeper.stdin.destroyed) keeper.stdin.end("\n"); await closed; }
+    finally { clearTimeout(timeout); }
+  });
+  let output = "", errors = "";
+  keeper.stderr.on("data", value => { errors += value; });
+  return await new Promise<number>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("stopped-process handle keeper readiness timed out: " + errors)), 30_000);
+    const fail = (error: Error) => { clearTimeout(timeout); reject(error); };
+    keeper.stdout.on("data", value => {
+      output += value;
+      const match = /^([0-9]+)\r?\n/.exec(output);
+      if (match) { clearTimeout(timeout); resolve(Number(match[1])); }
+    });
+    keeper.once("error", fail);
+    keeper.once("close", () => fail(new Error("stopped-process handle keeper exited before readiness: " + errors)));
+  });
 }
 
-test("public recovery status discovers a stopped separate process and resumes without confirmation", async () => {
-  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(), ownerHost: hostname() });
+test("public recovery status discovers a stopped separate process and resumes without confirmation", async t => {
+  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(t), ownerHost: hostname() });
   const ledger = path.join(f.data, "merge-revisions", `${f.ready.merge_id}-${f.ready.revision}.json`), before = await readFile(ledger, "utf8");
   const sourceHead = await git(f.source, "rev-parse", "HEAD"), targetHead = await git(f.target, "rev-parse", "HEAD");
   const status = await f.store.status(f.statusArgs), lease = status.operation_lease!;
@@ -210,8 +243,8 @@ for (const changed of ["source-branch", "target-head"] as const) test(`public re
   assert.equal(await readFile(ledger, "utf8"), before); assert.deepEqual(f.gates, ["trusted build"]);
 });
 
-test("public recovery permits the exact already integrated target without repeating gates", async () => {
-  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(), ownerHost: hostname() });
+test("public recovery permits the exact already integrated target without repeating gates", async t => {
+  const f = await abandonedMerge({ ownerPid: await stoppedOwnerPid(t), ownerHost: hostname() });
   await git(f.target, "merge", "--ff-only", f.ready.ready_inputs!.source.head);
   const status = await f.store.status(f.statusArgs);
   assert.equal(status.receipt_valid, true);

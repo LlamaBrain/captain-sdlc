@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+- Keep a real exited-process handle in Windows recovery tests so PID reuse during Git-heavy setup cannot masquerade as a live original owner.
+- Normalize inherited incoming line endings so the combined recovery branch passes the unchanged target-first whitespace gate; keep functional code and existing test behavior unchanged.
+
 ## 0.7.3
 - Integrate pending-work auditing, retained-worktree identity checks and target-first version/proof handling with same-session recovery; authenticate retained completed bookkeeping history when recovering failed Begin reservations.
 
