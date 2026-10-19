@@ -5,6 +5,18 @@ description: Merge a prepared task worktree back into its authorized target usin
 
 # Merge Back
 
+## Developer changelog retention
+
+The [changelog skill](../changelog/SKILL.md) retains the worktree's developer-facing
+`changes.md` under a dated subject-named path in `changelog/changes/`. Prepare and
+commit that archive in the owned source before final Prep readiness; Back brings
+it into the target through the same signed fast-forward. Do not write a new target
+commit or alter a prepared head behind the readiness receipt. If an archive is
+requested after readiness, use eligible supported record finalization or return to
+Prep with the normal source commit. Preserve historical source OIDs, original proof
+and existing captured criteria. Never delete a foreign root draft to make Back
+clean. Archive retention does not compose or publish a release automatically.
+
 Merge Finish (`merge finish` or `merge-finish`) is an alias for this workflow.
 `captain_merge_finish` and `captain_merge_back` accept the same arguments and share
 the same operation and `merge_id`, including integration authorization and saved proof.

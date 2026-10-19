@@ -5,6 +5,19 @@ description: Pull a target branch into the existing task worktree, resolve confl
 
 # Merge Prep
 
+## Developer changelog artifact
+
+For new work, use the [changelog skill](../changelog/SKILL.md) to prepare a root
+`changes.md` from the committed source and this operation's pinned target. After
+conflict/behavior repairs are committed, refresh and curate its developer-facing
+entries. During source finalization, archive it as
+`changelog/changes/YYYY-MM-DD-<subject>-<task-hash>.md`, retire only the verified
+working draft, and commit the exact archive through the existing authorized
+version/bookkeeping workflow before requesting final signed readiness. Merge Back
+then carries the archive into the target. Source OIDs retain their real revision;
+record-only retention does not manufacture new runtime proof. Existing captured
+gates and frozen/legacy acceptance criteria stay unchanged.
+
 Merge Begin (`merge begin` or `merge-begin`) is an alias for this workflow.
 `captain_merge_begin` and `captain_merge_prep` accept the same arguments and share
 the same operation and `merge_id`. Either tool stops at readiness with the target unchanged.

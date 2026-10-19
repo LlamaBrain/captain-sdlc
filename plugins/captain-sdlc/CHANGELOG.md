@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.8.0] - 2026-10-19
+
+### Added
+
+- Add developer-facing worktree `changes.md` collection, dated merge-fragment retention and a changelog composition skill with Conventional Commit provenance, Keep a Changelog categories, SemVer impact checks and overlapping-fragment deduplication (v0.8.0).
+
+### Changed
+
+- Guide Merge Prep/Back to retain archives in the owned source before signed readiness so the same verified integration carries them into the target; preserve existing commit versions, historical releases and proof boundaries (v0.8.0).
+
 ## 0.7.10
 - Normalize the authorization smoke script blank line so the unchanged incoming whitespace gate passes; preserve its behavior and retain the original functional proof revision.
 
