@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.3
+- Integrate pending-work auditing, retained-worktree identity checks and target-first version/proof handling with same-session recovery; authenticate retained completed bookkeeping history when recovering failed Begin reservations.
+
+## 0.7.2
+- Base deterministic merge-version bumps on the newer canonical VERSION of authenticated source and imported target parents, preserving ordinary commit rules and refusing rollback, skipped bumps and invalid incoming versions.
+- Cover candidate commits and retained commit evidence with real Git merge fixtures.
+- Preserve paused or preimplementation lifecycle proof when standalone Merge Prep establishes independent readiness; explicit phase reconciliation remains restricted to a running implementation owner.
+
+## 0.7.1
+- Verify each registered worktree's actual checkout root, Git common directory, HEAD and branch before reporting its status; stale artifact directories that fall back to the parent repository remain explicitly unavailable.
+- Add a real nested-worktree regression proving a missing Git pointer cannot inherit the primary checkout's clean/dirty state.
+
+## 0.7.0
+- Add the pending-work skill to inventory unmerged branch chains, retained worktrees, outstanding proof and unresolved decisions without changing repository or lifecycle state.
+- Bundle an explicit-target local Git helper that groups pending descendants and aliases, reports detached or unreadable worktrees and flags observed snapshot changes.
+- Verify ancestry, merged-descendant coverage, squash caveats and retained-work safety against real Git fixtures, plus an independent read-only audit of the consuming repositories.
+
 ## 0.6.7
 - Permit exact failed-Begin recovery alongside superseded ready/preparing Merge Prep receipts only after strict target ancestry, idle resources and authenticated terminal bookkeeping checks. Preserve retained source work and historical receipts; active, divergent and unfinished operations remain protected.
 
@@ -61,7 +78,6 @@
 - Automatically recollect scoped authority in issuance, status, failed-Begin diagnosis and signed pause/resume; preserve the defining objective across supporting steps and session changes.
 - Report unclear, withdrawn and mismatched scope/target evidence without adding another approval gate; retain separate operation grants and all ownership/recovery guards.
 - Recognize direct commit wording such as "do a commit" and verify the original churn scenario through real public MCP transport.
-
 
 ## 0.3.1
 - v0.3.1: Return verified same-head dirty-source and ignored-input manifest proof failures to implementation for repair in the retained task, preserving committed evidence and policy.

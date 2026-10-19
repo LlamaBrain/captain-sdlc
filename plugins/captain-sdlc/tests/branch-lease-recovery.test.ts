@@ -759,3 +759,60 @@ for (const variant of ["held-session", "pending-commit", "pending-mutation", "pe
   const before = await tree(f.container), diagnosis = await (f.store as any).diagnoseFailedBegin(f.args);
   assert.equal(diagnosis.eligible, false); assert.deepEqual(await tree(f.container), before);
 });
+
+
+async function completedHistoryFixture(t: TestContext) {
+  const f = await supersededMergeFixture(t, "ready", true, "source"), history: any[] = [];
+  for (const [index, side] of (["source", "target"] as const).entries()) {
+    const binding = side === "source" ? f.record.source_binding : f.record.target_binding;
+    const normalized = { worktree: side === "source" ? f.source : f.target, session_id: f.mergeSession, task_id: "historical-records", paths: ["Churn/history.md"], subject: "docs(captain): retain historical records", disposition: side === "source" ? "commit" : "stash" };
+    const receipt: any = { ...f.receipt, ...normalized, finalization_id: "historical-finalization-" + index, request_sha256: digest(normalized), before: binding, after: binding, state: side === "source" ? "committed" : "stashed" };
+    if (side === "source") { delete receipt.stash_oid; receipt.commit_oid = binding.head; }
+    await putAuthorizedOnceExact(f.data, "bookkeeping-revisions", receipt.finalization_id + "-0", receipt);
+    await putAuthorizedOnceExact(f.data, "bookkeeping-watermarks", receipt.finalization_id + "-0", { finalization_id: receipt.finalization_id, revision: 0, sha256: digest(receipt) });
+    history.push(receipt);
+  }
+  const record = { ...f.record, revision: f.record.revision + 1, previous_sha256: digest(f.record), finalizations: [...history, f.receipt] };
+  await putAuthorizedOnceExact(f.data, "merge-revisions", f.mergeId + "-" + record.revision, record);
+  await putAuthorizedOnceExact(f.data, "merge-watermarks", f.mergeId + "-" + record.revision, { merge_id: f.mergeId, revision: record.revision, sha256: digest(record) });
+  return { ...f, record, history };
+}
+
+test("completed bookkeeping history permits recovery with three receipts and one current source request", async t => {
+  const f = await completedHistoryFixture(t), source = await tree(f.source), target = await tree(f.target), records = await tree(f.data);
+  const result = await f.store.diagnoseFailedBegin(f.args);
+  assert.equal(result.eligible, true, JSON.stringify(result));
+  assert.equal((await f.store.repossessFailedBegin(await failedRecovery(f))).state, "revoked");
+  assert.deepEqual(await tree(f.source), source); assert.deepEqual(await tree(f.target), target);
+  const after = await tree(f.data);
+  for (const [name, value] of Object.entries(records)) if (/^(merge-|bookkeeping-)/.test(name)) assert.equal(after[name], value);
+});
+
+for (const variant of ["nonterminal-history", "stale-history", "foreign-session", "foreign-worktree", "foreign-binding", "foreign-policy", "duplicate-id", "missing-current", "wrong-current-head", "held-history-operation", "held-history-worktree-resource"] as const) test("completed bookkeeping history refuses " + variant, async t => {
+  const f = await completedHistoryFixture(t), receipt: any = structuredClone(f.history[0]);
+  let embedded = [...f.record.finalizations], requests = f.record.finalization_requests;
+  if (variant === "nonterminal-history") receipt.state = "pending";
+  if (variant === "stale-history") receipt.evidence = [{ kind: "later-terminal-evidence" }];
+  if (variant === "foreign-session") receipt.session_id = "foreign-history-session";
+  if (variant === "foreign-worktree") receipt.worktree = f.container;
+  if (variant === "foreign-binding") receipt.before.branch = "foreign-history-branch";
+  if (variant === "foreign-policy") { receipt.policy = { ...receipt.policy, foreign: true }; receipt.policy_sha256 = digest(receipt.policy); }
+  if (["nonterminal-history", "stale-history", "foreign-session", "foreign-worktree", "foreign-binding", "foreign-policy"].includes(variant)) {
+    await writeAuthorized(f.data, "bookkeeping-revisions", receipt.finalization_id + "-0", receipt);
+    await writeAuthorized(f.data, "bookkeeping-watermarks", receipt.finalization_id + "-0", { finalization_id: receipt.finalization_id, revision: 0, sha256: digest(receipt) });
+    if (variant !== "stale-history") embedded[0] = receipt;
+  }
+  if (variant === "duplicate-id") embedded.push(f.history[0]);
+  if (variant === "missing-current") embedded = f.history;
+  if (variant === "wrong-current-head") requests = { source: { ...requests.source, expected_head: await git(f.target, "rev-parse", "HEAD") } };
+  if (variant.startsWith("held-history")) {
+    const id = variant === "held-history-operation" ? createHash("sha256").update("bookkeeping-operation\0" + receipt.finalization_id).digest("hex") : createHash("sha256").update(("bookkeeping-worktree\0" + path.resolve(receipt.before.commonGitDir) + "\0" + path.resolve(receipt.before.gitDir)).toLowerCase()).digest("hex");
+    await acquireAuthorizedLease(f.data, id, { intentId: receipt.finalization_id, leaseToken: "private-history-resource", operation: "bookkeeping", sessionId: f.mergeSession, ownerPid: process.pid, ownerHost: hostname() });
+  }
+  const record = { ...f.record, revision: f.record.revision + 1, previous_sha256: digest(f.record), finalizations: embedded, finalization_requests: requests };
+  await putAuthorizedOnceExact(f.data, "merge-revisions", f.mergeId + "-" + record.revision, record);
+  await putAuthorizedOnceExact(f.data, "merge-watermarks", f.mergeId + "-" + record.revision, { merge_id: f.mergeId, revision: record.revision, sha256: digest(record) });
+  const before = await tree(f.container);
+  assert.equal((await f.store.diagnoseFailedBegin(f.args)).eligible, false);
+  assert.deepEqual(await tree(f.container), before);
+});

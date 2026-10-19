@@ -36,6 +36,15 @@ Issuance, status, failed-Begin diagnosis and signed pause/resume return `user_re
 
 The record distinguishes expressed, unclear, revoked, stale and missing evidence. A source-only prompt does not create a task or approval for an unrelated operation. Later withdrawals and scope changes must be assessed against the original objective; "do not commit" restricts that operation without cancelling still-authorized implementation. Missing legacy records remain advisory. The caller still checks task ownership, recovery generations, current conditions and any declared human review. Source labels distinguish prompt-hook evidence from the client adapter's supplied wording; signatures protect recorded bytes and provenance rather than independently authenticating an adapter's human origin.
 
+## Pending-work audit
+
+Use the [pending-work skill](skills/pending-work/SKILL.md) to inventory unfinished
+branch chains, dirty/detached worktrees, signed task/merge status, open decisions
+and outstanding proof. Its bundled Git helper requires an explicit local target
+and groups predecessor branches under their unmerged descendants. The audit
+keeps integration, local installation, proof and human acceptance separate; it
+does not authorize merging, cleanup or implementation of discovered work.
+
 ## Merge Prep and Merge Back
 
 Integration uses two explicit MCP operations in the existing task checkout:

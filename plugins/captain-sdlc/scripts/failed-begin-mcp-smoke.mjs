@@ -50,8 +50,16 @@ try{
  const idleMerge=await call('captain_merge_prep',{source_worktree:source,target_worktree:target,target_branch:'main',session_id:'idle-merge-fixture-owner'});assert.equal(idleMerge.state,'failed');
  await (await import('node:fs/promises')).unlink(path.join(source,'Temp/fail-build'));
  await writeFile(path.join(target,'.captain-sdlc/notebook/notes.json'),'{"dormant":"retained"}\n');
- const dormant=await call('captain_merge_prep',{source_worktree:source,target_worktree:target,target_branch:'main',session_id:'dormant-ready-owner',finalization:{target:{paths:['.captain-sdlc/notebook/notes.json'],task_id:'dormant-records',subject:'docs(captain): retain dormant records',disposition:'stash'}}});
+ let dormant=await call('captain_merge_prep',{source_worktree:source,target_worktree:target,target_branch:'main',session_id:'dormant-ready-owner',finalization:{target:{paths:['.captain-sdlc/notebook/notes.json'],task_id:'dormant-records',subject:'docs(captain): retain dormant records',disposition:'stash'}}});
  assert.equal(dormant.state,'ready');assert.equal(dormant.finalizations[0].state,'stashed');
+ for(let round=1;round<=2;round++){
+  await writeFile(path.join(source,'.captain-sdlc/notebook/notes.json'),JSON.stringify({historical_source_round:round})+'\n');
+  dormant=await call('captain_merge_prep',{merge_id:dormant.merge_id,source_worktree:source,target_worktree:target,target_branch:'main',session_id:'dormant-ready-owner',finalization:{source:{paths:['.captain-sdlc/notebook/notes.json'],task_id:'dormant-records',subject:'docs(captain): retain source history',disposition:'commit'}}});
+  assert.equal(dormant.state,'ready');
+ }
+ assert.equal(dormant.finalizations.length,3);
+ registry=await git(target,'worktree','list','--porcelain');
+
  const issued=await call('captain_issue_intent',{project_root:source,target_branch:'main',session_id:'old-fixture-owner',turn_id:'old-turn',prompt:'Repair the fixture product',action:'start',task_id:'old-fixture-task'});
  const oldRequest={project_root:source,intent_id:issued.intent_id,objective:'Repair the fixture product',task_id:'old-fixture-task'};
  const failed=await call('captain_begin_implementation',oldRequest,true);
@@ -92,15 +100,16 @@ try{
  const retry=await call('captain_begin_implementation',oldRequest,true);assert.match(JSON.stringify(retry),/cancelled|repossessed|revoked/);
  assert.deepEqual(await tree(target),targetBefore);assert.deepEqual(await tree(source),sourceBefore);
  const selection={paths:[note],task_id:'kept-records',subject:'docs(captain): retain task records',disposition:'commit'};
+ const buildsBeforeRecoveredPrep=Number(await readFile(path.join(source,'Temp/build-count'),'utf8'));
  const ready=await call('captain_merge_prep',{source_worktree:source,target_worktree:target,target_branch:'main',session_id:'current-operator',finalization:{source:selection,target:{...selection,disposition:'stash'}}});
  assert.equal(ready.state,'ready');assert.equal(ready.source_worktree,source);assert.equal(ready.target_worktree,target);
  const identities=value=>value.split(/\r?\n/).filter(line=>!line.startsWith('HEAD ')).join('\n');
  assert.equal(identities(await git(target,'worktree','list','--porcelain')),identities(registry));assert.equal(await git(target,'rev-parse','HEAD'),targetHead);
- assert.equal(await readFile(path.join(source,'Temp/build-count'),'utf8'),'3');
+ assert.equal(Number(await readFile(path.join(source,'Temp/build-count'),'utf8')),buildsBeforeRecoveredPrep+1);
  const stash=ready.finalizations.find(item=>item.state==='stashed');assert.ok(stash?.stash_oid);assert.equal(await git(target,'show',`${stash.stash_oid}:${note}`),'{"target":"kept"}');
  const proofPath=path.join(root,'.captain-proof/smoke.json'),proof=JSON.parse(await readFile(proofPath,'utf8'));
  proof.failed_begin={status:'green',created_at:new Date().toISOString(),server_sha256:sha(await readFile(path.join(root,'dist/server.js'))),fixture,
-  outcomes:['superseded ready receipt with authenticated completed stash remains unchanged during exact recovery','actual signed wrong-root Begin fails before any new checkout','orphan path protects surviving records','read-only operator diagnosis verifies original different-session graph after legitimate target advance',
+  outcomes:['superseded ready receipt retains three authenticated bookkeeping generations during exact recovery','actual signed wrong-root Begin fails before any new checkout','orphan path protects surviving records','read-only operator diagnosis verifies original different-session graph after legitimate target advance',
    'exact revocation preserves dirty checkouts, unrelated paused task and idle failed merge while old Begin stays cancelled','same worktree Prep acquires fresh lease, builds once and retains correlated stash']};
  await writeFile(proofPath,JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify(proof.failed_begin));
 }finally{await client.close();}

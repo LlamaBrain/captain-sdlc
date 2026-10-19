@@ -218,6 +218,11 @@ export class MergeWorkflowStore {
       if (intentId) throw new Error("signed merge does not belong to the selected implementation intent");
       return undefined;
     }
+    // Standalone readiness must not advance or reinterpret an unfinished proof phase.
+    if (owner.phase !== "implement" || owner.status !== "running") {
+      if (intentId) throw new Error(`merge reconciliation requires an implement/running owner; found ${owner.phase}/${owner.status}`);
+      return undefined;
+    }
     const head = await git(["rev-parse", "HEAD"], record.source_worktree);
     // read() authenticates the complete revision/watermark chain before selecting a candidate.
     const verified = await this.read(record.merge_id);

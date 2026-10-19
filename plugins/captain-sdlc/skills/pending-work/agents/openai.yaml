@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pending Work"
+  short_description: "Find unfinished work, branches and open decisions"
+  default_prompt: "Use $pending-work to audit retained work, unmerged branches and unresolved decisions in the current repositories."

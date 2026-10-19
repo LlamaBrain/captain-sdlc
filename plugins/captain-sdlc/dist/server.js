@@ -10431,7 +10431,7 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
       else matchedPrepared.add(index);
     }
     const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash8, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
+    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy, parents.length === 3 ? parents[2] : void 0) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
     expectedParent = hash8;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
@@ -10781,7 +10781,7 @@ async function candidateCommitValid(worktree, hash8, expectedParent, policy, tas
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
+  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some((value) => changed.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy, parents.length === 3 ? parents[2] : void 0) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
 }
 async function bookkeepingPathAllowed(relative, policy) {
   return bookkeepingPathAllowedCore(relative, policy, git);
@@ -10855,14 +10855,20 @@ async function versionAt(worktree, hash8, policy) {
   }
   return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
 }
-async function versionTransitionValid(worktree, parent, hash8, subject, policy) {
+async function versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
   const canonical = policy.version_surfaces?.filter((surface) => surface.path === policy.version_file) ?? [];
   const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
   const afterValue = await versionAt(worktree, hash8, policy);
   if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
-  const before = parseStrictSemVer(beforeValue);
+  let before = parseStrictSemVer(beforeValue);
+  if (incomingParent) {
+    const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
+    if (!incomingValue) return false;
+    const incoming = parseStrictSemVer(incomingValue);
+    if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
+  }
   if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
@@ -26157,6 +26163,10 @@ var MergeWorkflowStore = class {
       if (intentId) throw new Error("signed merge does not belong to the selected implementation intent");
       return void 0;
     }
+    if (owner.phase !== "implement" || owner.status !== "running") {
+      if (intentId) throw new Error(`merge reconciliation requires an implement/running owner; found ${owner.phase}/${owner.status}`);
+      return void 0;
+    }
     const head = await git(["rev-parse", "HEAD"], record3.source_worktree);
     const verified = await this.read(record3.merge_id);
     if (verified.revision !== record3.revision || digest6(verified) !== digest6(record3)) throw new Error("signed merge changed before lifecycle reconciliation");
@@ -27131,22 +27141,30 @@ var BranchLeaseRecoveryStore = class {
   }
   async mergeFinalizationDiagnostic(v, leases) {
     const refused = { finalization_requests_terminal_verified: false, held_finalization_resource: true };
-    const requests = v.finalization_requests === void 0 ? {} : v.finalization_requests, embedded = v.finalizations === void 0 ? [] : v.finalizations;
+    const requests = v.finalization_requests === void 0 ? {} : v.finalization_requests;
+    const embedded = v.finalizations === void 0 ? [] : v.finalizations;
     if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some((side) => !["source", "target"].includes(side))) return refused;
-    const ids = /* @__PURE__ */ new Set(), worktreeIds = /* @__PURE__ */ new Set();
+    const receipts = /* @__PURE__ */ new Map(), worktreeIds = /* @__PURE__ */ new Set();
+    const request2 = (value) => ({ worktree: path13.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
     try {
-      for (const [side, pending] of Object.entries(requests)) {
-        const selection = pending?.selection, saved = v[side + "_binding"], worktree = v[side + "_worktree"];
-        if (!selection || typeof selection.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(selection.finalization_id) || ids.has(selection.finalization_id) || typeof worktree !== "string" || !saved || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !["commit", "stash"].includes(selection.disposition)) return refused;
-        ids.add(selection.finalization_id);
+      for (const item of embedded) {
+        if (!item || typeof item.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(item.finalization_id) || receipts.has(item.finalization_id) || typeof item.worktree !== "string") return refused;
+        const sides = ["source", "target"].filter((side) => typeof v[side + "_worktree"] === "string" && samePath7(item.worktree, v[side + "_worktree"]));
+        if (sides.length !== 1) return refused;
+        const saved = v[sides[0] + "_binding"];
+        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
+        if (digest7(item) !== digest7(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest7(request2(receipt)) || receipt.policy_sha256 !== digest7(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key2) => samePath7(receipt.before[key2], saved[key2])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
+        receipts.set(receipt.finalization_id, receipt);
         worktreeIds.add(hash7(("bookkeeping-worktree\0" + path13.resolve(saved.commonGitDir) + "\0" + path13.resolve(saved.gitDir)).toLowerCase()));
-        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: selection.finalization_id, session_id: v.session_id, worktree });
-        const normalized = { worktree: path13.resolve(worktree), session_id: v.session_id, task_id: selection.task_id, paths: [...selection.paths].sort(), subject: selection.subject, disposition: selection.disposition };
-        const actual = { worktree: receipt.worktree, session_id: receipt.session_id, task_id: receipt.task_id, paths: receipt.paths, subject: receipt.subject, disposition: receipt.disposition };
-        if (receipt.request_sha256 !== digest7(normalized) || digest7(actual) !== digest7(normalized) || receipt.policy_sha256 !== digest7(v.captured_policy) || receipt.before.head !== pending.expected_head || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key2) => samePath7(receipt.before[key2], saved[key2])) || receipt.state !== (selection.disposition === "stash" ? "stashed" : "committed") || embedded.filter((item) => item?.finalization_id === receipt.finalization_id && digest7(item) === digest7(receipt)).length !== 1) return refused;
       }
-      if (embedded.length !== ids.size || embedded.some((item) => !ids.has(item?.finalization_id))) return refused;
-      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || [...ids].some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
+      const currentIds = /* @__PURE__ */ new Set();
+      for (const [side, pending] of Object.entries(requests)) {
+        const selection = pending?.selection, receipt = receipts.get(selection?.finalization_id), worktree = v[side + "_worktree"];
+        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !samePath7(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest7(request2({ ...selection, worktree, session_id: v.session_id }))) return refused;
+        currentIds.add(selection.finalization_id);
+      }
+      const ids = [...receipts.keys()];
+      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
       return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
     } catch {
       return refused;
@@ -27791,7 +27809,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.7" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.7.3" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

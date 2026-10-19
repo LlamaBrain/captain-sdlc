@@ -243,22 +243,31 @@ export class BranchLeaseRecoveryStore {
 
   private async mergeFinalizationDiagnostic(v: Record<string, any>, leases: Array<{ id: string; snapshot: Lease }>) {
     const refused = { finalization_requests_terminal_verified: false, held_finalization_resource: true };
-    const requests = v.finalization_requests === undefined ? {} : v.finalization_requests, embedded = v.finalizations === undefined ? [] : v.finalizations;
+    const requests = v.finalization_requests === undefined ? {} : v.finalization_requests;
+    const embedded = v.finalizations === undefined ? [] : v.finalizations;
     if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some(side => !["source", "target"].includes(side))) return refused;
-    const ids = new Set<string>(), worktreeIds = new Set<string>();
+    const receipts = new Map<string, any>(), worktreeIds = new Set<string>();
+    const request = (value: any) => ({ worktree: path.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
     try {
-      for (const [side, pending] of Object.entries(requests) as Array<[string, any]>) {
-        const selection = pending?.selection, saved = v[side + "_binding"], worktree = v[side + "_worktree"];
-        if (!selection || typeof selection.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(selection.finalization_id) || ids.has(selection.finalization_id) || typeof worktree !== "string" || !saved || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p: unknown) => typeof p !== "string") || !["commit", "stash"].includes(selection.disposition)) return refused;
-        ids.add(selection.finalization_id);
+      // Producers retain earlier completed generations when the current per-side request changes.
+      for (const item of embedded) {
+        if (!item || typeof item.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(item.finalization_id) || receipts.has(item.finalization_id) || typeof item.worktree !== "string") return refused;
+        const sides = ["source", "target"].filter(side => typeof v[side + "_worktree"] === "string" && samePath(item.worktree, v[side + "_worktree"]));
+        if (sides.length !== 1) return refused;
+        const saved = v[sides[0] + "_binding"];
+        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
+        if (digest(item) !== digest(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some(p => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest(request(receipt)) || receipt.policy_sha256 !== digest(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every(key => samePath((receipt.before as any)[key], saved[key])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
+        receipts.set(receipt.finalization_id, receipt);
         worktreeIds.add(hash(("bookkeeping-worktree\0" + path.resolve(saved.commonGitDir) + "\0" + path.resolve(saved.gitDir)).toLowerCase()));
-        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: selection.finalization_id, session_id: v.session_id, worktree });
-        const normalized = { worktree: path.resolve(worktree), session_id: v.session_id, task_id: selection.task_id, paths: [...selection.paths].sort(), subject: selection.subject, disposition: selection.disposition };
-        const actual = { worktree: receipt.worktree, session_id: receipt.session_id, task_id: receipt.task_id, paths: receipt.paths, subject: receipt.subject, disposition: receipt.disposition };
-        if (receipt.request_sha256 !== digest(normalized) || digest(actual) !== digest(normalized) || receipt.policy_sha256 !== digest(v.captured_policy) || receipt.before.head !== pending.expected_head || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every(key => samePath((receipt.before as any)[key], saved[key])) || receipt.state !== (selection.disposition === "stash" ? "stashed" : "committed") || embedded.filter((item: any) => item?.finalization_id === receipt.finalization_id && digest(item) === digest(receipt)).length !== 1) return refused;
       }
-      if (embedded.length !== ids.size || embedded.some((item: any) => !ids.has(item?.finalization_id))) return refused;
-      const held = leases.some(lease => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || [...ids].some(id => lease.id === hash("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
+      const currentIds = new Set<string>();
+      for (const [side, pending] of Object.entries(requests) as Array<[string, any]>) {
+        const selection = pending?.selection, receipt = receipts.get(selection?.finalization_id), worktree = v[side + "_worktree"];
+        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p: unknown) => typeof p !== "string") || !samePath(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest(request({ ...selection, worktree, session_id: v.session_id }))) return refused;
+        currentIds.add(selection.finalization_id);
+      }
+      const ids = [...receipts.keys()];
+      const held = leases.some(lease => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some(id => lease.id === hash("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
       return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
     } catch { return refused; }
   }
