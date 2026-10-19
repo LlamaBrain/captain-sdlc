@@ -44,6 +44,28 @@
       },
       "createdAt": "2026-10-10T05:37:45.236Z",
       "updatedAt": "2026-10-10T05:37:45.236Z"
+    },
+    {
+      "id": "captain-recovery-green-prep-20261018",
+      "kind": "observation",
+      "title": "Captain recovery installed; original Dirigible Merge Prep green",
+      "body": "Resolved through public exact-generation terminal Begin revocation. Captain v0.7.5 product e233d523 is installed with matching bundle df848d30713619f73e3a65969e32047e97ce503fcc67a89953b4bd1982294050. Full suite: 678/678 at 9c4b092; final metadata consistency, public smokes, typecheck and build passed. Dirigible original Merge Prep merge-dfb8e943-7bbd-49be-b319-6f13e45d45e5 is ready with valid receipt revision 17 at c722d577; target mt/feat/material-design stays a4583fa. Captain combined Prep merge-2f0c9bf5-3f9a-4597-ae7d-92860677d9e0 is ready with valid receipt revision 12 at product e233d523. No Merge Back or push. The canonical closeout retains exact revisions and distinguishes historical implementation proof from integration readiness.",
+      "status": "closed",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "recovery",
+        "merge-prep"
+      ],
+      "links": [
+        ".captain-sdlc/closeouts/captain-recovery-20261018.md"
+      ],
+      "source": {
+        "agent": "Captain"
+      },
+      "createdAt": "2026-10-19T01:11:08.423Z",
+      "updatedAt": "2026-10-19T01:11:44.460Z"
     }
   ]
 }
