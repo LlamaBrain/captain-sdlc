@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.5
+- Restore iconv-lite lock metadata to its existing 0.7.3 tarball and installed version; keep every dependency record identical to the integration target.
+
 ## 0.7.4
 - Keep a real exited-process handle in Windows recovery tests so PID reuse during Git-heavy setup cannot masquerade as a live original owner.
 - Normalize inherited incoming line endings so the combined recovery branch passes the unchanged target-first whitespace gate; keep functional code and existing test behavior unchanged.
