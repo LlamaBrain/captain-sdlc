@@ -111,7 +111,9 @@ export async function userAuthorizationStatus(data, query) {
             continue;
         if (query.operation && receipt.operation !== query.operation)
             continue;
-        if (query.targetBranch && receipt.targetBranch !== query.targetBranch)
+        // A generic stop applies to named targets; a generic approval does not.
+        if (query.targetBranch && receipt.targetBranch !== query.targetBranch &&
+            !(receipt.targetBranch === undefined && receipt.decision === "revoke"))
             continue;
         receipts.push(receipt);
     }

@@ -8181,7 +8181,7 @@ async function userAuthorizationStatus(data, query) {
     if (receipt.schemaVersion !== 1 || pathKey(receipt.commonGitDir) !== pathKey(scope.commonGitDir)) continue;
     if (query.intentId ? receipt.intentId !== query.intentId : receipt.sessionId !== query.sessionId || receipt.sourceBranch !== scope.sourceBranch) continue;
     if (query.operation && receipt.operation !== query.operation) continue;
-    if (query.targetBranch && receipt.targetBranch !== query.targetBranch) continue;
+    if (query.targetBranch && receipt.targetBranch !== query.targetBranch && !(receipt.targetBranch === void 0 && receipt.decision === "revoke")) continue;
     receipts.push(receipt);
   }
   receipts.sort((a, b) => a.sessionId === b.sessionId && a.turnId === b.turnId ? a.instructionIndex - b.instructionIndex || a.id.localeCompare(b.id) : a.recordedAt.localeCompare(b.recordedAt) || a.id.localeCompare(b.id));
@@ -27826,7 +27826,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.7.8" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.7.9" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

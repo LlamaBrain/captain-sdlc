@@ -57,6 +57,35 @@ try{
  outcomes.push("ordinary direction resumes same run without second approval");
  const stale=await call("captain_user_request_status",{project_root:project,intent_id:issued.intent_id,expected_scope_sha256:"0".repeat(64)});
  assert.equal(stale.status,"stale");outcomes.push("scope mismatch remains visible");
+ // Mint real signed receipts through the public adapter in this isolated fixture.
+ const authorizationPrompt="Merge Back\nmerge to dev\ndo not merge back\nmerge to main\ndo not merge back into main\nmerge to dev\nstop merge back";
+ const authorizationArgs={session_id:"authorization",turn_id:"target-stop",project_root:project,prompt:authorizationPrompt,task_id:"REVOKE-LOOKUP",action:"start"};
+ const authorizationIntent=await call("captain_issue_intent",authorizationArgs);
+ const authorizationQuery={project_root:project,operation:"merge",target_branch:"dev"};
+ const targetReceipts=await call("captain_user_authorization_status",{...authorizationQuery,intent_id:authorizationIntent.intent_id});
+ assert.deepEqual(targetReceipts.receipts.map(receipt=>receipt.instructionIndex),[1,2,5,6]);
+ assert.deepEqual(targetReceipts.receipts.map(receipt=>receipt.decision),["approve","revoke","approve","revoke"]);
+ assert.deepEqual(targetReceipts.receipts.map(receipt=>receipt.targetBranch),["dev",undefined,"dev",undefined]);
+ assert.deepEqual(targetReceipts.receipts.map(receipt=>receipt.quote),["merge to dev","do not merge back","merge to dev","stop merge back"]);
+ assert.ok(targetReceipts.receipts.every(receipt=>receipt.source==="client-adapter"&&receipt.intentId===authorizationIntent.intent_id));
+ const sessionReceipts=await call("captain_user_authorization_status",{...authorizationQuery,session_id:"authorization"});
+ assert.deepEqual(sessionReceipts.receipts,targetReceipts.receipts);
+ outcomes.push("named-target public lookup retains generic revocations in original source order");
+ const untouched=await Promise.all(targetReceipts.receipts.map(receipt=>readFile(path.join(env.CAPTAIN_PLUGIN_DATA,"user-authorizations",receipt.id+".json"))));
+ const replay=await call("captain_issue_intent",authorizationArgs);
+ assert.equal(replay.intent_id,authorizationIntent.intent_id);
+ assert.deepEqual((await call("captain_user_authorization_status",{...authorizationQuery,intent_id:replay.intent_id})).receipts,targetReceipts.receipts);
+ assert.deepEqual(await Promise.all(targetReceipts.receipts.map(receipt=>readFile(path.join(env.CAPTAIN_PLUGIN_DATA,"user-authorizations",receipt.id+".json")))),untouched);
+ outcomes.push("public replay and lookup preserve signed receipt bytes and original targets");
+ const unrelated=await call("captain_user_authorization_status",{...authorizationQuery,session_id:"unrelated"});
+ const otherOperation=await call("captain_user_authorization_status",{...authorizationQuery,session_id:"authorization",operation:"commit"});
+ assert.deepEqual(unrelated.receipts,[]);assert.deepEqual(otherOperation.receipts,[]);
+ const unfiltered=await call("captain_user_authorization_status",{project_root:project,intent_id:authorizationIntent.intent_id,operation:"merge"});
+ assert.equal(unfiltered.receipts.length,7);
+ assert.equal(unfiltered.receipts[0].decision,"approve");assert.equal(unfiltered.receipts[0].targetBranch,undefined);
+ assert.deepEqual(targetReceipts.receipts,unfiltered.receipts.filter(receipt=>[1,2,5,6].includes(receipt.instructionIndex)));
+ outcomes.push("public filtering excludes generic approvals, other targets and foreign operation/session scopes");
+
  const proof={schema_version:1,smoke:"mcp-objective-consent",status:"green",created_at:new Date().toISOString(),plugin_version:version,server_sha256:createHash("sha256").update(await readFile(path.join(root,"dist/server.js"))).digest("hex"),outcomes,fixture:run};
  const proofDir=path.join(root,".captain-proof");await mkdir(proofDir,{recursive:true});await writeFile(path.join(proofDir,"smoke.json"),JSON.stringify(proof,null,2)+"\n");
  console.log(JSON.stringify(proof));

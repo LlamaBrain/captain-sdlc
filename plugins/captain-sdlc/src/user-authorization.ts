@@ -109,7 +109,9 @@ export async function userAuthorizationStatus(data: string, query: Authorization
     if (receipt.schemaVersion !== 1 || pathKey(receipt.commonGitDir) !== pathKey(scope.commonGitDir)) continue;
     if (query.intentId ? receipt.intentId !== query.intentId : receipt.sessionId !== query.sessionId || receipt.sourceBranch !== scope.sourceBranch) continue;
     if (query.operation && receipt.operation !== query.operation) continue;
-    if (query.targetBranch && receipt.targetBranch !== query.targetBranch) continue;
+    // A generic stop applies to named targets; a generic approval does not.
+    if (query.targetBranch && receipt.targetBranch !== query.targetBranch &&
+        !(receipt.targetBranch === undefined && receipt.decision === "revoke")) continue;
     receipts.push(receipt);
   }
   receipts.sort((a, b) => a.sessionId === b.sessionId && a.turnId === b.turnId

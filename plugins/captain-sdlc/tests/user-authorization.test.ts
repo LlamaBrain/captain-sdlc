@@ -190,3 +190,68 @@ test("client intent adapter preserves the approval's provenance and task", async
   assert.equal(status.receipts[0].taskId, "FOOD");
   assert.equal(status.receipts[0].turnId, "user-turn");
 });
+
+test("named-target lookup retains same-turn generic revocations without rewriting signed evidence", async () => {
+  const { root, data } = await fixture();
+  const input = {
+    projectRoot: root, sessionId: "s", intentId: "merge-task", taskId: "REVOKE-LOOKUP", turnId: "one-turn",
+    source: "UserPromptSubmit" as const,
+    prompt: "Merge Back\nmerge to dev\ndo not merge back\nmerge to main\ndo not merge back into main\nmerge to dev\nstop merge back",
+  };
+  const recorded = await recordUserAuthorizations(data, input);
+  const files = recorded.map(receipt => path.join(data, "user-authorizations", `${receipt.id}.json`));
+  const before = await Promise.all(files.map(file => readFile(file)));
+  const expected = [recorded[1], recorded[2], recorded[5], recorded[6]];
+  assert.deepEqual(expected.map(receipt => receipt.instructionIndex), [1, 2, 5, 6]);
+  assert.deepEqual(expected.map(receipt => receipt.decision), ["approve", "revoke", "approve", "revoke"]);
+  for (const selector of [{ sessionId: "s" }, { intentId: "merge-task" }]) {
+    const status = await userAuthorizationStatus(data, { projectRoot: root, ...selector, operation: "merge", targetBranch: "dev" });
+    assert.deepEqual(status.receipts, expected);
+    assert.equal(status.receipts[1].targetBranch, undefined);
+    assert.equal(status.receipts[1].quote, "do not merge back");
+    assert.equal(status.receipts.at(-1)?.quote, "stop merge back");
+  }
+  assert.deepEqual(await recordUserAuthorizations(data, input), recorded);
+  const unfiltered = await userAuthorizationStatus(data, { projectRoot: root, sessionId: "s" });
+  assert.deepEqual(unfiltered.receipts, recorded);
+  assert.deepEqual(await Promise.all(files.map(file => readFile(file))), before);
+});
+
+test("later generic stop and explicit reapproval retain their recorded timeline for a named target", async (t) => {
+  const { root, data } = await fixture();
+  t.mock.timers.enable({ apis: ["Date"], now: Date.UTC(2026, 9, 18) });
+  const base = { projectRoot: root, sessionId: "s", intentId: "merge-task", source: "client-adapter" as const };
+  const [approval] = await recordUserAuthorizations(data, { ...base, turnId: "approve", prompt: "merge back into dev" });
+  t.mock.timers.tick(1000);
+  const [stop] = await recordUserAuthorizations(data, { ...base, turnId: "stop", prompt: "stop merge back" });
+  const query = { projectRoot: root, intentId: "merge-task", operation: "merge" as const, targetBranch: "dev" };
+  assert.deepEqual((await userAuthorizationStatus(data, query)).receipts, [approval, stop]);
+  t.mock.timers.tick(1000);
+  const [reapproval] = await recordUserAuthorizations(data, { ...base, turnId: "reapprove", prompt: "approve merge back into dev" });
+  const status = await userAuthorizationStatus(data, query);
+  assert.deepEqual(status.receipts, [approval, stop, reapproval]);
+  assert.deepEqual(status.receipts.map(receipt => receipt.decision), ["approve", "revoke", "approve"]);
+  assert.equal(status.receipts.at(-1)?.quote, "approve merge back into dev");
+});
+
+test("generic revocations keep repository, operation and session-or-intent isolation", async () => {
+  const { root, data, git } = await fixture(), other = await fixture();
+  const base = { projectRoot: root, sessionId: "s", intentId: "merge-task", source: "UserPromptSubmit" as const };
+  const [approval] = await recordUserAuthorizations(data, { ...base, turnId: "approve", prompt: "merge to dev" });
+  const [sessionOnly] = await recordUserAuthorizations(data, { ...base, intentId: "other-task", turnId: "session-only", prompt: "stop merge back" });
+  const [intentOnly] = await recordUserAuthorizations(data, { ...base, sessionId: "other-session", turnId: "intent-only", prompt: "do not merge back" });
+  await recordUserAuthorizations(data, { ...base, sessionId: "unrelated-session", intentId: "unrelated-task", turnId: "neither", prompt: "stop merge back" });
+  await recordUserAuthorizations(data, { ...base, projectRoot: other.root, turnId: "other-repo", prompt: "stop merge back" });
+  await recordUserAuthorizations(data, { ...base, turnId: "other-operation", prompt: "do not commit" });
+  await recordUserAuthorizations(data, { ...base, turnId: "other-target", prompt: "do not merge back into main" });
+  await recordUserAuthorizations(data, { ...base, turnId: "untargeted-approval", prompt: "Merge Back" });
+  const query = { projectRoot: root, operation: "merge" as const, targetBranch: "dev" };
+  const session = await userAuthorizationStatus(data, { ...query, sessionId: "s" });
+  const intent = await userAuthorizationStatus(data, { ...query, intentId: "merge-task" });
+  assert.deepEqual(new Set(session.receipts.map(receipt => receipt.id)), new Set([approval.id, sessionOnly.id]));
+  assert.deepEqual(new Set(intent.receipts.map(receipt => receipt.id)), new Set([approval.id, intentOnly.id]));
+  const linked = path.join(await mkdtemp(path.join(tmpdir(), "captain-revocation-linked-")), "worktree");
+  await git("worktree", "add", "-b", "other-source", linked);
+  assert.deepEqual((await userAuthorizationStatus(data, { ...query, projectRoot: linked, sessionId: "s" })).receipts, []);
+  assert.deepEqual((await userAuthorizationStatus(data, { ...query, projectRoot: linked, intentId: "merge-task" })).receipts, intent.receipts);
+});

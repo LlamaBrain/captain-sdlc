@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.9
+- Retain applicable untargeted revocations in named-target authorization lookups without broadening approval or repository/task scope; preserve signed receipt provenance and ordering, with real-producer regressions and compiled public MCP coverage.
+
 ## 0.7.8
 - Recover the retained bridge-to-worker routing policy; scope machine-state ignores while keeping human assignment config and governed records visible, with a reusable public Core CLI/Git smoke.
 
