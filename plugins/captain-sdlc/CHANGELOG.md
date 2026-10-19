@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.10
+- Normalize the authorization smoke script blank line so the unchanged incoming whitespace gate passes; preserve its behavior and retain the original functional proof revision.
+
 ## 0.7.9
 - Retain applicable untargeted revocations in named-target authorization lookups without broadening approval or repository/task scope; preserve signed receipt provenance and ordering, with real-producer regressions and compiled public MCP coverage.
 
