@@ -11,8 +11,8 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 
 ## Tasks
 
-- **Captain generic revoke lookup repaired** (completed) — #captain #revoke-lookup #verified
-  R1-R3 complete. Source e3eb60466d08f236e4dca38fc333c74d667f8d71 (v0.7.9); signed intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4 complete/green. Focused producer tests 20/20; compiled public RED/GREEN; all captured feature gates passed. Owned branch captain/intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4. Target dev unchanged at a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3. No merge/push/global install. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md. Existing 300s gate-response churn recurred; same-run installed public MCP long-timeout proof succeeded, no gate bypass. Next: Michael selects merge prep.
+- **Captain revoke lookup verified; merge prep ready** (completed) — #captain #revoke-lookup #verified #merge-ready
+  Implementation proof e3eb604 (v0.7.9) complete/green retained. Merge Prep merge-a6dec029-4dc5-49df-aed2-bdb264f33f56 READY/LOW: checked source 56ecc81f37584686ff902aa5681b3430e3431c77 (v0.7.10), target dev a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3 unchanged; fresh build and whitespace passed, no conflicts. Repair normalized one CR byte plus mandatory version surfaces; authorization code/dependencies unchanged. Compiled public smoke at0.7.10 passed9outcomes; historical stdout hash restored. Next: Michael authorizes Merge Back. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md.
 
 ## Handoffs
 
