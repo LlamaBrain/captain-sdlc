@@ -87,6 +87,28 @@
       },
       "createdAt": "2026-10-19T01:11:08.423Z",
       "updatedAt": "2026-10-19T01:11:44.460Z"
+    },
+    {
+      "id": "captain-repair-chain-dev-20261018",
+      "kind": "handoff",
+      "title": "Captain repair chain prepared for dev",
+      "body": "Signed Merge Prep READY for repair-chain source f8aef3367dc655decf23f3d4facde0085640bdcc (v0.7.7) into actual dev@fea6a55, target unchanged. Same merge merge-332d72dd-5d62-4269-8a2c-ee2faddc46a8. Focused14 tests+public merge smokes at functional0.7.6; fresh0.7.7 signedLOWBuild passed. Installed0.7.7. Closeout .captain-sdlc/closeouts/captain-repair-chain-dev-prep-20261018.md retains exact source/target, stash16files, CON fallback and normalization hashes. Next owner Michael: select Merge Back; Captain retain same operation and proof, no new worktree or broad rerun.",
+      "status": "active",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "merge-prep",
+        "repair-chain"
+      ],
+      "links": [
+        ".captain-sdlc/closeouts/captain-repair-chain-dev-prep-20261018.md"
+      ],
+      "source": {
+        "agent": "captain"
+      },
+      "createdAt": "2026-10-19T02:55:00.395Z",
+      "updatedAt": "2026-10-19T02:55:00.395Z"
     }
   ]
 }

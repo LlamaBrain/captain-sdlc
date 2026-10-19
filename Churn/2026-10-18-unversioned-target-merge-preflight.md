@@ -1,6 +1,6 @@
 # 2026-10-18 - Unversioned target blocked repair-chain integration
 
-**Status: ONGOING**
+**Status: RESOLVED**
 
 **Occurrence:** 2026-10-18 America/Los_Angeles. **Date basis:** This execution's public Merge Prep rejection. **Recorded:** 2026-10-18.
 
@@ -38,3 +38,7 @@ Captain: finish public MCP merge smoke, install the validated 0.7.6 runtime usin
 ## Update - 2026-10-18
 
 Installed 0.7.6 through the standard plugin manager and authenticated all 40 public tools. Both public MCP merge smoke workflows passed. The same signed Prep committed 98b714a40d1121b626ea8bb9ca09174b8f9ad63c with exact parents 1483758eadaae663515d796c67d5cb25f6f24b76 and fea6a55bf1f0ba2d67de20283be3823915fa5470: the version-preflight defect is proven repaired. Prep then failed the existing incoming whitespace check before its Build gate. The 23 affected inherited files contain CRLF or trailing blank lines; normalization preserves line contents, JSON values, and original historical blobs at 98b714a. Patch 0.7.7 records that formatting repair. The target remains unchanged; focused tests and smokes retain their 0.7.6 code provenance.
+
+## Resolution - 2026-10-18
+
+The same signed merge reached READY revision 9 with a valid receipt after 0.7.7 commit f8aef3367dc655decf23f3d4facde0085640bdcc; captured LOW Build exit 0. Both source and target were clean at proof, and actual dev remains fea6a55. The repaired runtime is installed at 0.7.7 with 40 advertised public tools. Merge Back and hosted CI remain unrun. Complete preservation, normalization and evidence provenance are retained in .captain-sdlc/closeouts/captain-repair-chain-dev-prep-20261018.md.
