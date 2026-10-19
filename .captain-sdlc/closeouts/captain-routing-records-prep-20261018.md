@@ -1,6 +1,6 @@
 # Captain routing-records recovery - Merge Prep
 
-Recovered the useful configuration from checkpoint cdee135e2ce90df2ac01ea250e347127d1239be7 and obtained signed READY for current dev. Michael authorized "Do the prep"; Merge Back is not authorized or performed. Actual dev remains unchanged at 4102da5a3f06aad33d790305fe522b7680231ada.
+Recovered the useful configuration from checkpoint cdee135e2ce90df2ac01ea250e347127d1239be7 and merged the reviewed port into actual Captain dev at 700ea3766c849915e89eef38da687ab12e607c57 (v0.7.8). Michael authorized preparation and then explicitly instructed "Merge back". The preparation evidence below remains at its original revisions.
 
 ## Ownership, scope and revisions
 
@@ -59,10 +59,16 @@ Retain the historical checkpoint and all existing worktrees. The earlier primary
 
 ## Next owner and action
 
-Michael may authorize Merge Back to dev. Captain should consume this same signed READY operation and its bookkeeping-only source association without rerunning unchanged proof. Keep the original checkpoint classified as ported recovery once integration actually completes; do not claim its branch is ancestry-merged.
+The authorized integration is complete. Classify cdee135 as a reviewed configuration port integrated into dev; its historical branch remains preserved and is not ancestry-merged. No routing-recovery integration action remains. Keep the source checkout, original checkpoint and earlier repair-task backups.
 
 ## Follow-ups for human review
 
 - Worktree setup can eventually materialize committed line endings when Captain's isolated Git checks require them. Current-task repair is complete; no shared Git setting was changed.
 - Captain's generic cleanliness error names a target even when the dirty checkout is the source. A clearer diagnostic is a separate optional improvement.
 - Other historical checkpoint/archive retention and old run-record reconciliation remain outside this preparation.
+
+## Merge Back completion - 2026-10-18 America/Los_Angeles
+
+Michael explicitly instructed "Merge back" after preparation. Captain consumed the same signed operation merge-9b2f1d30-af99-45d7-8258-f743c699f5c9 and fast-forwarded dev from 4102da5a3f06aad33d790305fe522b7680231ada to 700ea3766c849915e89eef38da687ab12e607c57. Signed revision 11 reports merged with receipt_valid=true for that exact integration. Source/target bindings and clean state matched the prepared receipt; the build gate array was retained unchanged, with no new build/test run. The tested product revision remains 264f8204fcd0c76d346a9c6b54cfc396f2e90fd4.
+
+This completion update and the completed notebook disposition are finalized as a separate version-neutral bookkeeping commit on dev. Its exact OID is retained in the separate Captain finalization receipt; it does not relabel runtime proof or replace the historical Merge Back receipt at 700ea376. A later current-head mismatch caused solely by these records is not a failed integration. Installed Captain remains 0.7.7; no plugin installation, push, hosted CI, release, original-checkpoint deletion, worktree removal or backup restoration was performed.

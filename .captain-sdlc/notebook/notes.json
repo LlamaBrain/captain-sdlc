@@ -113,16 +113,16 @@
     {
       "id": "captain-routing-records-20261018",
       "kind": "handoff",
-      "title": "Routing checkpoint recovered and prepared for dev",
-      "body": "Routing checkpoint cdee135 configuration recovered as a reviewed port on prep/captain-routing-records-20261018@264f8204fcd0c76d346a9c6b54cfc396f2e90fd4 (v0.7.8). Signed merge-9b2f1d30-af99-45d7-8258-f743c699f5c9 READY revision 6, target dev@4102da5a3f06aad33d790305fe522b7680231ada unchanged. Seven actual CoreCLI/Git checks pass; original queue-hidden behavior deliberately reconciled with current human-owned config rules. LOW Build pass; installed Captain remains0.7.7. Preserve checkpoint, do not claim ancestry integration. Next Michael: authorize Merge Back; Captain keep same source/proof. Closeout .captain-sdlc/closeouts/captain-routing-records-prep-20261018.md.",
-      "status": "active",
+      "title": "Routing checkpoint port merged into dev",
+      "body": "Completed reviewed port of checkpoint cdee135 routing configuration into actual dev at 700ea3766c849915e89eef38da687ab12e607c57 (v0.7.8). Signed merge-9b2f1d30-af99-45d7-8258-f743c699f5c9 revision 11 merged, receipt_valid=true at exact integration. Original checkpoint retained; not ancestry-merged, do not blindly merge it later. queue.json hiding was deliberately reconciled with current human-config policy. Seven actual CoreCLI/Git checks passed, LOWBuild evidence retained at 264f8204fcd0c76d346a9c6b54cfc396f2e90fd4 without rerun. Post-merge records use separate version-neutral finalization. Source checkout and earlier stash/CON backups preserved. InstalledCaptain0.7.7, no push. No integration action remains. Closeout .captain-sdlc/closeouts/captain-routing-records-prep-20261018.md.",
+      "status": "completed",
       "project": "",
       "milestone": "",
       "tags": [
         "captain",
         "routing",
         "checkpoint-recovery",
-        "merge-prep"
+        "merge-back"
       ],
       "links": [
         ".captain-sdlc/closeouts/captain-routing-records-prep-20261018.md"
@@ -131,7 +131,7 @@
         "agent": "captain"
       },
       "createdAt": "2026-10-19T03:23:24.801Z",
-      "updatedAt": "2026-10-19T03:23:24.801Z"
+      "updatedAt": "2026-10-19T03:27:30.595Z"
     }
   ]
 }
