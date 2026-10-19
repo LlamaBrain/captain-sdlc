@@ -65,3 +65,7 @@ Evidence and backups: plugins/captain-sdlc/Temp/automation-scratch/completed-own
 
 - Failed public proof currently drops raw gate stdout and returns only a generic error. Evidence: the 0.6.1 and 0.6.2 proof results; a separate full diagnostic ticket was required to retain all seven failing assertions. Proposed owner action: a separately scoped Captain diagnostic-output improvement.
 - The FEATURE ticket performs 51 real merge Git fixtures and took roughly ten minutes per attempt. This latency is retained as operational evidence, not a new gate or an additional requirement in the completed repair.
+
+## Operational follow-up recurrence - 2026-10-18 revoke lookup
+
+Original recovery incident remains resolved. During CAPTAIN-REVOKE-LOOKUP-20261018 (intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4), the exposed captain_record_red response failed with "timed out awaiting tools/call after 300s" while the same full Ticket execution continued. Public status later confirmed implement with expected signed RED exit 1; no duplicate was launched. Final feature proof used the installed 0.7.7 public MCP server and original authority directory with a 3600000 ms response timeout; complete/green at e3eb60466d08f236e4dca38fc333c74d667f8d71. Commands, captured gates and source identity were unchanged. This verifies a same-task transport workaround, not a generic transport product fix. See .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md for exact evidence and the non-blocking maintainer follow-up.

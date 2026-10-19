@@ -111,6 +111,28 @@
       "updatedAt": "2026-10-19T02:59:34.426Z"
     },
     {
+      "id": "captain-revoke-lookup-20261018",
+      "kind": "task",
+      "title": "Captain generic revoke lookup repaired",
+      "body": "R1-R3 complete. Source e3eb60466d08f236e4dca38fc333c74d667f8d71 (v0.7.9); signed intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4 complete/green. Focused producer tests 20/20; compiled public RED/GREEN; all captured feature gates passed. Owned branch captain/intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4. Target dev unchanged at a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3. No merge/push/global install. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md. Existing 300s gate-response churn recurred; same-run installed public MCP long-timeout proof succeeded, no gate bypass. Next: Michael selects merge prep.",
+      "status": "completed",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "revoke-lookup",
+        "verified"
+      ],
+      "links": [
+        ".captain-sdlc/closeouts/captain-revoke-lookup-20261018.md"
+      ],
+      "source": {
+        "agent": "codex"
+      },
+      "createdAt": "2026-10-19T04:27:04.432Z",
+      "updatedAt": "2026-10-19T04:27:04.432Z"
+    },
+    {
       "id": "captain-routing-records-20261018",
       "kind": "handoff",
       "title": "Routing checkpoint port merged into dev",

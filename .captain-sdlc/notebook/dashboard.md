@@ -9,6 +9,11 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 - **Retire the terminal failed Begin for original Merge Prep** (accepted) — #captain #begin-retirement #merge-prep
   R1-R3 in .captain-proof/failed-begin-retirement/setup.json repair the original authorized commit-and-Merge-Prep requirement. The public diagnostic verifies the failed Begin belongs to our actual session, exact project/target/branch and held revision 44. Historical terminal MCP reply proves that logical invocation ended before workspace/run creation. An idle MCP server OS exit is not an approved gate. Cancellation must authenticate exact bindings, claim signed terminal reservation state before generation-CAS release, serialize current retry/progress, protect all foreign/replacement/later-progress state and forbid later same-intent retry. The session completion tombstone is presence rather than liveness; type it explicitly. Old binaries do not honor the new marker; the unchanged outside-canonical primary checkout prevents old workspace activation, and Captain will not retry that failed intent. Preserve prior completed scopes, target/source/stash and the same original merge ID; no push or Merge Back.
 
+## Tasks
+
+- **Captain generic revoke lookup repaired** (completed) — #captain #revoke-lookup #verified
+  R1-R3 complete. Source e3eb60466d08f236e4dca38fc333c74d667f8d71 (v0.7.9); signed intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4 complete/green. Focused producer tests 20/20; compiled public RED/GREEN; all captured feature gates passed. Owned branch captain/intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4. Target dev unchanged at a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3. No merge/push/global install. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md. Existing 300s gate-response churn recurred; same-run installed public MCP long-timeout proof succeeded, no gate bypass. Next: Michael selects merge prep.
+
 ## Handoffs
 
 - **Captain repair chain merged into dev** (completed) — #captain #merge-back #repair-chain
@@ -18,4 +23,4 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 
 ## Staleness findings
 
-- **plan_dir_missing** — E:\Personal\captain-sdlc\Assets\_Dirigible\Media\Documentation\Plan
+- **plan_dir_missing** — E:\Personal\captain-sdlc\.captain-sdlc\worktrees\intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4\Assets\_Dirigible\Media\Documentation\Plan
