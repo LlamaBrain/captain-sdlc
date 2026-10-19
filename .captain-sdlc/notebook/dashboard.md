@@ -11,4 +11,4 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 
 ## Staleness findings
 
-- **plan_dir_missing** — E:\Personal\captain-sdlc\.captain-sdlc\worktrees\intent-e04450f2-96e5-4b67-86eb-f4dcd7e737bb\Assets\_Dirigible\Media\Documentation\Plan
+- **plan_dir_missing** — E:\Personal\captain-sdlc\.captain-sdlc\worktrees\captain-target-first-merge-version-20261018\Assets\_Dirigible\Media\Documentation\Plan

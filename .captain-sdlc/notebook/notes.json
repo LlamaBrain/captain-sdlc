@@ -46,6 +46,27 @@
       "updatedAt": "2026-10-10T05:37:45.236Z"
     },
     {
+      "id": "captain-merge-back-20261018",
+      "kind": "observation",
+      "title": "Dirigible and Captain prepared integrations merged back",
+      "body": "Michael authorized Now merge back. Dirigible merge-dfb8e943-7bbd-49be-b319-6f13e45d45e5 merged at revision 19 into mt/feat/material-design, integrated c722d577. Captain merge-2f0c9bf5-3f9a-4597-ae7d-92860677d9e0 merged at revision 17 into fix/captain-target-first-merge-version-20261018, integrated ef9f9f4. Both public receipts were valid at integration; original Prep Build gates were retained unchanged. Both fast-forwards and clean targets were independently verified. Source worktrees and named stash remain retained. No push or deletion. See canonical merge closeout for exact OIDs and evidence; later record-only commits remain separate from tested/integrated product revisions.",
+      "status": "closed",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "merge-back"
+      ],
+      "links": [
+        ".captain-sdlc/closeouts/merge-back-20261018.md"
+      ],
+      "source": {
+        "agent": "Captain"
+      },
+      "createdAt": "2026-10-19T02:02:30.136Z",
+      "updatedAt": "2026-10-19T02:02:30.136Z"
+    },
+    {
       "id": "captain-recovery-green-prep-20261018",
       "kind": "observation",
       "title": "Captain recovery installed; original Dirigible Merge Prep green",
