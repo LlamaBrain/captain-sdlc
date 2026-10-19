@@ -302,6 +302,8 @@ does not assert that an unknown original client stopped. Its standard Begin
 cancellation marker also fences older supported runtimes. Original records and
 unrelated session ownership remain intact.
 
+Released ready/preparing Merge Prep receipts likewise cease exclusive target ownership only when their saved target pin is a strict ancestor of the current target. Recovery authenticates every completed bookkeeping request against its latest signed receipt and rejects held bookkeeping resources. Source commits, staged/loose work and the old receipts remain unchanged. This retires only the unrelated terminal pre-workspace Begin reservation; it does not integrate or complete the retained task.
+
 Then continue the original authorized Prep in the same task and target worktrees.
 This companion does not extend orphan eligibility or permit takeover of active
 or progressed work.

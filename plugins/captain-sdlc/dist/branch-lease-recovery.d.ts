@@ -88,6 +88,7 @@ export declare class BranchLeaseRecoveryStore {
     private verifiedFailedBegin;
     private sessionActivity;
     private mergeOwnerDiagnostic;
+    private mergeFinalizationDiagnostic;
     diagnose(input: BranchLeaseDiagnosticArgs): Promise<BranchLeaseDiagnostic>;
     repossess(input: BranchLeaseRepossessArgs): Promise<BranchLeaseReceipt>;
     private journal;

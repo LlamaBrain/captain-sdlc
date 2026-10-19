@@ -555,6 +555,96 @@ async function idleFailedMergeFixture(t: TestContext) {
   return { ...f, sourceId };
 }
 
+async function supersededMergeFixture(t: TestContext, state: "ready" | "preparing", finalization = false, side: "source" | "target" = "target") {
+  const f = await retainedMergeFixture(t, "ready");
+  const previous = await readAuthorizedReadOnly<any>(f.data, "merge-revisions", `${f.mergeId}-${f.record.revision}`);
+  const next: any = { ...previous, revision: previous.revision + 1, previous_sha256: digest(previous), state };
+  let receipt: any;
+  if (finalization) {
+    const binding = side === "source" ? f.record.source_binding : f.record.target_binding;
+    const selection = { paths: ["Churn/retained.md"], subject: "docs(captain): retain completed records", task_id: "retained-task", disposition: "stash", finalization_id: "finalization-retained-records" };
+    const normalized = { worktree: side === "source" ? f.source : f.target, session_id: f.mergeSession, task_id: selection.task_id, paths: selection.paths, subject: selection.subject, disposition: selection.disposition };
+    receipt = { schema_version: 1, finalization_id: selection.finalization_id, revision: 0, ...normalized, state: "stashed", request_sha256: digest(normalized), before: binding, after: binding, policy: f.record.captured_policy, policy_sha256: digest(f.record.captured_policy), lease_specs: [], stash_oid: f.record.target_binding.head };
+    await putAuthorizedOnceExact(f.data, "bookkeeping-revisions", `${receipt.finalization_id}-0`, receipt);
+    await putAuthorizedOnceExact(f.data, "bookkeeping-watermarks", `${receipt.finalization_id}-0`, { finalization_id: receipt.finalization_id, revision: 0, sha256: digest(receipt) });
+    next.finalization_requests = { [side]: { selection, expected_head: binding.head } };
+    next.finalizations = [receipt];
+  }
+  await putAuthorizedOnceExact(f.data, "merge-revisions", `${f.mergeId}-${next.revision}`, next);
+  await putAuthorizedOnceExact(f.data, "merge-watermarks", `${f.mergeId}-${next.revision}`, { merge_id: f.mergeId, revision: next.revision, sha256: digest(next) });
+  await writeFile(path.join(f.target, "later-target.txt"), "target advanced after the dormant prep\n");
+  await git(f.target, "add", "later-target.txt"); await git(f.target, "commit", "-m", "advance target beyond dormant receipt");
+  return { ...f, record: next, receipt };
+}
+
+for (const state of ["ready", "preparing"] as const) test(`superseded released ${state} receipt does not own the current target`, async t => {
+  const f = await supersededMergeFixture(t, state), beforeSource = await tree(f.source), beforeTarget = await tree(f.target), beforeAuthority = await tree(f.data);
+  const diagnosis = await f.store.diagnoseFailedBegin(f.args);
+  assert.equal(diagnosis.eligible, true, JSON.stringify(diagnosis));
+  assert.equal((diagnosis.original_state as any).idle_superseded_merge_records_verified, 1);
+  assert.equal((await f.store.repossessFailedBegin(await failedRecovery(f))).state, "revoked");
+  assert.deepEqual(await tree(f.source), beforeSource); assert.deepEqual(await tree(f.target), beforeTarget);
+  const after = await tree(f.data);
+  for (const [name, value] of Object.entries(beforeAuthority)) if (/^(merge-|bookkeeping-)/.test(name)) assert.equal(after[name], value, `preserved dormant receipt ${name}`);
+});
+
+test("superseded ready receipt preserves unmerged source commit, staged, loose and untracked work", async t => {
+  const f = await supersededMergeFixture(t, "ready");
+  await writeFile(path.join(f.source, "unmerged-product.txt"), "source-only product\n");
+  await git(f.source, "add", "unmerged-product.txt"); await git(f.source, "commit", "-m", "retain unmerged source product");
+  const sourceHead = await git(f.source, "rev-parse", "HEAD");
+  await assert.rejects(git(f.target, "merge-base", "--is-ancestor", sourceHead, "HEAD"));
+  await writeFile(path.join(f.source, "product.txt"), "staged source\n"); await git(f.source, "add", "product.txt");
+  await writeFile(path.join(f.source, "product.txt"), "loose source\n");
+  await writeFile(path.join(f.source, "untracked.txt"), "retained loose file\n");
+  const source = await tree(f.source), target = await tree(f.target), registry = await git(f.target, "worktree", "list", "--porcelain"), index = await git(f.source, "ls-files", "--stage");
+  assert.equal((await f.store.diagnoseFailedBegin(f.args)).eligible, true);
+  assert.equal((await f.store.repossessFailedBegin(await failedRecovery(f))).state, "revoked");
+  assert.equal(await git(f.source, "rev-parse", "HEAD"), sourceHead); assert.equal(await git(f.source, "ls-files", "--stage"), index);
+  assert.deepEqual(await tree(f.source), source); assert.deepEqual(await tree(f.target), target);
+  assert.equal(await git(f.target, "worktree", "list", "--porcelain"), registry);
+});
+
+test("superseded ready receipt with authenticated completed bookkeeping permits exact Begin retirement", async t => {
+  const f = await supersededMergeFixture(t, "ready", true), before = await tree(f.container);
+  const diagnosis = await f.store.diagnoseFailedBegin(f.args);
+  assert.equal(diagnosis.eligible, true); assert.deepEqual(await tree(f.container), before);
+  assert.equal((await f.store.repossessFailedBegin(await failedRecovery(f))).state, "revoked");
+});
+
+for (const variant of ["equal-target", "divergent-target", "held-operation", "pending-git", "null-requests", "null-receipts", "missing-bookkeeping", "mismatched-bookkeeping", "pending-bookkeeping", "stale-embedded-bookkeeping", "held-bookkeeping-operation", "held-bookkeeping-source-resource"] as const) test(`superseded merge recovery refuses ${variant}`, async t => {
+  const withBookkeeping = variant.includes("bookkeeping"), f = await supersededMergeFixture(t, "ready", withBookkeeping, variant === "held-bookkeeping-source-resource" ? "source" : "target");
+  if (variant === "null-requests" || variant === "null-receipts") {
+    const next = { ...f.record, revision: f.record.revision + 1, previous_sha256: digest(f.record), [variant === "null-requests" ? "finalization_requests" : "finalizations"]: null };
+    await putAuthorizedOnceExact(f.data, "merge-revisions", `${f.mergeId}-${next.revision}`, next);
+    await putAuthorizedOnceExact(f.data, "merge-watermarks", `${f.mergeId}-${next.revision}`, { merge_id: f.mergeId, revision: next.revision, sha256: digest(next) });
+  }
+  if (variant === "equal-target") await git(f.target, "reset", "--hard", f.record.target_binding.head);
+  if (variant === "divergent-target") { await git(f.target, "checkout", "--orphan", "divergent-target"); await git(f.target, "commit", "-m", "divergent target"); await git(f.target, "branch", "-M", "main"); }
+  if (variant === "held-operation") await acquireAuthorizedLease(f.data, createHash("sha256").update(`merge-operation\0${f.mergeId}`).digest("hex"), { intentId: f.mergeId, leaseToken: "private-current-operation", sessionId: f.mergeSession, operation: "integration", ownerPid: process.pid, ownerHost: hostname() });
+  if (variant === "pending-git") await writeFile(path.join(f.commonGitDir, "MERGE_HEAD"), f.record.source_binding.head + "\n");
+  if (variant === "missing-bookkeeping") { await unlink(path.join(f.data, "bookkeeping-revisions", `${f.receipt.finalization_id}-0.json`)); await unlink(path.join(f.data, "bookkeeping-watermarks", `${f.receipt.finalization_id}-0.json`)); }
+  if (["mismatched-bookkeeping", "pending-bookkeeping", "stale-embedded-bookkeeping"].includes(variant)) {
+    const receipt = { ...f.receipt, state: variant === "pending-bookkeeping" ? "pending" : "stashed", request_sha256: variant === "mismatched-bookkeeping" ? "wrong-request" : f.receipt.request_sha256 };
+    await writeAuthorized(f.data, "bookkeeping-revisions", `${receipt.finalization_id}-0`, receipt);
+    await writeAuthorized(f.data, "bookkeeping-watermarks", `${receipt.finalization_id}-0`, { finalization_id: receipt.finalization_id, revision: 0, sha256: digest(receipt) });
+    if (variant === "stale-embedded-bookkeeping") {
+      receipt.evidence = [{ kind: "terminal-evidence-changed" }];
+      await writeAuthorized(f.data, "bookkeeping-revisions", `${receipt.finalization_id}-0`, receipt);
+      await writeAuthorized(f.data, "bookkeeping-watermarks", `${receipt.finalization_id}-0`, { finalization_id: receipt.finalization_id, revision: 0, sha256: digest(receipt) });
+    } else {
+      const next = { ...f.record, revision: f.record.revision + 1, previous_sha256: digest(f.record), finalizations: [receipt] };
+      await putAuthorizedOnceExact(f.data, "merge-revisions", `${f.mergeId}-${next.revision}`, next);
+      await putAuthorizedOnceExact(f.data, "merge-watermarks", `${f.mergeId}-${next.revision}`, { merge_id: f.mergeId, revision: next.revision, sha256: digest(next) });
+    }
+  }
+  if (variant === "held-bookkeeping-operation" || variant === "held-bookkeeping-source-resource") await acquireAuthorizedLease(f.data, createHash("sha256").update((variant === "held-bookkeeping-operation" ? `bookkeeping-operation\0${f.receipt.finalization_id}` : `bookkeeping-worktree\0${path.resolve(f.receipt.before.commonGitDir)}\0${path.resolve(f.receipt.before.gitDir)}`.toLowerCase())).digest("hex"), { intentId: f.receipt.finalization_id, leaseToken: "private-bookkeeping-resource", operation: "bookkeeping", sessionId: f.mergeSession, ownerPid: process.pid, ownerHost: hostname() });
+  const before = await tree(f.container);
+  if (variant === "pending-git") await assert.rejects(() => f.store.diagnoseFailedBegin(f.args), /unfinished Git operation/);
+  else assert.equal((await f.store.diagnoseFailedBegin(f.args)).eligible, false);
+  assert.deepEqual(await tree(f.container), before);
+});
+
 test("idle failed merge receipts preserve stale saved target binding and another source owner while permitting exact Begin retirement", async t => {
   const f = await idleFailedMergeFixture(t);
   await writeFile(path.join(f.source, "product.txt"), "unrelated source staged\n"); await git(f.source, "add", "product.txt"); await writeFile(path.join(f.source, "product.txt"), "unrelated source loose\n");

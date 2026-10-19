@@ -5,6 +5,7 @@ import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedLegacyLeaseMigrationReadOnly, readAuthorizedReadOnly, releaseAuthorizedLeaseAtGeneration, releaseAuthorizedLegacyLeaseAtGeneration } from "./authority.js";
 import { git } from "./workspace.js";
 import { LifecycleStore } from "./lifecycle.js";
+import { BookkeepingFinalizationStore } from "./bookkeeping-finalization.js";
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { verifiedFailedBeginCancellationMarker } from "./failed-begin-cancellation.js";
 
@@ -161,10 +162,11 @@ export class BranchLeaseRecoveryStore {
     const lifecycleCandidates = entries.filter(entry => ownerApplies(entry, binding) && isActive(entry));
     const candidates = await Promise.all(lifecycleCandidates.map(async entry => {
       const candidate = { ...targetOwnerDiagnostic(entry, entries, binding, evidence), ...(entry.bucket === "merge-revisions" ? { merge: await this.mergeOwnerDiagnostic(entry, entries, binding, evidence, leases) } : {}) };
-      return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) };
+      return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) && !idleSupersededMerge(candidate) };
     }));
     const activeCandidates = candidates.filter(candidate => candidate.exclusive_target_owner);
-    const inventoryState = { ...publicState, idle_failed_merge_records_verified: candidates.length - activeCandidates.length, target_lifecycle_candidates: candidates.slice(0, 32), active_target_candidate_count: activeCandidates.length, active_target_candidates: activeCandidates.slice(0, 32) };
+    const inventoryState = { ...publicState, idle_failed_merge_records_verified: candidates.filter(idleFailedMerge).length,
+      idle_superseded_merge_records_verified: candidates.filter(idleSupersededMerge).length, target_lifecycle_candidates: candidates.slice(0, 32), active_target_candidate_count: activeCandidates.length, active_target_candidates: activeCandidates.slice(0, 32) };
     if (activeCandidates.length) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_lifecycle_owner" });
     if (await hasTaskWorkspaceFootprint(binding, selection.old_intent_id)) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "retained_task_workspace_at_primary_or_registered_ref" });
     const guardLease = await readAuthorizedLeaseSnapshotReadOnly<Payload>(this.dataRoot, gateId(selection.old_intent_id));
@@ -226,13 +228,40 @@ export class BranchLeaseRecoveryStore {
     if (staticBindings) {
       try { staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async oid => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid}^{commit}`]) === oid))).every(Boolean); } catch { staticBindings = false; }
     }
-    return { state: shape ? v.state : "unknown", schema_recognized: shape, static_bindings_verified: staticBindings, prepared_merge_present: v.prepared_merge !== undefined, prepared_commit_present: v.prepared_commit !== undefined || v.prepared_commit_request !== undefined, finalization_request_present: v.finalization_requests !== undefined && (typeof v.finalization_requests !== "object" || !v.finalization_requests || Object.keys(v.finalization_requests).length > 0),
+    let targetSuperseded = false;
+    if (staticBindings && targetBinding.read_verified && targetBinding.saved_binding_matches_current && v.target_binding.head !== binding.head) {
+      try { await readGit(binding.topLevel, ["merge-base", "--is-ancestor", v.target_binding.head, binding.head]); targetSuperseded = true; } catch { /* Divergent or missing pins retain ownership. */ }
+    }
+    const finalization = await this.mergeFinalizationDiagnostic(v, leases);
+    return { target_pin_superseded: targetSuperseded, ...finalization, state: shape ? v.state : "unknown", schema_recognized: shape, static_bindings_verified: staticBindings, prepared_merge_present: v.prepared_merge !== undefined, prepared_commit_present: v.prepared_commit !== undefined || v.prepared_commit_request !== undefined, finalization_request_present: v.finalization_requests !== undefined && (typeof v.finalization_requests !== "object" || !v.finalization_requests || Object.keys(v.finalization_requests).length > 0),
       source_binding: sourceBinding, target_binding: targetBinding, operation_lease: operationLease, source_resource: sourceResource, target_resource: targetResource,
       correlated_worktree_resource_count: worktreeResources.length, correlated_worktree_resource_reads_verified: worktreeResources.every(resource => resource.read_verified), held_correlated_worktree_resource: worktreeResources.some(resource => resource.state === "held"), held_this_merge_worktree_resource: worktreeResources.some(resource => resource.held_by_this_merge),
       held_merge_reference_resource: Boolean(shape && leases.some(lease => lease.snapshot.state === "held" && (lease.id === v.merge_id || contains(lease.snapshot.payload, v.merge_id)))),
     };
   }
 
+
+  private async mergeFinalizationDiagnostic(v: Record<string, any>, leases: Array<{ id: string; snapshot: Lease }>) {
+    const refused = { finalization_requests_terminal_verified: false, held_finalization_resource: true };
+    const requests = v.finalization_requests === undefined ? {} : v.finalization_requests, embedded = v.finalizations === undefined ? [] : v.finalizations;
+    if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some(side => !["source", "target"].includes(side))) return refused;
+    const ids = new Set<string>(), worktreeIds = new Set<string>();
+    try {
+      for (const [side, pending] of Object.entries(requests) as Array<[string, any]>) {
+        const selection = pending?.selection, saved = v[side + "_binding"], worktree = v[side + "_worktree"];
+        if (!selection || typeof selection.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(selection.finalization_id) || ids.has(selection.finalization_id) || typeof worktree !== "string" || !saved || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p: unknown) => typeof p !== "string") || !["commit", "stash"].includes(selection.disposition)) return refused;
+        ids.add(selection.finalization_id);
+        worktreeIds.add(hash(("bookkeeping-worktree\0" + path.resolve(saved.commonGitDir) + "\0" + path.resolve(saved.gitDir)).toLowerCase()));
+        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: selection.finalization_id, session_id: v.session_id, worktree });
+        const normalized = { worktree: path.resolve(worktree), session_id: v.session_id, task_id: selection.task_id, paths: [...selection.paths].sort(), subject: selection.subject, disposition: selection.disposition };
+        const actual = { worktree: receipt.worktree, session_id: receipt.session_id, task_id: receipt.task_id, paths: receipt.paths, subject: receipt.subject, disposition: receipt.disposition };
+        if (receipt.request_sha256 !== digest(normalized) || digest(actual) !== digest(normalized) || receipt.policy_sha256 !== digest(v.captured_policy) || receipt.before.head !== pending.expected_head || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every(key => samePath((receipt.before as any)[key], saved[key])) || receipt.state !== (selection.disposition === "stash" ? "stashed" : "committed") || embedded.filter((item: any) => item?.finalization_id === receipt.finalization_id && digest(item) === digest(receipt)).length !== 1) return refused;
+      }
+      if (embedded.length !== ids.size || embedded.some((item: any) => !ids.has(item?.finalization_id))) return refused;
+      const held = leases.some(lease => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || [...ids].some(id => lease.id === hash("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
+      return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
+    } catch { return refused; }
+  }
 
   async diagnose(input: BranchLeaseDiagnosticArgs): Promise<BranchLeaseDiagnostic> {
     const args = normalizeDiagnostic(input), binding = await readBinding(args), id = resourceId(binding);
@@ -510,9 +539,17 @@ async function savedMergeBindingDiagnostic(location: unknown, saved: any, select
 }
 /** A failed saved receipt can coexist with retirement; its own future merge checks remain unchanged. */
 function idleFailedMerge(candidate: Record<string, any>): boolean {
+  return candidate.merge?.state === "failed" && !candidate.merge.finalization_request_present && idleMergeResources(candidate);
+}
+/** A dormant target pin is not current exclusive ownership; the retained source is untouched. */
+function idleSupersededMerge(candidate: Record<string, any>): boolean {
+  const m = candidate.merge;
+  return Boolean(m && ["ready", "preparing"].includes(m.state) && m.target_pin_superseded && m.target_binding.read_verified && m.target_binding.saved_binding_matches_current && m.target_binding.pending_git_operation === false && m.finalization_requests_terminal_verified && !m.held_finalization_resource && idleMergeResources(candidate));
+}
+function idleMergeResources(candidate: Record<string, any>): boolean {
   const m = candidate.merge;
   if (candidate.bucket !== "merge-revisions" || candidate.original_intent_reference || candidate.original_operation_reference || candidate.original_run_reference ||
-    !m || !m.schema_recognized || !m.static_bindings_verified || m.state !== "failed" || m.prepared_merge_present || m.prepared_commit_present || m.finalization_request_present ||
+    !m || !m.schema_recognized || !m.static_bindings_verified || m.prepared_merge_present || m.prepared_commit_present ||
     !m.operation_lease.read_verified || !m.operation_lease.revisioned || m.operation_lease.state !== "released" || !m.operation_lease.record_owner_matches ||
     !m.source_binding.read_verified || !m.source_binding.saved_binding_matches_current || !m.source_binding.saved_commit_exists || m.source_binding.pending_git_operation !== false ||
     m.target_binding.read_verified && m.target_binding.pending_git_operation !== false ||

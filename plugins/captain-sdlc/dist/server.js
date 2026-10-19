@@ -26775,11 +26775,11 @@ init_workspace();
 init_authority();
 init_workspace();
 init_lifecycle();
-init_begin_diagnostic_adapter();
 import { createHash as createHash11, randomUUID as randomUUID4 } from "node:crypto";
 import { lstat as lstat5, readdir as readdir9, realpath as realpath4 } from "node:fs/promises";
 import os4 from "node:os";
 import path13 from "node:path";
+init_begin_diagnostic_adapter();
 var FailedBeginVerificationError = class extends Error {
   constructor(details) {
     super(String(details.refusal_code));
@@ -26987,10 +26987,17 @@ var BranchLeaseRecoveryStore = class {
     const lifecycleCandidates = entries.filter((entry) => ownerApplies(entry, binding) && isActive(entry));
     const candidates = await Promise.all(lifecycleCandidates.map(async (entry) => {
       const candidate = { ...targetOwnerDiagnostic(entry, entries, binding, evidence), ...entry.bucket === "merge-revisions" ? { merge: await this.mergeOwnerDiagnostic(entry, entries, binding, evidence, leases) } : {} };
-      return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) };
+      return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) && !idleSupersededMerge(candidate) };
     }));
     const activeCandidates = candidates.filter((candidate) => candidate.exclusive_target_owner);
-    const inventoryState = { ...publicState, idle_failed_merge_records_verified: candidates.length - activeCandidates.length, target_lifecycle_candidates: candidates.slice(0, 32), active_target_candidate_count: activeCandidates.length, active_target_candidates: activeCandidates.slice(0, 32) };
+    const inventoryState = {
+      ...publicState,
+      idle_failed_merge_records_verified: candidates.filter(idleFailedMerge).length,
+      idle_superseded_merge_records_verified: candidates.filter(idleSupersededMerge).length,
+      target_lifecycle_candidates: candidates.slice(0, 32),
+      active_target_candidate_count: activeCandidates.length,
+      active_target_candidates: activeCandidates.slice(0, 32)
+    };
     if (activeCandidates.length) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_lifecycle_owner" });
     if (await hasTaskWorkspaceFootprint(binding, selection.old_intent_id)) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "retained_task_workspace_at_primary_or_registered_ref" });
     const guardLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, gateId(selection.old_intent_id));
@@ -27092,7 +27099,18 @@ var BranchLeaseRecoveryStore = class {
         staticBindings = false;
       }
     }
+    let targetSuperseded = false;
+    if (staticBindings && targetBinding.read_verified && targetBinding.saved_binding_matches_current && v.target_binding.head !== binding.head) {
+      try {
+        await readGit(binding.topLevel, ["merge-base", "--is-ancestor", v.target_binding.head, binding.head]);
+        targetSuperseded = true;
+      } catch {
+      }
+    }
+    const finalization = await this.mergeFinalizationDiagnostic(v, leases);
     return {
+      target_pin_superseded: targetSuperseded,
+      ...finalization,
       state: shape ? v.state : "unknown",
       schema_recognized: shape,
       static_bindings_verified: staticBindings,
@@ -27110,6 +27128,29 @@ var BranchLeaseRecoveryStore = class {
       held_this_merge_worktree_resource: worktreeResources.some((resource2) => resource2.held_by_this_merge),
       held_merge_reference_resource: Boolean(shape && leases.some((lease) => lease.snapshot.state === "held" && (lease.id === v.merge_id || contains(lease.snapshot.payload, v.merge_id))))
     };
+  }
+  async mergeFinalizationDiagnostic(v, leases) {
+    const refused = { finalization_requests_terminal_verified: false, held_finalization_resource: true };
+    const requests = v.finalization_requests === void 0 ? {} : v.finalization_requests, embedded = v.finalizations === void 0 ? [] : v.finalizations;
+    if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some((side) => !["source", "target"].includes(side))) return refused;
+    const ids = /* @__PURE__ */ new Set(), worktreeIds = /* @__PURE__ */ new Set();
+    try {
+      for (const [side, pending] of Object.entries(requests)) {
+        const selection = pending?.selection, saved = v[side + "_binding"], worktree = v[side + "_worktree"];
+        if (!selection || typeof selection.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(selection.finalization_id) || ids.has(selection.finalization_id) || typeof worktree !== "string" || !saved || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !["commit", "stash"].includes(selection.disposition)) return refused;
+        ids.add(selection.finalization_id);
+        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path13.resolve(saved.commonGitDir) + "\0" + path13.resolve(saved.gitDir)).toLowerCase()));
+        const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: selection.finalization_id, session_id: v.session_id, worktree });
+        const normalized = { worktree: path13.resolve(worktree), session_id: v.session_id, task_id: selection.task_id, paths: [...selection.paths].sort(), subject: selection.subject, disposition: selection.disposition };
+        const actual = { worktree: receipt.worktree, session_id: receipt.session_id, task_id: receipt.task_id, paths: receipt.paths, subject: receipt.subject, disposition: receipt.disposition };
+        if (receipt.request_sha256 !== digest7(normalized) || digest7(actual) !== digest7(normalized) || receipt.policy_sha256 !== digest7(v.captured_policy) || receipt.before.head !== pending.expected_head || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key2) => samePath7(receipt.before[key2], saved[key2])) || receipt.state !== (selection.disposition === "stash" ? "stashed" : "committed") || embedded.filter((item) => item?.finalization_id === receipt.finalization_id && digest7(item) === digest7(receipt)).length !== 1) return refused;
+      }
+      if (embedded.length !== ids.size || embedded.some((item) => !ids.has(item?.finalization_id))) return refused;
+      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || [...ids].some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
+      return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
+    } catch {
+      return refused;
+    }
   }
   async diagnose(input) {
     const args = normalizeDiagnostic(input), binding = await readBinding(args), id = resourceId2(binding);
@@ -27454,8 +27495,15 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
   }
 }
 function idleFailedMerge(candidate) {
+  return candidate.merge?.state === "failed" && !candidate.merge.finalization_request_present && idleMergeResources(candidate);
+}
+function idleSupersededMerge(candidate) {
   const m = candidate.merge;
-  if (candidate.bucket !== "merge-revisions" || candidate.original_intent_reference || candidate.original_operation_reference || candidate.original_run_reference || !m || !m.schema_recognized || !m.static_bindings_verified || m.state !== "failed" || m.prepared_merge_present || m.prepared_commit_present || m.finalization_request_present || !m.operation_lease.read_verified || !m.operation_lease.revisioned || m.operation_lease.state !== "released" || !m.operation_lease.record_owner_matches || !m.source_binding.read_verified || !m.source_binding.saved_binding_matches_current || !m.source_binding.saved_commit_exists || m.source_binding.pending_git_operation !== false || m.target_binding.read_verified && m.target_binding.pending_git_operation !== false || !m.source_resource.read_verified || !m.target_resource.read_verified || m.source_resource.held_by_this_merge || m.source_resource.held_by_original_begin || m.source_resource.held_integration_resource || m.target_resource.held_by_this_merge || m.target_resource.held_integration_resource || !m.correlated_worktree_resource_reads_verified || m.held_correlated_worktree_resource || m.held_merge_reference_resource) return false;
+  return Boolean(m && ["ready", "preparing"].includes(m.state) && m.target_pin_superseded && m.target_binding.read_verified && m.target_binding.saved_binding_matches_current && m.target_binding.pending_git_operation === false && m.finalization_requests_terminal_verified && !m.held_finalization_resource && idleMergeResources(candidate));
+}
+function idleMergeResources(candidate) {
+  const m = candidate.merge;
+  if (candidate.bucket !== "merge-revisions" || candidate.original_intent_reference || candidate.original_operation_reference || candidate.original_run_reference || !m || !m.schema_recognized || !m.static_bindings_verified || m.prepared_merge_present || m.prepared_commit_present || !m.operation_lease.read_verified || !m.operation_lease.revisioned || m.operation_lease.state !== "released" || !m.operation_lease.record_owner_matches || !m.source_binding.read_verified || !m.source_binding.saved_binding_matches_current || !m.source_binding.saved_commit_exists || m.source_binding.pending_git_operation !== false || m.target_binding.read_verified && m.target_binding.pending_git_operation !== false || !m.source_resource.read_verified || !m.target_resource.read_verified || m.source_resource.held_by_this_merge || m.source_resource.held_by_original_begin || m.source_resource.held_integration_resource || m.target_resource.held_by_this_merge || m.target_resource.held_integration_resource || !m.correlated_worktree_resource_reads_verified || m.held_correlated_worktree_resource || m.held_merge_reference_resource) return false;
   const sourceIdle = ["absent", "released"].includes(m.source_resource.state) || m.source_resource.state === "held" && m.source_resource.distinct_nonintegration_legacy_owner;
   return sourceIdle && ["held", "released"].includes(m.target_resource.state) && m.target_resource.original_begin_owner_matches;
 }
@@ -27743,7 +27791,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.6.6" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.6.7" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

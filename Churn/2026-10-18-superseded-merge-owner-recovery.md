@@ -1,0 +1,13 @@
+# Superseded Merge Prep receipts block terminal Begin recovery
+
+Status: Repair under verification. Owner: Captain. Original requirement: recover the existing authorized task and obtain green Dirigible Merge Prep without Merge Back.
+
+Michael instructed "New goal: fix it now and get unblocked" and "Then why did you stop? Get Unblock". Failed Begin intent-2a08e053-d99c-4e37-9e19-c0ccc6e8a0a1 reserved the Dirigible target but created no workspace, run, activation or permit. Public diagnosis verified that graph but reported active_target_lifecycle_owner for dormant ready/preparing receipts with released operation leases. The earlier failed-receipt repair did not cover these states or completed bookkeeping.
+
+Repair task CAPTAIN-STALE-MERGE-OWNER-RECOVERY uses intent-0286432f-9552-4db2-9f9e-5c9e42a6d247 in the retained Captain recovery worktree, branch recovery/captain-0.6.5-base-20261018. Its captured FEATURE gates remain full ticket, build, public MCP smokes and typecheck. Tests precede implementation. Captured red and final proof are recorded by Captain at their actual revisions.
+
+The bounded repair requires strict saved-target ancestry, exact repository bindings, released authenticated operation ownership, no held integration/bookkeeping resources, and latest authenticated terminal finalization receipts matching request and captured policy. It preserves source work, signed historical records and all normal Prep/Back checks. Equal/divergent targets, pending Git, prepared operations and ambiguous/active records remain refused.
+
+Next: complete signed proof; use the public exact-generation failed-Begin repossession; retry merge-dfb8e943-7bbd-49be-b319-6f13e45d45e5 with the existing Dirigible source/target. Target HEAD a4583fa5815ce8f0481716cf030d0bfd1495151b must remain unchanged. Preserve generated target changes in stash e27182f15d0677b1219bfa0d780055a1a53121e6 and the original-byte manifest under Dirigible Temp/automation-scratch/captain-recovery/target-generated-state-checkpoint.json. Git retention is distinct from signed green.
+
+Verification note: the first captured full red exposed invalid synthetic previous hashes because the fixture hashed decorated status output. The fixture now reads the actual signed revision. A separate corrected baseline red against d2eeb31 reproduced active_target_lifecycle_owner for all three intended cases (3/3 failed), retained at E:/Personal/dirigible2D/Temp/automation-scratch/captain-recovery/corrected-baseline-red.txt. This is distinct from the earlier captured red. The real public MCP recovery smoke passed before final signed proof.

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.7
+- Permit exact failed-Begin recovery alongside superseded ready/preparing Merge Prep receipts only after strict target ancestry, idle resources and authenticated terminal bookkeeping checks. Preserve retained source work and historical receipts; active, divergent and unfinished operations remain protected.
+
 ## 0.6.6
 - Restore same-session resume from a new turn's expressed request when run lease fields are absent and the session lease is free; refuse held leases.
 - Reconcile authorized final commits against the last committed phase head or run base after a resume advances continuity state.
