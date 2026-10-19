@@ -70,3 +70,9 @@ The first Begin incorrectly requested dev as the implementation checkout; it fai
 ## Build metadata repair
 
 The authorized feature commit is e06a6e199525e1a8c7b6c9b297e1e86cc005d13c (v0.8.0). Its first final Build generated a one-line change in tracked dist/server.js (server version0.7.10 ->0.8.0); Captain refused source divergence and returned the same run to implement/red. No full green proof was claimed. The necessary same-task repair synchronizes all version surfaces and the rebuilt tracked bundle at0.8.1, with a matching dated KAC Fixed entry, then continues the same captured proof. Feature behavior and19-case focused evidence remain unchanged. No history rewrite, policy change, merge, push or installation.
+
+## Merge Prep requested - 2026-10-19
+
+Michael directed "Continue with the merge prep" for this retained source against dev. Fresh origin/dev and local dev both pin ed21b685e232b89a4ef6693d89e719392db1d4c4; the target is already an ancestor of source. No incoming conflict or target update is needed. The new helper collected all3source commits, archived changes.md as changelog/changes/2026-10-19-developer-worktree-changelog-artifacts-f11cc86f7e57.md and retired only its verified root draft. Reviewed summaries retain every full OID and original message. The archive source_head b74bf8b intentionally predates its own retention commit.
+
+The archive path is outside committed bookkeeping exclusions, so normal per-commit policy assigns this documentation retention a0.8.2 patch with synchronized package/source/bundle metadata and a dated KAC Changed entry. Implementation full proof remains complete/green at aecceae/v0.8.1; it is not relabeled as a0.8.2full test run. Standalone LOW Merge Prep captures whitespace/source/target checks and one development build from the prepared source. No new full suites, product changes, Merge Back, install or push are assigned. Final signed readiness and source OID will be recorded after Prep returns.

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-10-19
+
+### Changed
+
+- Retain the developer changelog worktree fragment under its dated subject-named archive, including full commit provenance and reviewed technical summaries, before signed dev Merge Prep (v0.8.2).
+
 ## [0.8.1] - 2026-10-19
 
 ### Fixed
