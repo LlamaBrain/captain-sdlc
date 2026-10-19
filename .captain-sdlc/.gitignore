@@ -1,0 +1,22 @@
+# Generated Captain machine state; keep human configuration and governed records visible.
+/worktrees/
+/daemon/
+/runs/
+/logs/
+/evidence/
+/reviews/
+/verifications/
+/metrics/
+/tasks/
+/research/
+/steer/
+/trace/
+/side-store/
+/steer-inbox.md
+/flay-state.json
+/*.draft.md
+
+# Assignment configuration belongs to the human (captain-bridge-dashboard.md).
+!/queue.json
+!/routing-policy.json
+!/route-config.json

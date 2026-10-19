@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.8
+- Recover the retained bridge-to-worker routing policy; scope machine-state ignores while keeping human assignment config and governed records visible, with a reusable public Core CLI/Git smoke.
+
 ## 0.7.7
 - Normalize inherited incoming line endings and trailing blank lines so the repair chain passes the unchanged dev integration whitespace gate; retain historical artifact contents and original Git blobs.
 

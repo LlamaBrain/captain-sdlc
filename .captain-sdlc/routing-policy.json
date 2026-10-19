@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "routes": [
+    { "name": "bridge", "adapter": "worker", "when": { "label": "bridge" } }
+  ]
+}

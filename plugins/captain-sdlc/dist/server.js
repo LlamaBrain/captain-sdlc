@@ -27826,7 +27826,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.7.7" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.7.8" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
