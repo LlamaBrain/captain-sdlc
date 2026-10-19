@@ -109,6 +109,29 @@
       },
       "createdAt": "2026-10-19T02:55:00.395Z",
       "updatedAt": "2026-10-19T02:59:34.426Z"
+    },
+    {
+      "id": "captain-routing-records-20261018",
+      "kind": "handoff",
+      "title": "Routing checkpoint recovered and prepared for dev",
+      "body": "Routing checkpoint cdee135 configuration recovered as a reviewed port on prep/captain-routing-records-20261018@264f8204fcd0c76d346a9c6b54cfc396f2e90fd4 (v0.7.8). Signed merge-9b2f1d30-af99-45d7-8258-f743c699f5c9 READY revision 6, target dev@4102da5a3f06aad33d790305fe522b7680231ada unchanged. Seven actual CoreCLI/Git checks pass; original queue-hidden behavior deliberately reconciled with current human-owned config rules. LOW Build pass; installed Captain remains0.7.7. Preserve checkpoint, do not claim ancestry integration. Next Michael: authorize Merge Back; Captain keep same source/proof. Closeout .captain-sdlc/closeouts/captain-routing-records-prep-20261018.md.",
+      "status": "active",
+      "project": "",
+      "milestone": "",
+      "tags": [
+        "captain",
+        "routing",
+        "checkpoint-recovery",
+        "merge-prep"
+      ],
+      "links": [
+        ".captain-sdlc/closeouts/captain-routing-records-prep-20261018.md"
+      ],
+      "source": {
+        "agent": "captain"
+      },
+      "createdAt": "2026-10-19T03:23:24.801Z",
+      "updatedAt": "2026-10-19T03:23:24.801Z"
     }
   ]
 }
