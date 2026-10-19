@@ -11,8 +11,8 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 
 ## Tasks
 
-- **Captain revoke lookup verified; merge prep ready** (completed) — #captain #revoke-lookup #verified #merge-ready
-  Implementation proof e3eb604 (v0.7.9) complete/green retained. Merge Prep merge-a6dec029-4dc5-49df-aed2-bdb264f33f56 READY/LOW: checked source 56ecc81f37584686ff902aa5681b3430e3431c77 (v0.7.10), target dev a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3 unchanged; fresh build and whitespace passed, no conflicts. Repair normalized one CR byte plus mandatory version surfaces; authorization code/dependencies unchanged. Compiled public smoke at0.7.10 passed9outcomes; historical stdout hash restored. Next: Michael authorizes Merge Back. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md.
+- **Captain revoke lookup merged into dev** (completed) — #captain #revoke-lookup #verified #merged
+  Merged revoke lookup fix into dev through merge-a6dec029-4dc5-49df-aed2-bdb264f33f56 (merged revision10). Integrated aa04dc52a312c90f4c0a4ed53ce7e5d834eb01f4 (v0.7.10); checked LOW source 56ecc81f37584686ff902aa5681b3430e3431c77; original full feature proof e3eb604/v0.7.9 retained. Build/whitespace/public smoke passed at original revisions; Back reran none. Target records are finalized separately. Retained source intent81ba worktree clean; no merge blockers. Installed runtime remains0.7.7; global installation not performed. Closeout .captain-sdlc/closeouts/captain-revoke-lookup-20261018.md.
 
 ## Handoffs
 
@@ -23,4 +23,4 @@ Generated from the shared Captain Notes store. Do not edit by hand.
 
 ## Staleness findings
 
-- **plan_dir_missing** — E:\Personal\captain-sdlc\.captain-sdlc\worktrees\intent-81ba65c4-a914-4625-ba9b-8ab2d29b95e4\Assets\_Dirigible\Media\Documentation\Plan
+- **plan_dir_missing** — E:\Personal\captain-sdlc\Assets\_Dirigible\Media\Documentation\Plan

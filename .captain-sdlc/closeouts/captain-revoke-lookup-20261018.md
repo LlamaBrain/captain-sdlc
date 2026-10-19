@@ -1,6 +1,6 @@
 # Captain revoke lookup fix - 2026-10-18
 
-Status: implementation complete; Captain signed complete/green. Integration remains separate.
+Status: merged into dev at aa04dc52a312c90f4c0a4ed53ce7e5d834eb01f4 (v0.7.10). Original implementation proof remains complete/green at e3eb60466d08f236e4dca38fc333c74d667f8d71.
 
 Michael authorized: "Do the revoke lookup bug fix next." Bounded unbound bug-fix ticket; no retrospective plan binding or HITL checkpoint.
 
@@ -84,3 +84,15 @@ Evidence retention correction: the helper initially reused public-green.txt; its
 Build gate command SHA256 f0416e5352c659f2a9537645324c1b3ef7bcacbbef507bb84033f77478d18852; stdout SHA256 50bbcec6eecfa9bbf0810950c29d41720e811b370320f0361cadcc14d71e7e8c; stderr SHA256 01ec7fdbfd881a5be8fc24d766293b892ec710290c967b128f0cadd3b3c3270c. Local sanitized readiness receipt: E:/Personal/dirigible2D/Temp/automation-scratch/captain-revoke-lookup-20261018/merge-prep-ready.json.
 
 Record-only descendants are associated through the same signed merge operation without repeating this build. Next action: Michael may authorize Merge Back into dev. No Merge Back, push, release or global plugin installation was performed.
+
+## Merge Back - 2026-10-18
+
+Michael authorized "Merge back". The same signed operation merge-a6dec029-4dc5-49df-aed2-bdb264f33f56 completed as merged at revision 10, with a valid receipt at integration. Target dev fast-forwarded from a6ba6a1a92b93ccd6f4eb53dba2f85a17411e2d3 to aa04dc52a312c90f4c0a4ed53ce7e5d834eb01f4.
+
+The checked LOW source is 56ecc81f37584686ff902aa5681b3430e3431c77; the integrated source includes only its audited record descendant aa04dc52a312c90f4c0a4ed53ce7e5d834eb01f4. Prep build/whitespace and the focused compiled public smoke retain their original revisions. Merge Back did not rerun those checks, modify implementation proof or claim a full feature run at v0.7.10. Original complete/green feature proof remains at e3eb60466d08f236e4dca38fc333c74d667f8d71 (v0.7.9).
+
+The source worktree and branch are retained at the integrated head. Both source and target were clean immediately after integration. This closeout and notebook are finalized in a version-neutral target records commit after integration; that commit does not relabel runtime proof or reopen the completed merge.
+
+Local sanitized merge receipt: E:/Personal/dirigible2D/Temp/automation-scratch/captain-revoke-lookup-20261018/merge-back.json. Build command SHA256 f0416e5352c659f2a9537645324c1b3ef7bcacbbef507bb84033f77478d18852; retained build exit 0, stdout SHA256 50bbcec6eecfa9bbf0810950c29d41720e811b370320f0361cadcc14d71e7e8c.
+
+No remaining merge blocker or required action for this integration. Hosted CI, release publication and global plugin installation were not part of this Merge Back. Installed Captain remains 0.7.7. Retain the worktree and earlier stash/checkpoint records; no branch, worktree or retained data was deleted.
