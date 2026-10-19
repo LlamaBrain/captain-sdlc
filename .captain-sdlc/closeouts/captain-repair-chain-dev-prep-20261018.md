@@ -1,6 +1,6 @@
 # Captain repair chain - dev preparation
 
-Prepared the retained repair chain, including pending-work auditing and lifecycle/recovery fixes, against actual Captain dev. Signed Merge Prep is READY; target dev remains unchanged. This record is the canonical closeout for this preparation. Merge Back and hosted CI have not run.
+Prepared and merged the retained repair chain, including pending-work auditing and lifecycle/recovery fixes, into actual Captain dev. Signed Merge Back completed at 40cd24b2bf9834efb2cec21b45530d6eb226b4b2. This is the canonical closeout; the dated preparation evidence below remains at its original revisions. Hosted CI has not run.
 
 ## Revisions and authority
 
@@ -109,8 +109,14 @@ Each original blob is recoverable at 98b714a; every normalized file preserves no
 
 ## Next owner and action
 
-Michael selects Merge Back to dev when ready. Captain should consume this same signed READY receipt and source/target bindings, including its bookkeeping-only association, without repeating unchanged proof. Preserve target stash, reserved file, other branches, authority and archive records. No remaining preparation blocker is known.
+The authorized Merge Back is complete. No integration action remains for this repair chain. Preserve the target stash, reserved file, retained source worktree, other branches and authority. Historical checkpoint/archive retention and separate routing work remain human-selected follow-ups.
 
 ## Follow-ups for human review
 
 Historical checkpoint/archive retention and the separate routing configuration remain outside this integration. No new requirement was promoted into this preparation's gates.
+
+## Merge Back - 2026-10-18 America/Los_Angeles
+
+Michael instructed "Proceed" after the prepared result named Merge Back to dev as its next step. Captain consumed the same signed operation merge-332d72dd-5d62-4269-8a2c-ee2faddc46a8 and fast-forwarded actual dev from fea6a55bf1f0ba2d67de20283be3823915fa5470 to 40cd24b2bf9834efb2cec21b45530d6eb226b4b2. Signed revision 14 reports state=merged and receipt_valid=true for that exact integration. Both source and target were clean, their identities matched Prep, and the existing build gate array was retained unchanged; no test/build gate was repeated.
+
+The tested product revision remains f8aef3367dc655decf23f3d4facde0085640bdcc (0.7.7). The integrated revision includes its previously audited bookkeeping descendant. Installed Captain remains 0.7.7. This post-merge update and the completed notebook entry are finalized as a separate version-neutral bookkeeping commit on dev; that commit is not a new runtime test or a replacement integration receipt. Its exact OID is retained by the separate Captain finalization receipt. The historical Merge Back receipt remains evidence for the exact 40cd24b2 integration; a later current-head mismatch caused only by these records must not be represented as a failed merge. No push, hosted CI, new release, source-worktree deletion or target-stash restoration occurred.

@@ -91,14 +91,14 @@
     {
       "id": "captain-repair-chain-dev-20261018",
       "kind": "handoff",
-      "title": "Captain repair chain prepared for dev",
-      "body": "Signed Merge Prep READY for repair-chain source f8aef3367dc655decf23f3d4facde0085640bdcc (v0.7.7) into actual dev@fea6a55, target unchanged. Same merge merge-332d72dd-5d62-4269-8a2c-ee2faddc46a8. Focused14 tests+public merge smokes at functional0.7.6; fresh0.7.7 signedLOWBuild passed. Installed0.7.7. Closeout .captain-sdlc/closeouts/captain-repair-chain-dev-prep-20261018.md retains exact source/target, stash16files, CON fallback and normalization hashes. Next owner Michael: select Merge Back; Captain retain same operation and proof, no new worktree or broad rerun.",
-      "status": "active",
+      "title": "Captain repair chain merged into dev",
+      "body": "Merged repair chain into actual Captain dev: signed merge-332d72dd-5d62-4269-8a2c-ee2faddc46a8 revision 14 state=merged, receipt_valid=true at 40cd24b2bf9834efb2cec21b45530d6eb226b4b2 (v0.7.7); product proof remains f8aef3367dc655decf23f3d4facde0085640bdcc. Existing LOW Build evidence retained without rerun. Functional regression14/14 and both MCP merge smokes retain their 0.7.6 provenance. Installed0.7.7. Post-merge closeout/notebook are version-neutral records on dev, with separate finalization receipt. No integration action remains; preserve original target stash f5a0c0abdfa8846665885f047bc8746652e87322, CON backup and source worktree. Closeout .captain-sdlc/closeouts/captain-repair-chain-dev-prep-20261018.md.",
+      "status": "completed",
       "project": "",
       "milestone": "",
       "tags": [
         "captain",
-        "merge-prep",
+        "merge-back",
         "repair-chain"
       ],
       "links": [
@@ -108,7 +108,7 @@
         "agent": "captain"
       },
       "createdAt": "2026-10-19T02:55:00.395Z",
-      "updatedAt": "2026-10-19T02:55:00.395Z"
+      "updatedAt": "2026-10-19T02:59:34.426Z"
     }
   ]
 }
