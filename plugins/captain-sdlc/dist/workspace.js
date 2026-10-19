@@ -678,6 +678,26 @@ async function versionAt(worktree, hash, policy) { const values = []; for (const
         return null;
     }
 } return values.length > 0 && values.every(value => value === values[0]) ? values[0] : null; }
+/** Missing incoming metadata is valid only for a newly introduced component. */
+async function introducedVersionedComponent(worktree, parent, incoming, policy) {
+    const paths = [...new Set((policy.version_surfaces ?? []).map(surface => surface.path))];
+    if (!paths.length)
+        return false;
+    try {
+        const bases = splitLines(await git(["merge-base", "--all", parent, incoming], worktree));
+        if (!bases.length)
+            return false;
+        for (const revision of [incoming, ...bases]) {
+            // Any tracked entry, including a tree or symlink, is existing metadata.
+            if (await git(["ls-tree", "-z", revision, "--", ...paths], worktree))
+                return false;
+        }
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
 async function versionTransitionValid(worktree, parent, hash, subject, policy, incomingParent) {
     if (!(policy.require_version_suffix ?? true))
         return true;
@@ -695,12 +715,16 @@ async function versionTransitionValid(worktree, parent, hash, subject, policy, i
     // The imported canonical version can be newer than this retained task's first parent.
     if (incomingParent) {
         const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
-        if (!incomingValue)
-            return false;
-        const incoming = parseStrictSemVer(incomingValue);
-        if (incoming.major > before.major || (incoming.major === before.major &&
-            (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch))))
-            before = incoming;
+        if (!incomingValue) {
+            if (!await introducedVersionedComponent(worktree, parent, incomingParent, policy))
+                return false;
+        }
+        else {
+            const incoming = parseStrictSemVer(incomingValue);
+            if (incoming.major > before.major || (incoming.major === before.major &&
+                (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch))))
+                before = incoming;
+        }
     }
     if (parsedSubject[2])
         return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;

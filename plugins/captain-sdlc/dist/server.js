@@ -10855,6 +10855,20 @@ async function versionAt(worktree, hash8, policy) {
   }
   return values.length > 0 && values.every((value) => value === values[0]) ? values[0] : null;
 }
+async function introducedVersionedComponent(worktree, parent, incoming, policy) {
+  const paths = [...new Set((policy.version_surfaces ?? []).map((surface) => surface.path))];
+  if (!paths.length) return false;
+  try {
+    const bases = splitLines(await git(["merge-base", "--all", parent, incoming], worktree));
+    if (!bases.length) return false;
+    for (const revision of [incoming, ...bases]) {
+      if (await git(["ls-tree", "-z", revision, "--", ...paths], worktree)) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 async function versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
@@ -10865,9 +10879,12 @@ async function versionTransitionValid(worktree, parent, hash8, subject, policy, 
   let before = parseStrictSemVer(beforeValue);
   if (incomingParent) {
     const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
-    if (!incomingValue) return false;
-    const incoming = parseStrictSemVer(incomingValue);
-    if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
+    if (!incomingValue) {
+      if (!await introducedVersionedComponent(worktree, parent, incomingParent, policy)) return false;
+    } else {
+      const incoming = parseStrictSemVer(incomingValue);
+      if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
+    }
   }
   if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
@@ -27809,7 +27826,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.7.5" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.7.6" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

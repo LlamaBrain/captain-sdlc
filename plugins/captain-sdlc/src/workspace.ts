@@ -306,6 +306,20 @@ export async function bookkeepingHistoryValid(worktree: string, base: string, he
 function compilePattern(pattern: string) { const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern; return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern"); }
 async function versionSurfacesMatch(worktree: string, hash: string, subject: string, policy: CommitPolicy) { const surfaces = policy.version_surfaces ?? []; if (!surfaces.length) return !(policy.require_version_suffix ?? true); const expected = subjectVersion(subject); if (!expected) return false; for (const surface of surfaces) { try { const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))]; if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false; } catch { return false; } } return true; }
 async function versionAt(worktree: string, hash: string, policy: CommitPolicy) { const values: string[] = []; for (const surface of policy.version_surfaces ?? []) { try { const content = await boundedGitShow(worktree, `${hash}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? (matches[0].groups?.version ?? matches[0][1]) : undefined; if (!value || !parseStrictSemVer(value)) return null; values.push(value); } catch { return null; } } return values.length > 0 && values.every(value => value === values[0]) ? values[0] : null; }
+/** Missing incoming metadata is valid only for a newly introduced component. */
+async function introducedVersionedComponent(worktree: string, parent: string, incoming: string, policy: CommitPolicy): Promise<boolean> {
+  const paths = [...new Set((policy.version_surfaces ?? []).map(surface => surface.path))];
+  if (!paths.length) return false;
+  try {
+    const bases = splitLines(await git(["merge-base", "--all", parent, incoming], worktree));
+    if (!bases.length) return false;
+    for (const revision of [incoming, ...bases]) {
+      // Any tracked entry, including a tree or symlink, is existing metadata.
+      if (await git(["ls-tree", "-z", revision, "--", ...paths], worktree)) return false;
+    }
+    return true;
+  } catch { return false; }
+}
 async function versionTransitionValid(worktree: string, parent: string, hash: string, subject: string, policy: CommitPolicy, incomingParent?: string) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
@@ -321,10 +335,13 @@ async function versionTransitionValid(worktree: string, parent: string, hash: st
   // The imported canonical version can be newer than this retained task's first parent.
   if (incomingParent) {
     const incomingValue = canonical.length === 1 ? await versionAt(worktree, incomingParent, { ...policy, version_surfaces: canonical }) : null;
-    if (!incomingValue) return false;
-    const incoming = parseStrictSemVer(incomingValue)!;
-    if (incoming.major > before.major || (incoming.major === before.major &&
-        (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch)))) before = incoming;
+    if (!incomingValue) {
+      if (!await introducedVersionedComponent(worktree, parent, incomingParent, policy)) return false;
+    } else {
+      const incoming = parseStrictSemVer(incomingValue)!;
+      if (incoming.major > before.major || (incoming.major === before.major &&
+          (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch)))) before = incoming;
+    }
   }
   if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;

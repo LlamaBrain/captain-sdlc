@@ -27,7 +27,7 @@ async function writeVersion(root: string, version: string) {
   await writeFile(path.join(root, "CHANGELOG.md"), "# Changelog\n- Fixture (v" + version + ")\n");
 }
 
-async function fixture(t: TestContext, sourceVersion = "2.550.3", targetVersion = "2.610.4") {
+async function fixture(t: TestContext, sourceVersion = "2.550.3", targetVersion = "2.610.4", introduced = false) {
   const root = await mkdtemp(path.join(tmpdir(), "captain-merge-version-"));
   t.after(async () => {
     assert.equal(path.dirname(root), path.resolve(tmpdir()));
@@ -40,15 +40,18 @@ async function fixture(t: TestContext, sourceVersion = "2.550.3", targetVersion 
   await git(root, "config", "core.autocrlf", "false");
   await mkdir(path.join(root, ".captain-sdlc"));
   await writeFile(path.join(root, ".captain-sdlc/codex-policy.json"), JSON.stringify({ commit: policy }));
-  await writeVersion(root, "2.0.0");
+  if (introduced) await writeFile(path.join(root, "README.md"), "Unversioned repository\n");
+  else await writeVersion(root, "2.0.0");
   await git(root, "add", ".");
   await git(root, "commit", "-m", "fixture base");
   await git(root, "switch", "-c", "source");
   await writeVersion(root, sourceVersion);
+  await git(root, "add", "--", ...selected);
   await git(root, "commit", "-am", "fixture source version");
   const source = (await git(root, "rev-parse", "HEAD")).stdout.trim();
   await git(root, "switch", "-c", "target", "HEAD^");
-  await writeVersion(root, targetVersion);
+  if (introduced) await writeFile(path.join(root, "README.md"), "Unversioned target documentation\n");
+  else await writeVersion(root, targetVersion);
   await git(root, "commit", "-am", "fixture target version");
   const target = (await git(root, "rev-parse", "HEAD")).stdout.trim();
   await git(root, "switch", "source");
@@ -64,8 +67,8 @@ async function prepare(f: Awaited<ReturnType<typeof fixture>>) {
   return authenticated!;
 }
 
-function commit(root: string, version: string, prepared: PreparedMerge[] = []) {
-  return commitAtomic(root, selected, "fix(integration): reconcile target version (v" + version + ")", "Implements", "MERGE-VERSION", policy, prepared);
+function commit(root: string, version: string, prepared: PreparedMerge[] = [], additionalPaths: string[] = []) {
+  return commitAtomic(root, [...selected, ...additionalPaths], "fix(integration): reconcile target version (v" + version + ")", "Implements", "MERGE-VERSION", policy, prepared);
 }
 
 test("authenticated target-first merge bumps the higher target canonical VERSION", async t => {
@@ -140,5 +143,59 @@ test("ordinary commit cannot jump to an unrelated higher branch VERSION", async 
   const f = await fixture(t);
   await writeVersion(f.root, "2.610.5");
   await assert.rejects(() => commit(f.root, "2.610.5"), /preflight/);
+  assert.equal((await git(f.root, "rev-parse", "HEAD")).stdout.trim(), f.source);
+});
+
+async function prepareIntroduction(f: Awaited<ReturnType<typeof fixture>>) {
+  let authenticated: PreparedMerge | undefined;
+  await prepareMerge(f.root, f.target, "ort", async value => { authenticated = value; });
+  assert.deepEqual(authenticated, { preMergeHead: f.source, targetOid: f.target, strategy: "ort" });
+  assert.equal((await git(f.root, "rev-parse", "MERGE_HEAD")).stdout.trim(), f.target);
+  return authenticated!;
+}
+
+test("authenticated merge introducing a versioned component accepts an unversioned target", async t => {
+  const f = await fixture(t, "0.7.5", "unused", true), prepared = await prepareIntroduction(f);
+  await writeVersion(f.root, "0.7.6");
+  await commit(f.root, "0.7.6", [prepared], ["README.md"]);
+  assert.deepEqual((await git(f.root, "show", "-s", "--format=%P", "HEAD")).stdout.trim().split(" "), [f.source, f.target]);
+  const evidence = await commitEvidence(f.root, f.source, { commit: policy } as ProjectPolicy, "MERGE-VERSION", [prepared]);
+  assert.equal(evidence.phaseCommitsValid, true);
+  assert.equal(evidence.preparedMergesValid, true);
+  assert.equal(evidence.clean, true);
+});
+
+test("unversioned incoming target still requires authenticated merge parents", async t => {
+  const f = await fixture(t, "0.7.5", "unused", true);
+  await prepareIntroduction(f);
+  await writeVersion(f.root, "0.7.6");
+  await assert.rejects(() => commit(f.root, "0.7.6", [], ["README.md"]), /preflight/);
+  assert.equal((await git(f.root, "rev-parse", "HEAD")).stdout.trim(), f.source);
+});
+
+test("incoming target with partial version surfaces remains rejected", async t => {
+  const f = await fixture(t, "0.7.5", "unused", true);
+  await git(f.root, "switch", "target");
+  await writeFile(path.join(f.root, "ProjectSettings.asset"), "bundleVersion: 0.7.5\n");
+  await git(f.root, "add", "--", "ProjectSettings.asset");
+  await git(f.root, "commit", "-m", "fixture partial version metadata");
+  f.target = (await git(f.root, "rev-parse", "HEAD")).stdout.trim();
+  await git(f.root, "switch", "source");
+  const prepared = await prepareIntroduction(f);
+  await writeVersion(f.root, "0.7.6");
+  await assert.rejects(() => commit(f.root, "0.7.6", [prepared], ["README.md"]), /preflight/);
+  assert.equal((await git(f.root, "rev-parse", "HEAD")).stdout.trim(), f.source);
+});
+
+test("incoming target cannot erase an existing release baseline", async t => {
+  const f = await fixture(t);
+  await git(f.root, "switch", "target");
+  await git(f.root, "rm", "--", "VERSION", "ProjectSettings.asset");
+  await git(f.root, "commit", "-m", "fixture deleted release metadata");
+  f.target = (await git(f.root, "rev-parse", "HEAD")).stdout.trim();
+  await git(f.root, "switch", "source");
+  const prepared = await prepareIntroduction(f);
+  await writeVersion(f.root, "2.550.4");
+  await assert.rejects(() => commit(f.root, "2.550.4", [prepared]), /preflight/);
   assert.equal((await git(f.root, "rev-parse", "HEAD")).stdout.trim(), f.source);
 });

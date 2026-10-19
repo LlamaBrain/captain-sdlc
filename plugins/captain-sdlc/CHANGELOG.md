@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6
+- Permit authenticated target-first introduction into an unversioned target only when all configured metadata is absent there and in every common merge base; reject malformed, partial or deleted release metadata.
+- Reconcile dev governance, resumable task-capsule guidance and historical recovery records with the retained repair chain; preserve the worktree-location rule and original proof revisions.
+
 ## 0.7.5
 - Restore iconv-lite lock metadata to its existing 0.7.3 tarball and installed version; keep every dependency record identical to the integration target.
 
