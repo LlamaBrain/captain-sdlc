@@ -305,6 +305,3 @@ async function assertExpectedBinding(worktree: string, expected?: FinalizationOp
   if (expected && !samePath(actual.topLevel, expected.topLevel)) throw new Error("bookkeeping finalization expected worktree top-level binding changed");
   return actual;
 }
-
-
-

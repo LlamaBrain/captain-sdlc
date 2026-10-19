@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.7
+- Normalize inherited incoming line endings and trailing blank lines so the repair chain passes the unchanged dev integration whitespace gate; retain historical artifact contents and original Git blobs.
+
 ## 0.7.6
 - Permit authenticated target-first introduction into an unversioned target only when all configured metadata is absent there and in every common merge base; reject malformed, partial or deleted release metadata.
 - Reconcile dev governance, resumable task-capsule guidance and historical recovery records with the retained repair chain; preserve the worktree-location rule and original proof revisions.

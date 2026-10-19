@@ -69,4 +69,3 @@ Capability-free projection of the actual public results, compared against the sa
   }
 ]
 ```
-

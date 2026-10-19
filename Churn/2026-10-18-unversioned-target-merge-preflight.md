@@ -34,3 +34,7 @@ versionTransitionValid required a parseable canonical version on both actual mer
 ## Next action
 
 Captain: finish public MCP merge smoke, install the validated 0.7.6 runtime using standard plugin commands, and continue this same signed merge operation through readiness. Do not alter target dev or import the historical fail-open enforcement overlay. Integration and hosted CI remain distinct from LOW preparation.
+
+## Update - 2026-10-18
+
+Installed 0.7.6 through the standard plugin manager and authenticated all 40 public tools. Both public MCP merge smoke workflows passed. The same signed Prep committed 98b714a40d1121b626ea8bb9ca09174b8f9ad63c with exact parents 1483758eadaae663515d796c67d5cb25f6f24b76 and fea6a55bf1f0ba2d67de20283be3823915fa5470: the version-preflight defect is proven repaired. Prep then failed the existing incoming whitespace check before its Build gate. The 23 affected inherited files contain CRLF or trailing blank lines; normalization preserves line contents, JSON values, and original historical blobs at 98b714a. Patch 0.7.7 records that formatting repair. The target remains unchanged; focused tests and smokes retain their 0.7.6 code provenance.

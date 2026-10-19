@@ -305,4 +305,3 @@ test("public cancellation refuses an already progressed Begin without changing i
     await rm(fixture.fixtureRoot, { recursive: true, force: true });
   }
 });
-
