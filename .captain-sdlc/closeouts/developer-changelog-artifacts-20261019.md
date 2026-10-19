@@ -58,3 +58,7 @@ Implementation and focused verification are complete. Michael explicitly approve
 ## Recovery history
 
 The first Begin incorrectly requested dev as the implementation checkout; it failed before workspace creation. Automatic review initially rejected cancellation because the older diagnosis conflated unrelated terminal session projection with active state. The stronger public failed-Begin diagnosis verified an exact terminal pre-workspace reservation with no active attempt or footprint, and the public cancellation succeeded. Original intent-4bfc2e85-bb97-414e-8473-e0cdcee6a67a is cancelled. The corrected issued intent above created this single worktree; no dev ref or foreign work was changed.
+
+## Build metadata repair
+
+The authorized feature commit is e06a6e199525e1a8c7b6c9b297e1e86cc005d13c (v0.8.0). Its first final Build generated a one-line change in tracked dist/server.js (server version0.7.10 ->0.8.0); Captain refused source divergence and returned the same run to implement/red. No full green proof was claimed. The necessary same-task repair synchronizes all version surfaces and the rebuilt tracked bundle at0.8.1, with a matching dated KAC Fixed entry, then continues the same captured proof. Feature behavior and19-case focused evidence remain unchanged. No history rewrite, policy change, merge, push or installation.

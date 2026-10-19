@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-19
+
+### Fixed
+
+- Synchronize the tracked bundled Captain server version with source/package metadata so the development Build preserves the committed tree and final proof can proceed (v0.8.1).
+
 ## [0.8.0] - 2026-10-19
 
 ### Added
