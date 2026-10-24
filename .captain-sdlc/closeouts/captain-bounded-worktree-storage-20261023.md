@@ -1,98 +1,54 @@
-# Bounded worktree storage
+# Bounded worktree storage — completed
 
-Owner: Captain
-Task: `captain-bounded-worktree-storage-20261023`
-Intent: `intent-b9dc226b-8c76-4099-96b2-1bbcfc84d55d`
-Branch: `captain/intent-b9dc226b-8c76-4099-96b2-1bbcfc84d55d`
-Base: `e0d0088634fa2547a396b8f1942218a474eb7262` (`dev`)
+Date: 2026-10-23. Owner: Captain. Task: `captain-bounded-worktree-storage-20261023`.
+Status: implementation verified, local Merge Back complete, plugin and worktree skill installed. Public PR #10 is ready for review; no public dev update or PR merge was requested or performed.
 
-Michael authorized future storage prevention across Unity and non-Unity projects.
-He will handle existing worktrees himself. Existing unregistered worktrees are
-excluded from automatic adoption and deletion. The task has no selected frozen
-plan or HITL gate; its original feature-profile checks remain captured in Captain.
+## Delivered behavior
 
-## Authorized criteria and implementation
+- New Captain worktrees are registered under the validated primary repository container, with exact signed creation and chain identities. Existing worktrees are never retroactively adopted for deletion.
+- Builds reuse declared generated output slots. Producer cleanup preserves tracked files and rejects unsafe roots, links, nested repositories and worktree overlap. Ordinary projects use one signed fixed slot through the installed storage CLI.
+- Successful Merge Back retires eligible newly registered, fully merged worktree chains. Active, dirty, unmerged, locked, uncertain and unregistered checkouts remain protected, with visible retention reasons. Branch refs remain intact.
+- Compact evidence is retained outside removed checkouts, bounded to 16 MiB, 2048 files and 4096 directories per checkout/revision. Exact journals and authenticated archives support safe retry and historical status.
+- Ordinary Git projects, including non-Unity projects such as game-assist, use the installed create/resume/prepare-output/cleanup helper and updated global worktree guidance.
 
-- C1: Keep one replaceable build attempt in stable generated output roots per
-  worktree. New policies capture trusted roots, clear disposable output before
-  producers, preserve tracked files, and reject report-only unbounded payloads.
-  Ordinary projects use an immutable fixed build slot. Visual file slots remain
-  files; dotted framework output directories remain directories.
-- C2: Prevent nested worktree creation by resolving the canonical container from
-  the validated primary repository while retaining signed invocation identity.
-- C3: Clean eligible completed worktrees in a recorded chain after integration.
-  Creation journals and exact parent/merged edges establish membership; source
-  HEADs must be integrated. Branch refs remain available for recovery.
-- C4: Preserve active tasks, unfinished Begin/completion authority, dirty files,
-  unknown ignored user data, Git operations/locks, nested repositories, external
-  reparse targets, foreign leases, and replacement checkout identities.
-- C5: Retain bounded compact proof and task handoffs outside deleted checkouts;
-  validate archives for historical status and exact interrupted cleanup recovery.
-- C6: Apply the ordinary helper and guidance to unenrolled projects such as
-  game-assist, with active/resumed branch reservations and visible retention exit 2.
+## Verification and exact revisions
 
-## Verification
+Original signed implementation intent: `intent-b9dc226b-8c76-4099-96b2-1bbcfc84d55d`.
+Run: `codex-38b08db8-7532-4399-a4ed-9957d410e942`.
+Signed revision 18 is complete/green at `f88cce3e9ea58a69bfd58fae29b15536e68e4ee5`: build, all 762 tests, public MCP smoke (including storage and ordinary CLI), and typecheck passed. That proof remains bound to its actual revision.
 
-Tests reproduced the missing behavior before implementation. Captain recorded the
-trusted red gate (exit 1) and advanced to implement/running at revision 2 after its
-long-running command completed; the MCP caller's five-minute timeout did not
-cancel the underlying suite. No red receipt was fabricated.
+Integration head: `28a1de586abfc0777085eb1e02ac9c0ce3b5b584`, version 0.9.3.
+Subsequent CI-only repairs corrected a native-path fixture, canonical hosted-runner temporary roots, runtime variable scope and unpublished historical log references. Storage logic was unchanged.
 
-Focused artifact, creation/continuity, ordinary CLI, chain integration and deletion
-safety checks passed, including real Windows junction behavior, absent optional
-LOW reports, required missing/corrupt reports, custom proof directories, pending
-Git operations, held completion authority and interrupted removal/lease recovery.
-Typecheck and public MCP lifecycle/merge smoke checks passed. A new storage smoke
-also passed against the built runtime through actual public MCP and CLI commands.
-All new temporary smoke repositories were removed after verification.
+- [Plugin CI](https://github.com/LlamaBrain/captain-sdlc/actions/runs/40063889231): Windows 762/762 passed; Linux 761 passed, one platform-specific skip, zero failures. Both runners passed typecheck, public MCP/storage/ordinary CLI smokes and merge smokes.
+- [Documentation CI](https://github.com/LlamaBrain/captain-sdlc/actions/runs/40063889315): link check passed.
+- Windows test execution took 1,789,685 ms (about 29.8 minutes); it completed successfully. The local 759-test precommit run had 70.1 summed minutes of individual test durations and 18.3 elapsed minutes on 16 available processors. Windows process-ownership probes launch PowerShell, whereas Linux reads procfs; this and lower hosted-runner parallelism explain likely overhead, without claiming a measured per-probe CI profile.
+- Installed runtime verification passed: 12 critical runtime/helper/skill files matched the integrated primary source, public MCP advertised 0.9.3 and retained the original signed green proof, and the CLI loaded without development dependencies.
+- Installed storage skill and updated global worktree skill passed skill validation. No separate lint command is defined; TypeScript checking passed.
 
-Pre-commit broad regression result: 759/759 passed. The latest affected cleanup,
-ordinary CLI and chain cases passed 33/33 after the final safety refinements.
-Artifact/output checks passed 16/16; creation/continuity checks passed 9/9.
-The first full run passed 751/755; three new checks used the pre-repair optional
-artifact logic, and one required a clearer leased-owner reason. Their causes were
-repaired and focused checks passed. A final full run is in progress against the
-frozen final source. Final runtime rebuild, typecheck and public merge smoke pass;
-the full final smoke also includes the new storage MCP/ordinary CLI exercise.
-Automatic approval review rejected expanding the default deletion names to generic
-`target`/`output`/`publish` directories. The implemented alternative reads exact
-output roots from signed captured policy or the ordinary signed output slot and
-preserves unclassified siblings. No rejected default expansion was applied.
-Focused regressions also preserve leading-whitespace filenames without aliasing a
-generated directory. These last safety refinements are covered by a new focused
-run; final signed proof will rerun all checks at the committed final revision.
-The strengthened public storage smoke also passed: captured `out/active` ownership
-allowed cleanup, while an unclassified sibling caused integration to succeed with
-the checkout preserved; same-operation retry succeeded after fixture-owned data
-was explicitly disposed. New smoke fixture repositories were removed afterward.
-CI: workflow added for Node 24 on Windows and Linux; no push or CI result claimed.
-Implementation commit: `345b60038b4f2d25b0b625fd52e8273864ca09b5` (v0.9.0),
-recorded through Captain as the intermediate feature phase. The dated developer
-fragment preserves that source and the pinned dev target. Signed complete/green
-proof, integration and installed rollout are separate pending operations.
-Existing installed plugin and
-global worktree skill remain unchanged while this task is prepared.
+## Local integration
 
-## Next action
+Signed merge: `merge-e99ee4cc-e0e7-4ee9-b74f-14e8ad5081e1`.
+Source: `captain/intent-b9dc226b-8c76-4099-96b2-1bbcfc84d55d` in the original task checkout.
+Target: primary `E:/Personal/captain-sdlc`, branch `dev`, pinned from `e0d0088634fa2547a396b8f1942218a474eb7262`.
+Fresh signed Merge Prep passed its captured LOW build gate at 28a1de5. Merge Back then returned `merged` with a valid receipt and fast-forwarded local dev to that exact head. This subsequent closeout is supported record-only bookkeeping; it does not manufacture new runtime proof.
 
-Michael explicitly approved the exact prepared v0.9.0 commit, Merge Back to dev,
-and local plugin/worktree-skill installation, conditional on the final checks
-passing. Do not request the same authorization again. The proposal includes
-necessary project changelog finalization; it does not independently grant a tag
-or release publication.
+## Installed rollout
 
-The approved implementation commit and collection/archive are complete. Retain the
-archive and synchronized metadata through the authorized docs patch commit
-(v0.9.1) with `final:true`, then run Captain proof once at that final revision.
-Continue signed Merge Prep/Back to dev and local install.
-Apply the prepared narrow global worktree skill update only after the installed
-storage helper is present and the original skill hash still matches. Continue
-this same task and worktree across any handoff.
+Captain is installed and enabled at `C:/Users/metag/.codex/plugins/cache/personal/captain-sdlc/0.9.3`.
+The personal marketplace now points to durable primary `E:/Personal/captain-sdlc`, replacing its old worktree source through the supported CLI remove/add sequence. Other marketplace registrations and old worktrees were preserved.
 
-## Signed proof and integration verification
+Global worktree skill: `C:/Users/metag/.codex/skills/worktree/SKILL.md`.
+Installed SHA-256: `904c1452c4515647af3aae2b6e979ffcc6ec966d2a028675a1b547ef0688703f`.
+The original SHA was checked before atomic replacement. Exact backup and rollout manifest are retained locally under `.captain-sdlc/evidence/storage-rollout/captain-bounded-worktree-storage-20261023/`.
 
-The original implementation run completed green at f88cce3e9ea58a69bfd58fae29b15536e68e4ee5, revision 18. Build, all 762 tests, public MCP smoke (including storage and ordinary CLI) and typecheck passed. The implementation proof remains bound to that revision.
+## Authorization and preserved boundaries
 
-PR #10 exposed verification infrastructure failures: the existing boundary fixture used Windows drive paths on Linux; the Windows hosted runner TEMP used an 8.3 alias inconsistent with canonical Git identity; and a historical Churn record linked 11 ignored local logs. The authorized integration repair uses native fixture paths, canonical runner.temp variables, and text references for unpublished historical logs. Storage logic and captured implementation criteria are unchanged. Version 0.9.2 synchronizes the repair metadata. Focused checks, CI and fresh Merge Prep must verify the actual integration head before Back and installation.
+Michael approved the prepared commit, local dev integration and installation after checks passed, then public publication and PR creation. The initial named-commit publication approvals and the later CI-completion scope resolved the automatic review publication rejections. No approval remains pending.
 
-GitHub dev remains six earlier local-dev commits behind the selected local target. The draft PR explicitly identifies that baseline; public dev integration is not performed. Existing worktrees remain excluded from cleanup.
+[PR #10](https://github.com/LlamaBrain/captain-sdlc/pull/10) is ready for review with green checks at 28a1de5. It explicitly explains that GitHub dev was six earlier local-dev commits behind this task's local baseline. Public dev and the public PR were not merged by this task.
+
+No existing worktrees were cleaned. This task checkout predates the new registry and remains unregistered and retained, as requested. New automatic cleanup never fabricates registration for old checkouts. No broad sweep, forced removal or branch deletion was performed.
+
+No required work remains for the authorized local integration and rollout.
+
