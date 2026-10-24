@@ -66,8 +66,11 @@ allowed cleanup, while an unclassified sibling caused integration to succeed wit
 the checkout preserved; same-operation retry succeeded after fixture-owned data
 was explicitly disposed. New smoke fixture repositories were removed afterward.
 CI: workflow added for Node 24 on Windows and Linux; no push or CI result claimed.
-Implementation commit, signed complete/green proof, integration and installed
-runtime rollout are separate pending operations. Existing installed plugin and
+Implementation commit: `345b60038b4f2d25b0b625fd52e8273864ca09b5` (v0.9.0),
+recorded through Captain as the intermediate feature phase. The dated developer
+fragment preserves that source and the pinned dev target. Signed complete/green
+proof, integration and installed rollout are separate pending operations.
+Existing installed plugin and
 global worktree skill remain unchanged while this task is prepared.
 
 ## Next action
@@ -78,11 +81,10 @@ passing. Do not request the same authorization again. The proposal includes
 necessary project changelog finalization; it does not independently grant a tag
 or release publication.
 
-After final checks pass, create the approved implementation commit with
-`captain_commit(final:false)`. The required merge changelog archive must cite the
-committed source OID, so collect/archive it next, retain it through a normal
-versioned docs patch commit (v0.9.1) with `final:true`, then run Captain proof once
-at that final revision. Continue signed Merge Prep/Back to dev and local install.
+The approved implementation commit and collection/archive are complete. Retain the
+archive and synchronized metadata through the authorized docs patch commit
+(v0.9.1) with `final:true`, then run Captain proof once at that final revision.
+Continue signed Merge Prep/Back to dev and local install.
 Apply the prepared narrow global worktree skill update only after the installed
 storage helper is present and the original skill hash still matches. Continue
 this same task and worktree across any handoff.

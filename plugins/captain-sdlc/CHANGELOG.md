@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-23
+
+### Changed
+
+- Retain the bounded worktree storage developer fragment with the committed feature revision and pinned dev target before signed Merge Back (v0.9.1).
+
 ## [0.9.0] - 2026-10-23
 
 ### Added
