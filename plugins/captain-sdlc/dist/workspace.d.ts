@@ -13,13 +13,19 @@ export type PreparedCommitCore = {
 };
 export declare const gateRunner: GateRunner;
 export declare function git(args: string[], cwd: string): Promise<string>;
+/** Preserve exact path bytes for NUL-delimited Git output. */
+export declare function gitRaw(args: string[], cwd: string): Promise<string>;
 export declare function loadPolicy(projectRoot: string, baseHead: string, planPaths?: string[], hitlChecks?: HitlCheck[]): Promise<ProjectPolicy>;
+/** Resolve the registered primary checkout, validating it against Git's common directory. */
+export declare function primaryRepositoryRoot(projectRoot: string, expectedCommonGitDir?: string): Promise<string>;
 export declare function repositoryIdentity(projectRoot: string, targetBranch?: string, targetOid?: string): Promise<{
     projectRoot: string;
     baseHead: string;
     commonGitDir: string;
+    primaryProjectRoot?: string;
+    invocationWorktree?: string;
 }>;
-export declare function ensureWorktree(projectRoot: string, baseHead: string, intentId: string, targetBranch?: string, expectedCommonGitDir?: string): Promise<{
+export declare function ensureWorktree(projectRoot: string, baseHead: string, intentId: string, targetBranch?: string, expectedCommonGitDir?: string, storageDataRoot?: string, invocationWorktree?: string): Promise<{
     projectRoot: string;
     worktreePath: string;
     baseHead: string;
@@ -27,6 +33,7 @@ export declare function ensureWorktree(projectRoot: string, baseHead: string, in
     branch: string;
     commonGitDir: string;
     gitDir: string;
+    primaryProjectRoot?: string;
 }>;
 export declare function commitEvidence(worktree: string, baseHead: string, policy?: ProjectPolicy, taskId?: string, preparedMerges?: PreparedMerge[], previousPhaseHead?: string): Promise<{
     preparedMergesValid: boolean;

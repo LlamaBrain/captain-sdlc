@@ -12,6 +12,7 @@ import { bookkeepingCaptured, bookkeepingSubjectAllowed, type BookkeepingPolicy 
 import { recordUserAuthorizations, userAuthorizationStatus, type AuthorizationQuery } from "./user-authorization.js";
 import { recordUserRequest, userRequestStatus, type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
 import { readUserRequestSource, type UserRequestSourceQuery } from "./user-request-source.js";
+import { prepareScopeOutputs, type OutputRetention } from "./output-retention.js";
 export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = { exitCode: number; stdout: string; stderr: string };
 export type GateRunner = (command: string, cwd: string) => Promise<GateResult>;
@@ -27,7 +28,7 @@ export type CommitPolicy = { conventional?: boolean; require_version_suffix?: bo
 export type HitlCheck = { id: string; criterionId: string; setup: string; action: string; expected: string; evidence: string };
 export type HitlFeedbackInput = { decision: "accept" | "needs_changes"; humanFeedback: string; checkIds: string[]; evidenceReferences: string[]; reviewedRevision?: string };
 export type HitlFeedback = HitlFeedbackInput & { kind: "hitl_feedback"; recordedAt: string; recordedSource: SourceState };
-export type ProjectPolicy = { hitlChecks?: HitlCheck[]; approvedPlans?: Array<{ path: string; sha256: string }>; profile: Profile; profiles?: Profile[]; visualRequired: boolean; commands: Record<string, string>; artifactPaths?: Record<string, string>; redGate?: { expectedExitCodes: number[]; outputPattern: string }; commitPolicyPath?: string; commitPolicySha256?: string; commit?: CommitPolicy; sourceManifestExcludes?: string[]; sourceManifestRootFileExcludes?: string[] };
+export type ProjectPolicy = { hitlChecks?: HitlCheck[]; approvedPlans?: Array<{ path: string; sha256: string }>; profile: Profile; profiles?: Profile[]; visualRequired: boolean; commands: Record<string, string>; artifactPaths?: Record<string, string>; outputRetention?: OutputRetention; redGate?: { expectedExitCodes: number[]; outputPattern: string }; commitPolicyPath?: string; commitPolicySha256?: string; commit?: CommitPolicy; sourceManifestExcludes?: string[]; sourceManifestRootFileExcludes?: string[] };
 export type Intent = { issuedAt?: string; intentId: string; sessionId: string; turnId: string; projectRoot: string; prompt: string; requestedProfile?: Profile; capability?: string; consumed?: boolean; resumeOf?: string; targetBranch?: string; targetOid?: string };
 export type BeginOperation = { schemaVersion: 1; intentId: string; operationToken: string; leaseToken: string; runId: string; startedAt: string; sessionId: string; turnId: string; projectRoot: string; objective: string; taskId?: string; targetBranch?: string; targetOid?: string };
 export type BeginRepository = { schemaVersion: 1; operationToken: string; projectRoot: string; baseHead: string; commonGitDir: string; policySha256: string };
@@ -333,9 +334,14 @@ export class LifecycleStore {
     if (Boolean(operation.targetBranch) !== Boolean(lease) || (lease && lease.leaseToken !== operation.leaseToken)) throw new Error("target lease checkpoint does not match the signed begin reservation");
     return putAuthorizedOnceExact(this.dataRoot, "begin-leases", operation.operationToken, value);
   }
-  async checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken">): Promise<BeginWorkspace> {
-    await this.assertBeginOperation(operation); const value: BeginWorkspace = { schemaVersion: 1, operationToken: operation.operationToken, ...workspace, projectRoot: path.resolve(workspace.projectRoot), worktreePath: path.resolve(workspace.worktreePath), commonGitDir: path.resolve(workspace.commonGitDir), gitDir: path.resolve(workspace.gitDir) };
-    const canonical = path.join(operation.projectRoot, ".captain-sdlc", "worktrees") + path.sep; if (!value.worktreePath.startsWith(canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || (operation.targetBranch && value.branch !== operation.targetBranch)) throw new Error("workspace checkpoint does not match the signed begin reservation");
+  async checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken"> & { primaryProjectRoot?: string }): Promise<BeginWorkspace> {
+    await this.assertBeginOperation(operation);
+    const { primaryProjectRoot, ...ownedWorkspace } = workspace;
+    const value: BeginWorkspace = { schemaVersion: 1, operationToken: operation.operationToken, ...ownedWorkspace, projectRoot: path.resolve(workspace.projectRoot), worktreePath: path.resolve(workspace.worktreePath), commonGitDir: path.resolve(workspace.commonGitDir), gitDir: path.resolve(workspace.gitDir) };
+    const primary = primaryProjectRoot === undefined ? operation.projectRoot : await (await import("./workspace.js")).primaryRepositoryRoot(operation.projectRoot, value.commonGitDir);
+    if (primaryProjectRoot !== undefined && !samePath(primary, primaryProjectRoot)) throw new Error("workspace primary root differs from the registered Git repository");
+    const canonical = path.join(primary, ".captain-sdlc", "worktrees");
+    if (!samePath(path.dirname(value.worktreePath), canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || (operation.targetBranch && value.branch !== operation.targetBranch)) throw new Error("workspace checkpoint does not match the signed begin reservation");
     return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
   }
   async checkpointBeginRun(operation: BeginOperation, policy: ProjectPolicy): Promise<Run> {
@@ -552,6 +558,7 @@ export class LifecycleStore {
     if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
     if (!configured || (command && command !== configured)) throw new Error("red test must use the trusted ticket command");
     const selected = taskTicketCommand(run, "ticket", ticketFilter);
+    await prepareScopeOutputs(run.worktreePath, run.policy, "ticket");
     const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate; if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
     if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}\n${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
     return this.update({ ...run, ...(selected.binding ? { taskTicket: selected.binding } : {}), phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(selected.command), ...(selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
@@ -807,7 +814,9 @@ export class LifecycleStore {
     if (run.preparedCommit) throw new Error("prepared commit recovery must complete before iteration checks");
     const command = run.policy.commands[scope]; if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope)) throw new Error("iteration check must be a trusted implementation scope");
     const selected = taskTicketCommand(run, scope, ticketFilter);
-    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run)); const result = await this.runner(selected.command, run.worktreePath); if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    await prepareScopeOutputs(run.worktreePath, run.policy, scope);
+    const result = await this.runner(selected.command, run.worktreePath); if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
     return this.update({ ...run, ...(selected.binding && (run.taskTicket || result.exitCode === 0) ? { taskTicket: selected.binding } : {}), evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest(selected.command), ...(selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}), exitCode: result.exitCode }] });
   }
   async prove(intentId: string): Promise<Run> {
@@ -846,7 +855,7 @@ export class LifecycleStore {
     for (const [scope, role] of Object.entries(bindings)) if (scopes.includes(scope)) { const relative = run.policy.artifactPaths?.[role]; if (!relative) throw new Error(`${role} artifact is required by trusted policy`); before[role] = await optionalHash(run.worktreePath, relative); }
     const proof = [];
     const artifacts: Record<string, unknown> = {};
-    for (const scope of scopes) { const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath); proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode }); if (result.exitCode !== 0) { await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] }); throw new Error(`${scope} proof failed; run returned to implement for repair`); } await this.assertCommitted(run, repairFence); const role = bindings[scope]; if (role) { const relative = run.policy.artifactPaths![role]; const absolute = await safeArtifact(run.worktreePath, relative); const after = await hashPath(absolute); if (role === "visual") await assertImage(absolute); artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope }; } }
+    for (const scope of scopes) { const command = run.policy.commands[scope]; await prepareScopeOutputs(run.worktreePath, run.policy, scope); const result = await this.runner(command, run.worktreePath); proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode }); if (result.exitCode !== 0) { await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] }); throw new Error(`${scope} proof failed; run returned to implement for repair`); } await this.assertCommitted(run, repairFence); const role = bindings[scope]; if (role) { const relative = run.policy.artifactPaths![role]; const absolute = await safeArtifact(run.worktreePath, relative); const after = await hashPath(absolute); if (role === "visual") await assertImage(absolute); artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope }; } }
     for (const [role, item] of Object.entries(artifacts) as Array<[string, any]>) { const finalHash = await hashPath(await safeArtifact(run.worktreePath, item.path)); if (finalHash !== item.sha256) throw new Error(`${role} artifact changed after its producing proof command`); }
     const awaitsReview = Boolean(run.policy.hitlChecks?.length);
     const completed = await this.update({ ...run, phase: awaitsReview ? "hitl" : "complete", status: awaitsReview ? "running" : "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }, { kind: "proof_passed", head: run.committedState.head, tree: run.committedState.tree }] });
@@ -895,7 +904,23 @@ export class LifecycleStore {
     const review: HitlFeedback = { ...normalized, kind: "hitl_feedback", recordedAt: new Date().toISOString(), recordedSource };
     return this.update({ ...run, evidence: [...run.evidence, review] });
   }
-  async status(intentId: string): Promise<Run> { const run = await this.run(intentId); await this.reconcileRunProjections(run); return { ...run, user_request: await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId }) }; }
+  async status(intentId: string): Promise<Run> {
+    const run = await this.run(intentId); await this.reconcileRunProjections(run);
+    let lookupRoot = run.projectRoot;
+    if (run.phase === "complete" && run.status === "green") {
+      let missing = false;
+      try { await lstat(run.projectRoot); } catch (error: any) { if (error.code !== "ENOENT") throw error; missing = true; }
+      if (missing) {
+        const { readWorktreeRegistration } = await import("./worktree-storage.js"), registration = await readWorktreeRegistration(this.dataRoot, run.commonGitDir, run.worktreePath);
+        if (registration) {
+          if (!samePath(registration.worktree_path, run.worktreePath) || !samePath(registration.common_git_dir, run.commonGitDir) || !samePath(registration.git_dir, run.gitDir) || registration.branch !== run.branch) throw new Error("terminal worktree registration differs from its signed run");
+          lookupRoot = await (await import("./workspace.js")).primaryRepositoryRoot(registration.project_root, run.commonGitDir);
+          if (!samePath(lookupRoot, registration.project_root)) throw new Error("terminal worktree registration primary root diverged");
+        }
+      }
+    }
+    return { ...run, user_request: await this.userRequests({ projectRoot: lookupRoot, intentId: run.intentId }) };
+  }
   async acquireTargetLease(intentId: string, commonGitDir: string, targetBranch: string, targetOid: string) { const leaseId = digest(`${path.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path.resolve(commonGitDir), targetBranch, targetOid }; try { await acquireAuthorizedLease(this.dataRoot, leaseId, payload); return { leaseId, leaseToken }; } catch (error) { if (!String((error as Error).message).includes("already leased")) throw error; const lease = await readAuthorizedLease<{ intentId: string; leaseToken: string }>(this.dataRoot, leaseId); let prior: Run; try { prior = await this.run(lease.intentId); } catch { throw error; } if (prior.phase !== "complete" || prior.status !== "green") throw error; await this.releaseTargetLease(leaseId, lease.intentId, lease.leaseToken); await acquireAuthorizedLease(this.dataRoot, leaseId, payload); return { leaseId, leaseToken }; } }
   private safePlanPath(run: Run, relative: string) { const normalized = relative.replaceAll("\\", "/"); if (!normalized.endsWith(".md") || normalized.startsWith("/") || normalized.split("/").some(part => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`); const file = path.resolve(run.worktreePath, normalized), inside = path.relative(run.worktreePath, file); if (inside.startsWith("..") || path.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`); return normalized; }
   private async projectPlanState(run: Run, relative: string, state: { status: "in-progress" | "paused" | "blocked" | "redirected" | "complete"; phase: string; handoff: string; blocker: string; next: string[] }) { if (this.isFrozenPlan(run, relative)) return false; const normalized = this.safePlanPath(run, relative), file = path.resolve(run.worktreePath, normalized), original = await readFile(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original); if (!match) return false; const line = match[1], single = (value: string) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${new Date().toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`; await writeFile(file, `${original.slice(0, match.index)}${block}${original.slice(match.index! + match[0].length)}`, "utf8"); return true; }

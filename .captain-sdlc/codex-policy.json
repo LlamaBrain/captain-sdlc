@@ -16,6 +16,13 @@
     "build": "plugins/captain-sdlc/dist",
     "smoke": "plugins/captain-sdlc/.captain-proof/smoke.json"
   },
+  "outputRetention": {
+    "schema_version": 1,
+    "roots": {
+      "build": ["plugins/captain-sdlc/dist"],
+      "feature-smoke": ["plugins/captain-sdlc/.captain-proof"]
+    }
+  },
   "redGate": {
     "expectedExitCodes": [
       1

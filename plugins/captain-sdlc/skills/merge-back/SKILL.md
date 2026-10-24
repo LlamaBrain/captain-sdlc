@@ -5,6 +5,18 @@ description: Merge a prepared task worktree back into its authorized target usin
 
 # Merge Back
 
+## Developer changelog retention
+
+The [changelog skill](../changelog/SKILL.md) retains the worktree's developer-facing
+`changes.md` under a dated subject-named path in `changelog/changes/`. Prepare and
+commit that archive in the owned source before final Prep readiness; Back brings
+it into the target through the same signed fast-forward. Do not write a new target
+commit or alter a prepared head behind the readiness receipt. If an archive is
+requested after readiness, use eligible supported record finalization or return to
+Prep with the normal source commit. Preserve historical source OIDs, original proof
+and existing captured criteria. Never delete a foreign root draft to make Back
+clean. Archive retention does not compose or publish a release automatically.
+
 Merge Finish (`merge finish` or `merge-finish`) is an alias for this workflow.
 `captain_merge_finish` and `captain_merge_back` accept the same arguments and share
 the same operation and `merge_id`, including integration authorization and saved proof.
@@ -56,7 +68,15 @@ silently adopt another session's operation. After repaired Prep returns valid re
 the already-authorized Back without another human instruction. Report the resulting target revision
 and signed merge status separately from implementation `complete/green`, plan acceptance and
 release proof.
-Keep the source worktree; Back does not implicitly authorize push, publication or deletion.
+For newly registered worktrees, Back automatically cleans up eligible completed
+members of the recorded worktree chain. Read its `cleanup` result and report each
+removed checkout or retained path with its reason. Preserve unfinished tasks,
+dirty work, locks and active ownership; a successful integration with retained
+worktrees has an outstanding cleanup result. Do not force removal or sweep legacy
+worktrees. Compact proof archives and signed historical receipts survive removal.
+For ordinary projects without runtime enrollment, use the
+[worktree storage skill](../worktree-storage/SKILL.md) after the completed,
+authorized normal merge. Back does not implicitly authorize push or publication.
 
 For a legacy target reservation with no discoverable owning run/merge, use
 `captain_branch_lease_diagnose` with the exact project root, target checkout,

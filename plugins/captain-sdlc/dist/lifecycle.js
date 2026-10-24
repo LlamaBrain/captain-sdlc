@@ -9,6 +9,7 @@ import { bookkeepingCaptured, bookkeepingSubjectAllowed } from "./bookkeeping.js
 import { recordUserAuthorizations, userAuthorizationStatus } from "./user-authorization.js";
 import { recordUserRequest, userRequestStatus } from "./user-request.js";
 import { readUserRequestSource } from "./user-request-source.js";
+import { prepareScopeOutputs } from "./output-retention.js";
 class ProofSourceDivergenceError extends Error {
     fence;
     constructor(fence) {
@@ -432,9 +433,13 @@ export class LifecycleStore {
     }
     async checkpointBeginWorkspace(operation, workspace) {
         await this.assertBeginOperation(operation);
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...workspace, projectRoot: path.resolve(workspace.projectRoot), worktreePath: path.resolve(workspace.worktreePath), commonGitDir: path.resolve(workspace.commonGitDir), gitDir: path.resolve(workspace.gitDir) };
-        const canonical = path.join(operation.projectRoot, ".captain-sdlc", "worktrees") + path.sep;
-        if (!value.worktreePath.startsWith(canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || (operation.targetBranch && value.branch !== operation.targetBranch))
+        const { primaryProjectRoot, ...ownedWorkspace } = workspace;
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...ownedWorkspace, projectRoot: path.resolve(workspace.projectRoot), worktreePath: path.resolve(workspace.worktreePath), commonGitDir: path.resolve(workspace.commonGitDir), gitDir: path.resolve(workspace.gitDir) };
+        const primary = primaryProjectRoot === undefined ? operation.projectRoot : await (await import("./workspace.js")).primaryRepositoryRoot(operation.projectRoot, value.commonGitDir);
+        if (primaryProjectRoot !== undefined && !samePath(primary, primaryProjectRoot))
+            throw new Error("workspace primary root differs from the registered Git repository");
+        const canonical = path.join(primary, ".captain-sdlc", "worktrees");
+        if (!samePath(path.dirname(value.worktreePath), canonical) || !samePath(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || (operation.targetBranch && value.branch !== operation.targetBranch))
             throw new Error("workspace checkpoint does not match the signed begin reservation");
         return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
     }
@@ -810,6 +815,7 @@ export class LifecycleStore {
         if (!configured || (command && command !== configured))
             throw new Error("red test must use the trusted ticket command");
         const selected = taskTicketCommand(run, "ticket", ticketFilter);
+        await prepareScopeOutputs(run.worktreePath, run.policy, "ticket");
         const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate;
         if (this.probe)
             this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
@@ -1252,6 +1258,7 @@ export class LifecycleStore {
         const selected = taskTicketCommand(run, scope, ticketFilter);
         if (this.probe)
             this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+        await prepareScopeOutputs(run.worktreePath, run.policy, scope);
         const result = await this.runner(selected.command, run.worktreePath);
         if (this.probe)
             this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
@@ -1314,7 +1321,9 @@ export class LifecycleStore {
         const proof = [];
         const artifacts = {};
         for (const scope of scopes) {
-            const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath);
+            const command = run.policy.commands[scope];
+            await prepareScopeOutputs(run.worktreePath, run.policy, scope);
+            const result = await this.runner(command, run.worktreePath);
             proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode });
             if (result.exitCode !== 0) {
                 await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
@@ -1406,7 +1415,33 @@ export class LifecycleStore {
         const review = { ...normalized, kind: "hitl_feedback", recordedAt: new Date().toISOString(), recordedSource };
         return this.update({ ...run, evidence: [...run.evidence, review] });
     }
-    async status(intentId) { const run = await this.run(intentId); await this.reconcileRunProjections(run); return { ...run, user_request: await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId }) }; }
+    async status(intentId) {
+        const run = await this.run(intentId);
+        await this.reconcileRunProjections(run);
+        let lookupRoot = run.projectRoot;
+        if (run.phase === "complete" && run.status === "green") {
+            let missing = false;
+            try {
+                await lstat(run.projectRoot);
+            }
+            catch (error) {
+                if (error.code !== "ENOENT")
+                    throw error;
+                missing = true;
+            }
+            if (missing) {
+                const { readWorktreeRegistration } = await import("./worktree-storage.js"), registration = await readWorktreeRegistration(this.dataRoot, run.commonGitDir, run.worktreePath);
+                if (registration) {
+                    if (!samePath(registration.worktree_path, run.worktreePath) || !samePath(registration.common_git_dir, run.commonGitDir) || !samePath(registration.git_dir, run.gitDir) || registration.branch !== run.branch)
+                        throw new Error("terminal worktree registration differs from its signed run");
+                    lookupRoot = await (await import("./workspace.js")).primaryRepositoryRoot(registration.project_root, run.commonGitDir);
+                    if (!samePath(lookupRoot, registration.project_root))
+                        throw new Error("terminal worktree registration primary root diverged");
+                }
+            }
+        }
+        return { ...run, user_request: await this.userRequests({ projectRoot: lookupRoot, intentId: run.intentId }) };
+    }
     async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) { const leaseId = digest(`${path.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path.resolve(commonGitDir), targetBranch, targetOid }; try {
         await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
         return { leaseId, leaseToken };

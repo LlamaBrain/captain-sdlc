@@ -1,5 +1,61 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.9.3] - 2026-10-23
+
+### Fixed
+
+- Configure canonical CI temporary roots in a runtime step, where runner variables are available (v0.9.3).
+
+## [0.9.2] - 2026-10-23
+
+### Fixed
+
+- Use native absolute mutation-boundary test paths and canonical runner temporary directories for Windows and Linux CI (v0.9.2).
+- Preserve historical machine-local evidence paths as text instead of broken published documentation links (v0.9.2).
+
+## [0.9.1] - 2026-10-23
+
+### Changed
+
+- Retain the bounded worktree storage developer fragment with the committed feature revision and pinned dev target before signed Merge Back (v0.9.1).
+
+## [0.9.0] - 2026-10-23
+
+### Added
+
+- Bound new worktree build outputs to replaceable generated slots, retaining tracked source and refusing unsafe or unbounded output configuration (v0.9.0).
+- Automatically remove eligible completed worktree chains after Merge Back, with compact proof archives, signed interruption recovery, and visible retention reasons (v0.9.0).
+- Support canonical worktree creation, task reservations, output replacement and cleanup in ordinary projects without runtime enrollment (v0.9.0).
+
+### Fixed
+
+- Resolve the worktree container through the primary Git repository when starting from a linked checkout, preventing nested worktrees (v0.9.0).
+- Keep signed run and merge status readable after registered chain checkouts have been removed (v0.9.0).
+
+## [0.8.2] - 2026-10-19
+
+### Changed
+
+- Retain the developer changelog worktree fragment under its dated subject-named archive, including full commit provenance and reviewed technical summaries, before signed dev Merge Prep (v0.8.2).
+
+## [0.8.1] - 2026-10-19
+
+### Fixed
+
+- Synchronize the tracked bundled Captain server version with source/package metadata so the development Build preserves the committed tree and final proof can proceed (v0.8.1).
+
+## [0.8.0] - 2026-10-19
+
+### Added
+
+- Add developer-facing worktree `changes.md` collection, dated merge-fragment retention and a changelog composition skill with Conventional Commit provenance, Keep a Changelog categories, SemVer impact checks and overlapping-fragment deduplication (v0.8.0).
+
+### Changed
+
+- Guide Merge Prep/Back to retain archives in the owned source before signed readiness so the same verified integration carries them into the target; preserve existing commit versions, historical releases and proof boundaries (v0.8.0).
+
 ## 0.7.10
 - Normalize the authorization smoke script blank line so the unchanged incoming whitespace gate passes; preserve its behavior and retain the original functional proof revision.
 

@@ -209,6 +209,13 @@ npm run smoke
 
 ## Installation
 
+New worktrees use bounded generated output slots and automatic cleanup after a
+completed merge. This applies to ordinary projects as well as runtime-enrolled
+repositories. See the [worktree storage skill](skills/worktree-storage/SKILL.md)
+and [storage policy](docs/decisions/0003-bounded-worktree-storage.md) for fixed
+output paths, compact proof retention, active task protection and retained-path
+reporting. Existing unregistered worktrees are excluded from cleanup.
+
 From the Captain SDLC repository root:
 
 ```powershell

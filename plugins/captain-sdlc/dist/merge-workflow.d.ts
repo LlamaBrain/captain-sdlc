@@ -1,6 +1,7 @@
 import { type FinalizationArgs, type FinalizationReceipt } from "./bookkeeping-finalization.js";
 import { type GateRunner, type ProjectPolicy, type Run } from "./lifecycle.js";
 import { assertWorktreeBinding, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
+import { type WorktreeCleanupResult } from "./worktree-cleanup.js";
 export type MergeCommitInput = {
     paths: string[];
     subject: string;
@@ -87,6 +88,7 @@ export type MergeRecord = {
     ready_inputs?: Inputs;
     failure?: string;
     integrated_head?: string;
+    cleanup?: WorktreeCleanupResult;
 };
 export type MergeLeaseOwner = {
     pid?: number;
@@ -152,6 +154,12 @@ export declare class MergeWorkflowStore {
     private reconcileOwnedImplementation;
     back(args: MergeBackArgs): Promise<MergeStatus>;
     status(args: MergeBackArgs): Promise<MergeStatus>;
+    private assertHistoricalMerge;
+    private historicalRepository;
+    private cleanedHead;
+    private compactEvidence;
+    private cleanupCandidates;
+    private cleanupMergedChain;
     private operationLeaseStatus;
     recoverStaleLease(args: MergeLeaseRecoveryArgs): Promise<{
         merge_id: string;

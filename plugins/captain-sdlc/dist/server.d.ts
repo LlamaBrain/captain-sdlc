@@ -31,6 +31,7 @@ export type CaptainBeginDependencies = {
     repositoryIdentity: typeof repositoryIdentity;
     loadPolicy: typeof loadPolicy;
     ensureWorktree: typeof ensureWorktree;
+    storageDataRoot?: string;
     afterStage?: (stage: CaptainBeginStage) => Promise<void>;
 };
 export declare function captainBegin(store: LifecycleStore, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }: CaptainBeginArgs, dependencies?: CaptainBeginDependencies): Promise<import("./lifecycle.js").Run>;
