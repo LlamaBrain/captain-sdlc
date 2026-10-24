@@ -24,11 +24,6 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
-    # Hosted Windows TEMP can be an 8.3 alias. Fixtures require canonical roots.
-    env:
-      TMPDIR: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
-      TEMP: ${{ runner.temp }}
     defaults:
       run:
         working-directory: plugins/captain-sdlc
@@ -39,6 +34,9 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: plugins/captain-sdlc/package-lock.json
+      # Hosted Windows TEMP can be an 8.3 alias. Fixtures require canonical roots.
+      - name: Use canonical temporary roots
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, ['TMPDIR', 'TMP', 'TEMP'].map(key => key + '=' + process.env.RUNNER_TEMP).join('\n') + '\n')"
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

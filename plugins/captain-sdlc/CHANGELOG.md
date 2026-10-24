@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-10-23
+
+### Fixed
+
+- Configure canonical CI temporary roots in a runtime step, where runner variables are available (v0.9.3).
+
 ## [0.9.2] - 2026-10-23
 
 ### Fixed
