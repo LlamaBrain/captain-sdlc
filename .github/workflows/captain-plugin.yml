@@ -1,0 +1,41 @@
+name: Captain plugin
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/captain-sdlc/**'
+      - '.captain-sdlc/codex-policy.json'
+      - '.github/workflows/captain-plugin.yml'
+  push:
+    branches: [dev, main]
+    paths:
+      - 'plugins/captain-sdlc/**'
+      - '.captain-sdlc/codex-policy.json'
+      - '.github/workflows/captain-plugin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: plugins/captain-sdlc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: plugins/captain-sdlc/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run smoke
+      - run: npm run smoke:merge

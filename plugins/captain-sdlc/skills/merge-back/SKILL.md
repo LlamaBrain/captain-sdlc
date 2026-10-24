@@ -68,7 +68,15 @@ silently adopt another session's operation. After repaired Prep returns valid re
 the already-authorized Back without another human instruction. Report the resulting target revision
 and signed merge status separately from implementation `complete/green`, plan acceptance and
 release proof.
-Keep the source worktree; Back does not implicitly authorize push, publication or deletion.
+For newly registered worktrees, Back automatically cleans up eligible completed
+members of the recorded worktree chain. Read its `cleanup` result and report each
+removed checkout or retained path with its reason. Preserve unfinished tasks,
+dirty work, locks and active ownership; a successful integration with retained
+worktrees has an outstanding cleanup result. Do not force removal or sweep legacy
+worktrees. Compact proof archives and signed historical receipts survive removal.
+For ordinary projects without runtime enrollment, use the
+[worktree storage skill](../worktree-storage/SKILL.md) after the completed,
+authorized normal merge. Back does not implicitly authorize push or publication.
 
 For a legacy target reservation with no discoverable owning run/merge, use
 `captain_branch_lease_diagnose` with the exact project root, target checkout,

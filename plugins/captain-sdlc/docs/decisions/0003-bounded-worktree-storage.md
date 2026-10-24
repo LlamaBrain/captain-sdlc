@@ -1,0 +1,19 @@
+# Bounded worktree storage
+
+Date: 2026-10-23
+
+Michael requested one replaceable active build per worktree and cleanup of a completed worktree chain after Merge Back. This applies to every project type, including ordinary Git projects without Captain runtime enrollment. Existing worktrees are excluded from automatic adoption and cleanup.
+
+Each new Captain checkout receives a signed creation journal and registration outside the checkout. Its destination is one child of the primary repository's `.captain-sdlc/worktrees/` container, even when creation starts inside another worktree. Creation retries preserve the original path and parent snapshot. Existing adopted checkouts do not acquire deletion eligibility.
+
+New runtime policies capture `outputRetention` with `schema_version: 1` and generated output roots by command scope. Before a producing command, Captain validates all selected roots and removes their disposable untracked contents. Tracked files remain part of the source and proof hashes. Configure one stable payload slot such as `Builds/active` or `artifacts/active`, with separate fixed slots for smoke or visual outputs when needed. A report JSON alone cannot identify a build payload directory. Report-only policies need an explicit payload root; Captain refuses an unbounded build configuration. Adopt this configuration through an existing captured task or the repository's configuration maintenance workflow before starting a new task. Captured legacy run policies keep their original gates and deletion authority.
+
+Never declare an umbrella artifact directory that contains worktrees, authored data, or repository metadata. Output cleanup rejects tracked links, reparse points, nested repositories, registered worktree overlap, and changed source/index ownership. Commands must publish into the declared fixed slot. Extra historical build copies require explicit retention outside the disposable checkout.
+
+After successful Back, Captain traverses exact creation-parent links and authenticated merged source/target edges. It checks each candidate's integrated HEAD, current Git identity, target ancestry, pending Git state, locks, unfinished tasks/Begin operations, and branch/mutation reservations. Ancestry or a shared path prefix alone does not establish membership. Cleanup uses ordinary `git worktree remove`, preserves branch refs, and never uses `--force` or a global prune. It reports each retained checkout and the concrete reason independently of successful integration.
+
+Before removal, signed plans retain required compact reports and task handoffs outside the checkout. Retained evidence is bounded to 16 MiB, 2048 files, and 4096 directories per checkout/revision. Oversized or missing required evidence retains the checkout for explicit preservation. Build payloads and generated caches are disposable; signed run/merge records retain their real source revision. Archive hashes are rechecked for historical status. Exact removal journals support interruption recovery; an active or unknown lease owner cannot be recovered.
+
+Ordinary projects use the [worktree storage skill](../../skills/worktree-storage/SKILL.md) and its installed CLI for create/resume, output preparation, and cleanup after a completed authorized merge. The helper keeps signed state in the primary repository's ignored `.captain-sdlc/storage-authority/` directory. Ordinary task reservations protect active and resumed predecessors. It refuses repositories enrolled in the runtime so there is one ownership ledger per workflow. A retained checkout produces exit code 2 for a visible cleanup follow-up.
+
+Rollout requires installing the built plugin and updating local worktree guidance. Source changes alone do not update an already running installed server. This change deliberately performs no historical worktree sweep or automatic branch deletion.

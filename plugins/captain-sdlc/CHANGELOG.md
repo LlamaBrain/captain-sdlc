@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-23
+
+### Added
+
+- Bound new worktree build outputs to replaceable generated slots, retaining tracked source and refusing unsafe or unbounded output configuration (v0.9.0).
+- Automatically remove eligible completed worktree chains after Merge Back, with compact proof archives, signed interruption recovery, and visible retention reasons (v0.9.0).
+- Support canonical worktree creation, task reservations, output replacement and cleanup in ordinary projects without runtime enrollment (v0.9.0).
+
+### Fixed
+
+- Resolve the worktree container through the primary Git repository when starting from a linked checkout, preventing nested worktrees (v0.9.0).
+- Keep signed run and merge status readable after registered chain checkouts have been removed (v0.9.0).
+
 ## [0.8.2] - 2026-10-19
 
 ### Changed

@@ -7,6 +7,8 @@ import { promisify } from "node:util";
 import { approvedPlanDigest } from "./lifecycle.js";
 import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
 import { bookkeepingCaptured, bookkeepingPathAllowedCore, bookkeepingSubjectAllowed, bookkeepingTextAllowed, validateBookkeepingPolicy } from "./bookkeeping.js";
+import { captureOutputRetention, outputPathExcluded } from "./output-retention.js";
+import { completeWorktreeCreation, readWorktreeCreation, readWorktreeRegistration, reserveWorktreeCreation, storageRegistrationId } from "./worktree-storage.js";
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
 const approvedGeneratedPaths = new Set([
@@ -37,6 +39,8 @@ catch (error) {
     return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message };
 } };
 export async function git(args, cwd) { return (await gitInvocation(args, cwd)).stdout.trim(); }
+/** Preserve exact path bytes for NUL-delimited Git output. */
+export async function gitRaw(args, cwd) { return (await gitInvocation(args, cwd)).stdout; }
 export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
     if (profile !== "low" && profile !== "feature" && profile !== "pre-release")
@@ -153,11 +157,39 @@ export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     }
     if (parsed.hitlChecks?.length && !parsed.approvedPlans?.length)
         throw new Error("HITL checks require an approved plan selected at begin");
+    parsed.outputRetention = await captureOutputRetention(projectRoot, baseHead, raw.outputRetention, parsed.artifactPaths, trackedBasePaths, parsed.sourceManifestExcludes);
+    for (const scope of Object.keys(parsed.outputRetention.roots))
+        if (!parsed.commands[scope])
+            throw new Error(`output retention scope has no trusted command: ${scope}`);
     return parsed;
 }
-export async function repositoryIdentity(projectRoot, targetBranch, targetOid) { const root = path.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)); if (targetBranch)
-    await validateTargetBranch(root, targetBranch); const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root); if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase()))
-    throw new Error("signed target branch oid does not match the current ref"); await assertSafeGitAttributesAtCommit(root, baseHead); return { projectRoot: root, baseHead, commonGitDir }; }
+/** Resolve the registered primary checkout, validating it against Git's common directory. */
+export async function primaryRepositoryRoot(projectRoot, expectedCommonGitDir) {
+    const common = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
+    if (expectedCommonGitDir && pathKey(common) !== pathKey(expectedCommonGitDir))
+        throw new Error("primary worktree common Git directory binding diverged");
+    const primary = (await worktreeEntries(projectRoot))[0]?.worktree;
+    if (!primary)
+        throw new Error("primary worktree could not be resolved");
+    const root = path.resolve(primary);
+    if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" ||
+        pathKey(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey(common) ||
+        pathKey(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey(root) ||
+        pathKey(await realpath(root)) !== pathKey(root) || pathKey(await realpath(common)) !== pathKey(common))
+        throw new Error("primary worktree must be a non-bare checkout with the exact common Git directory binding");
+    return root;
+}
+const pathKey = (value) => process.platform === "win32" ? path.resolve(value).toLowerCase() : path.resolve(value);
+export async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
+    const root = path.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
+    if (targetBranch)
+        await validateTargetBranch(root, targetBranch);
+    const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root);
+    if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase()))
+        throw new Error("signed target branch oid does not match the current ref");
+    await assertSafeGitAttributesAtCommit(root, baseHead);
+    return { projectRoot: root, baseHead, commonGitDir, primaryProjectRoot, ...(pathKey(root) !== pathKey(primaryProjectRoot) ? { invocationWorktree: root } : {}) };
+}
 async function hydrateIgnoredUnityPlugins(root, worktree) {
     for (const parent of ["Assets", "Packages"]) {
         const sourceParent = path.join(root, parent);
@@ -190,61 +222,73 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
         }
     }
 }
-export async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir) {
-    const root = path.resolve(projectRoot), commonGitDir = path.resolve(expectedCommonGitDir ?? await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path.join(root, ".captain-sdlc", "worktrees"), proposedPath = path.join(container, safe);
-    if (!safe)
-        throw new Error("intent id cannot produce an empty worktree name");
-    await assertSafeGitAttributesAtCommit(root, baseHead);
+export async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir, storageDataRoot, invocationWorktree) {
+    const invocationRoot = path.resolve(projectRoot), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
+    const safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path.join(root, ".captain-sdlc", "worktrees"), proposedPath = path.join(container, safe);
+    if (!safe || storageDataRoot && safe !== intentId)
+        throw new Error("intent id must produce an exact safe worktree name");
+    await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
     await assertSafeGitMetadataAttributes(root);
     await rejectReparseAncestors(root, container);
     if (targetBranch) {
         await validateTargetBranch(root, targetBranch);
-        const targetRef = `refs/heads/${targetBranch}`, resolved = await git(["rev-parse", "--verify", `${targetRef}^{commit}`], root);
-        if (resolved !== baseHead)
+        if (await git(["rev-parse", "--verify", `refs/heads/${targetBranch}^{commit}`], root) !== baseHead)
             throw new Error("target branch moved after its base was captured");
-        const existing = (await worktreeEntries(root)).find(value => value.branch === targetRef);
-        if (existing) {
-            const worktreePath = path.resolve(existing.worktree);
-            if (!isPathInside(container, worktreePath))
-                throw new Error("target branch is checked out outside the canonical worktree container");
-            await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
-            const binding = await assertWorktreeBinding(worktreePath, targetBranch, commonGitDir, baseHead, true);
-            await hydrateIgnoredUnityPlugins(root, worktreePath);
-            return { projectRoot: root, worktreePath, baseHead, targetBranch, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
-        }
-        let binding;
-        await assertMissingWorktreePath(proposedPath);
-        try {
-            await git(["worktree", "add", proposedPath, targetBranch], root);
-            await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-            binding = await assertWorktreeBinding(proposedPath, targetBranch, commonGitDir, baseHead, true);
-            await hydrateIgnoredUnityPlugins(root, proposedPath);
-        }
-        catch (error) {
-            try {
-                await git(["worktree", "remove", "--force", proposedPath], root);
-            }
-            catch { }
-            throw error;
-        }
-        return { projectRoot: root, worktreePath: proposedPath, baseHead, targetBranch, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
     }
-    const branch = `captain/${safe}`, branchRef = `refs/heads/${branch}`, existing = (await worktreeEntries(root)).find(value => path.resolve(value.worktree) === path.resolve(proposedPath));
+    const branch = targetBranch ?? `captain/${safe}`, branchRef = `refs/heads/${branch}`, entries = await worktreeEntries(root);
+    const existing = entries.find(value => targetBranch ? value.branch === branchRef : pathKey(value.worktree) === pathKey(proposedPath));
+    const worktreePath = existing ? path.resolve(existing.worktree) : proposedPath;
+    if (!sameDirectory(container, path.dirname(worktreePath)))
+        throw new Error("target branch is checked out outside the canonical worktree container");
+    const expected = { schema_version: 1, intent_id: intentId, project_root: root, common_git_dir: commonGitDir, worktree_path: worktreePath, branch, base_head: baseHead };
+    const assertCreationIdentity = (prior) => {
+        if (prior.intent_id !== intentId || [prior.project_root, prior.common_git_dir, prior.worktree_path].some((value, index) => pathKey(value) !== pathKey([root, commonGitDir, worktreePath][index])) || prior.branch !== branch || prior.base_head !== baseHead)
+            throw new Error("worktree creation retry changed its signed binding");
+        return prior;
+    };
+    let reserved;
     if (existing) {
         if (existing.branch !== branchRef)
             throw new Error("canonical worktree path belongs to a different branch");
-        await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-        const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
-        await hydrateIgnoredUnityPlugins(root, proposedPath);
-        return { projectRoot: root, worktreePath: proposedPath, baseHead, branch: binding.branch, commonGitDir, gitDir: binding.gitDir };
+        if (storageDataRoot) {
+            const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
+            if (prior && prior.intent_id === intentId)
+                reserved = assertCreationIdentity(prior);
+        }
     }
-    await assertMissingWorktreePath(proposedPath);
-    await git(["worktree", "add", proposedPath, "-b", branch, baseHead], root);
-    await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-    const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
-    await hydrateIgnoredUnityPlugins(root, proposedPath);
-    return { projectRoot: root, worktreePath: proposedPath, baseHead, branch, commonGitDir, gitDir: binding.gitDir };
+    else {
+        await assertMissingWorktreePath(worktreePath);
+        if (storageDataRoot) {
+            const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
+            if (prior)
+                reserved = assertCreationIdentity(prior);
+            else {
+                const parentPath = path.resolve(invocationWorktree ?? invocationRoot);
+                if (pathKey(parentPath) !== pathKey(root)) {
+                    const parent = await readWorktreeRegistration(storageDataRoot, commonGitDir, parentPath);
+                    if (parent) {
+                        try {
+                            await assertWorktreeBinding(parentPath, parent.branch, commonGitDir, baseHead, false, parent.git_dir);
+                        }
+                        catch (cause) {
+                            throw new Error("parent worktree HEAD or Git identity changed before successor creation", { cause });
+                        }
+                        expected.parent_worktree = { registration_id: storageRegistrationId(commonGitDir, parentPath), worktree_path: parentPath, branch: parent.branch, git_dir: parent.git_dir, head: baseHead };
+                    }
+                }
+                reserved = await reserveWorktreeCreation(storageDataRoot, expected);
+            }
+        }
+        await git(targetBranch ? ["worktree", "add", worktreePath, targetBranch] : ["worktree", "add", worktreePath, "-b", branch, baseHead], root);
+    }
+    await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
+    const binding = await assertWorktreeBinding(worktreePath, branch, commonGitDir, baseHead, true);
+    if (reserved && storageDataRoot)
+        await completeWorktreeCreation(storageDataRoot, reserved, binding.gitDir);
+    await hydrateIgnoredUnityPlugins(root, worktreePath);
+    return { projectRoot: invocationRoot, worktreePath, baseHead, ...(targetBranch ? { targetBranch } : {}), branch, commonGitDir, gitDir: binding.gitDir, primaryProjectRoot: root };
 }
+const sameDirectory = (left, right) => pathKey(left) === pathKey(right);
 export async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = [], previousPhaseHead) {
     const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
     const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
@@ -438,7 +482,7 @@ export async function reconcilePreparedMerge(worktree, prepared) { if (await opt
 const normalizeSourceStatus = (status) => status.split(/\r?\n/).filter(line => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
 export async function sourceState(worktree, policy) {
     const topLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? undefined, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : undefined, commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
-    const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : undefined);
+    const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : undefined, policy);
     const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
     return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
@@ -735,11 +779,13 @@ async function versionTransitionValid(worktree, parent, hash, subject, policy, i
 async function changelogAddsVersion(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
     return true; const version = subjectVersion(subject); if (!version)
     return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy) {
+async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy) {
     const lines = [], productLines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/")));
     async function walk(dir) {
         for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
             const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
+            if (policy && outputPathExcluded(relative, policy, tracked))
+                continue;
             if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || (relative.toLowerCase().endsWith(".meta") && !tracked.has(relative)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/"))
                 continue;
             const full = path.join(dir, entry.name), info = await lstat(full);

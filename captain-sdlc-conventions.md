@@ -49,6 +49,19 @@ locations and cross-project worktree stores are invalid. Orchestrator constructs
 this path; the shell lifecycle hook rejects manual `git worktree add`/`move`
 commands whose destination escapes it.
 
+### Generated outputs and completed worktrees
+
+New worktrees have signed creation records outside their checkouts. Rebuilds use
+one fixed generated output slot per producing scope, replacing the prior output.
+Runtime `outputRetention` declares those paths; ordinary projects use the
+[worktree storage skill](plugins/captain-sdlc/skills/worktree-storage/SKILL.md).
+After an authorized merge completes, eligible worktrees in its recorded chain
+are removed and compact proof records are retained outside them. Active, dirty,
+locked, unmerged, or unregistered worktrees remain visible with a retention reason.
+Existing worktrees are excluded from adoption. See the
+[storage decision](plugins/captain-sdlc/docs/decisions/0003-bounded-worktree-storage.md)
+for ownership, evidence limits and interruption recovery.
+
 ### Task capsules
 
 ADR-0021 adds task-scoped operational memory under:

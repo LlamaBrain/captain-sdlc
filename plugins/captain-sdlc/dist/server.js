@@ -16,9 +16,9 @@ var __export = (target, all) => {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key2 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key2) && key2 !== except)
-        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
+    for (let key3 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key3) && key3 !== except)
+        __defProp(to, key3, { get: () => from[key3], enumerable: !(desc = __getOwnPropDesc(from, key3)) || desc.enumerable });
   }
   return to;
 };
@@ -167,15 +167,15 @@ var require_code = __commonJS({
       return JSON.stringify(x).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
     }
     exports.safeStringify = safeStringify;
-    function getProperty(key2) {
-      return typeof key2 == "string" && exports.IDENTIFIER.test(key2) ? new _Code(`.${key2}`) : _`[${key2}]`;
+    function getProperty(key3) {
+      return typeof key3 == "string" && exports.IDENTIFIER.test(key3) ? new _Code(`.${key3}`) : _`[${key3}]`;
     }
     exports.getProperty = getProperty;
-    function getEsmExportName(key2) {
-      if (typeof key2 == "string" && exports.IDENTIFIER.test(key2)) {
-        return new _Code(`${key2}`);
+    function getEsmExportName(key3) {
+      if (typeof key3 == "string" && exports.IDENTIFIER.test(key3)) {
+        return new _Code(`${key3}`);
       }
-      throw new Error(`CodeGen: invalid export name: ${key2}, use explicit $id name mapping`);
+      throw new Error(`CodeGen: invalid export name: ${key3}, use explicit $id name mapping`);
     }
     exports.getEsmExportName = getEsmExportName;
     function regexpCode(rx) {
@@ -802,11 +802,11 @@ var require_codegen = __commonJS({
       // returns code for object literal for the passed argument list of key-value pairs
       object(...keyValues) {
         const code = ["{"];
-        for (const [key2, value] of keyValues) {
+        for (const [key3, value] of keyValues) {
           if (code.length > 1)
             code.push(",");
-          code.push(key2);
-          if (key2 !== value || this.opts.es5) {
+          code.push(key3);
+          if (key3 !== value || this.opts.es5) {
             code.push(":");
             (0, code_1.addCodeArg)(code, value);
           }
@@ -1081,17 +1081,17 @@ var require_util = __commonJS({
       if (typeof schema === "boolean")
         return;
       const rules = self.RULES.keywords;
-      for (const key2 in schema) {
-        if (!rules[key2])
-          checkStrictMode(it, `unknown keyword: "${key2}"`);
+      for (const key3 in schema) {
+        if (!rules[key3])
+          checkStrictMode(it, `unknown keyword: "${key3}"`);
       }
     }
     exports.checkUnknownRules = checkUnknownRules;
     function schemaHasRules(schema, rules) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key2 in schema)
-        if (rules[key2])
+      for (const key3 in schema)
+        if (rules[key3])
           return true;
       return false;
     }
@@ -1099,8 +1099,8 @@ var require_util = __commonJS({
     function schemaHasRulesButRef(schema, RULES) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key2 in schema)
-        if (key2 !== "$ref" && RULES.all[key2])
+      for (const key3 in schema)
+        if (key3 !== "$ref" && RULES.all[key3])
           return true;
       return false;
     }
@@ -1678,8 +1678,8 @@ var require_defaults = __commonJS({
     function assignDefaults(it, ty) {
       const { properties, items } = it.schema;
       if (ty === "object" && properties) {
-        for (const key2 in properties) {
-          assignDefault(it, key2, properties[key2].default);
+        for (const key3 in properties) {
+          assignDefault(it, key3, properties[key3].default);
         }
       } else if (ty === "array" && Array.isArray(items)) {
         items.forEach((sch, i) => assignDefault(it, i, sch.default));
@@ -1722,12 +1722,12 @@ var require_code2 = __commonJS({
       });
     }
     exports.checkReportMissingProp = checkReportMissingProp;
-    function checkMissingProp({ gen, data, it: { opts } }, properties, missing) {
-      return (0, codegen_1.or)(...properties.map((prop) => (0, codegen_1.and)(noPropertyInData(gen, data, prop, opts.ownProperties), (0, codegen_1._)`${missing} = ${prop}`)));
+    function checkMissingProp({ gen, data, it: { opts } }, properties, missing2) {
+      return (0, codegen_1.or)(...properties.map((prop) => (0, codegen_1.and)(noPropertyInData(gen, data, prop, opts.ownProperties), (0, codegen_1._)`${missing2} = ${prop}`)));
     }
     exports.checkMissingProp = checkMissingProp;
-    function reportMissingProp(cxt, missing) {
-      cxt.setParams({ missingProperty: missing }, true);
+    function reportMissingProp(cxt, missing2) {
+      cxt.setParams({ missingProperty: missing2 }, true);
       cxt.error();
     }
     exports.reportMissingProp = reportMissingProp;
@@ -2063,8 +2063,8 @@ var require_fast_deep_equal = __commonJS({
         for (i = length; i-- !== 0; )
           if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
         for (i = length; i-- !== 0; ) {
-          var key2 = keys[i];
-          if (!equal(a[key2], b[key2])) return false;
+          var key3 = keys[i];
+          if (!equal(a[key3], b[key3])) return false;
         }
         return true;
       }
@@ -2136,20 +2136,20 @@ var require_json_schema_traverse = __commonJS({
     function _traverse(opts, pre, post, schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex) {
       if (schema && typeof schema == "object" && !Array.isArray(schema)) {
         pre(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
-        for (var key2 in schema) {
-          var sch = schema[key2];
+        for (var key3 in schema) {
+          var sch = schema[key3];
           if (Array.isArray(sch)) {
-            if (key2 in traverse.arrayKeywords) {
+            if (key3 in traverse.arrayKeywords) {
               for (var i = 0; i < sch.length; i++)
-                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key2 + "/" + i, rootSchema, jsonPtr, key2, schema, i);
+                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key3 + "/" + i, rootSchema, jsonPtr, key3, schema, i);
             }
-          } else if (key2 in traverse.propsKeywords) {
+          } else if (key3 in traverse.propsKeywords) {
             if (sch && typeof sch == "object") {
               for (var prop in sch)
-                _traverse(opts, pre, post, sch[prop], jsonPtr + "/" + key2 + "/" + escapeJsonPtr(prop), rootSchema, jsonPtr, key2, schema, prop);
+                _traverse(opts, pre, post, sch[prop], jsonPtr + "/" + key3 + "/" + escapeJsonPtr(prop), rootSchema, jsonPtr, key3, schema, prop);
             }
-          } else if (key2 in traverse.keywords || opts.allKeys && !(key2 in traverse.skipKeywords)) {
-            _traverse(opts, pre, post, sch, jsonPtr + "/" + key2, rootSchema, jsonPtr, key2, schema);
+          } else if (key3 in traverse.keywords || opts.allKeys && !(key3 in traverse.skipKeywords)) {
+            _traverse(opts, pre, post, sch, jsonPtr + "/" + key3, rootSchema, jsonPtr, key3, schema);
           }
         }
         post(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
@@ -2206,10 +2206,10 @@ var require_resolve = __commonJS({
       "$dynamicAnchor"
     ]);
     function hasRef(schema) {
-      for (const key2 in schema) {
-        if (REF_KEYWORDS.has(key2))
+      for (const key3 in schema) {
+        if (REF_KEYWORDS.has(key3))
           return true;
-        const sch = schema[key2];
+        const sch = schema[key3];
         if (Array.isArray(sch) && sch.some(hasRef))
           return true;
         if (typeof sch == "object" && hasRef(sch))
@@ -2219,14 +2219,14 @@ var require_resolve = __commonJS({
     }
     function countKeys(schema) {
       let count = 0;
-      for (const key2 in schema) {
-        if (key2 === "$ref")
+      for (const key3 in schema) {
+        if (key3 === "$ref")
           return Infinity;
         count++;
-        if (SIMPLE_INLINED.has(key2))
+        if (SIMPLE_INLINED.has(key3))
           continue;
-        if (typeof schema[key2] == "object") {
-          (0, util_1.eachItem)(schema[key2], (sch) => count += countKeys(sch));
+        if (typeof schema[key3] == "object") {
+          (0, util_1.eachItem)(schema[key3], (sch) => count += countKeys(sch));
         }
         if (count === Infinity)
           return Infinity;
@@ -2415,8 +2415,8 @@ var require_validate = __commonJS({
     function schemaCxtHasRules({ schema, self }) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key2 in schema)
-        if (self.RULES.all[key2])
+      for (const key3 in schema)
+        if (self.RULES.all[key3])
           return true;
       return false;
     }
@@ -3259,8 +3259,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path15) {
-      let input = path15;
+    function removeDotSegments(path18) {
+      let input = path18;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3665,8 +3665,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path15 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path15 && path15 !== "/" ? path15 : void 0;
+        const path18 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path18 && path18 !== "/" ? path18 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -4190,8 +4190,8 @@ var require_fast_uri = __commonJS({
       } catch {
         return void 0;
       }
-      const { normalized, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme } = normalizeStringWithStatus(value, opts);
-      return malformedAuthorityOrPort || malformedPercentEncoding || malformedSchemeSpecific || malformedHost || malformedScheme ? void 0 : normalized;
+      const { normalized: normalized2, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme } = normalizeStringWithStatus(value, opts);
+      return malformedAuthorityOrPort || malformedPercentEncoding || malformedSchemeSpecific || malformedHost || malformedScheme ? void 0 : normalized2;
     }
     var fastUri = {
       SCHEMES,
@@ -4443,7 +4443,7 @@ var require_core = __commonJS({
         }
       }
       // Adds schema to the instance
-      addSchema(schema, key2, _meta, _validateSchema = this.opts.validateSchema) {
+      addSchema(schema, key3, _meta, _validateSchema = this.opts.validateSchema) {
         if (Array.isArray(schema)) {
           for (const sch of schema)
             this.addSchema(sch, void 0, _meta, _validateSchema);
@@ -4457,15 +4457,15 @@ var require_core = __commonJS({
             throw new Error(`schema ${schemaId} must be string`);
           }
         }
-        key2 = (0, resolve_1.normalizeId)(key2 || id);
-        this._checkUnique(key2);
-        this.schemas[key2] = this._addSchema(schema, _meta, key2, _validateSchema, true);
+        key3 = (0, resolve_1.normalizeId)(key3 || id);
+        this._checkUnique(key3);
+        this.schemas[key3] = this._addSchema(schema, _meta, key3, _validateSchema, true);
         return this;
       }
       // Add schema that will be used to validate other schemas
       // options in META_IGNORE_OPTIONS are alway set to false
-      addMetaSchema(schema, key2, _validateSchema = this.opts.validateSchema) {
-        this.addSchema(schema, key2, true, _validateSchema);
+      addMetaSchema(schema, key3, _validateSchema = this.opts.validateSchema) {
+        this.addSchema(schema, key3, true, _validateSchema);
         return this;
       }
       //  Validate schema against its meta-schema
@@ -4621,14 +4621,14 @@ var require_core = __commonJS({
           let keywords = metaSchema;
           for (const seg of segments)
             keywords = keywords[seg];
-          for (const key2 in rules) {
-            const rule = rules[key2];
+          for (const key3 in rules) {
+            const rule = rules[key3];
             if (typeof rule != "object")
               continue;
             const { $data } = rule.definition;
-            const schema = keywords[key2];
+            const schema = keywords[key3];
             if ($data && schema)
-              keywords[key2] = schemaOrData(schema);
+              keywords[key3] = schemaOrData(schema);
           }
         }
         return metaSchema;
@@ -4701,10 +4701,10 @@ var require_core = __commonJS({
     Ajv2.MissingRefError = ref_error_1.default;
     exports.default = Ajv2;
     function checkOptions(checkOpts, options, msg, log = "error") {
-      for (const key2 in checkOpts) {
-        const opt = key2;
+      for (const key3 in checkOpts) {
+        const opt = key3;
         if (opt in options)
-          this.logger[log](`${msg}: option ${key2}. ${checkOpts[opt]}`);
+          this.logger[log](`${msg}: option ${key3}. ${checkOpts[opt]}`);
       }
     }
     function getSchEnv(keyRef) {
@@ -4718,8 +4718,8 @@ var require_core = __commonJS({
       if (Array.isArray(optsSchemas))
         this.addSchema(optsSchemas);
       else
-        for (const key2 in optsSchemas)
-          this.addSchema(optsSchemas[key2], key2);
+        for (const key3 in optsSchemas)
+          this.addSchema(optsSchemas[key3], key3);
     }
     function addInitialFormats() {
       for (const name in this.opts.formats) {
@@ -5221,14 +5221,14 @@ var require_required = __commonJS({
           }
         }
         function exitOnErrorMode() {
-          const missing = gen.let("missing");
+          const missing2 = gen.let("missing");
           if (useLoop || $data) {
             const valid = gen.let("valid", true);
-            cxt.block$data(valid, () => loopUntilMissing(missing, valid));
+            cxt.block$data(valid, () => loopUntilMissing(missing2, valid));
             cxt.ok(valid);
           } else {
-            gen.if((0, code_1.checkMissingProp)(cxt, schema, missing));
-            (0, code_1.reportMissingProp)(cxt, missing);
+            gen.if((0, code_1.checkMissingProp)(cxt, schema, missing2));
+            (0, code_1.reportMissingProp)(cxt, missing2);
             gen.else();
           }
         }
@@ -5238,10 +5238,10 @@ var require_required = __commonJS({
             gen.if((0, code_1.noPropertyInData)(gen, data, prop, opts.ownProperties), () => cxt.error());
           });
         }
-        function loopUntilMissing(missing, valid) {
-          cxt.setParams({ missingProperty: missing });
-          gen.forOf(missing, schemaCode, () => {
-            gen.assign(valid, (0, code_1.propertyInData)(gen, data, missing, opts.ownProperties));
+        function loopUntilMissing(missing2, valid) {
+          cxt.setParams({ missingProperty: missing2 });
+          gen.forOf(missing2, schemaCode, () => {
+            gen.assign(valid, (0, code_1.propertyInData)(gen, data, missing2, opts.ownProperties));
             gen.if((0, codegen_1.not)(valid), () => {
               cxt.error();
               gen.break();
@@ -5767,11 +5767,11 @@ var require_dependencies = __commonJS({
     function splitDependencies({ schema }) {
       const propertyDeps = {};
       const schemaDeps = {};
-      for (const key2 in schema) {
-        if (key2 === "__proto__")
+      for (const key3 in schema) {
+        if (key3 === "__proto__")
           continue;
-        const deps = Array.isArray(schema[key2]) ? propertyDeps : schemaDeps;
-        deps[key2] = schema[key2];
+        const deps = Array.isArray(schema[key3]) ? propertyDeps : schemaDeps;
+        deps[key3] = schema[key3];
       }
       return [propertyDeps, schemaDeps];
     }
@@ -5779,7 +5779,7 @@ var require_dependencies = __commonJS({
       const { gen, data, it } = cxt;
       if (Object.keys(propertyDeps).length === 0)
         return;
-      const missing = gen.let("missing");
+      const missing2 = gen.let("missing");
       for (const prop in propertyDeps) {
         const deps = propertyDeps[prop];
         if (deps.length === 0)
@@ -5797,8 +5797,8 @@ var require_dependencies = __commonJS({
             }
           });
         } else {
-          gen.if((0, codegen_1._)`${hasProperty} && (${(0, code_1.checkMissingProp)(cxt, deps, missing)})`);
-          (0, code_1.reportMissingProp)(cxt, missing);
+          gen.if((0, codegen_1._)`${hasProperty} && (${(0, code_1.checkMissingProp)(cxt, deps, missing2)})`);
+          (0, code_1.reportMissingProp)(cxt, missing2);
           gen.else();
         }
       }
@@ -5848,13 +5848,13 @@ var require_propertyNames = __commonJS({
         if ((0, util_1.alwaysValidSchema)(it, schema))
           return;
         const valid = gen.name("valid");
-        gen.forIn("key", data, (key2) => {
-          cxt.setParams({ propertyName: key2 });
+        gen.forIn("key", data, (key3) => {
+          cxt.setParams({ propertyName: key3 });
           cxt.subschema({
             keyword: "propertyNames",
-            data: key2,
+            data: key3,
             dataTypes: ["string"],
-            propertyName: key2,
+            propertyName: key3,
             compositeRule: true
           }, valid);
           gen.if((0, codegen_1.not)(valid), () => {
@@ -5903,38 +5903,38 @@ var require_additionalProperties = __commonJS({
         checkAdditionalProperties();
         cxt.ok((0, codegen_1._)`${errsCount} === ${names_1.default.errors}`);
         function checkAdditionalProperties() {
-          gen.forIn("key", data, (key2) => {
+          gen.forIn("key", data, (key3) => {
             if (!props.length && !patProps.length)
-              additionalPropertyCode(key2);
+              additionalPropertyCode(key3);
             else
-              gen.if(isAdditional(key2), () => additionalPropertyCode(key2));
+              gen.if(isAdditional(key3), () => additionalPropertyCode(key3));
           });
         }
-        function isAdditional(key2) {
+        function isAdditional(key3) {
           let definedProp;
           if (props.length > 8) {
             const propsSchema = (0, util_1.schemaRefOrVal)(it, parentSchema.properties, "properties");
-            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key2);
+            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key3);
           } else if (props.length) {
-            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key2} === ${p}`));
+            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key3} === ${p}`));
           } else {
             definedProp = codegen_1.nil;
           }
           if (patProps.length) {
-            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key2})`));
+            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key3})`));
           }
           return (0, codegen_1.not)(definedProp);
         }
-        function deleteAdditional(key2) {
-          gen.code((0, codegen_1._)`delete ${data}[${key2}]`);
+        function deleteAdditional(key3) {
+          gen.code((0, codegen_1._)`delete ${data}[${key3}]`);
         }
-        function additionalPropertyCode(key2) {
+        function additionalPropertyCode(key3) {
           if (opts.removeAdditional === "all" || opts.removeAdditional && schema === false) {
-            deleteAdditional(key2);
+            deleteAdditional(key3);
             return;
           }
           if (schema === false) {
-            cxt.setParams({ additionalProperty: key2 });
+            cxt.setParams({ additionalProperty: key3 });
             cxt.error();
             if (!allErrors)
               gen.break();
@@ -5943,22 +5943,22 @@ var require_additionalProperties = __commonJS({
           if (typeof schema == "object" && !(0, util_1.alwaysValidSchema)(it, schema)) {
             const valid = gen.name("valid");
             if (opts.removeAdditional === "failing") {
-              applyAdditionalSchema(key2, valid, false);
+              applyAdditionalSchema(key3, valid, false);
               gen.if((0, codegen_1.not)(valid), () => {
                 cxt.reset();
-                deleteAdditional(key2);
+                deleteAdditional(key3);
               });
             } else {
-              applyAdditionalSchema(key2, valid);
+              applyAdditionalSchema(key3, valid);
               if (!allErrors)
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
             }
           }
         }
-        function applyAdditionalSchema(key2, valid, errors) {
+        function applyAdditionalSchema(key3, valid, errors) {
           const subschema = {
             keyword: "additionalProperties",
-            dataProp: key2,
+            dataProp: key3,
             dataPropType: util_1.Type.Str
           };
           if (errors === false) {
@@ -6083,19 +6083,19 @@ var require_patternProperties = __commonJS({
           }
         }
         function validateProperties(pat) {
-          gen.forIn("key", data, (key2) => {
-            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key2})`, () => {
+          gen.forIn("key", data, (key3) => {
+            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key3})`, () => {
               const alwaysValid = alwaysValidPatterns.includes(pat);
               if (!alwaysValid) {
                 cxt.subschema({
                   keyword: "patternProperties",
                   schemaProp: pat,
-                  dataProp: key2,
+                  dataProp: key3,
                   dataPropType: util_2.Type.Str
                 }, valid);
               }
               if (it.opts.unevaluated && props !== true) {
-                gen.assign((0, codegen_1._)`${props}[${key2}]`, true);
+                gen.assign((0, codegen_1._)`${props}[${key3}]`, true);
               } else if (!alwaysValid && !it.allErrors) {
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
               }
@@ -7190,8 +7190,8 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { link, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import path2 from "node:path";
 function decodeKey(value) {
-  const normalized = value.trim(), decoded = Buffer.from(normalized, "base64");
-  if (decoded.length !== 32 || decoded.toString("base64") !== normalized) throw new Error("Captain authority key must decode to exactly 32 bytes");
+  const normalized2 = value.trim(), decoded = Buffer.from(normalized2, "base64");
+  if (decoded.length !== 32 || decoded.toString("base64") !== normalized2) throw new Error("Captain authority key must decode to exactly 32 bytes");
   return decoded;
 }
 async function key(root) {
@@ -7886,13 +7886,13 @@ function parseWorktrees(value) {
     }
     const separator = line.indexOf(" ");
     if (separator < 0) continue;
-    const key2 = line.slice(0, separator);
+    const key3 = line.slice(0, separator);
     const field = line.slice(separator + 1);
-    if (key2 === "worktree") {
+    if (key3 === "worktree") {
       current = { path: field };
       result.push(current);
-    } else if (current && key2 === "HEAD") current.head = field;
-    else if (current && key2 === "branch") current.branch = field;
+    } else if (current && key3 === "HEAD") current.head = field;
+    else if (current && key3 === "branch") current.branch = field;
   }
   return result;
 }
@@ -8203,19 +8203,19 @@ var init_user_authorization = __esm({
 import { createHash as createHash4 } from "node:crypto";
 import { readdir as readdir4 } from "node:fs/promises";
 import path6 from "node:path";
-async function serialized(key2, action2) {
-  const previous = queues.get(key2) ?? Promise.resolve();
+async function serialized(key3, action2) {
+  const previous = queues.get(key3) ?? Promise.resolve();
   let release;
   const current = new Promise((resolve) => {
     release = resolve;
   });
-  queues.set(key2, current);
+  queues.set(key3, current);
   await previous;
   try {
     return await action2();
   } finally {
     release();
-    if (queues.get(key2) === current) queues.delete(key2);
+    if (queues.get(key3) === current) queues.delete(key3);
   }
 }
 async function repositoryScope2(projectRoot) {
@@ -8410,7 +8410,7 @@ async function recordUserRequest(data, input) {
 async function userRequestStatus(data, query) {
   if (typeof query.intentId !== "string" || !query.intentId.trim()) throw new Error("Select the exact canonical task intent for user request lookup");
   if (query.expectedScopeSha256 !== void 0 && !/^[a-f0-9]{64}$/i.test(query.expectedScopeSha256)) throw new Error("Expected user request scope digest is invalid");
-  const missing = {
+  const missing2 = {
     status: "missing",
     receipts: [],
     objectiveLines: [],
@@ -8418,10 +8418,10 @@ async function userRequestStatus(data, query) {
     guidance: guidance2
   };
   const candidates = (await readReceipts(data)).filter((receipt) => receipt.intentId === query.intentId);
-  if (!candidates.length || query.sessionId !== void 0 && !candidates.some((receipt) => receipt.sessionId === query.sessionId)) return missing;
+  if (!candidates.length || query.sessionId !== void 0 && !candidates.some((receipt) => receipt.sessionId === query.sessionId)) return missing2;
   const scope = await repositoryScope2(query.projectRoot);
   const receipts = candidates.filter((receipt) => pathKey2(receipt.commonGitDir) === pathKey2(scope.commonGitDir));
-  if (!receipts.length || query.sessionId !== void 0 && !receipts.some((receipt) => receipt.sessionId === query.sessionId)) return missing;
+  if (!receipts.length || query.sessionId !== void 0 && !receipts.some((receipt) => receipt.sessionId === query.sessionId)) return missing2;
   const current = effective(receipts), defining = receipts.find((receipt) => receipt.objectiveLines.length > 0), objective = defining ?? current;
   const result = {
     status: current.decision,
@@ -8510,10 +8510,319 @@ var init_user_request_source = __esm({
   }
 });
 
-// src/lifecycle.ts
-import { createHash as createHash6, randomUUID } from "node:crypto";
-import { lstat, readFile as readFile3, readdir as readdir5, writeFile as writeFile2 } from "node:fs/promises";
+// src/output-retention.ts
+import { lstat, mkdir as mkdir2, readdir as readdir5, realpath as realpath2, rm, rmdir } from "node:fs/promises";
 import path8 from "node:path";
+function outputRoot(value) {
+  if (typeof value !== "string" || !value || path8.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error("output retention root must use a safe repository-relative path");
+  const relative = normalized(value), segments = relative.split("/"), lower = segments.map((segment) => segment.toLowerCase());
+  if (segments.some((segment) => !segment || segment === "." || segment === ".." || /[. ]$/.test(segment)) || lower.some((segment) => protectedSegments.has(segment))) throw new Error("output retention root overlaps a protected metadata or worktree path");
+  if (lower.includes(".captain-sdlc") && !(lower[0] === ".captain-sdlc" && lower[1] === "output" && lower.length >= 3)) throw new Error("output retention root overlaps protected Captain metadata");
+  if (!lower.some((segment) => generated.has(segment)) && !payloadExtension.test(relative)) throw new Error("output retention root must name generated output, not authored source");
+  return relative;
+}
+function parseRetention(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("output retention must be an object");
+  const raw = value;
+  if (raw.schema_version !== 1 || !raw.roots || typeof raw.roots !== "object" || Array.isArray(raw.roots)) throw new Error("output retention requires schema_version 1 and scope roots");
+  const roots = {}, all = [];
+  for (const [scope, values] of Object.entries(raw.roots)) {
+    if (!/^[a-z][a-z-]*$/.test(scope) || !Array.isArray(values) || values.length > 64) throw new Error("output retention scope roots must be bounded arrays");
+    roots[scope] = values.map(outputRoot);
+    for (const relative of roots[scope]) {
+      if (all.some((previous) => contains(previous, relative) || contains(relative, previous))) throw new Error("output retention roots must not overlap");
+      all.push(relative);
+    }
+  }
+  return { schema_version: 1, roots };
+}
+async function ignored(root, relative) {
+  for (const candidate of [relative, ...!outputFile(relative) ? [relative + "/"] : []]) {
+    try {
+      await git(["check-ignore", "--no-index", "--quiet", "--", candidate], root);
+      return true;
+    } catch (error2) {
+      if (error2.code !== 1) throw error2;
+    }
+  }
+  return false;
+}
+async function captureOutputRetention(root, baseHead, raw, artifactPaths = {}, trackedBasePaths = [], sourceExcludes = []) {
+  const tracked = trackedBasePaths.map(normalized), inferred = {};
+  let result;
+  if (raw !== void 0) result = parseRetention(raw);
+  else {
+    const buildRoots = [];
+    const add = (relative) => {
+      relative = outputRoot(relative);
+      if (buildRoots.some((previous) => contains(previous, relative))) return;
+      for (let index = buildRoots.length - 1; index >= 0; index--) if (contains(relative, buildRoots[index])) buildRoots.splice(index, 1);
+      buildRoots.push(relative);
+    };
+    if (artifactPaths.build) {
+      const artifact = normalized(artifactPaths.build), segments = artifact.split("/"), payloadIndex = segments.findIndex((segment) => payloadDirectories.has(segment.toLowerCase()));
+      if (payloadIndex >= 0) {
+        const candidate = segments.slice(0, payloadIndex + 1).join("/");
+        add(candidate);
+      }
+      if (tracked.some((file) => file.startsWith(artifact + "/"))) add(artifact);
+      else if (!reportExtension.test(artifact) && payloadExtension.test(artifact)) add(artifact);
+      for (const candidate of sourceExcludes) {
+        if (!payloadDirectories.has(candidate.split("/").at(-1).toLowerCase()) || tracked.some((file) => contains(candidate, file))) continue;
+        add(candidate);
+      }
+    }
+    if (buildRoots.length) inferred.build = buildRoots;
+    for (const [role, scope] of [["smoke", "feature-smoke"], ["visual", "visual"]]) {
+      const artifact = artifactPaths[role];
+      if (artifact && !buildRoots.some((parent) => contains(parent, artifact))) {
+        try {
+          inferred[scope] = [outputRoot(artifact)];
+        } catch {
+        }
+      }
+    }
+    result = parseRetention({ schema_version: 1, roots: inferred });
+  }
+  if (artifactPaths.build && !(result.roots.build ?? []).some((relative) => !reportExtension.test(relative) || tracked.some((file) => file.startsWith(relative + "/")))) throw new Error("build policy must configure outputRetention.roots.build with a disposable payload root; a report file alone does not bound build storage");
+  for (const [scope, roots] of Object.entries(result.roots)) {
+    for (const relative of roots) {
+      const entry = await git(["ls-tree", baseHead, "--", relative], root);
+      if (/^120000 /.test(entry) || /^160000 /.test(entry)) throw new Error(`output retention root is a tracked link or repository: ${relative}`);
+    }
+    if (!scope) throw new Error("output retention scope is empty");
+  }
+  return result;
+}
+function outputPathExcluded(relative, policy, tracked) {
+  if (!policy.outputRetention) return false;
+  const roots = Object.values(policy.outputRetention.roots).flat();
+  if (!roots.some((root) => contains(root, relative))) return false;
+  return ![...tracked].some((file) => contains(relative, file) || contains(file, relative));
+}
+async function ancestors(root, target) {
+  const relative = path8.relative(root, target);
+  if (!relative || relative.startsWith("..") || path8.isAbsolute(relative)) throw new Error("output retention target escapes the worktree");
+  for (let cursor = target; ; cursor = path8.dirname(cursor)) {
+    try {
+      if ((await lstat(cursor)).isSymbolicLink()) throw new Error("output retention crosses a reparse point or symlink");
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+    if (!samePath4(cursor, root)) {
+      try {
+        await lstat(path8.join(cursor, ".git"));
+        throw new Error("output retention crosses a nested repository");
+      } catch (error2) {
+        if (!["ENOENT", "ENOTDIR"].includes(error2.code)) throw error2;
+      }
+    }
+    if (samePath4(cursor, root)) break;
+  }
+}
+async function trackedSnapshot(root) {
+  const head = await git(["rev-parse", "HEAD"], root), index = await git(["ls-files", "--stage", "-z"], root);
+  const files = new Set([...index.split("\0").filter(Boolean).map((entry) => entry.slice(entry.indexOf("	") + 1)), ...(await git(["ls-tree", "-r", "--name-only", "-z", head], root)).split("\0")].filter(Boolean).map(key2));
+  return { head, index, files };
+}
+async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
+  const summary = { scope, roots: [], removedFiles: 0, retainedTrackedFiles: 0 };
+  if (!policy.outputRetention) return summary;
+  const retention = parseRetention(policy.outputRetention), roots = retention.roots[scope] ?? [];
+  if (!roots.length) return summary;
+  const root = path8.resolve(worktree), actual = path8.resolve(await git(["rev-parse", "--show-toplevel"], root));
+  if (!samePath4(root, actual) || !samePath4(root, await realpath2(root))) throw new Error("output retention requires the real Git worktree root");
+  const registered = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path8.resolve(entry.slice(9)));
+  const snapshot = await trackedSnapshot(root), tracked = snapshot.files;
+  const isTracked = (relative) => [...tracked].some((file) => contains(file, relative));
+  const plans = [];
+  for (const relative of roots) {
+    const absolute2 = path8.resolve(root, relative);
+    await ancestors(root, absolute2);
+    if (registered.some((other) => contains(absolute2, other))) throw new Error(`output retention root contains a registered worktree: ${relative}`);
+    const files = [], directories = [];
+    let fileRoot = outputFile(relative);
+    async function scan(target) {
+      let info;
+      try {
+        info = await lstat(target);
+      } catch (error2) {
+        if (error2.code === "ENOENT") return;
+        throw error2;
+      }
+      if (info.isSymbolicLink()) throw new Error("output retention tree contains a reparse point or symlink");
+      if (info.isDirectory()) {
+        if (target === absolute2) fileRoot = false;
+        directories.push(target);
+        for (const entry of await readdir5(target, { withFileTypes: true })) {
+          if (entry.name.toLowerCase() === ".git" || entry.name.toLowerCase() === ".captain-sdlc") throw new Error("output retention tree contains a nested repository or Captain metadata");
+          await scan(path8.join(target, entry.name));
+        }
+      } else if (info.isFile()) {
+        if (target === absolute2) fileRoot = true;
+        files.push(target);
+      } else throw new Error("output retention tree contains an unsupported filesystem entry");
+    }
+    await scan(absolute2);
+    const retainsTracked = [...tracked].some((file) => contains(relative, file));
+    if (!retainsTracked && !await ignored(root, relative)) throw new Error(`output retention root must be Git-ignored generated output: ${relative}`);
+    plans.push({ relative, absolute: absolute2, files, directories, fileRoot });
+  }
+  if (options.validateOnly) return { ...summary, roots: plans.map((plan) => plan.relative) };
+  for (const plan of plans) {
+    const current = await trackedSnapshot(root);
+    if (current.head !== snapshot.head || current.index !== snapshot.index) throw new Error("output retention HEAD or index changed during preflight; preserve the new tracked state and retry under its owner");
+    const currentWorktrees = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path8.resolve(entry.slice(9)));
+    if (currentWorktrees.some((other) => contains(plan.absolute, other))) throw new Error("output retention root acquired a registered worktree during preflight");
+    for (const file of plan.files) {
+      const relative = normalized(path8.relative(root, file));
+      if (isTracked(relative)) {
+        summary.retainedTrackedFiles++;
+        continue;
+      }
+      await ancestors(root, file);
+      try {
+        if ((await lstat(file)).isSymbolicLink()) throw new Error("output retention target changed to a reparse point");
+      } catch (error2) {
+        if (error2.code !== "ENOENT") throw error2;
+      }
+      await rm(file, { force: true });
+      summary.removedFiles++;
+    }
+    for (const directory of plan.directories.reverse()) {
+      await ancestors(root, directory);
+      try {
+        await rmdir(directory);
+      } catch (error2) {
+        if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(error2.code)) throw error2;
+      }
+    }
+    await ancestors(root, plan.absolute);
+    await mkdir2(plan.fileRoot ? path8.dirname(plan.absolute) : plan.absolute, { recursive: true });
+    summary.roots.push(plan.relative);
+  }
+  return summary;
+}
+var generated, payloadDirectories, protectedSegments, reportExtension, payloadExtension, mediaFileExtension, outputFile, normalized, key2, contains, samePath4;
+var init_output_retention = __esm({
+  "src/output-retention.ts"() {
+    "use strict";
+    init_workspace();
+    generated = /* @__PURE__ */ new Set(["artifacts", "build", "builds", "dist", "bin", "obj", "coverage", "generated", ".captain-proof", "out", "output", "target", "publish"]);
+    payloadDirectories = /* @__PURE__ */ new Set(["build", "builds", "dist", "out", "output", "target", "publish"]);
+    protectedSegments = /* @__PURE__ */ new Set([".git", ".agents", ".codex", "node_modules", "worktrees", ".worktrees"]);
+    reportExtension = /\.(?:json|xml|txt|log|md|csv|html|junit|sha256)$/i;
+    payloadExtension = /\.(?:zip|tar|gz|7z|exe|apk|aab|app|msi|nupkg|vsix|whl|jar|wasm|dll|so|dylib)$/i;
+    mediaFileExtension = /\.(?:png|apng|jpe?g|webp|gif|bmp|tiff?|tga|ico|svg|avif|heic|heif|exr|hdr|mp4|m4v|webm|mov|avi|mkv|mpe?g|ogv)$/i;
+    outputFile = (relative) => reportExtension.test(relative) || payloadExtension.test(relative) || mediaFileExtension.test(relative);
+    normalized = (value) => value.replaceAll("\\", "/");
+    key2 = (value) => normalized(value).toLowerCase();
+    contains = (parent, child) => key2(child) === key2(parent) || key2(child).startsWith(key2(parent).replace(/\/$/, "") + "/");
+    samePath4 = (left, right) => process.platform === "win32" ? path8.resolve(left).toLowerCase() === path8.resolve(right).toLowerCase() : path8.resolve(left) === path8.resolve(right);
+  }
+});
+
+// src/worktree-storage.ts
+var worktree_storage_exports = {};
+__export(worktree_storage_exports, {
+  completeWorktreeCreation: () => completeWorktreeCreation,
+  readWorktreeCreation: () => readWorktreeCreation,
+  readWorktreeRegistration: () => readWorktreeRegistration,
+  reserveWorktreeCreation: () => reserveWorktreeCreation,
+  storageRegistrationId: () => storageRegistrationId
+});
+import { createHash as createHash6 } from "node:crypto";
+import { lstat as lstat2, realpath as realpath3 } from "node:fs/promises";
+import path9 from "node:path";
+function storageRegistrationId(commonGitDir, worktreePath) {
+  return createHash6("sha256").update(`${keyPath(commonGitDir)}\0${keyPath(worktreePath)}`).digest("hex");
+}
+function absolute(value, label) {
+  if (typeof value !== "string" || !path9.isAbsolute(value) || value.includes("\0")) throw new Error(`worktree registration ${label} must be absolute`);
+  return path9.resolve(value);
+}
+function creation(value) {
+  if (!value || value.schema_version !== 1 || typeof value.intent_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(value.intent_id) || typeof value.branch !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value.branch) || !commit(value.base_head))
+    throw new Error("worktree creation registration identity is invalid");
+  const project_root = absolute(value.project_root, "project root"), common_git_dir = absolute(value.common_git_dir, "common Git directory"), worktree_path = absolute(value.worktree_path, "worktree path");
+  if (!samePath5(path9.dirname(worktree_path), path9.join(project_root, ".captain-sdlc", "worktrees")) || path9.basename(worktree_path) !== value.intent_id)
+    throw new Error("worktree registration must name its exact canonical primary container child");
+  const result = { schema_version: 1, intent_id: value.intent_id, project_root, common_git_dir, worktree_path, branch: value.branch, base_head: value.base_head };
+  if (value.parent_worktree !== void 0) {
+    const parent = value.parent_worktree;
+    if (!parent || typeof parent.registration_id !== "string" || !/^[0-9a-f]{64}$/.test(parent.registration_id) || typeof parent.branch !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(parent.branch) || !commit(parent.head) || parent.head !== result.base_head)
+      throw new Error("worktree parent registration binding is invalid");
+    const parentPath = absolute(parent.worktree_path, "parent path"), gitDir = absolute(parent.git_dir, "parent Git directory");
+    if (samePath5(parentPath, worktree_path) || !samePath5(path9.dirname(parentPath), path9.join(project_root, ".captain-sdlc", "worktrees")) || parent.registration_id !== storageRegistrationId(common_git_dir, parentPath) || !samePath5(path9.dirname(gitDir), path9.join(common_git_dir, "worktrees")))
+      throw new Error("worktree parent registration identity diverged");
+    result.parent_worktree = { registration_id: parent.registration_id, worktree_path: parentPath, branch: parent.branch, git_dir: gitDir, head: parent.head };
+  }
+  return result;
+}
+async function optionalSigned(dataRoot, bucket3, id) {
+  const file = path9.join(dataRoot, bucket3, id + ".json");
+  try {
+    const info = await lstat2(file);
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error("worktree registration must be a regular signed file");
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw error2;
+  }
+  return readAuthorizedReadOnly(dataRoot, bucket3, id);
+}
+async function readWorktreeCreation(dataRoot, commonGitDir, worktreePath) {
+  const stored = await optionalSigned(dataRoot, "worktree-creations", storageRegistrationId(commonGitDir, worktreePath));
+  if (!stored) return void 0;
+  const value = creation(stored);
+  if (!samePath5(value.common_git_dir, commonGitDir) || !samePath5(value.worktree_path, worktreePath)) throw new Error("worktree creation filename binding diverged");
+  return value;
+}
+async function reserveWorktreeCreation(dataRoot, input) {
+  const value = creation(input), id = storageRegistrationId(value.common_git_dir, value.worktree_path), prior = await readWorktreeCreation(dataRoot, value.common_git_dir, value.worktree_path);
+  if (prior) {
+    if (!sameValue(prior, value)) throw new Error("worktree creation checkpoint differs from its original identity");
+    return prior;
+  }
+  const dataRelative = path9.relative(value.worktree_path, path9.resolve(dataRoot));
+  if (!dataRelative || dataRelative !== ".." && !dataRelative.startsWith(`..${path9.sep}`) && !path9.isAbsolute(dataRelative)) throw new Error("worktree registration authority must survive outside the checkout");
+  if (!samePath5(await realpath3(value.project_root), value.project_root) || !samePath5(await realpath3(value.common_git_dir), value.common_git_dir)) throw new Error("worktree registration crosses a reparse point");
+  try {
+    await lstat2(value.worktree_path);
+    throw new Error("worktree creation registration refuses an existing path");
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+  }
+  return putAuthorizedOnceExact(dataRoot, "worktree-creations", id, value);
+}
+async function completeWorktreeCreation(dataRoot, input, gitDir) {
+  const value = creation(input), prior = await readWorktreeCreation(dataRoot, value.common_git_dir, value.worktree_path), git_dir = absolute(gitDir, "linked Git directory");
+  if (!prior || !sameValue(prior, value) || !samePath5(path9.dirname(git_dir), path9.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration does not match its signed creation journal");
+  const registration = { ...value, git_dir };
+  return putAuthorizedOnceExact(dataRoot, "worktree-registrations", storageRegistrationId(value.common_git_dir, value.worktree_path), registration);
+}
+async function readWorktreeRegistration(dataRoot, commonGitDir, worktreePath) {
+  const stored = await optionalSigned(dataRoot, "worktree-registrations", storageRegistrationId(commonGitDir, worktreePath));
+  if (!stored) return void 0;
+  const value = creation(stored), prior = await readWorktreeCreation(dataRoot, commonGitDir, worktreePath), git_dir = absolute(stored.git_dir, "linked Git directory");
+  if (!samePath5(value.common_git_dir, commonGitDir) || !samePath5(value.worktree_path, worktreePath) || !prior || !sameValue(prior, value) || !samePath5(path9.dirname(git_dir), path9.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration binding diverged from its signed creation");
+  return { ...value, git_dir };
+}
+var keyPath, samePath5, sameValue, commit;
+var init_worktree_storage = __esm({
+  "src/worktree-storage.ts"() {
+    "use strict";
+    init_authority();
+    keyPath = (value) => process.platform === "win32" ? path9.resolve(value).toLowerCase() : path9.resolve(value);
+    samePath5 = (left, right) => keyPath(left) === keyPath(right);
+    sameValue = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+    commit = (value) => typeof value === "string" && /^[0-9a-f]{40,64}$/i.test(value) && !/^0+$/.test(value);
+  }
+});
+
+// src/lifecycle.ts
+import { createHash as createHash7, randomUUID } from "node:crypto";
+import { lstat as lstat3, readFile as readFile3, readdir as readdir6, writeFile as writeFile2 } from "node:fs/promises";
+import path10 from "node:path";
 function approvedPlanDigest(content) {
   return digest3(content.replaceAll("\r\n", "\n"));
 }
@@ -8589,24 +8898,24 @@ function taskTicketCommand(run, scope, requestedFilter) {
   return { command, binding };
 }
 async function safeArtifact(root, relative) {
-  if (path8.isAbsolute(relative)) throw new Error("artifact must be relative");
-  const full = path8.resolve(root, relative), prefix = path8.resolve(root) + path8.sep;
+  if (path10.isAbsolute(relative)) throw new Error("artifact must be relative");
+  const full = path10.resolve(root, relative), prefix = path10.resolve(root) + path10.sep;
   if (!full.startsWith(prefix)) throw new Error("artifact escapes worktree");
-  for (let cursor = full; cursor.startsWith(path8.resolve(root)); cursor = path8.dirname(cursor)) {
-    const info = await lstat(cursor);
+  for (let cursor = full; cursor.startsWith(path10.resolve(root)); cursor = path10.dirname(cursor)) {
+    const info = await lstat3(cursor);
     if (info.isSymbolicLink()) throw new Error("artifact crosses a reparse point");
-    if (cursor === path8.resolve(root)) break;
+    if (cursor === path10.resolve(root)) break;
   }
   return full;
 }
 async function hashPath(target) {
-  const info = await lstat(target);
+  const info = await lstat3(target);
   if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
-  if (info.isFile()) return createHash6("sha256").update(await readFile3(target)).digest("hex");
-  const entries = await readdir5(target, { withFileTypes: true });
+  if (info.isFile()) return createHash7("sha256").update(await readFile3(target)).digest("hex");
+  const entries = await readdir6(target, { withFileTypes: true });
   const lines2 = [];
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const child = path8.join(target, entry.name);
+    const child = path10.join(target, entry.name);
     lines2.push(`${entry.name}:${await hashPath(child)}`);
   }
   return digest3(lines2.join("\n"));
@@ -8640,7 +8949,7 @@ async function assertImage(target) {
   }
   if (!valid) throw new Error("visual artifact is not a structurally valid nonempty PNG or JPEG image");
 }
-var ProofSourceDivergenceError, beginAttemptQueues, LifecycleStore, safeId2, samePath4, digest3, commitRequestSha256;
+var ProofSourceDivergenceError, beginAttemptQueues, LifecycleStore, safeId2, samePath6, digest3, commitRequestSha256;
 var init_lifecycle = __esm({
   "src/lifecycle.ts"() {
     "use strict";
@@ -8652,6 +8961,7 @@ var init_lifecycle = __esm({
     init_user_authorization();
     init_user_request();
     init_user_request_source();
+    init_output_retention();
     ProofSourceDivergenceError = class extends Error {
       constructor(fence) {
         super("proof source state diverged from the clean committed tree or ignored-input manifest");
@@ -8667,21 +8977,21 @@ var init_lifecycle = __esm({
         this.hooks = hooks;
       }
       async withSerializedBeginAttempt(intentId, action2) {
-        const resolvedRoot = path8.resolve(this.dataRoot);
+        const resolvedRoot = path10.resolve(this.dataRoot);
         const rootKey = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
-        const key2 = rootKey + "\0" + intentId;
-        const previous = beginAttemptQueues.get(key2) ?? Promise.resolve();
+        const key3 = rootKey + "\0" + intentId;
+        const previous = beginAttemptQueues.get(key3) ?? Promise.resolve();
         let release;
         const current = new Promise((resolve) => {
           release = resolve;
         });
-        beginAttemptQueues.set(key2, current);
+        beginAttemptQueues.set(key3, current);
         await previous;
         try {
           return await this.withBeginAttemptGate(intentId, action2);
         } finally {
           release();
-          if (beginAttemptQueues.get(key2) === current) beginAttemptQueues.delete(key2);
+          if (beginAttemptQueues.get(key3) === current) beginAttemptQueues.delete(key3);
         }
       }
       async withBeginAttemptGate(intentId, action2) {
@@ -8699,7 +9009,7 @@ var init_lifecycle = __esm({
         return { ...diagnosis, user_request: await this.userRequests({ projectRoot: args.project_root, intentId: args.intent_id, sessionId: args.session_id }) };
       }
       async beginCancellationFor(intentId) {
-        await readFile3(path8.join(this.dataRoot, "authority.key"), "utf8");
+        await readFile3(path10.join(this.dataRoot, "authority.key"), "utf8");
         try {
           return await readAuthorizedReadOnly(this.dataRoot, "begin-cancellations", safeId2(intentId));
         } catch (error2) {
@@ -8747,7 +9057,7 @@ var init_lifecycle = __esm({
             try {
               priorRun = await this.interruptionRunReadOnly(owner.intentId);
             } catch (error2) {
-              const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath4(error2.path, path8.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
+              const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath6(error2.path, path10.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
               if (!absentLegacyChain) throw error2;
             }
             if (priorRun?.phase === "complete" && priorRun.status === "green") {
@@ -8781,8 +9091,8 @@ var init_lifecycle = __esm({
         await this.save("intents", intent.intentId, intent);
       }
       async issueIdempotentIntent(request2, factory) {
-        const normalized = JSON.parse(JSON.stringify({ ...request2, projectRoot: path8.resolve(request2.projectRoot) }));
-        const id = digest3(JSON.stringify([normalized.projectRoot, request2.sessionId, request2.turnId]));
+        const normalized2 = JSON.parse(JSON.stringify({ ...request2, projectRoot: path10.resolve(request2.projectRoot) }));
+        const id = digest3(JSON.stringify([normalized2.projectRoot, request2.sessionId, request2.turnId]));
         let receipt;
         try {
           receipt = await this.load("intent-issuance", id);
@@ -8790,7 +9100,7 @@ var init_lifecycle = __esm({
           if (error2.code !== "ENOENT") throw error2;
         }
         if (!receipt) {
-          const candidate = { request: normalized, intent: await factory() };
+          const candidate = { request: normalized2, intent: await factory() };
           try {
             receipt = await putAuthorizedOnceExact(this.dataRoot, "intent-issuance", id, candidate);
           } catch (error2) {
@@ -8801,7 +9111,7 @@ var init_lifecycle = __esm({
             }
           }
         }
-        if (JSON.stringify(receipt.request) !== JSON.stringify(normalized)) throw new Error("intent issuance request changed within the same turn; use a new turn for a different request");
+        if (JSON.stringify(receipt.request) !== JSON.stringify(normalized2)) throw new Error("intent issuance request changed within the same turn; use a new turn for a different request");
         try {
           const existing = await this.load("intents", receipt.intent.intentId);
           if (JSON.stringify({ ...existing, consumed: void 0 }) !== JSON.stringify({ ...receipt.intent, consumed: void 0 })) throw new Error("issued intent differs from its signed issuance receipt");
@@ -8830,7 +9140,7 @@ var init_lifecycle = __esm({
         await this.assertBeginNotCancelled(intentId);
         const intent = await this.load("intents", intentId);
         if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed");
-        if (path8.resolve(intent.projectRoot) !== path8.resolve(projectRoot)) throw new Error("intent project root mismatch");
+        if (path10.resolve(intent.projectRoot) !== path10.resolve(projectRoot)) throw new Error("intent project root mismatch");
         return intent;
       }
       async beginOperationFor(intentId) {
@@ -8870,8 +9180,8 @@ var init_lifecycle = __esm({
           return existing;
         }
         if (intent.consumed) throw new Error("implementation intent is consumed without a signed begin reservation");
-        if (!samePath4(intent.projectRoot, input.projectRoot)) throw new Error("intent project root mismatch");
-        const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path8.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
+        if (!samePath6(intent.projectRoot, input.projectRoot)) throw new Error("intent project root mismatch");
+        const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path10.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
         let operation;
         try {
           operation = await putAuthorizedOnceExact(this.dataRoot, "begin-operations", safeId2(input.intentId), candidate);
@@ -8888,14 +9198,14 @@ var init_lifecycle = __esm({
       }
       async checkpointBeginRepository(operation, repository, policy) {
         await this.assertBeginOperation(operation);
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path8.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path8.resolve(repository.commonGitDir), policySha256: digest3(JSON.stringify(policy)) };
-        if (!samePath4(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || operation.targetOid && operation.targetOid !== value.baseHead) throw new Error("repository checkpoint does not match the signed begin reservation");
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path10.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path10.resolve(repository.commonGitDir), policySha256: digest3(JSON.stringify(policy)) };
+        if (!samePath6(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || operation.targetOid && operation.targetOid !== value.baseHead) throw new Error("repository checkpoint does not match the signed begin reservation");
         return putAuthorizedOnceExact(this.dataRoot, "begin-repositories", operation.operationToken, value);
       }
       async ensureBeginTargetLease(operation, repository) {
         await this.assertBeginOperation(operation);
         if (!operation.targetBranch || !operation.targetOid) return void 0;
-        const leaseId = digest3(`${path8.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path8.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
+        const leaseId = digest3(`${path10.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path10.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
         try {
           await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
         } catch (error2) {
@@ -8912,7 +9222,7 @@ var init_lifecycle = __esm({
           await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
         }
         const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
-        if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath4(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+        if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath6(snapshot.payload.commonGitDir, repository.commonGitDir)) {
           throw new Error("target lease changed before the signed Begin lease checkpoint");
         }
         const resourceGeneration = digest3(JSON.stringify({ leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
@@ -8923,7 +9233,7 @@ var init_lifecycle = __esm({
         let leaseFields = {};
         if (lease) {
           const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
-          if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== void 0 && snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath4(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+          if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== void 0 && snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath6(snapshot.payload.commonGitDir, repository.commonGitDir)) {
             throw new Error("target lease checkpoint does not match its signed authority");
           }
           const resourceGeneration = digest3(JSON.stringify({ leaseId: lease.leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
@@ -8938,15 +9248,18 @@ var init_lifecycle = __esm({
       }
       async checkpointBeginWorkspace(operation, workspace) {
         await this.assertBeginOperation(operation);
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...workspace, projectRoot: path8.resolve(workspace.projectRoot), worktreePath: path8.resolve(workspace.worktreePath), commonGitDir: path8.resolve(workspace.commonGitDir), gitDir: path8.resolve(workspace.gitDir) };
-        const canonical = path8.join(operation.projectRoot, ".captain-sdlc", "worktrees") + path8.sep;
-        if (!value.worktreePath.startsWith(canonical) || !samePath4(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
+        const { primaryProjectRoot, ...ownedWorkspace } = workspace;
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...ownedWorkspace, projectRoot: path10.resolve(workspace.projectRoot), worktreePath: path10.resolve(workspace.worktreePath), commonGitDir: path10.resolve(workspace.commonGitDir), gitDir: path10.resolve(workspace.gitDir) };
+        const primary = primaryProjectRoot === void 0 ? operation.projectRoot : await (await Promise.resolve().then(() => (init_workspace(), workspace_exports))).primaryRepositoryRoot(operation.projectRoot, value.commonGitDir);
+        if (primaryProjectRoot !== void 0 && !samePath6(primary, primaryProjectRoot)) throw new Error("workspace primary root differs from the registered Git repository");
+        const canonical = path10.join(primary, ".captain-sdlc", "worktrees");
+        if (!samePath6(path10.dirname(value.worktreePath), canonical) || !samePath6(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
         return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
       }
       async checkpointBeginRun(operation, policy) {
         await this.assertBeginOperation(operation);
         const repository = await this.load("begin-repositories", operation.operationToken), lease = await this.load("begin-leases", operation.operationToken), workspace = await this.load("begin-workspaces", operation.operationToken);
-        if (repository.policySha256 !== digest3(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath4(repository.commonGitDir, workspace.commonGitDir)) throw new Error("begin checkpoints diverged before run activation");
+        if (repository.policySha256 !== digest3(JSON.stringify(policy)) || repository.baseHead !== workspace.baseHead || !samePath6(repository.commonGitDir, workspace.commonGitDir)) throw new Error("begin checkpoints diverged before run activation");
         if (Boolean(operation.targetBranch) !== Boolean(lease.leaseId)) throw new Error("target lease checkpoint is missing or unexpected before run activation");
         if (lease.leaseId) {
           if (!lease.leaseToken || lease.leaseToken !== operation.leaseToken || !Number.isSafeInteger(lease.leaseRevision) || typeof lease.resourceGeneration !== "string" || !/^[0-9a-f]{64}$/i.test(lease.resourceGeneration)) {
@@ -8954,7 +9267,7 @@ var init_lifecycle = __esm({
           }
           const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
           const generation3 = current && typeof current.revision === "number" ? digest3(JSON.stringify({ leaseId: lease.leaseId, revision: current.revision, state: current.state, payload: current.payload })) : void 0;
-          if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation3 !== lease.resourceGeneration || current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken || current.payload.operationToken !== void 0 && current.payload.operationToken !== operation.operationToken || current.payload.targetBranch !== operation.targetBranch || current.payload.targetOid !== operation.targetOid || !samePath4(current.payload.commonGitDir, repository.commonGitDir)) {
+          if (!current || current.state !== "held" || current.legacy || current.revision !== lease.leaseRevision || generation3 !== lease.resourceGeneration || current.payload.intentId !== operation.intentId || current.payload.leaseToken !== operation.leaseToken || current.payload.operationToken !== void 0 && current.payload.operationToken !== operation.operationToken || current.payload.targetBranch !== operation.targetBranch || current.payload.targetOid !== operation.targetOid || !samePath6(current.payload.commonGitDir, repository.commonGitDir)) {
             throw new Error("target lease generation changed before run revision 0; Begin was fenced");
           }
         }
@@ -9105,7 +9418,7 @@ var init_lifecycle = __esm({
           priorRun = await this.run(intent.resumeOf);
         }
         if (priorRun.phase === "complete" && isPendingPlanReview(priorRun)) {
-          if (!samePath4(priorRun.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
+          if (!samePath6(priorRun.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
           if (priorRun.sessionLeaseId || priorRun.leaseId) throw new Error("legacy review ownership must be finalized before resume");
           if (this.probe) this.assertWorktreeBinding(priorRun, await this.probe(priorRun.worktreePath, priorRun.policy), this.expectedHead(priorRun));
           const targetLease = priorRun.targetBranch ? await this.acquireTargetLease(priorRun.intentId, priorRun.commonGitDir, priorRun.targetBranch, this.expectedHead(priorRun)) : void 0;
@@ -9131,7 +9444,7 @@ var init_lifecycle = __esm({
         if (!operation) {
           if (intent.consumed) throw new Error("resume intent is invalid or consumed");
           const run2 = await this.run(intent.resumeOf);
-          if (run2.status === "green" || !samePath4(run2.projectRoot, intent.projectRoot)) throw new Error("completed or unrelated run cannot be resumed");
+          if (run2.status === "green" || !samePath6(run2.projectRoot, intent.projectRoot)) throw new Error("completed or unrelated run cannot be resumed");
           if (run2.status !== "paused") {
             if (run2.sessionId === intent.sessionId && !run2.sessionLeaseId && !run2.sessionLeaseToken) await this.assertRecoverableSameSessionWithoutLease(run2, intent);
             else await this.assertSessionLease(run2);
@@ -9260,7 +9573,7 @@ var init_lifecycle = __esm({
       async handoffs() {
         let names = [];
         try {
-          names = await readdir5(path8.join(this.dataRoot, "pause-handoffs"));
+          names = await readdir6(path10.join(this.dataRoot, "pause-handoffs"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9268,7 +9581,7 @@ var init_lifecycle = __esm({
       }
       async linkBlocker(blockedIntentId, blockerIntentId) {
         const blocked = await this.run(blockedIntentId), blocker = await this.run(blockerIntentId);
-        if (blocked.status !== "paused" || blocker.status === "green" || !samePath4(blocked.projectRoot, blocker.projectRoot)) throw new Error("blocker link requires a paused parent and an active same-project blocker");
+        if (blocked.status !== "paused" || blocker.status === "green" || !samePath6(blocked.projectRoot, blocker.projectRoot)) throw new Error("blocker link requires a paused parent and an active same-project blocker");
         const candidate = { schemaVersion: 1, blockedIntentId: blocked.intentId, blockerIntentId: blocker.intentId, blockedRunId: blocked.runId, blockerRunId: blocker.runId, projectRoot: blocked.projectRoot, createdAt: (/* @__PURE__ */ new Date()).toISOString() }, link2 = await putAuthorizedOnceExact(this.dataRoot, "blocker-links", `${blocked.intentId}-${blocker.intentId}`, candidate);
         const handoff = (await this.handoffs()).find((candidate2) => candidate2.intentId === blocked.intentId && candidate2.planPath);
         if (handoff?.planPath) await this.projectPlanState(blocked, handoff.planPath, { status: "blocked", phase: handoff.phaseLabel ?? blocked.phase, handoff: `${handoff.intentId}-${handoff.revision}`, blocker: blockerIntentId, next: handoff.nextSteps });
@@ -9278,7 +9591,7 @@ var init_lifecycle = __esm({
         const handoffs = await this.handoffs();
         let names = [];
         try {
-          names = await readdir5(path8.join(this.dataRoot, "run-revisions"));
+          names = await readdir6(path10.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9292,16 +9605,16 @@ var init_lifecycle = __esm({
         if (!planPaths.length) throw new Error("select at least one Markdown plan to migrate");
         const migrated = [];
         for (const relative of planPaths) {
-          const normalized = this.safePlanPath(run, relative);
-          if (this.isFrozenPlan(run, normalized)) throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
-          const file = path8.resolve(run.worktreePath, normalized);
+          const normalized2 = this.safePlanPath(run, relative);
+          if (this.isFrozenPlan(run, normalized2)) throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
+          const file = path10.resolve(run.worktreePath, normalized2);
           const original = await readFile3(file, "utf8");
           if (/<!-- captain:work-state\r?\n[\s\S]*?-->/.test(original)) continue;
           const heading = /^# .+\r?\n/.exec(original);
           if (!heading) throw new Error(`plan requires a level-one title before migration: ${relative}`);
           const line = heading[0].includes("\r\n") ? "\r\n" : "\n", block = `${line}<!-- captain:work-state${line}status: in-progress${line}phase: unspecified${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: none${line}blocker: none${line}next: []${line}-->${line}`;
           await writeFile2(file, `${heading[0]}${block}${original.slice(heading[0].length)}`, "utf8");
-          migrated.push(normalized);
+          migrated.push(normalized2);
         }
         return migrated;
       }
@@ -9313,6 +9626,7 @@ var init_lifecycle = __esm({
         if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
         if (!configured || command && command !== configured) throw new Error("red test must use the trusted ticket command");
         const selected = taskTicketCommand(run, "ticket", ticketFilter);
+        await prepareScopeOutputs(run.worktreePath, run.policy, "ticket");
         const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate;
         if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
         if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
@@ -9494,23 +9808,23 @@ ${result.stderr}`) }] });
         const intent = await this.load("intents", safeId2(resumeIntentId));
         if (!intent.resumeOf) throw new Error("resume intent is invalid or consumed");
         const run = await this.run(intent.resumeOf);
-        if (!samePath4(run.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
+        if (!samePath6(run.projectRoot, intent.projectRoot)) throw new Error("unrelated run cannot be resumed");
         await this.assertFrozenScope(run.intentId);
         return run;
       }
-      async recoverAdvancedPreparedCommit(intentId, commit, firstParent, candidateVerification) {
+      async recoverAdvancedPreparedCommit(intentId, commit2, firstParent, candidateVerification) {
         const run = await this.run(intentId), prepared = run.preparedCommit, operation = run.commitOperation;
         if (run.status !== "paused" || run.phase !== "implement" || !prepared || !operation || operation.stage !== "prepared") throw new Error("advanced prepared commit recovery requires a paused prepared run");
         await this.assertCommitOperation(run, operation);
         if (candidateVerification.tree !== prepared.tree || candidateVerification.subject !== prepared.subject) throw new Error("prepared candidate tree or subject diverged from signed authority");
-        if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length) throw new Error("prepared candidate is not retained in the advanced first-parent history");
-        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || (!commit.versionChanged || !commit.changelogChanged) && !(commit.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit.subject))) throw new Error("advanced commit history does not satisfy the signed commit policy");
+        if (firstParent.at(-1) !== commit2.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length) throw new Error("prepared candidate is not retained in the advanced first-parent history");
+        if (!commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || (!commit2.versionChanged || !commit2.changelogChanged) && !(commit2.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit2.subject))) throw new Error("advanced commit history does not satisfy the signed commit policy");
         if (!this.probe) throw new Error("source-state probe is required");
         const current = await this.probe(run.worktreePath, run.policy);
         this.assertWorktreeBinding(run, current);
-        if (current.head !== commit.head || current.tree !== commit.tree) throw new Error("advanced commit evidence changed during recovery");
-        const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: prepared.candidate, outcome: "committed", final: prepared.final, commit };
-        await this.update({ ...run, committedState: current, continuityState: void 0, terminalCommit, evidence: [...run.evidence, { kind: "advanced_prepared_commit_recovered", candidate: prepared.candidate, head: commit.head, commitCount: commit.commitCount, firstParent, originalRequestSha256: operation.requestSha256, dirty: current.status !== "" }] });
+        if (current.head !== commit2.head || current.tree !== commit2.tree) throw new Error("advanced commit evidence changed during recovery");
+        const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: prepared.candidate, outcome: "committed", final: prepared.final, commit: commit2 };
+        await this.update({ ...run, committedState: current, continuityState: void 0, terminalCommit, evidence: [...run.evidence, { kind: "advanced_prepared_commit_recovered", candidate: prepared.candidate, head: commit2.head, commitCount: commit2.commitCount, firstParent, originalRequestSha256: operation.requestSha256, dirty: current.status !== "" }] });
         return this.finishTerminalCommit(intentId, operation.requestSha256);
       }
       /** Associate only an authenticated standalone Prep candidate, under its existing resource fence. */
@@ -9527,7 +9841,7 @@ ${result.stderr}`) }] });
         const watermark = await readAuthorized(this.dataRoot, "merge-watermarks", `${mergeId}-${mergeRevision}`);
         const prepared = record3.prepared_commit, pending = record3.prepared_merge, request2 = record3.prepared_commit_request;
         if (record3.merge_id !== mergeId || record3.revision !== mergeRevision || watermark.sha256 !== digest3(JSON.stringify(record3)) || !prepared || !pending || !request2) throw new Error("signed merge candidate authority is incomplete");
-        if (run.sessionId !== record3.session_id || run.branch !== record3.source_binding.branch || !samePath4(run.worktreePath, record3.source_worktree) || !samePath4(run.commonGitDir, record3.source_binding.commonGitDir) || !samePath4(run.gitDir, record3.source_binding.gitDir)) throw new Error("merge source session or implementation binding diverged");
+        if (run.sessionId !== record3.session_id || run.branch !== record3.source_binding.branch || !samePath6(run.worktreePath, record3.source_worktree) || !samePath6(run.commonGitDir, record3.source_binding.commonGitDir) || !samePath6(run.gitDir, record3.source_binding.gitDir)) throw new Error("merge source session or implementation binding diverged");
         if (digest3(JSON.stringify(run.policy.commit)) !== digest3(JSON.stringify(record3.captured_policy.commit)))
           throw new Error("merge and implementation captured commit policy differ");
         const fence = await readAuthorizedLease(this.dataRoot, digest3(`worktree-mutation\0${run.runId}`));
@@ -9551,8 +9865,8 @@ ${result.stderr}`) }] });
         if (!run.committedState || run.committedState.head !== pending.preMergeHead || run.continuityState && run.continuityState.head !== pending.preMergeHead && run.continuityState.head !== prepared.candidate)
           throw new Error("signed merge does not extend the preceding implementation phase head");
         const preparedMerges = [...run.preparedMerges ?? [], pending];
-        const commit = await commitEvidence2(run.worktreePath, run.baseHead, run.policy, run.taskId, preparedMerges, run.committedState.head);
-        if (!commit.clean || commit.head !== prepared.candidate || commit.tree !== prepared.tree || !commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.taskTrailerValid || !commit.versionSurfacesValid || !commit.versionChanged || !commit.changelogChanged)
+        const commit2 = await commitEvidence2(run.worktreePath, run.baseHead, run.policy, run.taskId, preparedMerges, run.committedState.head);
+        if (!commit2.clean || commit2.head !== prepared.candidate || commit2.tree !== prepared.tree || !commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || !commit2.taskTrailerValid || !commit2.versionSurfacesValid || !commit2.versionChanged || !commit2.changelogChanged)
           throw new Error("signed merge commit does not satisfy captured implementation phase policy");
         await assertAuthority();
         await this.assertSessionLease(run);
@@ -9568,7 +9882,7 @@ ${result.stderr}`) }] });
           preparedMerges,
           evidence: [
             ...run.evidence,
-            { kind: "phase_commit", final: false, ...commit, integrationMergeId: mergeId },
+            { kind: "phase_commit", final: false, ...commit2, integrationMergeId: mergeId },
             {
               kind: "merge_integration_commit",
               mergeId,
@@ -9582,10 +9896,10 @@ ${result.stderr}`) }] });
           ]
         });
       }
-      async recordCommit(intentId, commit, final = true) {
-        return this.recordCommitCore(intentId, commit, final);
+      async recordCommit(intentId, commit2, final = true) {
+        return this.recordCommitCore(intentId, commit2, final);
       }
-      async reconcileAuthorizedCommit(intentId, request2, commit) {
+      async reconcileAuthorizedCommit(intentId, request2, commit2) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
@@ -9594,11 +9908,11 @@ ${result.stderr}`) }] });
         if (run.preparedCommit || run.commitOperation) throw new Error("a pending signed commit operation must use prepared recovery");
         if (!request2.final) throw new Error("authorized commit reconciliation only accepts a final task commit");
         const expectedHead = run.committedState?.head ?? run.baseHead, requestSha256 = commitRequestSha256(request2);
-        if (!commit.clean || commit.commitCount !== 1 || commit.firstParent !== expectedHead || commit.subject !== request2.subject || !commit.taskTrailerPresent) throw new Error("reconciliation requires the exact clean, single-parent task commit");
+        if (!commit2.clean || commit2.commitCount !== 1 || commit2.firstParent !== expectedHead || commit2.subject !== request2.subject || !commit2.taskTrailerPresent) throw new Error("reconciliation requires the exact clean, single-parent task commit");
         const safePaths = (values) => values.length > 0 && new Set(values).size === values.length && values.every((value) => typeof value === "string" && value.length > 0 && !value.startsWith("/") && !/^[A-Za-z]:/.test(value) && !value.includes("\\") && !value.split("/").some((part) => !part || part === "." || part === ".."));
-        if (!safePaths(request2.paths) || !commit.changedPaths || !safePaths(commit.changedPaths) || JSON.stringify([...request2.paths].sort()) !== JSON.stringify([...commit.changedPaths].sort())) throw new Error("reconciliation paths must exactly match the authorized selection and committed tree");
+        if (!safePaths(request2.paths) || !commit2.changedPaths || !safePaths(commit2.changedPaths) || JSON.stringify([...request2.paths].sort()) !== JSON.stringify([...commit2.changedPaths].sort())) throw new Error("reconciliation paths must exactly match the authorized selection and committed tree");
         const requests = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId });
-        const authorized = requests.status === "expressed" && requests.receipts.some((receipt) => receipt.decision === "expressed" && receipt.basis === "direct_instruction" && receipt.sessionId === run.sessionId && samePath4(receipt.projectRoot, run.projectRoot) && receipt.intentId === run.intentId && receipt.taskId === run.taskId && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
+        const authorized = requests.status === "expressed" && requests.receipts.some((receipt) => receipt.decision === "expressed" && receipt.basis === "direct_instruction" && receipt.sessionId === run.sessionId && samePath6(receipt.projectRoot, run.projectRoot) && receipt.intentId === run.intentId && receipt.taskId === run.taskId && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
         if (!authorized) throw new Error("reconciliation requires the expressed user request for this repository, task, run, and session");
         let operation;
         let discardedOperation;
@@ -9612,9 +9926,9 @@ ${result.stderr}`) }] });
           }
         }
         if (!discardedOperation) throw new Error("no matching signed failed commit operation exists for this exact request");
-        return this.recordCommitCore(intentId, commit, request2.final, true, { ...discardedOperation, paths: request2.paths, subject: request2.subject, sessionId: run.sessionId, taskId: run.taskId, branch: run.branch, worktreePath: run.worktreePath });
+        return this.recordCommitCore(intentId, commit2, request2.final, true, { ...discardedOperation, paths: request2.paths, subject: request2.subject, sessionId: run.sessionId, taskId: run.taskId, branch: run.branch, worktreePath: run.worktreePath });
       }
-      async recordCommitCore(intentId, commit, final = true, authorizedRecovery = false, recoveryAudit) {
+      async recordCommitCore(intentId, commit2, final = true, authorizedRecovery = false, recoveryAudit) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
@@ -9625,27 +9939,27 @@ ${result.stderr}`) }] });
           if (!run.preparedCommit || operation.stage !== "prepared") throw new Error("commit operation cannot finalize before signed candidate authorization");
           await this.assertCommitOperation(run, operation);
         }
-        if (!commit.clean || commit.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit.head) || commit.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
-        const bookkeeping = commit.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit.subject);
-        if (commit.bookkeepingOnly && !bookkeeping) throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
-        const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+        if (!commit2.clean || commit2.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit2.head) || commit2.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
+        const bookkeeping = commit2.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit2.subject);
+        if (commit2.bookkeepingOnly && !bookkeeping) throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
+        const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit2.subject);
         if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
-        if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject)) throw new Error("commit must include a strict SemVer suffix");
-        if (!bookkeeping && (!commit.versionChanged || !commit.changelogChanged)) throw new Error("commit must update the configured version file and changelog");
-        if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid) throw new Error("commit must include a configured task trailer");
-        if (!bookkeeping && run.policy.commit?.version_surfaces?.length && !commit.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
-        if (!commit.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
-        if (!commit.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
-        if (run.committedState && (commit.previousPhaseHead !== run.committedState.head || !commit.previousPhaseRetained || commit.commitCount <= Number(run.evidence.filter((value) => value.kind === "phase_commit" || value.kind === "commit").at(-1)?.commitCount ?? 0))) throw new Error("each atomic commit must extend the preceding phase commit without replacing history");
-        if (!commit.tree || !/^[0-9a-f]{40,64}$/i.test(commit.tree)) throw new Error("commit tree must be captured");
+        if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit2.subject)) throw new Error("commit must include a strict SemVer suffix");
+        if (!bookkeeping && (!commit2.versionChanged || !commit2.changelogChanged)) throw new Error("commit must update the configured version file and changelog");
+        if (run.policy.commit?.require_task_trailer && !commit2.taskTrailerValid) throw new Error("commit must include a configured task trailer");
+        if (!bookkeeping && run.policy.commit?.version_surfaces?.length && !commit2.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
+        if (!commit2.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
+        if (!commit2.phaseCommitsValid) throw new Error("every first-parent repair phase commit must independently satisfy repository commit policy");
+        if (run.committedState && (commit2.previousPhaseHead !== run.committedState.head || !commit2.previousPhaseRetained || commit2.commitCount <= Number(run.evidence.filter((value) => value.kind === "phase_commit" || value.kind === "commit").at(-1)?.commitCount ?? 0))) throw new Error("each atomic commit must extend the preceding phase commit without replacing history");
+        if (!commit2.tree || !/^[0-9a-f]{40,64}$/i.test(commit2.tree)) throw new Error("commit tree must be captured");
         if (!this.probe) throw new Error("source-state probe is required");
         const committedState = await this.probe(run.worktreePath, run.policy);
-        this.assertWorktreeBinding(run, committedState, commit.head);
-        if (committedState.head !== commit.head || committedState.tree !== commit.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
-        if (run.preparedCommit && (run.preparedCommit.candidate !== commit.head || run.preparedCommit.subject !== commit.subject || run.preparedCommit.final !== final)) throw new Error("commit evidence does not match the signed prepared candidate");
-        const next = { ...run, continuityState: void 0, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, ...recoveryAudit ? [{ kind: "authorized_commit_reconciled", ...recoveryAudit, head: commit.head, tree: commit.tree }] : [], { kind: final ? "commit" : "phase_commit", final, ...commit, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
+        this.assertWorktreeBinding(run, committedState, commit2.head);
+        if (committedState.head !== commit2.head || committedState.tree !== commit2.tree || committedState.status !== "") throw new Error("commit evidence no longer matches the clean probed commit");
+        if (run.preparedCommit && (run.preparedCommit.candidate !== commit2.head || run.preparedCommit.subject !== commit2.subject || run.preparedCommit.final !== final)) throw new Error("commit evidence does not match the signed prepared candidate");
+        const next = { ...run, continuityState: void 0, phase: final ? "prove" : "implement", committedState, evidence: [...run.evidence, ...recoveryAudit ? [{ kind: "authorized_commit_reconciled", ...recoveryAudit, head: commit2.head, tree: commit2.tree }] : [], { kind: final ? "commit" : "phase_commit", final, ...commit2, ...operation ? { operationLeaseId: operation.leaseId } : {} }] };
         if (!operation || !run.preparedCommit) return this.update({ ...next, commitOperation: void 0, preparedCommit: void 0 });
-        const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: run.preparedCommit.candidate, outcome: "committed", final, commit };
+        const terminalCommit = { requestSha256: operation.requestSha256, commitLeaseId: operation.leaseId, commitLeaseToken: operation.leaseToken, ...run.mutationOperation ? { mutationOperation: run.mutationOperation } : {}, candidate: run.preparedCommit.candidate, outcome: "committed", final, commit: commit2 };
         const terminal2 = await this.update({ ...next, terminalCommit });
         await this.hooks?.afterTerminalCommit?.(terminal2);
         return this.finishTerminalCommit(intentId, operation.requestSha256);
@@ -9690,6 +10004,7 @@ ${result.stderr}`) }] });
         if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope)) throw new Error("iteration check must be a trusted implementation scope");
         const selected = taskTicketCommand(run, scope, ticketFilter);
         if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+        await prepareScopeOutputs(run.worktreePath, run.policy, scope);
         const result = await this.runner(selected.command, run.worktreePath);
         if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
         return this.update({ ...run, ...selected.binding && (run.taskTicket || result.exitCode === 0) ? { taskTicket: selected.binding } : {}, evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest3(selected.command), ...selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}, exitCode: result.exitCode }] });
@@ -9744,7 +10059,9 @@ ${result.stderr}`) }] });
         const proof = [];
         const artifacts = {};
         for (const scope of scopes) {
-          const command = run.policy.commands[scope], result = await this.runner(command, run.worktreePath);
+          const command = run.policy.commands[scope];
+          await prepareScopeOutputs(run.worktreePath, run.policy, scope);
+          const result = await this.runner(command, run.worktreePath);
           proof.push({ scope, commandSha256: digest3(command), exitCode: result.exitCode });
           if (result.exitCode !== 0) {
             await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
@@ -9754,9 +10071,9 @@ ${result.stderr}`) }] });
           const role = bindings[scope];
           if (role) {
             const relative = run.policy.artifactPaths[role];
-            const absolute = await safeArtifact(run.worktreePath, relative);
-            const after = await hashPath(absolute);
-            if (role === "visual") await assertImage(absolute);
+            const absolute2 = await safeArtifact(run.worktreePath, relative);
+            const after = await hashPath(absolute2);
+            if (role === "visual") await assertImage(absolute2);
             artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope };
           }
         }
@@ -9813,19 +10130,37 @@ ${result.stderr}`) }] });
         if (!this.probe) throw new Error("HITL feedback requires a source-state probe");
         const recordedSource = await this.probe(run.worktreePath, run.policy);
         this.assertWorktreeBinding(run, recordedSource, this.expectedHead(run));
-        const normalized = { decision: input.decision, humanFeedback: input.humanFeedback.trim(), checkIds: [...input.checkIds].sort(), evidenceReferences: input.evidenceReferences.map((value) => value.trim()), ...input.reviewedRevision ? { reviewedRevision: input.reviewedRevision } : {} };
+        const normalized2 = { decision: input.decision, humanFeedback: input.humanFeedback.trim(), checkIds: [...input.checkIds].sort(), evidenceReferences: input.evidenceReferences.map((value) => value.trim()), ...input.reviewedRevision ? { reviewedRevision: input.reviewedRevision } : {} };
         const prior = run.evidence.filter((item) => item.kind === "hitl_feedback").at(-1);
-        if (prior && JSON.stringify({ decision: prior.decision, humanFeedback: prior.humanFeedback, checkIds: prior.checkIds, evidenceReferences: prior.evidenceReferences, ...prior.reviewedRevision ? { reviewedRevision: prior.reviewedRevision } : {} }) === JSON.stringify(normalized)) return run;
-        const review = { ...normalized, kind: "hitl_feedback", recordedAt: (/* @__PURE__ */ new Date()).toISOString(), recordedSource };
+        if (prior && JSON.stringify({ decision: prior.decision, humanFeedback: prior.humanFeedback, checkIds: prior.checkIds, evidenceReferences: prior.evidenceReferences, ...prior.reviewedRevision ? { reviewedRevision: prior.reviewedRevision } : {} }) === JSON.stringify(normalized2)) return run;
+        const review = { ...normalized2, kind: "hitl_feedback", recordedAt: (/* @__PURE__ */ new Date()).toISOString(), recordedSource };
         return this.update({ ...run, evidence: [...run.evidence, review] });
       }
       async status(intentId) {
         const run = await this.run(intentId);
         await this.reconcileRunProjections(run);
-        return { ...run, user_request: await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId }) };
+        let lookupRoot = run.projectRoot;
+        if (run.phase === "complete" && run.status === "green") {
+          let missing2 = false;
+          try {
+            await lstat3(run.projectRoot);
+          } catch (error2) {
+            if (error2.code !== "ENOENT") throw error2;
+            missing2 = true;
+          }
+          if (missing2) {
+            const { readWorktreeRegistration: readWorktreeRegistration2 } = await Promise.resolve().then(() => (init_worktree_storage(), worktree_storage_exports)), registration = await readWorktreeRegistration2(this.dataRoot, run.commonGitDir, run.worktreePath);
+            if (registration) {
+              if (!samePath6(registration.worktree_path, run.worktreePath) || !samePath6(registration.common_git_dir, run.commonGitDir) || !samePath6(registration.git_dir, run.gitDir) || registration.branch !== run.branch) throw new Error("terminal worktree registration differs from its signed run");
+              lookupRoot = await (await Promise.resolve().then(() => (init_workspace(), workspace_exports))).primaryRepositoryRoot(registration.project_root, run.commonGitDir);
+              if (!samePath6(lookupRoot, registration.project_root)) throw new Error("terminal worktree registration primary root diverged");
+            }
+          }
+        }
+        return { ...run, user_request: await this.userRequests({ projectRoot: lookupRoot, intentId: run.intentId }) };
       }
       async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) {
-        const leaseId = digest3(`${path8.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path8.resolve(commonGitDir), targetBranch, targetOid };
+        const leaseId = digest3(`${path10.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path10.resolve(commonGitDir), targetBranch, targetOid };
         try {
           await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
           return { leaseId, leaseToken };
@@ -9845,15 +10180,15 @@ ${result.stderr}`) }] });
         }
       }
       safePlanPath(run, relative) {
-        const normalized = relative.replaceAll("\\", "/");
-        if (!normalized.endsWith(".md") || normalized.startsWith("/") || normalized.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
-        const file = path8.resolve(run.worktreePath, normalized), inside = path8.relative(run.worktreePath, file);
-        if (inside.startsWith("..") || path8.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
-        return normalized;
+        const normalized2 = relative.replaceAll("\\", "/");
+        if (!normalized2.endsWith(".md") || normalized2.startsWith("/") || normalized2.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
+        const file = path10.resolve(run.worktreePath, normalized2), inside = path10.relative(run.worktreePath, file);
+        if (inside.startsWith("..") || path10.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
+        return normalized2;
       }
       async projectPlanState(run, relative, state) {
         if (this.isFrozenPlan(run, relative)) return false;
-        const normalized = this.safePlanPath(run, relative), file = path8.resolve(run.worktreePath, normalized), original = await readFile3(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
+        const normalized2 = this.safePlanPath(run, relative), file = path10.resolve(run.worktreePath, normalized2), original = await readFile3(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
         if (!match) return false;
         const line = match[1], single = (value) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`;
         await writeFile2(file, `${original.slice(0, match.index)}${block}${original.slice(match.index + match[0].length)}`, "utf8");
@@ -9882,16 +10217,16 @@ ${result.stderr}`) }] });
         const safe2 = safeId2(id), prefix = `${safe2}-`;
         let names = [];
         try {
-          names = await readdir5(path8.join(this.dataRoot, "run-revisions"));
+          names = await readdir6(path10.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
         const revisions = names.map((name) => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
         if (!revisions.length) {
-          const legacy = await this.load("runs", safe2), normalized = { ...legacy, revision: legacy.revision ?? 0 };
-          await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${safe2}-0`, normalized);
-          await this.writeRunWatermark(normalized);
-          return normalized;
+          const legacy = await this.load("runs", safe2), normalized2 = { ...legacy, revision: legacy.revision ?? 0 };
+          await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${safe2}-0`, normalized2);
+          await this.writeRunWatermark(normalized2);
+          return normalized2;
         }
         for (let index = 0; index < revisions.length; index++) if (revisions[index] !== index) throw new Error("signed run revision sequence is not contiguous");
         let latest, previous;
@@ -9904,7 +10239,7 @@ ${result.stderr}`) }] });
         }
         let watermarkNames = [];
         try {
-          watermarkNames = await readdir5(path8.join(this.dataRoot, "run-watermarks"));
+          watermarkNames = await readdir6(path10.join(this.dataRoot, "run-watermarks"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9940,7 +10275,7 @@ ${result.stderr}`) }] });
         }
       }
       assertStableRun(previous, current) {
-        const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path8.resolve(run.projectRoot), worktreePath: path8.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path8.resolve(run.commonGitDir), gitDir: path8.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
+        const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path10.resolve(run.projectRoot), worktreePath: path10.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path10.resolve(run.commonGitDir), gitDir: path10.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
         if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current))) throw new Error("signed run immutable binding changed across revisions");
         if (previous.taskTicket !== void 0 && JSON.stringify(previous.taskTicket) !== JSON.stringify(current.taskTicket)) throw new Error("signed run immutable task ticket binding changed across revisions");
       }
@@ -9964,7 +10299,7 @@ ${result.stderr}`) }] });
         if (JSON.stringify(signed) !== JSON.stringify(operation)) throw new Error("signed begin operation ownership diverged");
       }
       assertBeginReservation(operation, intent, input) {
-        if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath4(operation.projectRoot, input.projectRoot) || !samePath4(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || input.leaseToken && operation.leaseToken !== input.leaseToken) throw new Error("retry does not match the signed begin reservation");
+        if (operation.schemaVersion !== 1 || operation.intentId !== input.intentId || operation.intentId !== intent.intentId || operation.sessionId !== intent.sessionId || operation.turnId !== intent.turnId || !samePath6(operation.projectRoot, input.projectRoot) || !samePath6(operation.projectRoot, intent.projectRoot) || operation.objective !== input.objective || operation.taskId !== input.taskId || operation.targetBranch !== intent.targetBranch || operation.targetOid !== intent.targetOid || input.leaseToken && operation.leaseToken !== input.leaseToken) throw new Error("retry does not match the signed begin reservation");
       }
       async authorizeCommitOperation(run, operation) {
         const payload = { intentId: run.intentId, leaseToken: operation.leaseToken, runId: run.runId, requestSha256: operation.requestSha256, operation: "prepared-commit" };
@@ -10015,12 +10350,12 @@ ${result.stderr}`) }] });
         if (owner) await this.bindSessionOwner(run.intentId, run.sessionId, owner);
       }
       async assertRecoverableSameSessionWithoutLease(run, intent) {
-        if (run.status === "paused" || run.sessionId !== intent.sessionId || !samePath4(run.projectRoot, intent.projectRoot)) {
+        if (run.status === "paused" || run.sessionId !== intent.sessionId || !samePath6(run.projectRoot, intent.projectRoot)) {
           throw new Error("missing session lease recovery is limited to the same authorized client session and project");
         }
         if (run.sessionLeaseId || run.sessionLeaseToken) throw new Error("partial session lease ownership metadata cannot be recovered");
         const requests = await this.userRequests({ projectRoot: run.projectRoot, intentId: run.intentId, sessionId: intent.sessionId });
-        const authorized = requests.status === "expressed" && requests.receipts.some((receipt) => receipt.decision === "expressed" && ["direct_instruction", "continuation", "explicit_approval"].includes(String(receipt.basis)) && receipt.sessionId === intent.sessionId && receipt.turnId === intent.turnId && receipt.sourceIntentId === intent.intentId && receipt.intentId === run.intentId && samePath4(receipt.projectRoot, run.projectRoot) && samePath4(receipt.commonGitDir, run.commonGitDir) && (!run.taskId || receipt.taskId === run.taskId) && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
+        const authorized = requests.status === "expressed" && requests.receipts.some((receipt) => receipt.decision === "expressed" && ["direct_instruction", "continuation", "explicit_approval"].includes(String(receipt.basis)) && receipt.sessionId === intent.sessionId && receipt.turnId === intent.turnId && receipt.sourceIntentId === intent.intentId && receipt.intentId === run.intentId && samePath6(receipt.projectRoot, run.projectRoot) && samePath6(receipt.commonGitDir, run.commonGitDir) && (!run.taskId || receipt.taskId === run.taskId) && (!run.targetBranch || receipt.targetBranch === run.targetBranch));
         if (!authorized) throw new Error("same-session lease recovery requires this turn's expressed task authorization");
         const leaseId = digest3(`session-active\0${intent.sessionId}`);
         const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
@@ -10105,7 +10440,7 @@ ${result.stderr}`) }] });
       }
       async interruptionRunReadOnly(intentId) {
         const id = safeId2(intentId), prefix = `${id}-`;
-        const names = await readdir5(path8.join(this.dataRoot, "run-revisions"));
+        const names = await readdir6(path10.join(this.dataRoot, "run-revisions"));
         const revisions = names.map((name) => name.startsWith(prefix) && /^(\d+)\.json$/.exec(name.slice(prefix.length))).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
         if (!revisions.length) throw new Error("legacy run has no authenticated revision chain for interruption recovery");
         let previous;
@@ -10117,7 +10452,7 @@ ${result.stderr}`) }] });
           if (previous) this.assertStableRun(previous, current);
           previous = current;
         }
-        const watermarks = await readdir5(path8.join(this.dataRoot, "run-watermarks"));
+        const watermarks = await readdir6(path10.join(this.dataRoot, "run-watermarks"));
         if (watermarks.some((name) => name.startsWith(prefix) && /^(\d+)\.json$/.test(name.slice(prefix.length)) && Number(name.slice(prefix.length, -5)) > previous.revision)) throw new Error("signed run revision tail regressed behind its watermark");
         return previous;
       }
@@ -10168,7 +10503,7 @@ ${result.stderr}`) }] });
           if (error2.code === "ENOENT") return void 0;
           throw error2;
         }
-        if (handoff.intentId !== run.intentId || handoff.runId !== run.runId || handoff.revision !== run.revision || handoff.status !== "paused" || handoff.branch !== run.branch || !samePath4(handoff.projectRoot, run.projectRoot) || !samePath4(handoff.worktreePath, run.worktreePath)) throw new Error("signed pause handoff binding diverged from the Captain run");
+        if (handoff.intentId !== run.intentId || handoff.runId !== run.runId || handoff.revision !== run.revision || handoff.status !== "paused" || handoff.branch !== run.branch || !samePath6(handoff.projectRoot, run.projectRoot) || !samePath6(handoff.worktreePath, run.worktreePath)) throw new Error("signed pause handoff binding diverged from the Captain run");
         if (handoff.worktreeState) this.assertWorktreeBinding(run, handoff.worktreeState);
         return handoff;
       }
@@ -10176,8 +10511,8 @@ ${result.stderr}`) }] });
         return executionHead(run);
       }
       assertWorktreeBinding(run, current, expectedHead) {
-        const same = (left, right) => Boolean(left && right && path8.resolve(left).toLowerCase() === path8.resolve(right).toLowerCase());
-        if (current.branch !== run.branch || current.branchHead !== current.head || !same(current.commonGitDir, run.commonGitDir) || !same(current.topLevel, run.worktreePath) || !same(current.gitDir, run.gitDir) || expectedHead && current.head !== expectedHead) throw new Error("worktree branch binding diverged from the signed Captain run");
+        const same2 = (left, right) => Boolean(left && right && path10.resolve(left).toLowerCase() === path10.resolve(right).toLowerCase());
+        if (current.branch !== run.branch || current.branchHead !== current.head || !same2(current.commonGitDir, run.commonGitDir) || !same2(current.topLevel, run.worktreePath) || !same2(current.gitDir, run.gitDir) || expectedHead && current.head !== expectedHead) throw new Error("worktree branch binding diverged from the signed Captain run");
       }
       async load(bucket3, id) {
         return readAuthorized(this.dataRoot, bucket3, safeId2(id));
@@ -10190,8 +10525,8 @@ ${result.stderr}`) }] });
       if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
       return id;
     };
-    samePath4 = (left, right) => path8.resolve(left).toLowerCase() === path8.resolve(right).toLowerCase();
-    digest3 = (text) => createHash6("sha256").update(text).digest("hex");
+    samePath6 = (left, right) => path10.resolve(left).toLowerCase() === path10.resolve(right).toLowerCase();
+    digest3 = (text) => createHash7("sha256").update(text).digest("hex");
     commitRequestSha256 = (request2) => digest3(JSON.stringify({ paths: request2.paths, subject: request2.subject, taskOutcome: request2.taskOutcome ?? null, final: request2.final }));
   }
 });
@@ -10212,19 +10547,21 @@ __export(workspace_exports, {
   ensureWorktree: () => ensureWorktree,
   gateRunner: () => gateRunner,
   git: () => git,
+  gitRaw: () => gitRaw,
   loadPolicy: () => loadPolicy,
   prepareMerge: () => prepareMerge,
   preparedMergeState: () => preparedMergeState,
+  primaryRepositoryRoot: () => primaryRepositoryRoot,
   reconcilePreparedCommit: () => reconcilePreparedCommit,
   reconcilePreparedMerge: () => reconcilePreparedMerge,
   repositoryIdentity: () => repositoryIdentity,
   sourceState: () => sourceState
 });
 import { execFile as execFile2 } from "node:child_process";
-import { createHash as createHash7 } from "node:crypto";
-import { cp, lstat as lstat2, mkdtemp, readFile as readFile4, readdir as readdir6, realpath as realpath2, writeFile as writeFile3 } from "node:fs/promises";
+import { createHash as createHash8 } from "node:crypto";
+import { cp, lstat as lstat4, mkdtemp, readFile as readFile4, readdir as readdir7, realpath as realpath4, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import path9 from "node:path";
+import path11 from "node:path";
 import { promisify as promisify2 } from "node:util";
 function scrubbedEnvironment() {
   const env = { ...process.env };
@@ -10233,18 +10570,21 @@ function scrubbedEnvironment() {
 }
 async function gitControls() {
   isolatedGitControlRoot ??= (async () => {
-    const root = await mkdtemp(path9.join(tmpdir(), "captain-git-controls-"));
-    await writeFile3(path9.join(root, "attributes"), "");
+    const root = await mkdtemp(path11.join(tmpdir(), "captain-git-controls-"));
+    await writeFile3(path11.join(root, "attributes"), "");
     return root;
   })();
   return isolatedGitControlRoot;
 }
 async function gitInvocation(args, cwd) {
   const controls = await gitControls();
-  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path9.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path11.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
 }
 async function git(args, cwd) {
   return (await gitInvocation(args, cwd)).stdout.trim();
+}
+async function gitRaw(args, cwd) {
+  return (await gitInvocation(args, cwd)).stdout;
 }
 async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
@@ -10260,9 +10600,9 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
       for (const check2 of source) {
         const fields = ["id", "criterionId", "setup", "action", "expected", "evidence"];
         if (!check2 || fields.some((field) => typeof check2[field] !== "string" || !check2[field].trim())) throw new Error("HITL checks require id, criterionId, setup, action, expected and evidence goals");
-        const normalized = Object.fromEntries(fields.map((field) => [field, check2[field]]));
-        if (checks.has(normalized.id) && JSON.stringify(checks.get(normalized.id)) !== JSON.stringify(normalized)) throw new Error(`conflicting frozen HITL check: ${normalized.id}`);
-        checks.set(normalized.id, normalized);
+        const normalized2 = Object.fromEntries(fields.map((field) => [field, check2[field]]));
+        if (checks.has(normalized2.id) && JSON.stringify(checks.get(normalized2.id)) !== JSON.stringify(normalized2)) throw new Error(`conflicting frozen HITL check: ${normalized2.id}`);
+        checks.set(normalized2.id, normalized2);
       }
     }
     parsed.hitlChecks = [...checks.values()].sort((a, b) => a.id.localeCompare(b.id));
@@ -10333,22 +10673,34 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     parsed.sourceManifestRootFileExcludes.push(value);
   }
   if (parsed.hitlChecks?.length && !parsed.approvedPlans?.length) throw new Error("HITL checks require an approved plan selected at begin");
+  parsed.outputRetention = await captureOutputRetention(projectRoot, baseHead, raw.outputRetention, parsed.artifactPaths, trackedBasePaths, parsed.sourceManifestExcludes);
+  for (const scope of Object.keys(parsed.outputRetention.roots)) if (!parsed.commands[scope]) throw new Error(`output retention scope has no trusted command: ${scope}`);
   return parsed;
 }
+async function primaryRepositoryRoot(projectRoot, expectedCommonGitDir) {
+  const common = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
+  if (expectedCommonGitDir && pathKey4(common) !== pathKey4(expectedCommonGitDir)) throw new Error("primary worktree common Git directory binding diverged");
+  const primary = (await worktreeEntries(projectRoot))[0]?.worktree;
+  if (!primary) throw new Error("primary worktree could not be resolved");
+  const root = path11.resolve(primary);
+  if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" || pathKey4(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey4(common) || pathKey4(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey4(root) || pathKey4(await realpath4(root)) !== pathKey4(root) || pathKey4(await realpath4(common)) !== pathKey4(common))
+    throw new Error("primary worktree must be a non-bare checkout with the exact common Git directory binding");
+  return root;
+}
 async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
-  const root = path9.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
+  const root = path11.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
   if (targetBranch) await validateTargetBranch(root, targetBranch);
   const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root);
   if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase())) throw new Error("signed target branch oid does not match the current ref");
   await assertSafeGitAttributesAtCommit(root, baseHead);
-  return { projectRoot: root, baseHead, commonGitDir };
+  return { projectRoot: root, baseHead, commonGitDir, primaryProjectRoot, ...pathKey4(root) !== pathKey4(primaryProjectRoot) ? { invocationWorktree: root } : {} };
 }
 async function hydrateIgnoredUnityPlugins(root, worktree) {
   for (const parent of ["Assets", "Packages"]) {
-    const sourceParent = path9.join(root, parent);
+    const sourceParent = path11.join(root, parent);
     let entries;
     try {
-      entries = await readdir6(sourceParent, { withFileTypes: true });
+      entries = await readdir7(sourceParent, { withFileTypes: true });
     } catch (error2) {
       if (error2.code === "ENOENT") continue;
       throw error2;
@@ -10357,66 +10709,72 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
       if (!entry.isDirectory()) continue;
       const relative = parent + "/" + entry.name;
       if (await optionalGit(["check-ignore", "--", relative], root) === null) continue;
-      await cp(path9.join(sourceParent, entry.name), path9.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
+      await cp(path11.join(sourceParent, entry.name), path11.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
       const siblingMeta = relative + ".meta";
       try {
-        const metadata = await lstat2(path9.join(root, siblingMeta));
-        if (metadata.isFile()) await cp(path9.join(root, siblingMeta), path9.join(worktree, siblingMeta), { force: false, errorOnExist: false });
+        const metadata = await lstat4(path11.join(root, siblingMeta));
+        if (metadata.isFile()) await cp(path11.join(root, siblingMeta), path11.join(worktree, siblingMeta), { force: false, errorOnExist: false });
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
       }
     }
   }
 }
-async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir) {
-  const root = path9.resolve(projectRoot), commonGitDir = path9.resolve(expectedCommonGitDir ?? await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path9.join(root, ".captain-sdlc", "worktrees"), proposedPath = path9.join(container, safe2);
-  if (!safe2) throw new Error("intent id cannot produce an empty worktree name");
-  await assertSafeGitAttributesAtCommit(root, baseHead);
+async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir, storageDataRoot, invocationWorktree) {
+  const invocationRoot = path11.resolve(projectRoot), commonGitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
+  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path11.join(root, ".captain-sdlc", "worktrees"), proposedPath = path11.join(container, safe2);
+  if (!safe2 || storageDataRoot && safe2 !== intentId) throw new Error("intent id must produce an exact safe worktree name");
+  await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
   await assertSafeGitMetadataAttributes(root);
   await rejectReparseAncestors(root, container);
   if (targetBranch) {
     await validateTargetBranch(root, targetBranch);
-    const targetRef = `refs/heads/${targetBranch}`, resolved = await git(["rev-parse", "--verify", `${targetRef}^{commit}`], root);
-    if (resolved !== baseHead) throw new Error("target branch moved after its base was captured");
-    const existing2 = (await worktreeEntries(root)).find((value) => value.branch === targetRef);
-    if (existing2) {
-      const worktreePath = path9.resolve(existing2.worktree);
-      if (!isPathInside(container, worktreePath)) throw new Error("target branch is checked out outside the canonical worktree container");
-      await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
-      const binding3 = await assertWorktreeBinding(worktreePath, targetBranch, commonGitDir, baseHead, true);
-      await hydrateIgnoredUnityPlugins(root, worktreePath);
-      return { projectRoot: root, worktreePath, baseHead, targetBranch, branch: binding3.branch, commonGitDir, gitDir: binding3.gitDir };
-    }
-    let binding2;
-    await assertMissingWorktreePath(proposedPath);
-    try {
-      await git(["worktree", "add", proposedPath, targetBranch], root);
-      await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-      binding2 = await assertWorktreeBinding(proposedPath, targetBranch, commonGitDir, baseHead, true);
-      await hydrateIgnoredUnityPlugins(root, proposedPath);
-    } catch (error2) {
-      try {
-        await git(["worktree", "remove", "--force", proposedPath], root);
-      } catch {
-      }
-      throw error2;
-    }
-    return { projectRoot: root, worktreePath: proposedPath, baseHead, targetBranch, branch: binding2.branch, commonGitDir, gitDir: binding2.gitDir };
+    if (await git(["rev-parse", "--verify", `refs/heads/${targetBranch}^{commit}`], root) !== baseHead) throw new Error("target branch moved after its base was captured");
   }
-  const branch = `captain/${safe2}`, branchRef = `refs/heads/${branch}`, existing = (await worktreeEntries(root)).find((value) => path9.resolve(value.worktree) === path9.resolve(proposedPath));
+  const branch = targetBranch ?? `captain/${safe2}`, branchRef = `refs/heads/${branch}`, entries = await worktreeEntries(root);
+  const existing = entries.find((value) => targetBranch ? value.branch === branchRef : pathKey4(value.worktree) === pathKey4(proposedPath));
+  const worktreePath = existing ? path11.resolve(existing.worktree) : proposedPath;
+  if (!sameDirectory(container, path11.dirname(worktreePath))) throw new Error("target branch is checked out outside the canonical worktree container");
+  const expected = { schema_version: 1, intent_id: intentId, project_root: root, common_git_dir: commonGitDir, worktree_path: worktreePath, branch, base_head: baseHead };
+  const assertCreationIdentity = (prior) => {
+    if (prior.intent_id !== intentId || [prior.project_root, prior.common_git_dir, prior.worktree_path].some((value, index) => pathKey4(value) !== pathKey4([root, commonGitDir, worktreePath][index])) || prior.branch !== branch || prior.base_head !== baseHead) throw new Error("worktree creation retry changed its signed binding");
+    return prior;
+  };
+  let reserved;
   if (existing) {
     if (existing.branch !== branchRef) throw new Error("canonical worktree path belongs to a different branch");
-    await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-    const binding2 = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
-    await hydrateIgnoredUnityPlugins(root, proposedPath);
-    return { projectRoot: root, worktreePath: proposedPath, baseHead, branch: binding2.branch, commonGitDir, gitDir: binding2.gitDir };
+    if (storageDataRoot) {
+      const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
+      if (prior && prior.intent_id === intentId) reserved = assertCreationIdentity(prior);
+    }
+  } else {
+    await assertMissingWorktreePath(worktreePath);
+    if (storageDataRoot) {
+      const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
+      if (prior) reserved = assertCreationIdentity(prior);
+      else {
+        const parentPath = path11.resolve(invocationWorktree ?? invocationRoot);
+        if (pathKey4(parentPath) !== pathKey4(root)) {
+          const parent = await readWorktreeRegistration(storageDataRoot, commonGitDir, parentPath);
+          if (parent) {
+            try {
+              await assertWorktreeBinding(parentPath, parent.branch, commonGitDir, baseHead, false, parent.git_dir);
+            } catch (cause) {
+              throw new Error("parent worktree HEAD or Git identity changed before successor creation", { cause });
+            }
+            expected.parent_worktree = { registration_id: storageRegistrationId(commonGitDir, parentPath), worktree_path: parentPath, branch: parent.branch, git_dir: parent.git_dir, head: baseHead };
+          }
+        }
+        reserved = await reserveWorktreeCreation(storageDataRoot, expected);
+      }
+    }
+    await git(targetBranch ? ["worktree", "add", worktreePath, targetBranch] : ["worktree", "add", worktreePath, "-b", branch, baseHead], root);
   }
-  await assertMissingWorktreePath(proposedPath);
-  await git(["worktree", "add", proposedPath, "-b", branch, baseHead], root);
-  await assertSafeGitAttributesInWorktree(proposedPath, await trackedWorktreePaths(proposedPath));
-  const binding = await assertWorktreeBinding(proposedPath, branch, commonGitDir, baseHead, true);
-  await hydrateIgnoredUnityPlugins(root, proposedPath);
-  return { projectRoot: root, worktreePath: proposedPath, baseHead, branch, commonGitDir, gitDir: binding.gitDir };
+  await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
+  const binding = await assertWorktreeBinding(worktreePath, branch, commonGitDir, baseHead, true);
+  if (reserved && storageDataRoot) await completeWorktreeCreation(storageDataRoot, reserved, binding.gitDir);
+  await hydrateIgnoredUnityPlugins(root, worktreePath);
+  return { projectRoot: invocationRoot, worktreePath, baseHead, ...targetBranch ? { targetBranch } : {}, branch, commonGitDir, gitDir: binding.gitDir, primaryProjectRoot: root };
 }
 async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = [], previousPhaseHead) {
   const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
@@ -10570,21 +10928,21 @@ async function reconcilePreparedMerge(worktree, prepared) {
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state");
 }
 async function sourceState(worktree, policy) {
-  const topLevel = path9.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
-  const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : void 0);
+  const topLevel = path11.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+  const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : void 0, policy);
   const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
   return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
 async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) {
-  const real = await realpath2(worktree), owned = path9.resolve(worktree);
-  if (path9.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
-  const topLevel = path9.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
+  const real = await realpath4(worktree), owned = path11.resolve(worktree);
+  if (path11.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
+  const topLevel = path11.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
   if (topLevel.toLowerCase() !== owned.toLowerCase()) throw new Error("Git top-level does not match the owned worktree");
   const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree);
   if (!branch || expectedBranch && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
-  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path9.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
-  if (expectedGitDir && gitDir.toLowerCase() !== path9.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
+  const commonGitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path11.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
+  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path11.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
+  if (expectedGitDir && gitDir.toLowerCase() !== path11.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
   const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branchHead = await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree);
   if (head !== branchHead || expectedHead && head !== expectedHead) throw new Error("worktree target branch ref binding diverged");
   if (requireClean && await git(["status", "--porcelain"], worktree)) throw new Error("target branch worktree must be clean before Captain uses it");
@@ -10617,13 +10975,9 @@ async function worktreeEntries(root) {
   if (current) result.push(current);
   return result;
 }
-function isPathInside(parent, candidate) {
-  const relative = path9.relative(path9.resolve(parent), path9.resolve(candidate));
-  return relative !== "" && !relative.startsWith(`..${path9.sep}`) && relative !== ".." && !path9.isAbsolute(relative);
-}
 async function assertMissingWorktreePath(worktreePath) {
   try {
-    await lstat2(worktreePath);
+    await lstat4(worktreePath);
     throw new Error(`canonical worktree path already exists: ${worktreePath}`);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -10634,16 +10988,16 @@ async function boundedGitShow(cwd, object3, label) {
   if (Buffer.byteLength(value) > maxPolicyInput) throw new Error(`${label} exceeds the bounded input limit`);
   return value;
 }
-async function assertSafeGitAttributesAtCommit(cwd, commit) {
-  for (const file of splitLines(await git(["ls-tree", "-r", "--name-only", commit], cwd)).filter((value) => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
-    const content = await boundedGitShow(cwd, `${commit}:${file}`, "Git attributes");
+async function assertSafeGitAttributesAtCommit(cwd, commit2) {
+  for (const file of splitLines(await git(["ls-tree", "-r", "--name-only", commit2], cwd)).filter((value) => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
+    const content = await boundedGitShow(cwd, `${commit2}:${file}`, "Git attributes");
     if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`);
   }
 }
 async function assertSafeGitMetadataAttributes(cwd) {
-  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path9.resolve(cwd, raw);
+  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path11.resolve(cwd, raw);
   try {
-    const info = await lstat2(file);
+    const info = await lstat4(file);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file");
     const content = await readFile4(file, "utf8");
     if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers");
@@ -10660,42 +11014,42 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
   const collect = async (target) => {
     let info;
     try {
-      info = await lstat2(target);
+      info = await lstat4(target);
     } catch (error2) {
       if (error2.code === "ENOENT") return;
       throw error2;
     }
     if (info.isSymbolicLink()) return;
     if (info.isFile()) {
-      if (path9.basename(target).toLowerCase() === ".gitattributes") files.add(target);
+      if (path11.basename(target).toLowerCase() === ".gitattributes") files.add(target);
       return;
     }
     if (!info.isDirectory()) return;
-    for (const entry of await readdir6(target, { withFileTypes: true })) {
+    for (const entry of await readdir7(target, { withFileTypes: true })) {
       if (entry.name.toLowerCase() === ".git") continue;
-      const child = path9.join(target, entry.name);
+      const child = path11.join(target, entry.name);
       if (entry.name.toLowerCase() === ".gitattributes") files.add(child);
       else if (entry.isDirectory()) await collect(child);
     }
   };
   for (const selected of selectedPaths.length ? selectedPaths : ["."]) {
     const segments = selected.replaceAll("\\", "/").split("/").filter((value) => value && value !== ".");
-    files.add(path9.join(cwd, ".gitattributes"));
-    for (let index = 1; index < segments.length; index++) files.add(path9.join(cwd, ...segments.slice(0, index), ".gitattributes"));
-    const target = path9.resolve(cwd, selected);
+    files.add(path11.join(cwd, ".gitattributes"));
+    for (let index = 1; index < segments.length; index++) files.add(path11.join(cwd, ...segments.slice(0, index), ".gitattributes"));
+    const target = path11.resolve(cwd, selected);
     try {
-      if ((await lstat2(target)).isDirectory()) await collect(target);
+      if ((await lstat4(target)).isDirectory()) await collect(target);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
   for (const file of files) {
     try {
-      const info = await lstat2(file);
-      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path9.relative(cwd, file)}`);
+      const info = await lstat4(file);
+      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path11.relative(cwd, file)}`);
       const content = await readFile4(file, "utf8");
-      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path9.relative(cwd, file)}`);
-      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path9.relative(cwd, file)}`);
+      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path11.relative(cwd, file)}`);
+      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path11.relative(cwd, file)}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
@@ -10708,19 +11062,19 @@ function hasExecutableGitAttributes(content) {
   });
 }
 async function rejectReparseAncestors(root, target) {
-  for (let cursor = path9.resolve(target); cursor.startsWith(path9.resolve(root)); cursor = path9.dirname(cursor)) {
+  for (let cursor = path11.resolve(target); cursor.startsWith(path11.resolve(root)); cursor = path11.dirname(cursor)) {
     try {
-      if ((await lstat2(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
+      if ((await lstat4(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
-    if (cursor === path9.resolve(root)) break;
+    if (cursor === path11.resolve(root)) break;
   }
 }
 function safeRepositoryPath(value, label) {
-  const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/");
-  if (path9.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
-  return normalized;
+  const normalized2 = value.replaceAll("\\", "/"), segments = normalized2.split("/");
+  if (path11.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
+  return normalized2;
 }
 function objectValue(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -10736,15 +11090,15 @@ function parseObject(text, label) {
 }
 function stringRecord(value, label) {
   const record3 = objectValue(value, label), result = {};
-  for (const [key2, item] of Object.entries(record3)) {
+  for (const [key3, item] of Object.entries(record3)) {
     if (typeof item !== "string" || !item.trim()) throw new Error(`${label} must contain nonempty strings`);
-    result[key2] = item;
+    result[key3] = item;
   }
   return result;
 }
 function validateCommitPolicy(input) {
   const value = objectValue(input, "trusted repository commit policy");
-  for (const key2 of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key2] !== void 0 && typeof value[key2] !== "boolean") throw new Error(`${key2} must be boolean`);
+  for (const key3 of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key3] !== void 0 && typeof value[key3] !== "boolean") throw new Error(`${key3} must be boolean`);
   const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? true;
   if (!conventional && requireVersionSuffix) throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types");
   if (typeof value.version_file !== "string") throw new Error("trusted repository commit policy must configure version_file");
@@ -10897,17 +11251,18 @@ async function changelogAddsVersion(worktree, parent, hash8, subject, policy) {
   const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash8, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
   return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
 }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy) {
+async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy) {
   const lines2 = [], productLines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map((item) => item.replaceAll("\\", "/")));
   async function walk(dir) {
-    for (const entry of (await readdir6(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const relative = path9.relative(root, path9.join(dir, entry.name)).replaceAll("\\", "/");
+    for (const entry of (await readdir7(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const relative = path11.relative(root, path11.join(dir, entry.name)).replaceAll("\\", "/");
+      if (policy && outputPathExcluded(relative, policy, tracked)) continue;
       if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative.toLowerCase().endsWith(".meta") && !tracked.has(relative) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
-      const full = path9.join(dir, entry.name), info = await lstat2(full);
+      const full = path11.join(dir, entry.name), info = await lstat4(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
       if (info.isDirectory()) await walk(full);
       else if (info.isFile()) {
-        const content = await readFile4(full), value = `${relative}:${createHash7("sha256").update(content).digest("hex")}`;
+        const content = await readFile4(full), value = `${relative}:${createHash8("sha256").update(content).digest("hex")}`;
         lines2.push(value);
         if (bookkeepingPolicy && (info.mode & 73) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
         productLines.push(value);
@@ -10921,13 +11276,15 @@ function rootFilePatternMatches(file, pattern) {
   const lower = file.toLowerCase(), expected = pattern.toLowerCase();
   return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected;
 }
-var exec2, maxGitBuffer, maxPolicyInput, defaultCommitPolicy, approvedGeneratedPaths, approvedGeneratedRootFilePatterns, isolatedGitControlRoot, gateRunner, normalizeSourceStatus, digest4, splitLines;
+var exec2, maxGitBuffer, maxPolicyInput, defaultCommitPolicy, approvedGeneratedPaths, approvedGeneratedRootFilePatterns, isolatedGitControlRoot, gateRunner, pathKey4, sameDirectory, normalizeSourceStatus, digest4, splitLines;
 var init_workspace = __esm({
   "src/workspace.ts"() {
     "use strict";
     init_lifecycle();
     init_validation();
     init_bookkeeping();
+    init_output_retention();
+    init_worktree_storage();
     exec2 = promisify2(execFile2);
     maxGitBuffer = 10 * 1024 * 1024;
     maxPolicyInput = 1024 * 1024;
@@ -10983,21 +11340,23 @@ var init_workspace = __esm({
         return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
       }
     };
+    pathKey4 = (value) => process.platform === "win32" ? path11.resolve(value).toLowerCase() : path11.resolve(value);
+    sameDirectory = (left, right) => pathKey4(left) === pathKey4(right);
     normalizeSourceStatus = (status) => status.split(/\r?\n/).filter((line) => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
-    digest4 = (text) => createHash7("sha256").update(text).digest("hex");
+    digest4 = (text) => createHash8("sha256").update(text).digest("hex");
     splitLines = (value) => value.split(/\r?\n/).filter(Boolean);
   }
 });
 
 // src/bookkeeping.ts
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 import { mkdtemp as mkdtemp2, readFile as readFile5, writeFile as writeFile4 } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
-import path10 from "node:path";
+import path12 from "node:path";
 function validateBookkeepingPolicy(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("bookkeeping policy must declare a committed path_file");
   const value = input;
-  if (Object.keys(value).some((key2) => key2 !== "path_file")) throw new Error("bookkeeping captured patterns and hash cannot be supplied by repository policy");
+  if (Object.keys(value).some((key3) => key3 !== "path_file")) throw new Error("bookkeeping captured patterns and hash cannot be supplied by repository policy");
   if (value.path_file !== ruleFile) throw new Error(`bookkeeping path_file must be ${ruleFile}`);
   return { path_file: ruleFile };
 }
@@ -11025,10 +11384,10 @@ async function matcherRoot(policy, git2) {
   let pending = matcherRoots.get(config2.sha256);
   if (!pending) {
     pending = (async () => {
-      const root2 = await mkdtemp2(path10.join(tmpdir2(), "captain-bookkeeping-rules-"));
+      const root2 = await mkdtemp2(path12.join(tmpdir2(), "captain-bookkeeping-rules-"));
       await git2(["init", "--template="], root2);
-      await writeFile4(path10.join(root2, ".gitignore"), config2.patterns, "utf8");
-      await writeFile4(path10.join(root2, "empty-excludes"), "", "utf8");
+      await writeFile4(path12.join(root2, ".gitignore"), config2.patterns, "utf8");
+      await writeFile4(path12.join(root2, "empty-excludes"), "", "utf8");
       return root2;
     })();
     matcherRoots.set(config2.sha256, pending);
@@ -11037,14 +11396,14 @@ async function matcherRoot(policy, git2) {
     });
   }
   const root = await pending;
-  if (hash4(await readFile5(path10.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
+  if (hash4(await readFile5(path12.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
   return root;
 }
 async function bookkeepingPathAllowedCore(relative, policy, git2) {
   if (!bookkeepingCaptured(policy) || !safeRecordPath(relative, policy)) return false;
   const root = await matcherRoot(policy, git2);
   try {
-    await git2(["-c", `core.excludesFile=${path10.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
+    await git2(["-c", `core.excludesFile=${path12.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
     return true;
   } catch (error2) {
     if (Number(error2.code) === 1) return false;
@@ -11062,7 +11421,7 @@ var init_bookkeeping = __esm({
     ruleFile = ".captain-sdlc/captain.ignore";
     matcherRoots = /* @__PURE__ */ new Map();
     recordRoots = [".captain-sdlc/notebook/", ".captain-sdlc/handoffs/", ".captain-sdlc/closeouts/", ".captain-sdlc/evidence/"];
-    hash4 = (value) => createHash8("sha256").update(value).digest("hex");
+    hash4 = (value) => createHash9("sha256").update(value).digest("hex");
   }
 });
 
@@ -11372,9 +11731,9 @@ var util;
   };
   util2.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object3) => {
     const keys = [];
-    for (const key2 in object3) {
-      if (Object.prototype.hasOwnProperty.call(object3, key2)) {
-        keys.push(key2);
+    for (const key3 in object3) {
+      if (Object.prototype.hasOwnProperty.call(object3, key3)) {
+        keys.push(key3);
       }
     }
     return keys;
@@ -11704,8 +12063,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path15, errorMaps, issueData } = params;
-  const fullPath = [...path15, ...issueData.path || []];
+  const { data, path: path18, errorMaps, issueData } = params;
+  const fullPath = [...path18, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -11774,10 +12133,10 @@ var ParseStatus = class _ParseStatus {
   static async mergeObjectAsync(status, pairs) {
     const syncPairs = [];
     for (const pair of pairs) {
-      const key2 = await pair.key;
+      const key3 = await pair.key;
       const value = await pair.value;
       syncPairs.push({
-        key: key2,
+        key: key3,
         value
       });
     }
@@ -11786,17 +12145,17 @@ var ParseStatus = class _ParseStatus {
   static mergeObjectSync(status, pairs) {
     const finalObject = {};
     for (const pair of pairs) {
-      const { key: key2, value } = pair;
-      if (key2.status === "aborted")
+      const { key: key3, value } = pair;
+      if (key3.status === "aborted")
         return INVALID;
       if (value.status === "aborted")
         return INVALID;
-      if (key2.status === "dirty")
+      if (key3.status === "dirty")
         status.dirty();
       if (value.status === "dirty")
         status.dirty();
-      if (key2.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
-        finalObject[key2.value] = value.value;
+      if (key3.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
+        finalObject[key3.value] = value.value;
       }
     }
     return { status: status.value, value: finalObject };
@@ -11821,12 +12180,12 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path15, key2) {
+  constructor(parent, value, path18, key3) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path15;
-    this._key = key2;
+    this._path = path18;
+    this._key = key3;
   }
   get path() {
     if (!this._cachedPath.length) {
@@ -13571,9 +13930,9 @@ ZodArray.create = (schema, params) => {
 function deepPartialify(schema) {
   if (schema instanceof ZodObject) {
     const newShape = {};
-    for (const key2 in schema.shape) {
-      const fieldSchema = schema.shape[key2];
-      newShape[key2] = ZodOptional.create(deepPartialify(fieldSchema));
+    for (const key3 in schema.shape) {
+      const fieldSchema = schema.shape[key3];
+      newShape[key3] = ZodOptional.create(deepPartialify(fieldSchema));
     }
     return new ZodObject({
       ...schema._def,
@@ -13624,29 +13983,29 @@ var ZodObject = class _ZodObject extends ZodType {
     const { shape, keys: shapeKeys } = this._getCached();
     const extraKeys = [];
     if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
-      for (const key2 in ctx.data) {
-        if (!shapeKeys.includes(key2)) {
-          extraKeys.push(key2);
+      for (const key3 in ctx.data) {
+        if (!shapeKeys.includes(key3)) {
+          extraKeys.push(key3);
         }
       }
     }
     const pairs = [];
-    for (const key2 of shapeKeys) {
-      const keyValidator = shape[key2];
-      const value = ctx.data[key2];
+    for (const key3 of shapeKeys) {
+      const keyValidator = shape[key3];
+      const value = ctx.data[key3];
       pairs.push({
-        key: { status: "valid", value: key2 },
-        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key2)),
-        alwaysSet: key2 in ctx.data
+        key: { status: "valid", value: key3 },
+        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key3)),
+        alwaysSet: key3 in ctx.data
       });
     }
     if (this._def.catchall instanceof ZodNever) {
       const unknownKeys = this._def.unknownKeys;
       if (unknownKeys === "passthrough") {
-        for (const key2 of extraKeys) {
+        for (const key3 of extraKeys) {
           pairs.push({
-            key: { status: "valid", value: key2 },
-            value: { status: "valid", value: ctx.data[key2] }
+            key: { status: "valid", value: key3 },
+            value: { status: "valid", value: ctx.data[key3] }
           });
         }
       } else if (unknownKeys === "strict") {
@@ -13663,15 +14022,15 @@ var ZodObject = class _ZodObject extends ZodType {
       }
     } else {
       const catchall = this._def.catchall;
-      for (const key2 of extraKeys) {
-        const value = ctx.data[key2];
+      for (const key3 of extraKeys) {
+        const value = ctx.data[key3];
         pairs.push({
-          key: { status: "valid", value: key2 },
+          key: { status: "valid", value: key3 },
           value: catchall._parse(
-            new ParseInputLazyPath(ctx, value, ctx.path, key2)
+            new ParseInputLazyPath(ctx, value, ctx.path, key3)
             //, ctx.child(key), value, getParsedType(value)
           ),
-          alwaysSet: key2 in ctx.data
+          alwaysSet: key3 in ctx.data
         });
       }
     }
@@ -13679,10 +14038,10 @@ var ZodObject = class _ZodObject extends ZodType {
       return Promise.resolve().then(async () => {
         const syncPairs = [];
         for (const pair of pairs) {
-          const key2 = await pair.key;
+          const key3 = await pair.key;
           const value = await pair.value;
           syncPairs.push({
-            key: key2,
+            key: key3,
             value,
             alwaysSet: pair.alwaysSet
           });
@@ -13807,8 +14166,8 @@ var ZodObject = class _ZodObject extends ZodType {
   //   }) as any;
   //   return merged;
   // }
-  setKey(key2, schema) {
-    return this.augment({ [key2]: schema });
+  setKey(key3, schema) {
+    return this.augment({ [key3]: schema });
   }
   // merge<Incoming extends AnyZodObject>(
   //   merging: Incoming
@@ -13839,9 +14198,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   pick(mask) {
     const shape = {};
-    for (const key2 of util.objectKeys(mask)) {
-      if (mask[key2] && this.shape[key2]) {
-        shape[key2] = this.shape[key2];
+    for (const key3 of util.objectKeys(mask)) {
+      if (mask[key3] && this.shape[key3]) {
+        shape[key3] = this.shape[key3];
       }
     }
     return new _ZodObject({
@@ -13851,9 +14210,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   omit(mask) {
     const shape = {};
-    for (const key2 of util.objectKeys(this.shape)) {
-      if (!mask[key2]) {
-        shape[key2] = this.shape[key2];
+    for (const key3 of util.objectKeys(this.shape)) {
+      if (!mask[key3]) {
+        shape[key3] = this.shape[key3];
       }
     }
     return new _ZodObject({
@@ -13869,12 +14228,12 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   partial(mask) {
     const newShape = {};
-    for (const key2 of util.objectKeys(this.shape)) {
-      const fieldSchema = this.shape[key2];
-      if (mask && !mask[key2]) {
-        newShape[key2] = fieldSchema;
+    for (const key3 of util.objectKeys(this.shape)) {
+      const fieldSchema = this.shape[key3];
+      if (mask && !mask[key3]) {
+        newShape[key3] = fieldSchema;
       } else {
-        newShape[key2] = fieldSchema.optional();
+        newShape[key3] = fieldSchema.optional();
       }
     }
     return new _ZodObject({
@@ -13884,16 +14243,16 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   required(mask) {
     const newShape = {};
-    for (const key2 of util.objectKeys(this.shape)) {
-      if (mask && !mask[key2]) {
-        newShape[key2] = this.shape[key2];
+    for (const key3 of util.objectKeys(this.shape)) {
+      if (mask && !mask[key3]) {
+        newShape[key3] = this.shape[key3];
       } else {
-        const fieldSchema = this.shape[key2];
+        const fieldSchema = this.shape[key3];
         let newField = fieldSchema;
         while (newField instanceof ZodOptional) {
           newField = newField._def.innerType;
         }
-        newShape[key2] = newField;
+        newShape[key3] = newField;
       }
     }
     return new _ZodObject({
@@ -14137,14 +14496,14 @@ function mergeValues(a, b) {
     return { valid: true, data: a };
   } else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
     const bKeys = util.objectKeys(b);
-    const sharedKeys = util.objectKeys(a).filter((key2) => bKeys.indexOf(key2) !== -1);
+    const sharedKeys = util.objectKeys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
     const newObj = { ...a, ...b };
-    for (const key2 of sharedKeys) {
-      const sharedValue = mergeValues(a[key2], b[key2]);
+    for (const key3 of sharedKeys) {
+      const sharedValue = mergeValues(a[key3], b[key3]);
       if (!sharedValue.valid) {
         return { valid: false };
       }
-      newObj[key2] = sharedValue.data;
+      newObj[key3] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   } else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
@@ -14308,11 +14667,11 @@ var ZodRecord = class _ZodRecord extends ZodType {
     const pairs = [];
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    for (const key2 in ctx.data) {
+    for (const key3 in ctx.data) {
       pairs.push({
-        key: keyType._parse(new ParseInputLazyPath(ctx, key2, ctx.path, key2)),
-        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key2], ctx.path, key2)),
-        alwaysSet: key2 in ctx.data
+        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, key3)),
+        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key3], ctx.path, key3)),
+        alwaysSet: key3 in ctx.data
       });
     }
     if (ctx.common.async) {
@@ -14360,9 +14719,9 @@ var ZodMap = class extends ZodType {
     }
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    const pairs = [...ctx.data.entries()].map(([key2, value], index) => {
+    const pairs = [...ctx.data.entries()].map(([key3, value], index) => {
       return {
-        key: keyType._parse(new ParseInputLazyPath(ctx, key2, ctx.path, [index, "key"])),
+        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, [index, "key"])),
         value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index, "value"]))
       };
     });
@@ -14370,30 +14729,30 @@ var ZodMap = class extends ZodType {
       const finalMap = /* @__PURE__ */ new Map();
       return Promise.resolve().then(async () => {
         for (const pair of pairs) {
-          const key2 = await pair.key;
+          const key3 = await pair.key;
           const value = await pair.value;
-          if (key2.status === "aborted" || value.status === "aborted") {
+          if (key3.status === "aborted" || value.status === "aborted") {
             return INVALID;
           }
-          if (key2.status === "dirty" || value.status === "dirty") {
+          if (key3.status === "dirty" || value.status === "dirty") {
             status.dirty();
           }
-          finalMap.set(key2.value, value.value);
+          finalMap.set(key3.value, value.value);
         }
         return { status: status.value, value: finalMap };
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
       for (const pair of pairs) {
-        const key2 = pair.key;
+        const key3 = pair.key;
         const value = pair.value;
-        if (key2.status === "aborted" || value.status === "aborted") {
+        if (key3.status === "aborted" || value.status === "aborted") {
           return INVALID;
         }
-        if (key2.status === "dirty" || value.status === "dirty") {
+        if (key3.status === "dirty" || value.status === "dirty") {
           status.dirty();
         }
-        finalMap.set(key2.value, value.value);
+        finalMap.set(key3.value, value.value);
       }
       return { status: status.value, value: finalMap };
     }
@@ -15435,19 +15794,19 @@ function floatSafeRemainder2(val, step) {
   const stepInt = Number.parseInt(step.toFixed(decCount).replace(".", ""));
   return valInt % stepInt / 10 ** decCount;
 }
-function defineLazy(object3, key2, getter) {
+function defineLazy(object3, key3, getter) {
   const set = false;
-  Object.defineProperty(object3, key2, {
+  Object.defineProperty(object3, key3, {
     get() {
       if (!set) {
         const value = getter();
-        object3[key2] = value;
+        object3[key3] = value;
         return value;
       }
       throw new Error("cached value already set");
     },
     set(v) {
-      Object.defineProperty(object3, key2, {
+      Object.defineProperty(object3, key3, {
         value: v
         // configurable: true,
       });
@@ -15463,14 +15822,14 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path15) {
-  if (!path15)
+function getElementAtPath(obj, path18) {
+  if (!path18)
     return obj;
-  return path15.reduce((acc, key2) => acc?.[key2], obj);
+  return path18.reduce((acc, key3) => acc?.[key3], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
-  const promises = keys.map((key2) => promisesObj[key2]);
+  const promises = keys.map((key3) => promisesObj[key3]);
   return Promise.all(promises).then((results) => {
     const resolvedObj = {};
     for (let i = 0; i < keys.length; i++) {
@@ -15523,8 +15882,8 @@ function isPlainObject(o) {
 }
 function numKeys(data) {
   let keyCount = 0;
-  for (const key2 in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key2)) {
+  for (const key3 in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key3)) {
       keyCount++;
     }
   }
@@ -15660,13 +16019,13 @@ var BIGINT_FORMAT_RANGES = {
 function pick(schema, mask) {
   const newShape = {};
   const currDef = schema._zod.def;
-  for (const key2 in mask) {
-    if (!(key2 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key2}"`);
+  for (const key3 in mask) {
+    if (!(key3 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key3}"`);
     }
-    if (!mask[key2])
+    if (!mask[key3])
       continue;
-    newShape[key2] = currDef.shape[key2];
+    newShape[key3] = currDef.shape[key3];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -15677,13 +16036,13 @@ function pick(schema, mask) {
 function omit(schema, mask) {
   const newShape = { ...schema._zod.def.shape };
   const currDef = schema._zod.def;
-  for (const key2 in mask) {
-    if (!(key2 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key2}"`);
+  for (const key3 in mask) {
+    if (!(key3 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key3}"`);
     }
-    if (!mask[key2])
+    if (!mask[key3])
       continue;
-    delete newShape[key2];
+    delete newShape[key3];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -15724,23 +16083,23 @@ function partial(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key2 in mask) {
-      if (!(key2 in oldShape)) {
-        throw new Error(`Unrecognized key: "${key2}"`);
+    for (const key3 in mask) {
+      if (!(key3 in oldShape)) {
+        throw new Error(`Unrecognized key: "${key3}"`);
       }
-      if (!mask[key2])
+      if (!mask[key3])
         continue;
-      shape[key2] = Class2 ? new Class2({
+      shape[key3] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key2]
-      }) : oldShape[key2];
+        innerType: oldShape[key3]
+      }) : oldShape[key3];
     }
   } else {
-    for (const key2 in oldShape) {
-      shape[key2] = Class2 ? new Class2({
+    for (const key3 in oldShape) {
+      shape[key3] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key2]
-      }) : oldShape[key2];
+        innerType: oldShape[key3]
+      }) : oldShape[key3];
     }
   }
   return clone(schema, {
@@ -15753,22 +16112,22 @@ function required(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key2 in mask) {
-      if (!(key2 in shape)) {
-        throw new Error(`Unrecognized key: "${key2}"`);
+    for (const key3 in mask) {
+      if (!(key3 in shape)) {
+        throw new Error(`Unrecognized key: "${key3}"`);
       }
-      if (!mask[key2])
+      if (!mask[key3])
         continue;
-      shape[key2] = new Class2({
+      shape[key3] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key2]
+        innerType: oldShape[key3]
       });
     }
   } else {
-    for (const key2 in oldShape) {
-      shape[key2] = new Class2({
+    for (const key3 in oldShape) {
+      shape[key3] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key2]
+        innerType: oldShape[key3]
       });
     }
   }
@@ -15786,11 +16145,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path15, issues) {
+function prefixIssues(path18, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path15);
+    iss.path.unshift(path18);
     return iss;
   });
 }
@@ -16966,28 +17325,28 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     return payload;
   };
 });
-function handleObjectResult(result, final, key2) {
+function handleObjectResult(result, final, key3) {
   if (result.issues.length) {
-    final.issues.push(...prefixIssues(key2, result.issues));
+    final.issues.push(...prefixIssues(key3, result.issues));
   }
-  final.value[key2] = result.value;
+  final.value[key3] = result.value;
 }
-function handleOptionalObjectResult(result, final, key2, input) {
+function handleOptionalObjectResult(result, final, key3, input) {
   if (result.issues.length) {
-    if (input[key2] === void 0) {
-      if (key2 in input) {
-        final.value[key2] = void 0;
+    if (input[key3] === void 0) {
+      if (key3 in input) {
+        final.value[key3] = void 0;
       } else {
-        final.value[key2] = result.value;
+        final.value[key3] = result.value;
       }
     } else {
-      final.issues.push(...prefixIssues(key2, result.issues));
+      final.issues.push(...prefixIssues(key3, result.issues));
     }
   } else if (result.value === void 0) {
-    if (key2 in input)
-      final.value[key2] = void 0;
+    if (key3 in input)
+      final.value[key3] = void 0;
   } else {
-    final.value[key2] = result.value;
+    final.value[key3] = result.value;
   }
 }
 var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
@@ -17011,35 +17370,35 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   defineLazy(inst._zod, "propValues", () => {
     const shape = def.shape;
     const propValues = {};
-    for (const key2 in shape) {
-      const field = shape[key2]._zod;
+    for (const key3 in shape) {
+      const field = shape[key3]._zod;
       if (field.values) {
-        propValues[key2] ?? (propValues[key2] = /* @__PURE__ */ new Set());
+        propValues[key3] ?? (propValues[key3] = /* @__PURE__ */ new Set());
         for (const v of field.values)
-          propValues[key2].add(v);
+          propValues[key3].add(v);
       }
     }
     return propValues;
   });
   const generateFastpass = (shape) => {
     const doc = new Doc(["shape", "payload", "ctx"]);
-    const normalized = _normalized.value;
-    const parseStr = (key2) => {
-      const k = esc(key2);
+    const normalized2 = _normalized.value;
+    const parseStr = (key3) => {
+      const k = esc(key3);
       return `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
     };
     doc.write(`const input = payload.value;`);
     const ids = /* @__PURE__ */ Object.create(null);
     let counter = 0;
-    for (const key2 of normalized.keys) {
-      ids[key2] = `key_${counter++}`;
+    for (const key3 of normalized2.keys) {
+      ids[key3] = `key_${counter++}`;
     }
     doc.write(`const newResult = {}`);
-    for (const key2 of normalized.keys) {
-      if (normalized.optionalKeys.has(key2)) {
-        const id = ids[key2];
-        doc.write(`const ${id} = ${parseStr(key2)};`);
-        const k = esc(key2);
+    for (const key3 of normalized2.keys) {
+      if (normalized2.optionalKeys.has(key3)) {
+        const id = ids[key3];
+        doc.write(`const ${id} = ${parseStr(key3)};`);
+        const k = esc(key3);
         doc.write(`
         if (${id}.issues.length) {
           if (input[${k}] === undefined) {
@@ -17061,14 +17420,14 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
         }
         `);
       } else {
-        const id = ids[key2];
-        doc.write(`const ${id} = ${parseStr(key2)};`);
+        const id = ids[key3];
+        doc.write(`const ${id} = ${parseStr(key3)};`);
         doc.write(`
           if (${id}.issues.length) payload.issues = payload.issues.concat(${id}.issues.map(iss => ({
             ...iss,
-            path: iss.path ? [${esc(key2)}, ...iss.path] : [${esc(key2)}]
+            path: iss.path ? [${esc(key3)}, ...iss.path] : [${esc(key3)}]
           })));`);
-        doc.write(`newResult[${esc(key2)}] = ${id}.value`);
+        doc.write(`newResult[${esc(key3)}] = ${id}.value`);
       }
     }
     doc.write(`payload.value = newResult;`);
@@ -17103,16 +17462,16 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     } else {
       payload.value = {};
       const shape = value.shape;
-      for (const key2 of value.keys) {
-        const el = shape[key2];
-        const r = el._zod.run({ value: input[key2], issues: [] }, ctx);
+      for (const key3 of value.keys) {
+        const el = shape[key3];
+        const r = el._zod.run({ value: input[key3], issues: [] }, ctx);
         const isOptional = el._zod.optin === "optional" && el._zod.optout === "optional";
         if (r instanceof Promise) {
-          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key2, input) : handleObjectResult(r2, payload, key2)));
+          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key3, input) : handleObjectResult(r2, payload, key3)));
         } else if (isOptional) {
-          handleOptionalObjectResult(r, payload, key2, input);
+          handleOptionalObjectResult(r, payload, key3, input);
         } else {
-          handleObjectResult(r, payload, key2);
+          handleObjectResult(r, payload, key3);
         }
       }
     }
@@ -17123,18 +17482,18 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     const keySet = value.keySet;
     const _catchall = catchall._zod;
     const t = _catchall.def.type;
-    for (const key2 of Object.keys(input)) {
-      if (keySet.has(key2))
+    for (const key3 of Object.keys(input)) {
+      if (keySet.has(key3))
         continue;
       if (t === "never") {
-        unrecognized.push(key2);
+        unrecognized.push(key3);
         continue;
       }
-      const r = _catchall.run({ value: input[key2], issues: [] }, ctx);
+      const r = _catchall.run({ value: input[key3], issues: [] }, ctx);
       if (r instanceof Promise) {
-        proms.push(r.then((r2) => handleObjectResult(r2, payload, key2)));
+        proms.push(r.then((r2) => handleObjectResult(r2, payload, key3)));
       } else {
-        handleObjectResult(r, payload, key2);
+        handleObjectResult(r, payload, key3);
       }
     }
     if (unrecognized.length) {
@@ -17296,17 +17655,17 @@ function mergeValues2(a, b) {
   }
   if (isPlainObject(a) && isPlainObject(b)) {
     const bKeys = Object.keys(b);
-    const sharedKeys = Object.keys(a).filter((key2) => bKeys.indexOf(key2) !== -1);
+    const sharedKeys = Object.keys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
     const newObj = { ...a, ...b };
-    for (const key2 of sharedKeys) {
-      const sharedValue = mergeValues2(a[key2], b[key2]);
+    for (const key3 of sharedKeys) {
+      const sharedValue = mergeValues2(a[key3], b[key3]);
       if (!sharedValue.valid) {
         return {
           valid: false,
-          mergeErrorPath: [key2, ...sharedValue.mergeErrorPath]
+          mergeErrorPath: [key3, ...sharedValue.mergeErrorPath]
         };
       }
-      newObj[key2] = sharedValue.data;
+      newObj[key3] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   }
@@ -17364,29 +17723,29 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     if (def.keyType._zod.values) {
       const values = def.keyType._zod.values;
       payload.value = {};
-      for (const key2 of values) {
-        if (typeof key2 === "string" || typeof key2 === "number" || typeof key2 === "symbol") {
-          const result = def.valueType._zod.run({ value: input[key2], issues: [] }, ctx);
+      for (const key3 of values) {
+        if (typeof key3 === "string" || typeof key3 === "number" || typeof key3 === "symbol") {
+          const result = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
           if (result instanceof Promise) {
             proms.push(result.then((result2) => {
               if (result2.issues.length) {
-                payload.issues.push(...prefixIssues(key2, result2.issues));
+                payload.issues.push(...prefixIssues(key3, result2.issues));
               }
-              payload.value[key2] = result2.value;
+              payload.value[key3] = result2.value;
             }));
           } else {
             if (result.issues.length) {
-              payload.issues.push(...prefixIssues(key2, result.issues));
+              payload.issues.push(...prefixIssues(key3, result.issues));
             }
-            payload.value[key2] = result.value;
+            payload.value[key3] = result.value;
           }
         }
       }
       let unrecognized;
-      for (const key2 in input) {
-        if (!values.has(key2)) {
+      for (const key3 in input) {
+        if (!values.has(key3)) {
           unrecognized = unrecognized ?? [];
-          unrecognized.push(key2);
+          unrecognized.push(key3);
         }
       }
       if (unrecognized && unrecognized.length > 0) {
@@ -17399,10 +17758,10 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       }
     } else {
       payload.value = {};
-      for (const key2 of Reflect.ownKeys(input)) {
-        if (key2 === "__proto__")
+      for (const key3 of Reflect.ownKeys(input)) {
+        if (key3 === "__proto__")
           continue;
-        const keyResult = def.keyType._zod.run({ value: key2, issues: [] }, ctx);
+        const keyResult = def.keyType._zod.run({ value: key3, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
@@ -17411,24 +17770,24 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
             origin: "record",
             code: "invalid_key",
             issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
-            input: key2,
-            path: [key2],
+            input: key3,
+            path: [key3],
             inst
           });
           payload.value[keyResult.value] = keyResult.value;
           continue;
         }
-        const result = def.valueType._zod.run({ value: input[key2], issues: [] }, ctx);
+        const result = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((result2) => {
             if (result2.issues.length) {
-              payload.issues.push(...prefixIssues(key2, result2.issues));
+              payload.issues.push(...prefixIssues(key3, result2.issues));
             }
             payload.value[keyResult.value] = result2.value;
           }));
         } else {
           if (result.issues.length) {
-            payload.issues.push(...prefixIssues(key2, result.issues));
+            payload.issues.push(...prefixIssues(key3, result.issues));
           }
           payload.value[keyResult.value] = result.value;
         }
@@ -18485,15 +18844,15 @@ var JSONSchemaGenerator = class {
             json.type = "object";
             json.properties = {};
             const shape = def.shape;
-            for (const key2 in shape) {
-              json.properties[key2] = this.process(shape[key2], {
+            for (const key3 in shape) {
+              json.properties[key3] = this.process(shape[key3], {
                 ...params,
-                path: [...params.path, "properties", key2]
+                path: [...params.path, "properties", key3]
               });
             }
             const allKeys = new Set(Object.keys(shape));
-            const requiredKeys = new Set([...allKeys].filter((key2) => {
-              const v = def.shape[key2]._zod;
+            const requiredKeys = new Set([...allKeys].filter((key3) => {
+              const v = def.shape[key3]._zod;
               if (this.io === "input") {
                 return v.optin === void 0;
               } else {
@@ -18827,8 +19186,8 @@ var JSONSchemaGenerator = class {
       if (defId)
         seen.defId = defId;
       const schema2 = seen.schema;
-      for (const key2 in schema2) {
-        delete schema2[key2];
+      for (const key3 in schema2) {
+        delete schema2[key3];
       }
       schema2.$ref = ref;
     };
@@ -18955,8 +19314,8 @@ function toJSONSchema(input, _params) {
       defs
     };
     for (const entry of input._idmap.entries()) {
-      const [key2, schema] = entry;
-      schemas[key2] = gen2.emit(schema, {
+      const [key3, schema] = entry;
+      schemas[key3] = gen2.emit(schema, {
         ..._params,
         external
       });
@@ -19003,8 +19362,8 @@ function isTransforming(_schema, _ctx) {
       return isTransforming(def.element, ctx);
     }
     case "object": {
-      for (const key2 in def.shape) {
-        if (isTransforming(def.shape[key2], ctx))
+      for (const key3 in def.shape) {
+        if (isTransforming(def.shape[key3], ctx))
           return true;
       }
       return false;
@@ -19203,11 +19562,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path15) {
-  if (path15.length === 0) {
+function getDotPath(path18) {
+  if (path18.length === 0) {
     return "object root";
   }
-  return path15.reduce((acc, seg, index) => {
+  return path18.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -21566,19 +21925,19 @@ var getRefs = (options) => {
 };
 
 // node_modules/zod-to-json-schema/dist/esm/errorMessages.js
-function addErrorMessage(res, key2, errorMessage, refs) {
+function addErrorMessage(res, key3, errorMessage, refs) {
   if (!refs?.errorMessages)
     return;
   if (errorMessage) {
     res.errorMessage = {
       ...res.errorMessage,
-      [key2]: errorMessage
+      [key3]: errorMessage
     };
   }
 }
-function setResponseValueAndErrors(res, key2, value, errorMessage, refs) {
-  res[key2] = value;
-  addErrorMessage(res, key2, errorMessage, refs);
+function setResponseValueAndErrors(res, key3, value, errorMessage, refs) {
+  res[key3] = value;
+  addErrorMessage(res, key3, errorMessage, refs);
 }
 
 // node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
@@ -22170,11 +22529,11 @@ function parseRecordDef(def, refs) {
     return {
       type: "object",
       required: def.keyType._def.values,
-      properties: def.keyType._def.values.reduce((acc, key2) => ({
+      properties: def.keyType._def.values.reduce((acc, key3) => ({
         ...acc,
-        [key2]: parseDef(def.valueType._def, {
+        [key3]: parseDef(def.valueType._def, {
           ...refs,
-          currentPath: [...refs.currentPath, "properties", key2]
+          currentPath: [...refs.currentPath, "properties", key3]
         }) ?? parseAnyDef(refs)
       }), {}),
       additionalProperties: refs.rejectedAdditionalProperties
@@ -22241,10 +22600,10 @@ function parseMapDef(def, refs) {
 // node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
 function parseNativeEnumDef(def) {
   const object3 = def.values;
-  const actualKeys = Object.keys(def.values).filter((key2) => {
-    return typeof object3[object3[key2]] !== "number";
+  const actualKeys = Object.keys(def.values).filter((key3) => {
+    return typeof object3[object3[key3]] !== "number";
   });
-  const actualValues = actualKeys.map((key2) => object3[key2]);
+  const actualValues = actualKeys.map((key3) => object3[key3]);
   const parsedTypes = Array.from(new Set(actualValues.map((values) => typeof values)));
   return {
     type: parsedTypes.length === 1 ? parsedTypes[0] === "string" ? "string" : "number" : ["string", "number"],
@@ -23775,8 +24134,8 @@ function isPlainObject2(value) {
 }
 function mergeCapabilities(base, additional) {
   const result = { ...base };
-  for (const key2 in additional) {
-    const k = key2;
+  for (const key3 in additional) {
+    const k = key3;
     const addValue = additional[k];
     if (addValue === void 0)
       continue;
@@ -25465,18 +25824,18 @@ var StdioServerTransport = class {
 
 // src/server.ts
 import { fileURLToPath } from "node:url";
-import os5 from "node:os";
-import path14 from "node:path";
-import { randomUUID as randomUUID5 } from "node:crypto";
+import os6 from "node:os";
+import path17 from "node:path";
+import { randomUUID as randomUUID6 } from "node:crypto";
 
 // src/bookkeeping-finalization.ts
 init_authority();
 init_bookkeeping();
 init_workspace();
-import { createHash as createHash9, randomUUID as randomUUID2 } from "node:crypto";
-import { lstat as lstat3, readFile as readFile6, readdir as readdir7 } from "node:fs/promises";
+import { createHash as createHash10, randomUUID as randomUUID2 } from "node:crypto";
+import { lstat as lstat5, readFile as readFile6, readdir as readdir8 } from "node:fs/promises";
 import os2 from "node:os";
-import path11 from "node:path";
+import path13 from "node:path";
 var BookkeepingFinalizationError = class extends Error {
   constructor(finalization_id, cause) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
@@ -25484,9 +25843,9 @@ var BookkeepingFinalizationError = class extends Error {
     this.name = "BookkeepingFinalizationError";
   }
 };
-var hash5 = (text) => createHash9("sha256").update(text).digest("hex");
+var hash5 = (text) => createHash10("sha256").update(text).digest("hex");
 var digest5 = (value) => hash5(JSON.stringify(value));
-var samePath5 = (left, right) => process.platform === "win32" ? path11.resolve(left).toLowerCase() === path11.resolve(right).toLowerCase() : path11.resolve(left) === path11.resolve(right);
+var samePath7 = (left, right) => process.platform === "win32" ? path13.resolve(left).toLowerCase() === path13.resolve(right).toLowerCase() : path13.resolve(left) === path13.resolve(right);
 var idValue = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe finalization id");
   return id;
@@ -25500,31 +25859,31 @@ var BookkeepingFinalizationStore = class {
     this.hooks = hooks;
   }
   async finalize(args, options = {}) {
-    const normalized = validateRequest(args), id = idValue(args.finalization_id ?? `finalization-${randomUUID2()}`);
+    const normalized2 = validateRequest(args), id = idValue(args.finalization_id ?? `finalization-${randomUUID2()}`);
     try {
-      return await this.attempt(id, normalized.session_id, async (assertAttempt) => {
+      return await this.attempt(id, normalized2.session_id, async (assertAttempt) => {
         let record3 = await this.optionalRead(id);
         if (record3) {
-          this.match(record3, normalized, options);
+          this.match(record3, normalized2, options);
           await assertExpectedBinding(record3.worktree, options.expected_binding ?? record3.before);
           if (terminal(record3)) return record3;
         } else {
-          const before = await assertExpectedBinding(normalized.worktree, options.expected_binding);
+          const before = await assertExpectedBinding(normalized2.worktree, options.expected_binding);
           if (options.expected_head && before.head !== options.expected_head) throw new Error("bookkeeping finalization expected HEAD changed before reservation");
           await assertNoOperation(before.topLevel);
           await repositoryIdentity(before.topLevel);
           const policy = options.policy ?? await loadPolicy(before.topLevel, before.head);
           if (!policy.commit || !bookkeepingCaptured(policy.commit)) throw new Error("bookkeeping finalization requires a committed opt-in captured policy");
           await this.assertNoOwner(before, id);
-          await assertSelection(before.topLevel, normalized.paths, policy);
-          await assertSafeGitAttributesInWorktree(before.topLevel, normalized.paths);
-          const snapshot = await captureSnapshot(before.topLevel, normalized.paths), indexTree = await git(["write-tree"], before.topLevel);
+          await assertSelection(before.topLevel, normalized2.paths, policy);
+          await assertSafeGitAttributesInWorktree(before.topLevel, normalized2.paths);
+          const snapshot = await captureSnapshot(before.topLevel, normalized2.paths), indexTree = await git(["write-tree"], before.topLevel);
           await assertWorktreeBinding(before.topLevel, before.branch, before.commonGitDir, before.head, false, before.gitDir);
           const leaseSpecs = [
-            { id: hash5(`${path11.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
-            { id: hash5(`bookkeeping-worktree\0${path11.resolve(before.commonGitDir)}\0${path11.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
+            { id: hash5(`${path13.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
+            { id: hash5(`bookkeeping-worktree\0${path13.resolve(before.commonGitDir)}\0${path13.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
           ].sort((a, b) => a.id.localeCompare(b.id));
-          record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized, state: "pending", request_sha256: digest5(normalized), before, policy, policy_sha256: digest5(policy), snapshot, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID2()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
+          record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized2, state: "pending", request_sha256: digest5(normalized2), before, policy, policy_sha256: digest5(policy), snapshot, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID2()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
         }
         const original = record3;
         return this.resources(record3, async (generations) => {
@@ -25614,7 +25973,7 @@ var BookkeepingFinalizationStore = class {
     const record3 = await this.optionalRead(idValue(args.finalization_id));
     if (!record3) {
       const operationId = hash5(`bookkeeping-operation\0${idValue(args.finalization_id)}`), expression = new RegExp(`^${operationId}-[0-9]+\\.json$`);
-      const revisions = await directoryNames(path11.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path11.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path11.join(this.dataRoot, "leases"));
+      const revisions = await directoryNames(path13.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path13.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path13.join(this.dataRoot, "leases"));
       if (!revisions.some((name) => expression.test(name)) && !marks.some((name) => expression.test(name)) && !legacy.includes(`${operationId}.json`)) return false;
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, operationId);
       if (!selected || selected.state === "released") return false;
@@ -25624,27 +25983,27 @@ var BookkeepingFinalizationStore = class {
       return true;
     }
     if (record3.session_id !== args.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
-    if (args.worktree && !samePath5(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
+    if (args.worktree && !samePath7(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
     return true;
   }
   async status(args) {
     requiredText(args.session_id, "session");
     const record3 = await this.read(idValue(args.finalization_id));
     if (record3.session_id !== args.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
-    if (args.worktree && !samePath5(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
+    if (args.worktree && !samePath7(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
     return record3;
   }
-  match(record3, normalized, options) {
-    if (record3.session_id !== normalized.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
-    if (record3.request_sha256 !== digest5(normalized)) throw new Error("bookkeeping finalization retry request does not match signed binding");
-    if (options.expected_binding && (record3.before.branch !== options.expected_binding.branch || !samePath5(record3.before.commonGitDir, options.expected_binding.commonGitDir) || !samePath5(record3.before.gitDir, options.expected_binding.gitDir) || !samePath5(record3.before.topLevel, options.expected_binding.topLevel))) throw new Error("bookkeeping retry expected binding does not match signed base");
+  match(record3, normalized2, options) {
+    if (record3.session_id !== normalized2.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
+    if (record3.request_sha256 !== digest5(normalized2)) throw new Error("bookkeeping finalization retry request does not match signed binding");
+    if (options.expected_binding && (record3.before.branch !== options.expected_binding.branch || !samePath7(record3.before.commonGitDir, options.expected_binding.commonGitDir) || !samePath7(record3.before.gitDir, options.expected_binding.gitDir) || !samePath7(record3.before.topLevel, options.expected_binding.topLevel))) throw new Error("bookkeeping retry expected binding does not match signed base");
     if (options.expected_head && record3.before.head !== options.expected_head) throw new Error("bookkeeping finalization retry expected HEAD does not match signed base");
     if (options.policy && digest5(options.policy) !== record3.policy_sha256) throw new Error("bookkeeping finalization captured policy does not match signed request");
   }
   async attempt(id, session, action2) {
-    const leaseId = hash5(`bookkeeping-operation\0${id}`), key2 = `${path11.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
-    if (attemptOperations.has(key2)) throw new Error("bookkeeping finalization operation is already active");
-    attemptOperations.add(key2);
+    const leaseId = hash5(`bookkeeping-operation\0${id}`), key3 = `${path13.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
+    if (attemptOperations.has(key3)) throw new Error("bookkeeping finalization operation is already active");
+    attemptOperations.add(key3);
     try {
       let existing;
       try {
@@ -25676,7 +26035,7 @@ var BookkeepingFinalizationStore = class {
         await releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, id, token, selected.revision, generation(leaseId, selected));
       }
     } finally {
-      attemptOperations.delete(key2);
+      attemptOperations.delete(key3);
     }
   }
   leasePayload(record3, spec) {
@@ -25709,18 +26068,18 @@ var BookkeepingFinalizationStore = class {
   }
   async assertNoOwner(binding, ownId) {
     for (const run of await signedRunsReadOnly(this.dataRoot)) {
-      const applies2 = typeof run.worktreePath === "string" && samePath5(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath5(run.commonGitDir, binding.commonGitDir);
+      const applies2 = typeof run.worktreePath === "string" && samePath7(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath7(run.commonGitDir, binding.commonGitDir);
       const pendingReview = run.phase === "hitl" || Boolean(run.policy?.hitlChecks?.length && run.evidence?.filter((item) => item.kind === "plan_review").at(-1)?.decision !== "accept");
       if (applies2 && (run.phase !== "complete" || run.status !== "green" || pendingReview)) throw new Error("worktree has an active Captain lifecycle owner; use its normal captain_commit path");
     }
-    const revisionNames = await directoryNames(path11.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path11.join(this.dataRoot, "leases"));
+    const revisionNames = await directoryNames(path13.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path13.join(this.dataRoot, "leases"));
     const leaseIds = [...new Set([...revisionNames.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]), ...legacyNames.map((name) => /^(.+)\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))];
     for (const id of leaseIds) {
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
       if (!selected || selected.state !== "held" || selected.payload.intentId === ownId) continue;
-      const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath5(value, binding.topLevel));
-      const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath5(owner.commonGitDir, binding.commonGitDir);
-      if (matchesWorktree || matchesBranch || id === hash5(`${path11.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
+      const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath7(value, binding.topLevel));
+      const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath7(owner.commonGitDir, binding.commonGitDir);
+      if (matchesWorktree || matchesBranch || id === hash5(`${path13.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
     }
   }
   async initial(record3) {
@@ -25747,11 +26106,11 @@ var BookkeepingFinalizationStore = class {
   }
   async optionalRead(id) {
     const expression = new RegExp(`^${idValue(id)}-[0-9]+\\.json$`);
-    const names = [...await directoryNames(path11.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path11.join(this.dataRoot, "bookkeeping-watermarks"))];
+    const names = [...await directoryNames(path13.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path13.join(this.dataRoot, "bookkeeping-watermarks"))];
     return names.some((name) => expression.test(name)) ? this.read(id) : void 0;
   }
   async read(id) {
-    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path11.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path11.join(this.dataRoot, "bookkeeping-watermarks"));
+    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path13.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path13.join(this.dataRoot, "bookkeeping-watermarks"));
     const revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) {
       if (marks.some((name) => expression.test(name))) throw new Error("bookkeeping signed revision tail regressed behind watermark");
@@ -25787,15 +26146,15 @@ function validateRequest(args) {
   if (args.disposition !== "commit" && args.disposition !== "stash") throw new Error("bookkeeping disposition must be commit or stash");
   if (!Array.isArray(args.paths) || !args.paths.length) throw new Error("bookkeeping paths must be explicit selected files");
   const paths = args.paths.map((value) => {
-    if (typeof value !== "string" || value.includes("\\") || path11.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
+    if (typeof value !== "string" || value.includes("\\") || path13.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
     return value;
   }).sort();
   if (new Set(paths).size !== paths.length) throw new Error("bookkeeping selected paths must be unique");
-  return { worktree: path11.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
+  return { worktree: path13.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
 }
 async function directoryNames(directory) {
   try {
-    return await readdir7(directory);
+    return await readdir8(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -25808,7 +26167,7 @@ async function assertNoOperation(worktree) {
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer"]) {
     const file = await git(["rev-parse", "--git-path", name], worktree);
     try {
-      await lstat3(path11.resolve(worktree, file));
+      await lstat5(path13.resolve(worktree, file));
       throw new Error(`bookkeeping finalization refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -25829,7 +26188,7 @@ async function captureSnapshot(worktree, selected) {
     const segments = relative.split("/");
     for (let n = 1; n < segments.length; n++) {
       try {
-        const parent = await lstat3(path11.join(worktree, ...segments.slice(0, n)));
+        const parent = await lstat5(path13.join(worktree, ...segments.slice(0, n)));
         if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error(`bookkeeping path crosses a symlink or non-directory: ${relative}`);
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -25840,9 +26199,9 @@ async function captureSnapshot(worktree, selected) {
     for (const oid of [headEntry?.split(" ")[2]?.split("	")[0], indexEntry?.split(" ")[1]].filter((value) => Boolean(value))) if (!await bookkeepingBlobAllowed(worktree, oid)) throw new Error(`bookkeeping HEAD/index blob must be bounded text: ${relative}`);
     let workingHash = null, workingBlob = null;
     try {
-      const info = await lstat3(path11.join(worktree, relative));
+      const info = await lstat5(path13.join(worktree, relative));
       if (!info.isFile() || info.isSymbolicLink() || process.platform !== "win32" && info.mode & 73) throw new Error(`bookkeeping selected path must be a non-executable regular file: ${relative}`);
-      const bytes = await readFile6(path11.join(worktree, relative));
+      const bytes = await readFile6(path13.join(worktree, relative));
       if (!bookkeepingTextAllowed(bytes)) throw new Error(`bookkeeping snapshot must contain bounded text: ${relative}`);
       new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       workingHash = hash5(bytes);
@@ -25892,7 +26251,7 @@ async function assertStash(record3, oid) {
   }
 }
 async function signedRunsReadOnly(dataRoot) {
-  const names = await directoryNames(path11.join(dataRoot, "run-revisions")), legacy = await directoryNames(path11.join(dataRoot, "runs")), marks = await directoryNames(path11.join(dataRoot, "run-watermarks"));
+  const names = await directoryNames(path13.join(dataRoot, "run-revisions")), legacy = await directoryNames(path13.join(dataRoot, "runs")), marks = await directoryNames(path13.join(dataRoot, "run-watermarks"));
   const ids = [...new Set([...names.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1]), ...legacy.map((name) => /^(.*)\.json$/.exec(name)?.[1]), ...marks.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))], runs = [];
   for (const id of ids) {
     idValue(id);
@@ -25919,17 +26278,362 @@ async function signedRunsReadOnly(dataRoot) {
 }
 async function assertExpectedBinding(worktree, expected) {
   const actual = await assertWorktreeBinding(worktree, expected?.branch, expected?.commonGitDir, void 0, false, expected?.gitDir);
-  if (expected && !samePath5(actual.topLevel, expected.topLevel)) throw new Error("bookkeeping finalization expected worktree top-level binding changed");
+  if (expected && !samePath7(actual.topLevel, expected.topLevel)) throw new Error("bookkeeping finalization expected worktree top-level binding changed");
   return actual;
 }
 
 // src/merge-workflow.ts
 init_authority();
-import { createHash as createHash10, randomUUID as randomUUID3 } from "node:crypto";
-import os3 from "node:os";
-import { lstat as lstat4, readFile as readFile7, readdir as readdir8, realpath as realpath3 } from "node:fs/promises";
-import path12 from "node:path";
+import { createHash as createHash12, randomUUID as randomUUID4 } from "node:crypto";
+import os4 from "node:os";
+import { lstat as lstat7, readFile as readFile8, readdir as readdir10, realpath as realpath6 } from "node:fs/promises";
+import path15 from "node:path";
 init_lifecycle();
+init_workspace();
+
+// src/worktree-cleanup.ts
+init_authority();
+init_lifecycle();
+init_workspace();
+init_worktree_storage();
+init_output_retention();
+import { createHash as createHash11, randomUUID as randomUUID3 } from "node:crypto";
+import { lstat as lstat6, mkdir as mkdir3, readFile as readFile7, readdir as readdir9, realpath as realpath5, writeFile as writeFile5 } from "node:fs/promises";
+import path14 from "node:path";
+import os3 from "node:os";
+var digest6 = (value) => createHash11("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
+var same = (a, b) => process.platform === "win32" ? path14.resolve(a).toLowerCase() === path14.resolve(b).toLowerCase() : path14.resolve(a) === path14.resolve(b);
+var within = (root, child) => {
+  const relative = path14.relative(path14.resolve(root), path14.resolve(child));
+  return relative === "" || !relative.startsWith(".." + path14.sep) && relative !== ".." && !path14.isAbsolute(relative);
+};
+var missing = (error2) => error2?.code === "ENOENT";
+var cleanupId = (registration, head) => digest6(`${storageRegistrationId(registration.common_git_dir, registration.worktree_path)}\0${head}`);
+var branchLeaseId = (common, branch) => digest6(`${path14.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var evidenceDirectory = (dataRoot, id) => path14.join(dataRoot, "worktree-evidence", id);
+var budget = 16 * 1024 * 1024;
+var generated2 = /* @__PURE__ */ new Set(["library", "temp", "logs", "build", "builds", "dist", "artifacts", "node_modules", "bin", "obj", "coverage", ".captain-proof"]);
+async function exists2(file) {
+  try {
+    await lstat6(file);
+    return true;
+  } catch (error2) {
+    if (missing(error2)) return false;
+    throw error2;
+  }
+}
+async function safeAncestors(file) {
+  for (let cursor = path14.resolve(file); ; cursor = path14.dirname(cursor)) {
+    try {
+      if ((await lstat6(cursor)).isSymbolicLink()) throw new Error("cleanup path crosses a reparse point");
+    } catch (error2) {
+      if (!missing(error2)) throw error2;
+    }
+    if (cursor === path14.dirname(cursor)) break;
+  }
+}
+function relativeFile(value) {
+  const normalized2 = value.replaceAll("\\", "/");
+  if (!normalized2 || path14.isAbsolute(value) || /^[A-Za-z]:/.test(value) || normalized2.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git") || value.includes("\0")) throw new Error("retained evidence requires a safe relative path");
+  return normalized2;
+}
+async function readOptional(root, bucket3, id) {
+  try {
+    return await readAuthorized(root, bucket3, id);
+  } catch (error2) {
+    if (missing(error2)) return void 0;
+    throw error2;
+  }
+}
+async function readWorktreeCleanupCompletion(dataRoot, registration, head) {
+  const id = cleanupId(registration, head), completion = await readOptional(dataRoot, "worktree-cleanup-completions", id);
+  if (!completion) return void 0;
+  const plan = await readAuthorized(dataRoot, "worktree-cleanup-plans", id);
+  if (completion.schema_version !== 1 || completion.cleanup_id !== id || completion.worktree !== registration.worktree_path || completion.head !== head || completion.plan_sha256 !== digest6(plan) || plan.cleanup_id !== id || digest6(plan.registration) !== digest6(registration) || plan.head !== head) throw new Error("signed worktree cleanup receipt binding is invalid");
+  await validateArchive(dataRoot, plan);
+  return completion;
+}
+async function validateArchive(dataRoot, plan) {
+  for (const item of plan.evidence) {
+    const file = path14.join(evidenceDirectory(dataRoot, plan.cleanup_id), relativeFile(item.relative));
+    await safeAncestors(file);
+    const content = await readFile7(file);
+    if (content.length !== item.bytes || digest6(content) !== item.sha256) throw new Error("retained worktree proof archive changed");
+  }
+}
+async function retainedWorktreeHead(dataRoot, registration) {
+  let names;
+  try {
+    names = await readdir9(path14.join(dataRoot, "worktree-cleanup-completions"));
+  } catch (error2) {
+    if (missing(error2)) return void 0;
+    throw error2;
+  }
+  for (const name of names.filter((item) => /^[0-9a-f]{64}\.json$/.test(item))) {
+    const receipt = await readAuthorized(dataRoot, "worktree-cleanup-completions", name.slice(0, -5));
+    if (!same(receipt.worktree, registration.worktree_path)) continue;
+    if (await readWorktreeCleanupCompletion(dataRoot, registration, receipt.head)) return receipt.head;
+  }
+  return void 0;
+}
+async function archiveEvidence(dataRoot, id, root, requested) {
+  const files = /* @__PURE__ */ new Map();
+  let bytes = 0, directories = 0;
+  async function collect(relative) {
+    const full = path14.join(root, relative);
+    await safeAncestors(full);
+    const info = await lstat6(full);
+    if (info.isDirectory()) {
+      if (++directories > 4096) throw new Error("required compact proof exceeds the directory retention budget");
+      for (const name of (await readdir9(full)).sort()) {
+        if (name.toLowerCase() === ".git") throw new Error("retained evidence contains a nested repository");
+        await collect(relativeFile(relative + "/" + name));
+      }
+    } else if (info.isFile()) {
+      if (files.has(relative)) return;
+      if (files.size >= 2048) throw new Error("required compact proof exceeds the 2048-file retention budget");
+      if (bytes + info.size > budget) throw new Error("required compact proof exceeds the 16 MiB retention budget; preserve it explicitly before cleanup");
+      const content = await readFile7(full);
+      bytes += content.length;
+      if (bytes > budget) throw new Error("required proof changed beyond the retention budget");
+      files.set(relative, content);
+    } else throw new Error("retained evidence is not a regular file or directory");
+  }
+  for (const raw of requested) {
+    const relative = relativeFile(raw.replace(/\/$/, ""));
+    await collect(relative);
+  }
+  for (const relative of [".captain-sdlc/tasks", ".captain-sdlc/handoffs", ".captain-sdlc/closeouts", ".captain-sdlc/notebook"]) if (await exists2(path14.join(root, relative))) await collect(relative);
+  const manifest = [];
+  for (const [relative, content] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
+    const full = path14.join(evidenceDirectory(dataRoot, id), relative);
+    await safeAncestors(full);
+    await mkdir3(path14.dirname(full), { recursive: true });
+    if (await exists2(full)) {
+      if (!(await readFile7(full)).equals(content)) throw new Error("retained proof conflicts with an existing cleanup attempt");
+    } else await writeFile5(full, content, { flag: "wx", mode: 384 });
+    manifest.push({ relative, sha256: digest6(content), bytes: content.length });
+  }
+  return manifest;
+}
+async function registeredTrees(root) {
+  return (await git(["worktree", "list", "--porcelain"], root)).split(/\r?\n\r?\n/).map((block) => ({
+    path: /^worktree (.+)$/m.exec(block)?.[1],
+    locked: /^locked(?: |$)/m.test(block)
+  })).filter((item) => Boolean(item.path));
+}
+async function walkSafety(root, dir = root) {
+  for (const item of await readdir9(dir, { withFileTypes: true })) {
+    if (item.name.toLowerCase() === ".git") {
+      if (!same(root, dir)) throw new Error("worktree contains a nested Git repository");
+      continue;
+    }
+    const full = path14.join(dir, item.name), info = await lstat6(full);
+    if (info.isSymbolicLink()) {
+      const destination = await realpath5(full);
+      if (!within(root, destination)) throw new Error("worktree contains an external reparse point");
+    } else if (info.isDirectory()) await walkSafety(root, full);
+  }
+}
+async function sameContent(left, right) {
+  try {
+    const a = await lstat6(left), b = await lstat6(right);
+    if (a.isSymbolicLink() || b.isSymbolicLink()) return false;
+    if (a.isFile() && b.isFile()) return a.size === b.size && digest6(await readFile7(left)) === digest6(await readFile7(right));
+    if (!a.isDirectory() || !b.isDirectory()) return false;
+    const aa = (await readdir9(left)).sort(), bb = (await readdir9(right)).sort();
+    if (digest6(aa) !== digest6(bb)) return false;
+    for (const name of aa) if (!await sameContent(path14.join(left, name), path14.join(right, name))) return false;
+    return true;
+  } catch (error2) {
+    if (missing(error2)) return false;
+    throw error2;
+  }
+}
+async function configuredOutputRoots(dataRoot, registration, selected, owners) {
+  const roots = [...selected, ...owners.flatMap((owner) => Object.values(owner.policy.outputRetention?.roots ?? {}).flat())];
+  const slot = await readOptional(dataRoot, "ordinary-output-slots", storageRegistrationId(registration.common_git_dir, registration.worktree_path));
+  if (slot) {
+    if (slot.schema_version !== 1 || !same(slot.worktree_path, registration.worktree_path) || !slot.roots || Object.values(slot.roots).some((values) => !Array.isArray(values))) throw new Error("signed ordinary output slot binding is invalid");
+    roots.push(...Object.values(slot.roots).flat());
+  }
+  const verified = [...new Set(roots.map(outputRoot))];
+  if (verified.length > 256) throw new Error("configured cleanup output roots exceed the bounded policy");
+  return verified;
+}
+async function assertIgnoredDataSafe(registration, evidence, outputRoots) {
+  const ignored2 = (await gitRaw(["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"], registration.worktree_path)).split("\0").filter(Boolean);
+  const comparison = (value) => process.platform === "win32" ? value.toLowerCase() : value;
+  const classified = [...evidence, ...outputRoots].map(comparison);
+  async function check2(relative) {
+    const parts = relative.toLowerCase().split("/"), comparable = comparison(relative);
+    if (parts.some((part) => generated2.has(part)) || classified.some((item) => comparable === item || comparable.startsWith(item + "/")) || /^\.captain-sdlc\/(tasks|handoffs|closeouts|notebook)(\/|$)/i.test(relative)) return;
+    const full = path14.join(registration.worktree_path, relative);
+    if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat6(full)).isDirectory()) {
+      for (const name of await readdir9(full)) await check2(relative + "/" + name);
+      return;
+    }
+    if (await sameContent(full, path14.join(registration.project_root, relative))) return;
+    throw new Error(`unclassified ignored content requires preservation before cleanup: ${relative}`);
+  }
+  for (const raw of ignored2) await check2(raw.replaceAll("\\", "/").replace(/\/$/, ""));
+}
+async function completedOwners(dataRoot, root, intentId) {
+  const lifecycle = new LifecycleStore(dataRoot, gateRunner);
+  if ((await lifecycle.doctor()).activeRuns.some((owner) => same(owner.worktreePath, root))) throw new Error("worktree has an unfinished Captain task");
+  let names;
+  try {
+    names = await readdir9(path14.join(dataRoot, "run-revisions"));
+  } catch (error2) {
+    if (missing(error2)) names = [];
+    else throw error2;
+  }
+  const result = [];
+  for (const name of names.filter((value) => value.endsWith("-0.json"))) {
+    const initial = await readAuthorized(dataRoot, "run-revisions", name.slice(0, -5));
+    if (!same(initial.worktreePath, root)) continue;
+    const run = await lifecycle.status(name.slice(0, -7));
+    if (!same(run.worktreePath, root)) continue;
+    if (run.phase !== "complete" || run.status !== "green" || run.preparedCommit || run.commitOperation || run.mutationOperation) throw new Error("worktree has unfinished Captain authority");
+    if (run.sessionLeaseId) {
+      const session = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, run.sessionLeaseId);
+      if (!run.sessionLeaseToken || session?.state === "held" && session.payload.intentId === run.intentId && session.payload.leaseToken === run.sessionLeaseToken)
+        throw new Error("completed worktree still has held Captain session authority");
+    }
+    result.push(run);
+  }
+  const begin = await readOptional(dataRoot, "begin-operations", intentId);
+  if (begin && !result.some((owner) => owner.intentId === begin.intentId && owner.runId === begin.runId)) throw new Error("worktree has an unfinished Captain Begin operation");
+  const attempt = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, `begin-attempt-${digest6(intentId)}`);
+  if (attempt?.state === "held") throw new Error("worktree creation attempt is still active");
+  return result;
+}
+async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, assertAuthority = async () => {
+}) {
+  const result = { removed_worktrees: [], retained_worktrees: [] };
+  const target = await assertWorktreeBinding(targetWorktree);
+  for (const candidate of candidates) {
+    const registration = candidate.registration, root = registration.worktree_path, head = candidate.head, id = cleanupId(registration, head);
+    const held = [];
+    try {
+      if (candidate.retentionReason) throw new Error(candidate.retentionReason);
+      if (!/^[0-9a-f]{40,64}$/i.test(head)) throw new Error("cleanup requires an exact integrated commit");
+      const verified = await readWorktreeRegistration(dataRoot, registration.common_git_dir, root);
+      if (!verified || digest6(verified) !== digest6(registration)) throw new Error("worktree has no matching future creation registration");
+      if (!same(target.commonGitDir, registration.common_git_dir) || same(root, registration.project_root) || within(root, targetWorktree) || within(root, dataRoot) || !same(path14.dirname(root), path14.join(registration.project_root, ".captain-sdlc", "worktrees"))) throw new Error("cleanup path is outside its exact canonical task checkout");
+      if (!same(await primaryRepositoryRoot(targetWorktree, registration.common_git_dir), registration.project_root)) throw new Error("cleanup primary repository binding diverged");
+      await safeAncestors(root);
+      await safeAncestors(dataRoot);
+      await git(["merge-base", "--is-ancestor", head, target.head], targetWorktree);
+      const owners = await completedOwners(dataRoot, root, registration.intent_id);
+      const originalAttempt = await readOptional(dataRoot, "worktree-cleanup-attempts", id);
+      const attempt = { schema_version: 1, cleanup_id: id, registration, head };
+      const leaseIds = [branchLeaseId(registration.common_git_dir, registration.branch), ...owners.map((owner) => digest6(`worktree-mutation\0${owner.runId}`))].sort();
+      for (const leaseId of leaseIds) {
+        const existing = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, leaseId);
+        if (existing?.state === "held" && (!originalAttempt || digest6(originalAttempt) !== digest6(attempt))) throw new Error("worktree branch or mutation authority is leased without a matching original cleanup attempt journal");
+      }
+      await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-attempts", id, attempt);
+      for (const leaseId of leaseIds) {
+        const stale = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, leaseId);
+        if (stale?.state === "held") {
+          const payload = stale.payload;
+          if (!originalAttempt || digest6(originalAttempt) !== digest6(attempt) || stale.legacy || stale.revision === null || payload.intentId !== id || payload.operation !== "worktree-cleanup" || payload.ownerHost !== os3.hostname() || !Number.isSafeInteger(payload.ownerPid) || payload.ownerPid <= 0) throw new Error("worktree branch or mutation authority is still leased");
+          let stopped2 = false;
+          try {
+            process.kill(payload.ownerPid, 0);
+          } catch (error2) {
+            if (error2.code === "ESRCH") stopped2 = true;
+          }
+          if (!stopped2) throw new Error("cleanup lease owner is active or cannot be verified stopped");
+          await releaseAuthorizedLeaseAtGeneration(dataRoot, leaseId, id, payload.leaseToken, stale.revision, digest6({ leaseId, revision: stale.revision, state: "held", payload }));
+        }
+        const token = randomUUID3();
+        await acquireAuthorizedLease(dataRoot, leaseId, { intentId: id, leaseToken: token, operation: "worktree-cleanup", ownerPid: process.pid, ownerHost: os3.hostname() });
+        held.push({ id: leaseId, token });
+      }
+      const prior = await readWorktreeCleanupCompletion(dataRoot, registration, head);
+      if (prior) {
+        if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("a checkout reappeared after cleanup; preserve its replacement identity");
+        result.removed_worktrees.push(root);
+        (result.removed_heads ??= {})[root] = head;
+        result.evidence_root = path14.join(dataRoot, "worktree-evidence");
+        continue;
+      }
+      const plan = await readOptional(dataRoot, "worktree-cleanup-plans", id);
+      if (!await exists2(root)) {
+        if (!plan || digest6(plan.registration) !== digest6(registration) || plan.head !== head || !same(plan.target_worktree, targetWorktree) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("missing worktree has no completed exact removal journal");
+        await validateArchive(dataRoot, plan);
+        const completion = { schema_version: 1, cleanup_id: id, plan_sha256: digest6(plan), worktree: root, head };
+        await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-completions", id, completion);
+        await readWorktreeCleanupCompletion(dataRoot, registration, head);
+        result.removed_worktrees.push(root);
+        (result.removed_heads ??= {})[root] = head;
+        result.evidence_root = path14.join(dataRoot, "worktree-evidence");
+        continue;
+      }
+      const validate = async () => {
+        await assertAuthority();
+        for (const lease of held) {
+          const actual = await readAuthorizedLease(dataRoot, lease.id);
+          if (actual.intentId !== id || actual.leaseToken !== lease.token) throw new Error("cleanup authority changed");
+        }
+        await completedOwners(dataRoot, root, registration.intent_id);
+        await assertWorktreeBinding(root, registration.branch, registration.common_git_dir, head, true, registration.git_dir);
+        for (const marker of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_LOG", "BISECT_START", "rebase-merge", "rebase-apply", "sequencer", "index.lock"]) {
+          if (await exists2(path14.join(registration.git_dir, marker))) throw new Error(`worktree has an unfinished Git operation or lock: ${marker}`);
+        }
+        const entries = await registeredTrees(targetWorktree), selected = entries.find((tree) => same(tree.path, root));
+        if (!selected || selected.locked) throw new Error("worktree is missing or locked");
+        if (entries.some((tree) => !same(tree.path, root) && within(root, tree.path))) throw new Error("worktree contains another registered worktree");
+        const actualTarget = await assertWorktreeBinding(targetWorktree, target.branch, target.commonGitDir, target.head, false, target.gitDir);
+        await git(["merge-base", "--is-ancestor", head, actualTarget.head], targetWorktree);
+      };
+      await validate();
+      await walkSafety(root);
+      const evidencePaths = (candidate.evidencePaths ?? []).map((item) => relativeFile(item.replace(/\/$/, "")));
+      const outputRoots = await configuredOutputRoots(dataRoot, registration, candidate.outputRoots ?? [], owners);
+      await assertIgnoredDataSafe(registration, evidencePaths, outputRoots);
+      let removal = plan;
+      if (removal) {
+        if (digest6(removal.registration) !== digest6(registration) || removal.head !== head || !same(removal.target_worktree, targetWorktree)) throw new Error("cleanup retry cannot adopt a replacement worktree");
+        for (const evidence of removal.evidence) if (digest6(await readFile7(path14.join(root, evidence.relative))) !== evidence.sha256) throw new Error("source proof changed after the cleanup journal");
+        await validateArchive(dataRoot, removal);
+      } else {
+        const evidence = await archiveEvidence(dataRoot, id, root, evidencePaths);
+        removal = await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-plans", id, {
+          schema_version: 1,
+          cleanup_id: id,
+          registration,
+          head,
+          target_worktree: path14.resolve(targetWorktree),
+          target_branch: target.branch,
+          target_common_git_dir: target.commonGitDir,
+          target_head: target.head,
+          evidence
+        });
+      }
+      await validate();
+      await safeAncestors(root);
+      await git(["worktree", "remove", root], registration.project_root);
+      if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("Git did not complete the exact worktree removal");
+      await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-completions", id, { schema_version: 1, cleanup_id: id, plan_sha256: digest6(removal), worktree: root, head });
+      await readWorktreeCleanupCompletion(dataRoot, registration, head);
+      result.removed_worktrees.push(root);
+      (result.removed_heads ??= {})[root] = head;
+      result.evidence_root = path14.join(dataRoot, "worktree-evidence");
+    } catch (error2) {
+      result.retained_worktrees.push({ worktree: root, reason: error2.message });
+    } finally {
+      for (const lease of held.reverse()) await releaseAuthorizedLease(dataRoot, lease.id, id, lease.token);
+    }
+  }
+  return result;
+}
+
+// src/merge-workflow.ts
+init_worktree_storage();
+init_output_retention();
 init_workspace();
 var MergeWorkflowError = class extends Error {
   constructor(merge_id, cause) {
@@ -25938,18 +26642,18 @@ var MergeWorkflowError = class extends Error {
     this.name = "MergeWorkflowError";
   }
 };
-var hash6 = (text) => createHash10("sha256").update(text).digest("hex");
-var digest6 = (value) => hash6(JSON.stringify(value));
-var samePath6 = (left, right) => process.platform === "win32" ? path12.resolve(left).toLowerCase() === path12.resolve(right).toLowerCase() : path12.resolve(left) === path12.resolve(right);
+var hash6 = (text) => createHash12("sha256").update(text).digest("hex");
+var digest7 = (value) => hash6(JSON.stringify(value));
+var samePath8 = (left, right) => process.platform === "win32" ? path15.resolve(left).toLowerCase() === path15.resolve(right).toLowerCase() : path15.resolve(left) === path15.resolve(right);
 var safeId3 = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe merge id");
   return id;
 };
 var relativePath = (value) => {
-  if (!value || value.includes("\0") || path12.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
+  if (!value || value.includes("\0") || path15.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
   return value.replaceAll("\\", "/");
 };
-var resourceId = (common, branch) => hash6(`${path12.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var resourceId = (common, branch) => hash6(`${path15.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
 var MergeWorkflowStore = class {
   constructor(dataRoot, runner = gateRunner) {
     this.dataRoot = dataRoot;
@@ -25959,15 +26663,15 @@ var MergeWorkflowStore = class {
   async diagnose(args) {
     this.session(args.session_id);
     const source = await readOnlyBinding(args.source_worktree), target = await readOnlyBinding(args.target_worktree, args.target_branch, source.commonGitDir);
-    if (samePath6(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
-    const revisions = await directoryNames2(path12.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path12.join(this.dataRoot, "merge-watermarks"));
+    if (samePath8(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
+    const revisions = await directoryNames2(path15.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path15.join(this.dataRoot, "merge-watermarks"));
     const ids = [...new Set([...revisions, ...watermarks].map((name) => /^([A-Za-z0-9_-]+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))].sort();
     const operations = [];
     for (const id of ids) {
       const record3 = await this.readForDiagnosis(id, revisions, watermarks);
-      if (record3.session_id !== args.session_id || !samePath6(record3.source_worktree, source.topLevel) || !samePath6(record3.target_worktree, target.topLevel) || record3.target_branch !== args.target_branch) continue;
+      if (record3.session_id !== args.session_id || !samePath8(record3.source_worktree, source.topLevel) || !samePath8(record3.target_worktree, target.topLevel) || record3.target_branch !== args.target_branch) continue;
       for (const [stored, actual] of [[record3.source_binding, source], [record3.target_binding, target]]) {
-        if (!stored || stored.branch !== actual.branch || !samePath6(stored.topLevel, actual.topLevel) || !samePath6(stored.commonGitDir, actual.commonGitDir) || !samePath6(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
+        if (!stored || stored.branch !== actual.branch || !samePath8(stored.topLevel, actual.topLevel) || !samePath8(stored.commonGitDir, actual.commonGitDir) || !samePath8(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
         if (await git(["--no-optional-locks", "rev-parse", "--verify", `${stored.head}^{commit}`], actual.topLevel) !== stored.head) throw new Error("signed merge commit binding diverged");
       }
       operations.push({ merge_id: record3.merge_id, revision: record3.revision, state: record3.state, source_worktree: record3.source_worktree, target_worktree: record3.target_worktree, target_branch: record3.target_branch, source_head: record3.source_binding.head, target_head: record3.target_binding.head });
@@ -25982,7 +26686,7 @@ var MergeWorkflowStore = class {
   }
   async prep(args) {
     this.session(args.session_id);
-    const mergeId = safeId3(args.merge_id ?? `merge-${randomUUID3()}`);
+    const mergeId = safeId3(args.merge_id ?? `merge-${randomUUID4()}`);
     let durableMergeId;
     try {
       return await this.lock(mergeId, args.session_id, async (assertOperation) => {
@@ -25991,8 +26695,8 @@ var MergeWorkflowStore = class {
           record3 = await this.read(mergeId);
           this.match(record3, args);
         } else {
-          const sourceRoot = path12.resolve(args.source_worktree), targetRoot = path12.resolve(args.target_worktree);
-          if (samePath6(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
+          const sourceRoot = path15.resolve(args.source_worktree), targetRoot = path15.resolve(args.target_worktree);
+          if (samePath8(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
           const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, !args.finalization?.source), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, !args.finalization?.target);
           if (source.branch === target.branch) throw new Error("source and target branches must differ");
           await assertNoOperation2(sourceRoot);
@@ -26003,7 +26707,7 @@ var MergeWorkflowStore = class {
           if (mergePolicy.schema_version !== 1 || !["low", "standard", "strict"].includes(mergePolicy.strictness)) throw new Error("trusted merge policy must configure schema_version 1 and low, standard, or strict");
           const scopes = mergePolicy.strictness === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...mergePolicy.strictness === "strict" ? ["super-smoke"] : []];
           for (const scope of scopes) if (!policy.commands[scope]) throw new Error(`trusted merge policy is missing ${scope} command`);
-          record3 = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest6({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
+          record3 = await this.initial({ schema_version: 1, merge_id: mergeId, revision: 0, session_id: args.session_id, state: "preparing", source_worktree: sourceRoot, target_worktree: targetRoot, target_branch: args.target_branch, source_binding: source, target_binding: target, captured_policy: policy, policy_sha256: digest7({ policy, mergePolicyText }), strictness: mergePolicy.strictness, scopes, conflicts: [], gates: [] });
         }
         durableMergeId = record3.merge_id;
         if (record3.state === "merged") return this.output(record3);
@@ -26018,7 +26722,7 @@ var MergeWorkflowStore = class {
           await assertNoOperation2(record3.target_worktree);
           let recoveredCommit = false;
           if (record3.prepared_commit) {
-            if (args.commit && digest6(args.commit) !== digest6(record3.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
+            if (args.commit && digest7(args.commit) !== digest7(record3.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
             const currentHead = await git(["rev-parse", "HEAD"], record3.source_worktree);
             if (currentHead === record3.prepared_commit.candidate) {
               await assertAuthority();
@@ -26028,7 +26732,7 @@ var MergeWorkflowStore = class {
               await applyPreparedCommit(record3.source_worktree, prepared, record3.source_binding.branch, record3.source_binding.commonGitDir, record3.source_binding.gitDir, async (candidate) => {
                 await assertAuthority();
                 await this.bindings(record3, false);
-                if (digest6((await this.read(record3.merge_id)).prepared_commit) !== digest6(candidate)) throw new Error("signed integration commit recovery authority changed");
+                if (digest7((await this.read(record3.merge_id)).prepared_commit) !== digest7(candidate)) throw new Error("signed integration commit recovery authority changed");
               });
             } else throw new Error("prepared commit recovery found diverged source HEAD");
             record3 = await this.update({ ...record3, prepared_commit: void 0, prepared_commit_request: void 0, prepared_merge: void 0, state: "preparing", conflicts: [] });
@@ -26068,7 +26772,7 @@ var MergeWorkflowStore = class {
                 async (prepared) => {
                   await assertAuthority();
                   const latest = await this.read(record3.merge_id);
-                  if (digest6(latest.prepared_commit) !== digest6(prepared)) throw new Error("signed integration commit authority changed");
+                  if (digest7(latest.prepared_commit) !== digest7(prepared)) throw new Error("signed integration commit authority changed");
                   await this.bindings(record3, false);
                 }
               );
@@ -26104,7 +26808,7 @@ var MergeWorkflowStore = class {
                 await assertAuthority();
                 await this.bindings(record3, false);
                 const latest = await this.read(mergeId);
-                if (digest6(latest.prepared_merge) !== digest6(prepared)) throw new Error("signed target merge authority changed");
+                if (digest7(latest.prepared_merge) !== digest7(prepared)) throw new Error("signed target merge authority changed");
               }
             );
             record3 = await this.update({ ...record3, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
@@ -26115,12 +26819,12 @@ var MergeWorkflowStore = class {
             const retained = await this.associateBookkeepingInputs(record3, inputs);
             if (retained) {
               const ready = { ...retained, state: "ready", failure: void 0 };
-              if (digest6(ready) !== digest6(record3)) record3 = await this.update(ready);
+              if (digest7(ready) !== digest7(record3)) record3 = await this.update(ready);
               await this.assertReady(record3);
               return this.output(record3, true);
             }
           }
-          if (record3.state === "failed" && digest6(inputs) === digest6(record3.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
+          if (record3.state === "failed" && digest7(inputs) === digest7(record3.attempted_inputs)) throw new Error("failed prep inputs are unchanged; repair a relevant source or dependency input before retrying");
           record3 = await this.update({ ...record3, state: "verifying", ready_inputs: void 0, integration_inputs: void 0, attempted_inputs: inputs, gates: [], failure: void 0 });
           try {
             await git(["diff", "--check", record3.target_binding.head, inputs.source.head], record3.source_worktree);
@@ -26128,6 +26832,7 @@ var MergeWorkflowStore = class {
               await assertAuthority();
               await this.bindings(record3, false);
               await this.assertInputs(record3, inputs);
+              await prepareScopeOutputs(record3.source_worktree, record3.captured_policy, scope);
               const command = record3.captured_policy.commands[scope], result = await this.runner(command, record3.source_worktree);
               record3 = await this.update({ ...record3, gates: [...record3.gates, { scope, commandSha256: hash6(command), exitCode: result.exitCode, stdoutSha256: hash6(result.stdout), stderrSha256: hash6(result.stderr) }] });
               if (result.exitCode !== 0) throw new Error(`${scope} merge prep gate failed (exit ${result.exitCode})`);
@@ -26173,7 +26878,7 @@ var MergeWorkflowStore = class {
   }
   async reconcileOwnedImplementation(record3, assertAuthority, intentId) {
     const lifecycle = new LifecycleStore(this.dataRoot, this.runner, sourceState);
-    const owners = (await lifecycle.doctor()).activeRuns.filter((owner2) => samePath6(owner2.worktreePath, record3.source_worktree));
+    const owners = (await lifecycle.doctor()).activeRuns.filter((owner2) => samePath8(owner2.worktreePath, record3.source_worktree));
     if (owners.length > 1 || owners.some((owner2) => owner2.sessionId !== record3.session_id)) throw new Error("source implementation session owner mismatch");
     const owner = owners[0];
     if (!owner || intentId && owner.intentId !== intentId) {
@@ -26186,7 +26891,7 @@ var MergeWorkflowStore = class {
     }
     const head = await git(["rev-parse", "HEAD"], record3.source_worktree);
     const verified = await this.read(record3.merge_id);
-    if (verified.revision !== record3.revision || digest6(verified) !== digest6(record3)) throw new Error("signed merge changed before lifecycle reconciliation");
+    if (verified.revision !== record3.revision || digest7(verified) !== digest7(record3)) throw new Error("signed merge changed before lifecycle reconciliation");
     let candidate;
     for (let revision = record3.revision; revision >= 0; revision--) {
       const historical = await readAuthorized(this.dataRoot, "merge-revisions", `${record3.merge_id}-${revision}`);
@@ -26209,26 +26914,24 @@ var MergeWorkflowStore = class {
       let record3 = await this.read(args.merge_id);
       this.match(record3, args);
       if (!["ready", "integrating", "merged"].includes(record3.state) || !record3.ready_inputs) throw new Error("Merge Back requires a successful current ready Merge Prep");
-      if (record3.state !== "merged") record3 = await this.finalizeSelected(record3, args.finalization, assertOperation);
-      return this.resources(record3, async (assertResources) => {
+      if (record3.state === "merged") {
+        await this.assertHistoricalMerge(record3);
+        if (record3.cleanup?.removed_worktrees.length && record3.cleanup.retained_worktrees.length === 0) return this.output(record3, true);
+        return this.cleanupMergedChain(record3, assertOperation);
+      }
+      record3 = await this.finalizeSelected(record3, args.finalization, assertOperation);
+      record3 = await this.resources(record3, async (assertResources) => {
         await assertOperation();
         await assertResources();
         if (record3.state !== "merged") {
           const inputs = await captureInputs(record3.source_worktree, record3.captured_policy);
           const retained = await this.associateBookkeepingInputs(record3, inputs);
           if (!retained) throw new Error("merge prep product or dependency inputs changed; readiness is stale; continue the same Merge Prep");
-          if (digest6(retained) !== digest6(record3)) record3 = await this.update(retained);
+          if (digest7(retained) !== digest7(record3)) record3 = await this.update(retained);
         }
         const targetHead = await git(["rev-parse", "HEAD"], record3.target_worktree), sourceHead = this.deliveryInputs(record3).source.head;
         await this.assertReady(record3, targetHead === sourceHead);
-        if (record3.state === "merged") {
-          if (targetHead !== sourceHead) throw new Error("completed Merge Back target HEAD changed");
-          return this.output(record3, true);
-        }
-        if (targetHead === sourceHead) {
-          record3 = await this.update({ ...record3, state: "merged", integrated_head: sourceHead });
-          return this.output(record3, true);
-        }
+        if (targetHead === sourceHead) return this.update({ ...record3, state: "merged", integrated_head: sourceHead });
         record3 = await this.update({ ...record3, state: "integrating" });
         await assertOperation();
         await assertResources();
@@ -26236,8 +26939,9 @@ var MergeWorkflowStore = class {
         await git(["merge", "--ff-only", sourceHead], record3.target_worktree);
         await this.assertReady(record3, true);
         record3 = await this.update({ ...record3, state: "merged", integrated_head: sourceHead });
-        return this.output(record3, true);
+        return record3;
       });
+      return this.cleanupMergedChain(record3, assertOperation);
     });
   }
   async status(args) {
@@ -26245,6 +26949,14 @@ var MergeWorkflowStore = class {
     const record3 = await this.read(safeId3(args.merge_id));
     this.match(record3, args);
     const operation_lease = await this.operationLeaseStatus(record3);
+    if (record3.state === "merged") {
+      try {
+        await this.assertHistoricalMerge(record3);
+        return { ...this.output(record3, true), operation_lease };
+      } catch (error2) {
+        return { ...this.output(record3, false), stale_reason: error2.message, operation_lease };
+      }
+    }
     if (["ready", "integrating", "merged"].includes(record3.state)) {
       try {
         await this.assertReady(record3, await git(["rev-parse", "HEAD"], record3.target_worktree) === this.deliveryInputs(record3)?.source.head);
@@ -26254,6 +26966,107 @@ var MergeWorkflowStore = class {
       }
     }
     return { ...this.output(record3, false), operation_lease };
+  }
+  async assertHistoricalMerge(record3) {
+    const source = this.deliveryInputs(record3)?.source;
+    if (!source || record3.integrated_head !== source.head || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope])))
+      throw new Error("signed merged operation has no complete integration proof");
+    const lookup = await this.historicalRepository(record3);
+    const targetHead = await git(["rev-parse", "--verify", `refs/heads/${record3.target_branch}^{commit}`], lookup);
+    if (!await ancestor(source.head, targetHead, lookup)) throw new Error("integrated commit is no longer retained by the target");
+    for (const root of record3.cleanup?.removed_worktrees ?? []) {
+      const registration = await readWorktreeRegistration(this.dataRoot, record3.target_binding.commonGitDir, root);
+      if (!registration) throw new Error("removed worktree creation record is missing");
+      const completionHead = record3.cleanup?.removed_heads?.[root] ?? (samePath8(root, record3.source_worktree) ? source.head : await this.cleanedHead(record3, root));
+      if (!completionHead || !await readWorktreeCleanupCompletion(this.dataRoot, registration, completionHead)) throw new Error("removed worktree has no authenticated proof retention receipt");
+    }
+  }
+  async historicalRepository(record3) {
+    try {
+      await lstat7(record3.target_worktree);
+      await assertWorktreeBinding(record3.target_worktree, record3.target_branch, record3.target_binding.commonGitDir, void 0, false, record3.target_binding.gitDir);
+      return record3.target_worktree;
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+      const registration = await readWorktreeRegistration(this.dataRoot, record3.target_binding.commonGitDir, record3.target_worktree);
+      if (!registration || registration.branch !== record3.target_branch || !samePath8(registration.git_dir, record3.target_binding.gitDir)) throw new Error("historical merge target is missing without its registered identity");
+      const retained = await retainedWorktreeHead(this.dataRoot, registration);
+      if (!retained) throw new Error("historical merge target has no authenticated cleanup receipt");
+      const primary = await primaryRepositoryRoot(registration.project_root, registration.common_git_dir);
+      const branchHead = await git(["rev-parse", "--verify", `refs/heads/${record3.target_branch}^{commit}`], primary);
+      if (!await ancestor(retained, branchHead, primary)) throw new Error("retired merge target branch lost its retained head");
+      return primary;
+    }
+  }
+  async cleanedHead(record3, root) {
+    const candidates = await this.cleanupCandidates(record3);
+    return candidates.find((candidate) => samePath8(candidate.registration.worktree_path, root))?.head;
+  }
+  async compactEvidence(record3) {
+    const selected = [];
+    for (const [role, relative] of Object.entries(record3.captured_policy.artifactPaths ?? {})) {
+      if (role === "build") {
+        if (/\.(json|jsonl|xml|txt|log|md)$/i.test(relative)) selected.push(relative);
+        continue;
+      }
+      const required2 = role === "smoke" && record3.scopes.includes("feature-smoke") || role === "visual" && record3.captured_policy.visualRequired;
+      if (required2) selected.push(relative);
+      else {
+        try {
+          await lstat7(path15.join(record3.source_worktree, relative));
+          selected.push(relative);
+        } catch (error2) {
+          if (error2.code !== "ENOENT") throw error2;
+        }
+      }
+    }
+    return selected;
+  }
+  async cleanupCandidates(record3) {
+    const common = record3.source_binding.commonGitDir, candidates = /* @__PURE__ */ new Map();
+    const add = async (root, head, evidencePaths = [], outputRoots = []) => {
+      const registration = await readWorktreeRegistration(this.dataRoot, common, root);
+      if (!registration) return;
+      const key3 = storageRegistrationId(common, root), existing = candidates.get(key3);
+      if (existing && existing.head !== head && !samePath8(root, record3.source_worktree)) existing.retentionReason = "predecessor has conflicting completed heads; preserve its ambiguous checkout";
+      if (!existing) candidates.set(key3, { registration, head, evidencePaths, outputRoots });
+    };
+    await add(record3.source_worktree, this.deliveryInputs(record3).source.head, await this.compactEvidence(record3), Object.values(record3.captured_policy.outputRetention?.roots ?? {}).flat());
+    if (!candidates.size) return [];
+    const names = await directoryNames2(path15.join(this.dataRoot, "merge-revisions"));
+    const ids = [...new Set(names.map((name) => /^(.*)-0\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))];
+    const merged = [];
+    for (const id of ids) {
+      const previous = await this.read(id);
+      if (previous.state === "merged" && samePath8(previous.source_binding.commonGitDir, common)) merged.push(previous);
+    }
+    const lookup = await this.historicalRepository(record3);
+    for (let index = 0; index < candidates.size; index++) {
+      if (candidates.size > 256) throw new Error("worktree chain exceeds the bounded cleanup graph");
+      const candidate = [...candidates.values()][index], parent = candidate.registration.parent_worktree;
+      if (parent) {
+        const registration = await readWorktreeRegistration(this.dataRoot, common, parent.worktree_path);
+        if (!registration || storageRegistrationId(common, parent.worktree_path) !== parent.registration_id || registration.branch !== parent.branch || !samePath8(registration.git_dir, parent.git_dir)) throw new Error("worktree predecessor registration diverged");
+        await add(parent.worktree_path, parent.head);
+      }
+      for (const previous of merged) if (samePath8(previous.target_worktree, candidate.registration.worktree_path)) {
+        const previousHead = previous.integrated_head;
+        if (previousHead && await ancestor(previousHead, candidate.head, lookup)) await add(previous.source_worktree, previousHead, await this.compactEvidence(previous), Object.values(previous.captured_policy.outputRetention?.roots ?? {}).flat());
+      }
+    }
+    return [...candidates.values()];
+  }
+  async cleanupMergedChain(record3, assertOperation) {
+    let cleanup;
+    try {
+      const candidates = await this.cleanupCandidates(record3);
+      cleanup = candidates.length ? await cleanupRegisteredWorktrees(this.dataRoot, await this.historicalRepository(record3), candidates, assertOperation) : { removed_worktrees: [], retained_worktrees: [{ worktree: record3.source_worktree, reason: "legacy or unregistered worktree; automatic cleanup applies only to new creation records" }] };
+    } catch (error2) {
+      cleanup = { removed_worktrees: record3.cleanup?.removed_worktrees ?? [], retained_worktrees: [{ worktree: record3.source_worktree, reason: error2.message }] };
+    }
+    await assertOperation();
+    if (digest7(cleanup) !== digest7(record3.cleanup ?? null)) record3 = await this.update({ ...record3, cleanup });
+    return this.output(record3, true);
   }
   async operationLeaseStatus(record3) {
     const leaseId = hash6(`merge-operation\0${record3.merge_id}`), operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);
@@ -26293,12 +27106,12 @@ var MergeWorkflowStore = class {
     this.assertLeaseOwnerStopped(lease, args.confirm_owner_stopped);
     const resources = [];
     const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
-    if (active.some((owner) => samePath6(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; stale merge resources cannot be recovered");
-    const sourceOwners = active.filter((owner) => samePath6(owner.worktreePath, record3.source_worktree));
+    if (active.some((owner) => samePath8(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; stale merge resources cannot be recovered");
+    const sourceOwners = active.filter((owner) => samePath8(owner.worktreePath, record3.source_worktree));
     if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record3.session_id || owner.branch !== record3.source_binding.branch)) throw new Error("source Captain owner differs from the signed merge identity");
     for (const owner of sourceOwners) {
       const current = await lifecycle.status(owner.intentId);
-      if (current.status !== "paused" || current.branch !== record3.source_binding.branch || !samePath6(current.commonGitDir, record3.source_binding.commonGitDir) || !samePath6(current.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
+      if (current.status !== "paused" || current.branch !== record3.source_binding.branch || !samePath8(current.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(current.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
       const id = hash6(`worktree-mutation\0${current.runId}`), fence = await this.readHeldLease(id);
       if (fence) {
         this.assertMergeLease(fence, args.merge_id, args.session_id, "integration-worktree");
@@ -26311,14 +27124,14 @@ var MergeWorkflowStore = class {
       if (!existing) continue;
       if (existing.intentId === args.merge_id) {
         this.assertMergeLease(existing, args.merge_id, args.session_id, "integration-branch");
-        if (!samePath6(existing.commonGitDir, binding.commonGitDir) || existing.targetBranch !== binding.branch || existing.targetOid !== binding.head) throw new Error("stale integration branch lease differs from the pinned merge binding");
+        if (!samePath8(existing.commonGitDir, binding.commonGitDir) || existing.targetBranch !== binding.branch || existing.targetOid !== binding.head) throw new Error("stale integration branch lease differs from the pinned merge binding");
         this.assertLeaseOwnerStopped(existing, args.confirm_owner_stopped);
         resources.push({ id, payload: existing });
       } else {
         const owner = sourceOwners.find((candidate) => candidate.intentId === existing.intentId);
         if (binding !== record3.source_binding || !owner) throw new Error("a branch lease is owned by another Captain operation; preserve it");
         const fullOwner = await lifecycle.status(owner.intentId);
-        if (fullOwner.sessionId !== args.session_id || !samePath6(fullOwner.worktreePath, record3.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
+        if (fullOwner.sessionId !== args.session_id || !samePath8(fullOwner.worktreePath, record3.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
       }
     }
     const targetIntegrated = !!record3.ready_inputs && await git(["rev-parse", "HEAD"], record3.target_worktree) === record3.ready_inputs.source.head;
@@ -26342,7 +27155,7 @@ var MergeWorkflowStore = class {
     const metadata = { ...typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}, ...typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {} };
     if (lease.ownerPid === void 0 && lease.ownerHost === void 0) return { owner: { state: "legacy" }, reason: "legacy merge lease has no process metadata; independently verify and confirm that its owner is stopped" };
     if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
-    if (lease.ownerHost.toLowerCase() !== os3.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
+    if (lease.ownerHost.toLowerCase() !== os4.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
     try {
       process.kill(lease.ownerPid, 0);
     } catch (error2) {
@@ -26364,7 +27177,7 @@ var MergeWorkflowStore = class {
   }
   match(record3, args) {
     if (record3.session_id !== args.session_id) throw new Error("signed merge session ownership mismatch");
-    if (args.source_worktree && !samePath6(record3.source_worktree, args.source_worktree) || args.target_worktree && !samePath6(record3.target_worktree, args.target_worktree) || args.target_branch && record3.target_branch !== args.target_branch) throw new Error("signed merge source/target identity does not match this request");
+    if (args.source_worktree && !samePath8(record3.source_worktree, args.source_worktree) || args.target_worktree && !samePath8(record3.target_worktree, args.target_worktree) || args.target_branch && record3.target_branch !== args.target_branch) throw new Error("signed merge source/target identity does not match this request");
   }
   output(record3, receipt_valid) {
     return { ...record3, ...receipt_valid === void 0 ? {} : { receipt_valid }, captain_green: false };
@@ -26374,7 +27187,7 @@ var MergeWorkflowStore = class {
     await assertWorktreeBinding(record3.target_worktree, record3.target_branch, record3.target_binding.commonGitDir, targetIntegrated ? this.deliveryInputs(record3)?.source.head : record3.target_binding.head, true, record3.target_binding.gitDir);
   }
   async assertInputs(record3, expected) {
-    if (digest6(await captureInputs(record3.source_worktree, record3.captured_policy)) !== digest6(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
+    if (digest7(await captureInputs(record3.source_worktree, record3.captured_policy)) !== digest7(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
   }
   async assertReady(record3, targetIntegrated = false) {
     if (!record3.ready_inputs || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
@@ -26392,9 +27205,9 @@ var MergeWorkflowStore = class {
     const tested = record3.ready_inputs;
     if (!tested) return void 0;
     const current = this.deliveryInputs(record3);
-    if (digest6(inputs) === digest6(current)) return record3;
+    if (digest7(inputs) === digest7(current)) return record3;
     const policy = record3.captured_policy.commit;
-    if (!policy?.bookkeeping || !tested.source.productManifest || !inputs.source.productManifest || tested.source.productManifest !== inputs.source.productManifest || tested.metadata !== inputs.metadata || digest6(tested.dependencies) !== digest6(inputs.dependencies) || inputs.source.status || digest6([tested.source.branch, tested.source.commonGitDir, tested.source.gitDir, tested.source.topLevel]) !== digest6([inputs.source.branch, inputs.source.commonGitDir, inputs.source.gitDir, inputs.source.topLevel]) || !await bookkeepingHistoryValid(record3.source_worktree, tested.source.head, inputs.source.head, policy)) return void 0;
+    if (!policy?.bookkeeping || !tested.source.productManifest || !inputs.source.productManifest || tested.source.productManifest !== inputs.source.productManifest || tested.metadata !== inputs.metadata || digest7(tested.dependencies) !== digest7(inputs.dependencies) || inputs.source.status || digest7([tested.source.branch, tested.source.commonGitDir, tested.source.gitDir, tested.source.topLevel]) !== digest7([inputs.source.branch, inputs.source.commonGitDir, inputs.source.gitDir, inputs.source.topLevel]) || !await bookkeepingHistoryValid(record3.source_worktree, tested.source.head, inputs.source.head, policy)) return void 0;
     return { ...record3, integration_inputs: inputs, bookkeeping_extensions: [
       ...record3.bookkeeping_extensions ?? [],
       { kind: "source", from_head: current.source.head, to_head: inputs.source.head }
@@ -26445,8 +27258,8 @@ var MergeWorkflowStore = class {
         if (dirty && selection.finalization_id === pending.selection.finalization_id) throw new Error("completed finalization id cannot consume new dirty records; omit the id for a new generation");
         if (dirty || selection.finalization_id && selection.finalization_id !== pending.selection.finalization_id) pending = void 0;
       }
-      if (pending && selection && digest6({ ...selection, finalization_id: selection.finalization_id ?? pending.selection.finalization_id }) !== digest6(pending.selection) && !await new BookkeepingFinalizationStore(this.dataRoot).hasStarted({ finalization_id: pending.selection.finalization_id, session_id: record3.session_id, worktree })) pending = void 0;
-      if (pending && selection && (selection.finalization_id && selection.finalization_id !== pending.selection.finalization_id || digest6({ ...selection, finalization_id: pending.selection.finalization_id }) !== digest6(pending.selection)))
+      if (pending && selection && digest7({ ...selection, finalization_id: selection.finalization_id ?? pending.selection.finalization_id }) !== digest7(pending.selection) && !await new BookkeepingFinalizationStore(this.dataRoot).hasStarted({ finalization_id: pending.selection.finalization_id, session_id: record3.session_id, worktree })) pending = void 0;
+      if (pending && selection && (selection.finalization_id && selection.finalization_id !== pending.selection.finalization_id || digest7({ ...selection, finalization_id: pending.selection.finalization_id }) !== digest7(pending.selection)))
         throw new Error("merge finalization recovery requires the same signed selection");
       if (!pending && selection) {
         const worktree2 = side === "source" ? record3.source_worktree : record3.target_worktree;
@@ -26499,23 +27312,23 @@ var MergeWorkflowStore = class {
       r.strictness,
       r.scopes
     ];
-    if (digest6(identity(current)) !== digest6(identity(previous))) throw new Error("signed merge identity or policy changed between revisions");
+    if (digest7(identity(current)) !== digest7(identity(previous))) throw new Error("signed merge identity or policy changed between revisions");
     if (current.target_binding.head !== previous.target_binding.head) {
       const oldExtensions = previous.bookkeeping_extensions ?? [], newExtensions = current.bookkeeping_extensions ?? [];
       const extension = newExtensions.at(-1);
-      if (!current.captured_policy.commit?.bookkeeping || newExtensions.length !== oldExtensions.length + 1 || digest6(newExtensions.slice(0, -1)) !== digest6(oldExtensions) || extension?.kind !== "target" || extension.from_head !== previous.target_binding.head || extension.to_head !== current.target_binding.head)
+      if (!current.captured_policy.commit?.bookkeeping || newExtensions.length !== oldExtensions.length + 1 || digest7(newExtensions.slice(0, -1)) !== digest7(oldExtensions) || extension?.kind !== "target" || extension.from_head !== previous.target_binding.head || extension.to_head !== current.target_binding.head)
         throw new Error("signed target changed without a bookkeeping association");
     }
   }
   async lock(id, session, action2) {
-    const leaseId = hash6(`merge-operation\0${id}`), leaseToken = randomUUID3(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os3.hostname() };
+    const leaseId = hash6(`merge-operation\0${id}`), leaseToken = randomUUID4(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os4.hostname() };
     if (this.activeOperations.has(leaseId)) throw new Error("merge operation is already active in this process");
     this.activeOperations.add(leaseId);
     try {
       await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
       try {
         return await action2(async () => {
-          if (digest6(await readAuthorizedLease(this.dataRoot, leaseId)) !== digest6(payload)) throw new Error("integration operation lease ownership changed");
+          if (digest7(await readAuthorizedLease(this.dataRoot, leaseId)) !== digest7(payload)) throw new Error("integration operation lease ownership changed");
         });
       } finally {
         await releaseAuthorizedLease(this.dataRoot, leaseId, id, leaseToken);
@@ -26528,21 +27341,21 @@ var MergeWorkflowStore = class {
     const held = [];
     try {
       const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
-      if (active.some((owner) => samePath6(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; preserve that task before integrating");
-      const sourceOwners = active.filter((owner) => samePath6(owner.worktreePath, record3.source_worktree));
+      if (active.some((owner) => samePath8(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; preserve that task before integrating");
+      const sourceOwners = active.filter((owner) => samePath8(owner.worktreePath, record3.source_worktree));
       if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record3.session_id)) throw new Error("source worktree belongs to another active Captain session owner");
       const reserveFence = async (owner) => {
         if (owner.sessionId !== record3.session_id) throw new Error("source Captain session ownership changed before its mutation fence");
-        if (owner.branch !== record3.source_binding.branch || !samePath6(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath6(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
+        if (owner.branch !== record3.source_binding.branch || !samePath8(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
         const fenceId = hash6(`worktree-mutation\0${owner.runId}`);
         if (held.some((lease) => lease.id === fenceId)) return;
-        const fence = { intentId: record3.merge_id, leaseToken: randomUUID3(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os3.hostname() };
+        const fence = { intentId: record3.merge_id, leaseToken: randomUUID4(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os4.hostname() };
         await acquireAuthorizedLease(this.dataRoot, fenceId, fence);
         held.push({ id: fenceId, payload: fence, borrowed: false });
       };
       for (const owner of sourceOwners) await reserveFence(await lifecycle.status(owner.intentId));
       for (const binding of [record3.source_binding, record3.target_binding].sort((a, b) => resourceId(a.commonGitDir, a.branch).localeCompare(resourceId(b.commonGitDir, b.branch)))) {
-        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID3(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os3.hostname() };
+        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID4(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os4.hostname() };
         let existing;
         try {
           existing = await readAuthorizedLease(this.dataRoot, id);
@@ -26552,7 +27365,7 @@ var MergeWorkflowStore = class {
         if (existing) {
           if (binding.branch !== record3.source_binding.branch) throw new Error("target branch is already leased by another Captain operation");
           const owner = await lifecycle.status(existing.intentId);
-          if (owner.sessionId !== record3.session_id || !samePath6(owner.worktreePath, record3.source_worktree) || owner.branch !== binding.branch || owner.leaseId !== id || owner.leaseToken !== existing.leaseToken) throw new Error("source branch lease belongs to another session or worktree owner");
+          if (owner.sessionId !== record3.session_id || !samePath8(owner.worktreePath, record3.source_worktree) || owner.branch !== binding.branch || owner.leaseId !== id || owner.leaseToken !== existing.leaseToken) throw new Error("source branch lease belongs to another session or worktree owner");
           held.push({ id, payload: existing, borrowed: true });
           await reserveFence(owner);
         } else {
@@ -26561,7 +27374,7 @@ var MergeWorkflowStore = class {
         }
       }
       return await action2(async () => {
-        for (const lease of held) if (digest6(await readAuthorizedLease(this.dataRoot, lease.id)) !== digest6(lease.payload)) throw new Error("source or target branch lease ownership changed before integration mutation");
+        for (const lease of held) if (digest7(await readAuthorizedLease(this.dataRoot, lease.id)) !== digest7(lease.payload)) throw new Error("source or target branch lease ownership changed before integration mutation");
       });
     } finally {
       for (const lease of held.reverse()) if (!lease.borrowed) await releaseAuthorizedLease(this.dataRoot, lease.id, lease.payload.intentId, lease.payload.leaseToken);
@@ -26579,13 +27392,13 @@ var MergeWorkflowStore = class {
   async update(record3) {
     const current = await this.read(record3.merge_id);
     if (current.revision !== record3.revision) throw new Error("signed merge workflow changed concurrently");
-    const next = JSON.parse(JSON.stringify({ ...record3, revision: current.revision + 1, previous_sha256: digest6(current) }));
+    const next = JSON.parse(JSON.stringify({ ...record3, revision: current.revision + 1, previous_sha256: digest7(current) }));
     const stored = await putAuthorizedOnceExact(this.dataRoot, "merge-revisions", `${record3.merge_id}-${next.revision}`, next);
     await this.watermark(stored);
     return stored;
   }
   async watermark(record3) {
-    await putAuthorizedOnceExact(this.dataRoot, "merge-watermarks", `${record3.merge_id}-${record3.revision}`, { merge_id: record3.merge_id, revision: record3.revision, sha256: digest6(record3) });
+    await putAuthorizedOnceExact(this.dataRoot, "merge-watermarks", `${record3.merge_id}-${record3.revision}`, { merge_id: record3.merge_id, revision: record3.revision, sha256: digest7(record3) });
   }
   /** Verify existing history and watermarks; never repair a checkpoint while diagnosing. */
   async readForDiagnosis(id, names, watermarkNames) {
@@ -26596,12 +27409,12 @@ var MergeWorkflowStore = class {
     for (let index = 0; index < revisions.length; index++) {
       if (revisions[index] !== index) throw new Error("signed merge revision chain is not contiguous");
       const current = await readAuthorizedReadOnly(this.dataRoot, "merge-revisions", `${id}-${index}`);
-      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest6(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
+      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest7(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
       if (typeof current.session_id !== "string" || !current.session_id.trim() || typeof current.source_worktree !== "string" || typeof current.target_worktree !== "string" || typeof current.target_branch !== "string" || !["preparing", "needs_resolution", "needs_commit", "verifying", "failed", "ready", "integrating", "merged"].includes(current.state)) throw new Error("signed merge identity/state is invalid");
       if (previous) this.assertRecordContinuity(current, previous);
       if (!watermarkNames.includes(`${id}-${index}.json`)) throw new Error("signed merge watermark is missing");
       const watermark = await readAuthorizedReadOnly(this.dataRoot, "merge-watermarks", `${id}-${index}`);
-      if (watermark.merge_id !== id || watermark.revision !== index || watermark.sha256 !== digest6(current)) throw new Error("signed merge watermark binding is invalid");
+      if (watermark.merge_id !== id || watermark.revision !== index || watermark.sha256 !== digest7(current)) throw new Error("signed merge watermark binding is invalid");
       previous = current;
     }
     if (watermarkNames.some((name) => {
@@ -26612,18 +27425,18 @@ var MergeWorkflowStore = class {
   }
   async read(id) {
     safeId3(id);
-    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir8(path12.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir10(path15.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) throw new Error("signed merge workflow was not found");
     let previous;
     for (let index = 0; index < revisions.length; index++) {
       if (revisions[index] !== index) throw new Error("signed merge revision chain is not contiguous");
       const current = await readAuthorized(this.dataRoot, "merge-revisions", `${id}-${index}`);
-      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest6(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
+      if (current.schema_version !== 1 || current.merge_id !== id || current.revision !== index || (previous ? current.previous_sha256 !== digest7(previous) : current.previous_sha256 !== void 0)) throw new Error("signed merge revision binding is invalid");
       if (previous) this.assertRecordContinuity(current, previous);
       await this.watermark(current);
       previous = current;
     }
-    const watermarkNames = await readdir8(path12.join(this.dataRoot, "merge-watermarks"));
+    const watermarkNames = await readdir10(path15.join(this.dataRoot, "merge-watermarks"));
     if (watermarkNames.some((name) => {
       const match = expression.exec(name);
       return match && Number(match[1]) > previous.revision;
@@ -26634,22 +27447,22 @@ var MergeWorkflowStore = class {
 var lines = (value) => value.split(/\r?\n/).filter(Boolean);
 async function directoryNames2(directory) {
   try {
-    return await readdir8(directory);
+    return await readdir10(directory);
   } catch (error2) {
     if (error2.code === "ENOENT") return [];
     throw error2;
   }
 }
 async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
-  const owned = path12.resolve(worktree), real = await realpath3(owned);
-  if (!samePath6(real, owned)) throw new Error("worktree path resolves through a reparse point");
+  const owned = path15.resolve(worktree), real = await realpath6(owned);
+  if (!samePath8(real, owned)) throw new Error("worktree path resolves through a reparse point");
   const readGit2 = (args) => git(["--no-optional-locks", ...args], owned);
-  const topLevel = path12.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
-  if (!samePath6(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
+  const topLevel = path15.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
+  if (!samePath8(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
   const branch = await readGit2(["symbolic-ref", "--quiet", "--short", "HEAD"]);
   if (!branch || expectedBranch !== void 0 && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path12.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path12.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
-  if (expectedCommonGitDir && !samePath6(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
+  const commonGitDir = path15.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path15.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  if (expectedCommonGitDir && !samePath8(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
   const head = await readGit2(["rev-parse", "--verify", "HEAD^{commit}"]);
   if (head !== await readGit2(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
   return { branch, commonGitDir, gitDir, topLevel, head };
@@ -26675,7 +27488,7 @@ async function assertNoOperation2(cwd, allowMerge = false) {
     if (name === "MERGE_HEAD" && allowMerge) continue;
     const file = await git(["rev-parse", "--path-format=absolute", "--git-path", name], cwd);
     try {
-      await lstat4(file);
+      await lstat7(file);
       throw new Error(`preexisting Git operation ${name} must be resolved by its owner`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -26697,29 +27510,29 @@ function excluded(relative, policy) {
 async function metadataInputs(cwd, policy, volatilePaths) {
   const files = (await git(["ls-files", "--others", "-z"], cwd)).split("\0").filter((relative) => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values = [];
   for (const relative of files) {
-    const info = await lstat4(path12.join(cwd, relative));
+    const info = await lstat7(path15.join(cwd, relative));
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
-    values.push(`${relative}:${hash6(await readFile7(path12.join(cwd, relative)))}`);
+    values.push(`${relative}:${hash6(await readFile8(path15.join(cwd, relative)))}`);
   }
-  return digest6(values);
+  return digest7(values);
 }
 async function contentDigest(root, volatile = [], sharedPackage = false) {
   const values = [];
-  const generated = /* @__PURE__ */ new Set(["library", "temp", "logs", "artifacts", "obj", "bin", "node_modules"]);
+  const generated3 = /* @__PURE__ */ new Set(["library", "temp", "logs", "artifacts", "obj", "bin", "node_modules"]);
   async function walk(full, relative) {
-    const info = await lstat4(full);
+    const info = await lstat7(full);
     if (info.isSymbolicLink()) throw new Error(`dependency input crosses a reparse point: ${full}`);
     if (volatile.includes(relative)) return;
     if (info.isDirectory()) {
-      for (const entry of (await readdir8(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-        if (entry.name === ".git" || sharedPackage && !relative && generated.has(entry.name.toLowerCase())) continue;
-        await walk(path12.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
+      for (const entry of (await readdir10(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+        if (entry.name === ".git" || sharedPackage && !relative && generated3.has(entry.name.toLowerCase())) continue;
+        await walk(path15.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
       }
-    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile7(full))}`);
+    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile8(full))}`);
     else throw new Error(`dependency input is not a regular file or directory: ${full}`);
   }
   await walk(root, "");
-  return { sha256: digest6(values), file_count: values.length };
+  return { sha256: digest7(values), file_count: values.length };
 }
 async function captureInputs(cwd, policy) {
   const source = await sourceState(cwd, policy);
@@ -26727,10 +27540,10 @@ async function captureInputs(cwd, policy) {
   const dependencies = [], volatilePaths = /* @__PURE__ */ new Set(), lockText = await committedFile(cwd, source.head, ".captain-sdlc/dependency-lock.json"), lock = lockText ? JSON.parse(lockText) : void 0;
   if (lock?.inputs !== void 0 && !Array.isArray(lock.inputs)) throw new Error("dependency lock inputs must be an array");
   for (const input of lock?.inputs ?? []) {
-    const relative = relativePath(input.path), full = path12.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
+    const relative = relativePath(input.path), full = path15.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
     for (const item of volatile) volatilePaths.add(`${relative}/${item}`.toLowerCase());
-    if (!samePath6(full, path12.join(cwd, relative)) || path12.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
-    if (!samePath6(full, await realpath3(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
+    if (!samePath8(full, path15.join(cwd, relative)) || path15.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
+    if (!samePath8(full, await realpath6(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
     dependencies.push({ kind: "locked-input", path: relative, ...await contentDigest(full, volatile) });
   }
   const manifestText = await committedFile(cwd, source.head, "Packages/manifest.json");
@@ -26740,23 +27553,23 @@ async function captureInputs(cwd, policy) {
       if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
       const supplied = spec.slice(5);
       if (!supplied || supplied.includes("\0")) throw new Error(`local dependency path is invalid: ${name}`);
-      const full = path12.resolve(path12.join(cwd, "Packages"), supplied), canonical = await realpath3(full);
-      if (!samePath6(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
-      const info = await lstat4(full);
+      const full = path15.resolve(path15.join(cwd, "Packages"), supplied), canonical = await realpath6(full);
+      if (!samePath8(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
+      const info = await lstat7(full);
       let gitState;
       const normalize = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
       const expected = (lock?.local_packages ?? []).find((entry) => normalize(name).endsWith(normalize(entry.name)));
       let ownGit = false;
       if (info.isDirectory()) {
         try {
-          await lstat4(path12.join(full, ".git"));
+          await lstat7(path15.join(full, ".git"));
           ownGit = true;
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
       }
       if (ownGit) {
-        if (!samePath6(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
+        if (!samePath8(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
         const head = await git(["rev-parse", "HEAD"], full);
         gitState = { head, tree: await git(["rev-parse", "HEAD^{tree}"], full), status: await git(["status", "--porcelain"], full), indexSha256: hash6(await git(["ls-files", "--stage", "-z"], full)) };
         if (expected && expected.source_commit !== head) throw new Error(`Pinned shared local-package revision diverged: ${name}`);
@@ -26766,7 +27579,7 @@ async function captureInputs(cwd, policy) {
   }
   const result = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies };
   const after = await sourceState(cwd, policy);
-  if (digest6(after) !== digest6(source)) throw new Error("source changed during merge input capture");
+  if (digest7(after) !== digest7(source)) throw new Error("source changed during merge input capture");
   return result;
 }
 
@@ -26802,10 +27615,10 @@ init_workspace();
 init_authority();
 init_workspace();
 init_lifecycle();
-import { createHash as createHash11, randomUUID as randomUUID4 } from "node:crypto";
-import { lstat as lstat5, readdir as readdir9, realpath as realpath4 } from "node:fs/promises";
-import os4 from "node:os";
-import path13 from "node:path";
+import { createHash as createHash13, randomUUID as randomUUID5 } from "node:crypto";
+import { lstat as lstat8, readdir as readdir11, realpath as realpath7 } from "node:fs/promises";
+import os5 from "node:os";
+import path16 from "node:path";
 init_begin_diagnostic_adapter();
 var FailedBeginVerificationError = class extends Error {
   constructor(details) {
@@ -26813,15 +27626,15 @@ var FailedBeginVerificationError = class extends Error {
     this.details = details;
   }
 };
-var hash7 = (value) => createHash11("sha256").update(value).digest("hex");
-var digest7 = (value) => hash7(JSON.stringify(value));
-var samePath7 = (a, b) => path13.resolve(a).toLowerCase() === path13.resolve(b).toLowerCase();
+var hash7 = (value) => createHash13("sha256").update(value).digest("hex");
+var digest8 = (value) => hash7(JSON.stringify(value));
+var samePath9 = (a, b) => path16.resolve(a).toLowerCase() === path16.resolve(b).toLowerCase();
 var safeId4 = (id) => {
   if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("unsafe lease recovery id");
   return id;
 };
-var resourceId2 = (binding) => hash7(`${path13.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
-var generation2 = (id, revision, payload) => digest7({ leaseId: id, revision, state: "held", payload });
+var resourceId2 = (binding) => hash7(`${path16.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
+var generation2 = (id, revision, payload) => digest8({ leaseId: id, revision, state: "held", payload });
 var gateId = (intent) => `begin-attempt-${hash7(intent)}`;
 var signedBuckets = [
   "intents",
@@ -26870,7 +27683,7 @@ var BranchLeaseRecoveryStore = class {
     const summary = lease ? { state: lease.state, intent_id: safeId4(lease.payload.intentId), revision: lease.revision, legacy_storage: lease.legacy } : { state: "absent" };
     if (!lease || lease.legacy || lease.revision === null) return { read_only: true, eligible: false, reason: "no_revisioned_begin_reservation", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const journal = await this.failedJournal(lease.payload.intentId);
-    if (journal && (journal.session_id !== args.session_id || !samePath7(journal.project_root, args.project_root) || !samePath7(journal.target_worktree, args.target_worktree) || journal.target_branch !== args.target_branch)) return { read_only: true, eligible: false, reason: "operator_selection_owned_elsewhere", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    if (journal && (journal.session_id !== args.session_id || !samePath9(journal.project_root, args.project_root) || !samePath9(journal.target_worktree, args.target_worktree) || journal.target_branch !== args.target_branch)) return { read_only: true, eligible: false, reason: "operator_selection_owned_elsewhere", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const selection = journal ? request(journal) : { ...args, old_intent_id: lease.payload.intentId, expected_lease_revision: lease.revision, resource_generation: generation2(id, lease.revision, lease.payload), expected_head: binding.head };
     if (!selectionMatches(binding, id, lease, selection, Boolean(journal))) return { read_only: true, eligible: false, reason: "generation_changed", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const completed = await optionalRead(this.dataRoot, "failed-begin-operator-results", lease.payload.intentId);
@@ -26890,7 +27703,7 @@ var BranchLeaseRecoveryStore = class {
   async repossessFailedBegin(input) {
     const args = normalizeRequest(input), binding = await readBinding(args), id = resourceId2(binding);
     const prior = await this.failedJournal(args.old_intent_id);
-    if (prior && (digest7(request(prior)) !== digest7(args) || digest7(prior.binding) !== digest7(binding))) throw new Error("operator revocation selection or worktree binding changed");
+    if (prior && (digest8(request(prior)) !== digest8(args) || digest8(prior.binding) !== digest8(binding))) throw new Error("operator revocation selection or worktree binding changed");
     const lease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
     if (!lease || !selectionMatches(binding, id, lease, args, Boolean(prior))) throw new Error("operator revocation owner or generation changed");
     let verified;
@@ -26901,17 +27714,17 @@ var BranchLeaseRecoveryStore = class {
     }
     const completed = await optionalRead(this.dataRoot, "failed-begin-operator-results", args.old_intent_id);
     if (completed) {
-      if (!prior || completed.recovery_id !== prior.recovery_id || digest7(request(completed)) !== digest7(args) || lease.state !== "released" || completed.released_lease_revision !== lease.revision) throw new Error("signed operator revocation result binding changed");
+      if (!prior || completed.recovery_id !== prior.recovery_id || digest8(request(completed)) !== digest8(args) || lease.state !== "released" || completed.released_lease_revision !== lease.revision) throw new Error("signed operator revocation result binding changed");
       return completed;
     }
-    const recoveryId = digest7({ kind: "failed_begin_operator_revocation", ...args });
+    const recoveryId = digest8({ kind: "failed_begin_operator_revocation", ...args });
     const journal = prior ?? { schema_version: 1, kind: "failed_begin_operator_selection", ...args, recovery_id: recoveryId, lease_id: id, binding, graph_sha256: verified.graphHash };
     if (journal.graph_sha256 !== verified.graphHash) throw new Error("signed original Begin graph changed");
     await putAuthorizedOnceExact(this.dataRoot, "failed-begin-operator-selections", args.old_intent_id, journal);
     return this.withGuard(args, recoveryId, async (guard) => {
       await this.hooks?.afterGuard?.();
       const currentBinding = await readBinding(args), currentLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
-      if (!currentLease || digest7(currentBinding) !== digest7(binding) || !selectionMatches(currentBinding, id, currentLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
+      if (!currentLease || digest8(currentBinding) !== digest8(binding) || !selectionMatches(currentBinding, id, currentLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
       let checked;
       try {
         checked = await this.verifiedFailedBegin(currentBinding, id, currentLease, args, journal, guard);
@@ -26923,18 +27736,18 @@ var BranchLeaseRecoveryStore = class {
         throw new Error("operator revocation cannot run a gate");
       });
       const existing = await lifecycle.beginCancellationFor(args.old_intent_id);
-      if (existing && digest7(existing) !== digest7(checked.cancellation)) throw new Error("a different cancellation owns the original Begin");
+      if (existing && digest8(existing) !== digest8(checked.cancellation)) throw new Error("a different cancellation owns the original Begin");
       await lifecycle.recordBeginCancellation(checked.cancellation);
       await this.hooks?.afterTombstone?.();
       const finalBinding = await readBinding(args), finalLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
-      if (!finalLease || digest7(finalBinding) !== digest7(binding) || !selectionMatches(finalBinding, id, finalLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
+      if (!finalLease || digest8(finalBinding) !== digest8(binding) || !selectionMatches(finalBinding, id, finalLease, args, true)) throw new Error("operator revocation branch binding or generation changed");
       let finalChecked;
       try {
         finalChecked = await this.verifiedFailedBegin(finalBinding, id, finalLease, args, journal, guard);
       } catch {
         throw new Error("operator revocation refused: original Begin progressed or its evidence changed");
       }
-      if (finalChecked.graphHash !== journal.graph_sha256 || digest7(finalChecked.cancellation) !== digest7(checked.cancellation)) throw new Error("signed original Begin graph changed");
+      if (finalChecked.graphHash !== journal.graph_sha256 || digest8(finalChecked.cancellation) !== digest8(checked.cancellation)) throw new Error("signed original Begin graph changed");
       await this.assertGuard(guard);
       await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, finalLease.payload.leaseToken, args.expected_lease_revision, args.resource_generation);
       await this.hooks?.afterRelease?.();
@@ -26945,7 +27758,7 @@ var BranchLeaseRecoveryStore = class {
   }
   async failedJournal(intent) {
     const journal = await optionalRead(this.dataRoot, "failed-begin-operator-selections", safeId4(intent));
-    if (journal && (journal.schema_version !== 1 || journal.kind !== "failed_begin_operator_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest7({ kind: "failed_begin_operator_revocation", ...request(journal) }) || !/^[0-9a-f]{64}$/.test(journal.graph_sha256))) throw new Error("signed operator revocation journal is invalid");
+    if (journal && (journal.schema_version !== 1 || journal.kind !== "failed_begin_operator_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest8({ kind: "failed_begin_operator_revocation", ...request(journal) }) || !/^[0-9a-f]{64}$/.test(journal.graph_sha256))) throw new Error("signed operator revocation journal is invalid");
     if (!journal && await optionalRead(this.dataRoot, "failed-begin-operator-results", intent)) throw new Error("signed operator revocation journal tail regressed");
     return journal;
   }
@@ -26958,7 +27771,7 @@ var BranchLeaseRecoveryStore = class {
     try {
       evidence = await lifecycle.readBeginCancellationEvidence(selection.old_intent_id);
     } catch (error2) {
-      const bucket3 = typeof error2.path === "string" ? path13.basename(path13.dirname(error2.path)) : void 0;
+      const bucket3 = typeof error2.path === "string" ? path16.basename(path16.dirname(error2.path)) : void 0;
       throw new FailedBeginVerificationError({ refusal_code: "original_checkpoint_read_failed", error_class: error2.code === "ENOENT" ? "missing_checkpoint" : "untrusted_checkpoint", ...bucket3 && signedBuckets.includes(bucket3) ? { checkpoint_bucket: bucket3 } : {} });
     }
     const intent = evidence.intent, operation = evidence.operation;
@@ -26976,11 +27789,11 @@ var BranchLeaseRecoveryStore = class {
       original_oid_matches_current_head: operation.targetOid === binding.head,
       original_pin_exists: originalPinExists,
       original_signed_pin_matches: typeof operation.targetOid === "string" && [intent.targetOid, evidence.repository.baseHead, evidence.lease.targetOid, lease.payload.targetOid].every((value) => value === operation.targetOid),
-      original_common_git_matches: samePath7(evidence.repository.commonGitDir, binding.commonGitDir),
+      original_common_git_matches: samePath9(evidence.repository.commonGitDir, binding.commonGitDir),
       original_lease_id_matches: evidence.lease.leaseId === id,
       original_lease_token_matches: evidence.lease.leaseToken === lease.payload.leaseToken
     };
-    if (Object.entries(resourceFlags).some(([key2, value]) => key2 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
+    if (Object.entries(resourceFlags).some(([key3, value]) => key3 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
     const original = { intent_id: selection.old_intent_id, session_id: intent.sessionId, project_root: intent.projectRoot, target_worktree: binding.topLevel, target_branch: binding.branch, expected_lease_revision: selection.expected_lease_revision, resource_generation: selection.resource_generation };
     const diagnosis = await createBeginDiagnosticAdapter(this.dataRoot)(original);
     const later = diagnosis.later_state;
@@ -27028,13 +27841,13 @@ var BranchLeaseRecoveryStore = class {
     if (activeCandidates.length) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_lifecycle_owner" });
     if (await hasTaskWorkspaceFootprint(binding, selection.old_intent_id)) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "retained_task_workspace_at_primary_or_registered_ref" });
     const guardLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, gateId(selection.old_intent_id));
-    if (guardLease?.state === "held" && !(ownGuard && guardLease.revision === ownGuard.revision && digest7(guardLease.payload) === digest7(ownGuard.payload)) && !(journal && this.recoverableGuard(guardLease, journal))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_or_ambiguous_begin_attempt" });
+    if (guardLease?.state === "held" && !(ownGuard && guardLease.revision === ownGuard.revision && digest8(guardLease.payload) === digest8(ownGuard.payload)) && !(journal && this.recoverableGuard(guardLease, journal))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_or_ambiguous_begin_attempt" });
     for (const held of leases) {
       if (held.id === id || held.id === gateId(selection.old_intent_id)) continue;
-      if (held.snapshot.state === "held" && (applies(held.snapshot.payload, binding) || contains(held.snapshot.payload, selection.old_intent_id) || contains(held.snapshot.payload, operation.operationToken))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_or_original_operation_lease" });
+      if (held.snapshot.state === "held" && (applies(held.snapshot.payload, binding) || contains2(held.snapshot.payload, selection.old_intent_id) || contains2(held.snapshot.payload, operation.operationToken))) throw new FailedBeginVerificationError({ ...inventoryState, refusal_code: "active_target_or_original_operation_lease" });
     }
     const cancellation = verifiedFailedBeginCancellationMarker(original, evidence);
-    return { cancellation, originalSession: intent.sessionId, publicState: inventoryState, graphHash: digest7({ intent: evidence.intent, operation: evidence.operation, repository: evidence.repository, lease: evidence.lease, consumed: evidence.consumed }) };
+    return { cancellation, originalSession: intent.sessionId, publicState: inventoryState, graphHash: digest8({ intent: evidence.intent, operation: evidence.operation, repository: evidence.repository, lease: evidence.lease, consumed: evidence.consumed }) };
   }
   async sessionActivity(binding, evidence) {
     const original = evidence.intent, operation = evidence.operation;
@@ -27045,8 +27858,8 @@ var BranchLeaseRecoveryStore = class {
     const run = owner && typeof owner.runId === "string" ? entries.find((entry) => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : void 0;
     const r = run?.value, activation = r?.activationToken ?? r?.operationToken;
     const verified = Boolean(r && r.schemaVersion === 1 && sessionLease && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && typeof activation === "string" && activation && r.sessionId === original.sessionId && owner?.sessionId === original.sessionId && owner?.operation === "session-active" && owner?.operationToken === activation && owner?.leaseToken === activation && typeof r.phase === "string" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(r.phase) && ["running", "paused", "green", "red"].includes(r.status));
-    const terminalShape = Boolean(projection && digest7(Object.keys(projection).sort()) === digest7(["complete", "intentId", "operationToken"]) && projection.intentId === "none" && projection.complete === true && typeof projection.operationToken === "string");
-    const ownerShape = Boolean(projection && projection.schemaVersion === 1 && digest7(Object.keys(projection).sort()) === digest7(["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]) && typeof projection.intentId === "string" && typeof projection.operationToken === "string");
+    const terminalShape = Boolean(projection && digest8(Object.keys(projection).sort()) === digest8(["complete", "intentId", "operationToken"]) && projection.intentId === "none" && projection.complete === true && typeof projection.operationToken === "string");
+    const ownerShape = Boolean(projection && projection.schemaVersion === 1 && digest8(Object.keys(projection).sort()) === digest8(["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]) && typeof projection.intentId === "string" && typeof projection.operationToken === "string");
     return {
       active_projection_present: Boolean(projection),
       projection_shape_recognized: terminalShape || ownerShape,
@@ -27081,10 +27894,10 @@ var BranchLeaseRecoveryStore = class {
       }
       const p = lease?.payload, matches = Boolean(shape && p?.intentId === v.merge_id && p?.sessionId === v.session_id && p?.operation === operation);
       let owner = "unknown";
-      if (p) owner = p.ownerPid === void 0 && p.ownerHost === void 0 ? "legacy" : typeof p.ownerHost !== "string" || !Number.isSafeInteger(p.ownerPid) || p.ownerPid <= 0 ? "unknown" : p.ownerHost.toLowerCase() !== os4.hostname().toLowerCase() ? "foreign_host" : stopped(p.ownerPid) ? "stopped" : "live";
+      if (p) owner = p.ownerPid === void 0 && p.ownerHost === void 0 ? "legacy" : typeof p.ownerHost !== "string" || !Number.isSafeInteger(p.ownerPid) || p.ownerPid <= 0 ? "unknown" : p.ownerHost.toLowerCase() !== os5.hostname().toLowerCase() ? "foreign_host" : stopped(p.ownerPid) ? "stopped" : "live";
       const mergeOwner = p?.intentId === v.merge_id, originalOwner = p?.intentId === evidence.intent.intentId, integration = ["integration", "integration-branch", "integration-worktree"].includes(String(p?.operation));
-      const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key2) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key2)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
-      let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath7(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
+      const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key3) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key3)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
+      let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath9(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
       if (legacyBinding) {
         try {
           legacyBinding = await readGit(binding.topLevel, ["rev-parse", "--verify", `${p.targetOid}^{commit}`]) === p.targetOid;
@@ -27104,11 +27917,11 @@ var BranchLeaseRecoveryStore = class {
         held_integration_resource: lease?.state === "held" && integration,
         legacy_branch_reservation_shape_recognized: legacyShape,
         legacy_branch_binding_verified: legacyBinding,
-        distinct_nonintegration_legacy_owner: Boolean(lease?.state === "held" && legacyBinding && !mergeOwner && !originalOwner && !contains(p, evidence.operation.operationToken) && !contains(p, evidence.operation.runId)),
+        distinct_nonintegration_legacy_owner: Boolean(lease?.state === "held" && legacyBinding && !mergeOwner && !originalOwner && !contains2(p, evidence.operation.operationToken) && !contains2(p, evidence.operation.runId)),
         owner_state: owner
       };
     };
-    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path13.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
+    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path16.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
     const [sourceBinding2, targetBinding, operationLease, sourceResource, targetResource] = await Promise.all([
       savedMergeBindingDiagnostic(v.source_worktree, v.source_binding, binding),
       savedMergeBindingDiagnostic(v.target_worktree, v.target_binding, binding),
@@ -27116,9 +27929,9 @@ var BranchLeaseRecoveryStore = class {
       leaseSummary(resource(v.source_binding), "integration-branch", v.source_binding),
       leaseSummary(resource(v.target_binding), "integration-branch", v.target_binding)
     ]);
-    const sourceOwners = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath7(candidate.value.worktreePath, v.source_worktree));
+    const sourceOwners = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath9(candidate.value.worktreePath, v.source_worktree));
     const worktreeResources = await Promise.all(sourceOwners.map((owner) => leaseSummary(hash7(`worktree-mutation\0${owner.value.runId}`), "integration-worktree")));
-    let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath7(v.source_binding.topLevel, v.source_worktree) && samePath7(v.target_binding.topLevel, v.target_worktree) && !samePath7(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath7(v.source_binding.commonGitDir, binding.commonGitDir) && samePath7(v.target_binding.commonGitDir, binding.commonGitDir));
+    let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath9(v.source_binding.topLevel, v.source_worktree) && samePath9(v.target_binding.topLevel, v.target_worktree) && !samePath9(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath9(v.source_binding.commonGitDir, binding.commonGitDir) && samePath9(v.target_binding.commonGitDir, binding.commonGitDir));
     if (staticBindings) {
       try {
         staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async (oid) => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid}^{commit}`]) === oid))).every(Boolean);
@@ -27153,7 +27966,7 @@ var BranchLeaseRecoveryStore = class {
       correlated_worktree_resource_reads_verified: worktreeResources.every((resource2) => resource2.read_verified),
       held_correlated_worktree_resource: worktreeResources.some((resource2) => resource2.state === "held"),
       held_this_merge_worktree_resource: worktreeResources.some((resource2) => resource2.held_by_this_merge),
-      held_merge_reference_resource: Boolean(shape && leases.some((lease) => lease.snapshot.state === "held" && (lease.id === v.merge_id || contains(lease.snapshot.payload, v.merge_id))))
+      held_merge_reference_resource: Boolean(shape && leases.some((lease) => lease.snapshot.state === "held" && (lease.id === v.merge_id || contains2(lease.snapshot.payload, v.merge_id))))
     };
   }
   async mergeFinalizationDiagnostic(v, leases) {
@@ -27162,26 +27975,26 @@ var BranchLeaseRecoveryStore = class {
     const embedded = v.finalizations === void 0 ? [] : v.finalizations;
     if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some((side) => !["source", "target"].includes(side))) return refused;
     const receipts = /* @__PURE__ */ new Map(), worktreeIds = /* @__PURE__ */ new Set();
-    const request2 = (value) => ({ worktree: path13.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
+    const request2 = (value) => ({ worktree: path16.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
     try {
       for (const item of embedded) {
         if (!item || typeof item.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(item.finalization_id) || receipts.has(item.finalization_id) || typeof item.worktree !== "string") return refused;
-        const sides = ["source", "target"].filter((side) => typeof v[side + "_worktree"] === "string" && samePath7(item.worktree, v[side + "_worktree"]));
+        const sides = ["source", "target"].filter((side) => typeof v[side + "_worktree"] === "string" && samePath9(item.worktree, v[side + "_worktree"]));
         if (sides.length !== 1) return refused;
         const saved = v[sides[0] + "_binding"];
         const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
-        if (digest7(item) !== digest7(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest7(request2(receipt)) || receipt.policy_sha256 !== digest7(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key2) => samePath7(receipt.before[key2], saved[key2])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
+        if (digest8(item) !== digest8(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest8(request2(receipt)) || receipt.policy_sha256 !== digest8(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key3) => samePath9(receipt.before[key3], saved[key3])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
         receipts.set(receipt.finalization_id, receipt);
-        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path13.resolve(saved.commonGitDir) + "\0" + path13.resolve(saved.gitDir)).toLowerCase()));
+        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path16.resolve(saved.commonGitDir) + "\0" + path16.resolve(saved.gitDir)).toLowerCase()));
       }
       const currentIds = /* @__PURE__ */ new Set();
       for (const [side, pending] of Object.entries(requests)) {
         const selection = pending?.selection, receipt = receipts.get(selection?.finalization_id), worktree = v[side + "_worktree"];
-        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !samePath7(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest7(request2({ ...selection, worktree, session_id: v.session_id }))) return refused;
+        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !samePath9(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest8(request2({ ...selection, worktree, session_id: v.session_id }))) return refused;
         currentIds.add(selection.finalization_id);
       }
       const ids = [...receipts.keys()];
-      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains(lease.snapshot.payload, id))));
+      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains2(lease.snapshot.payload, id))));
       return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
     } catch {
       return refused;
@@ -27196,14 +28009,14 @@ var BranchLeaseRecoveryStore = class {
       intent_id: safeId4(lease.payload.intentId),
       revision: lease.revision,
       legacy_storage: lease.legacy,
-      payload_fields: Object.keys(lease.payload).filter((key2) => !["intentId", "leaseToken"].includes(key2) && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key2)).sort()
+      payload_fields: Object.keys(lease.payload).filter((key3) => !["intentId", "leaseToken"].includes(key3) && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key3)).sort()
     };
     const marker = await this.marker(lease.payload.intentId);
     const pending = marker ?? await this.journal(lease.payload.intentId);
-    if (pending && (!samePath7(pending.project_root, args.project_root) || !samePath7(pending.target_worktree, args.target_worktree) || pending.target_branch !== args.target_branch || pending.session_id !== args.session_id)) {
+    if (pending && (!samePath9(pending.project_root, args.project_root) || !samePath9(pending.target_worktree, args.target_worktree) || pending.target_branch !== args.target_branch || pending.session_id !== args.session_id)) {
       return { read_only: true, captain_green: false, eligible: false, reason: "repossession_owned_by_other_selection", lease: summary };
     }
-    if (pending && (digest7(pending.binding) !== digest7(binding) || !selectionMatches(binding, id, lease, pending, Boolean(marker)))) return { read_only: true, captain_green: false, eligible: false, reason: "generation_changed", lease: summary };
+    if (pending && (digest8(pending.binding) !== digest8(binding) || !selectionMatches(binding, id, lease, pending, Boolean(marker)))) return { read_only: true, captain_green: false, eligible: false, reason: "generation_changed", lease: summary };
     if (lease.state !== "held" && (!marker || await optionalRead(this.dataRoot, "branch-lease-repossession-results", lease.payload.intentId))) return { read_only: true, captain_green: false, eligible: false, reason: "lease_not_held", lease: summary };
     const reason = await this.inspect(binding, id, lease, pending);
     const result = pending && await optionalRead(this.dataRoot, "branch-lease-repossession-results", lease.payload.intentId);
@@ -27224,34 +28037,34 @@ var BranchLeaseRecoveryStore = class {
     if (binding.head !== args.expected_head) throw new Error("lease recovery target HEAD binding changed");
     const existing = await this.marker(args.old_intent_id);
     const pending = existing ?? await this.journal(args.old_intent_id);
-    if (pending && digest7(request(pending)) !== digest7(args)) throw new Error("signed lease repossession selection changed");
-    if (pending && digest7(pending.binding) !== digest7(binding)) throw new Error("lease repossession worktree Git binding changed");
+    if (pending && digest8(request(pending)) !== digest8(args)) throw new Error("signed lease repossession selection changed");
+    if (pending && digest8(pending.binding) !== digest8(binding)) throw new Error("lease repossession worktree Git binding changed");
     let lease = await this.readLease(id);
     if (!lease || !selectionMatches(binding, id, lease, args, Boolean(existing))) throw new Error("branch lease owner or generation selector changed");
     const result = await optionalRead(this.dataRoot, "branch-lease-repossession-results", args.old_intent_id);
     if (result) {
-      if (!existing || result.schema_version !== 1 || result.state !== "released" || digest7(request(result)) !== digest7(args) || result.recovery_id !== existing.recovery_id || lease.state !== "released" || result.released_lease_revision !== lease.revision) throw new Error("signed lease repossession result binding is invalid");
+      if (!existing || result.schema_version !== 1 || result.state !== "released" || digest8(request(result)) !== digest8(args) || result.recovery_id !== existing.recovery_id || lease.state !== "released" || result.released_lease_revision !== lease.revision) throw new Error("signed lease repossession result binding is invalid");
       return result;
     }
     const reason = await this.inspect(binding, id, lease, pending);
     if (reason) throw new Error(`branch lease repossession refused: ${reason}`);
-    const recoveryId = digest7({ kind: "orphan_branch_lease_repossessed", ...args });
+    const recoveryId = digest8({ kind: "orphan_branch_lease_repossessed", ...args });
     const journal = { schema_version: 1, kind: "orphan_branch_lease_selection", ...args, recovery_id: recoveryId, lease_id: id, binding };
     await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-selections", args.old_intent_id, journal);
     return this.withGuard(args, recoveryId, async (guard) => {
       await this.hooks?.afterGuard?.();
       lease = await this.readLease(id);
       const currentBinding = await readBinding(args);
-      if (digest7(currentBinding) !== digest7(binding)) throw new Error("lease repossession worktree Git binding changed");
+      if (digest8(currentBinding) !== digest8(binding)) throw new Error("lease repossession worktree Git binding changed");
       if (!lease || !selectionMatches(currentBinding, id, lease, args, Boolean(existing))) throw new Error("branch lease owner or generation selector changed");
       const before = await this.inspect(currentBinding, id, lease, pending ?? journal, guard);
       if (before) throw new Error(`branch lease repossession refused: ${before}`);
       const marker = existing ?? { schema_version: 1, kind: "orphan_branch_lease_repossessed", ...args, recovery_id: recoveryId, lease_id: id, binding: currentBinding };
       await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossessions", args.old_intent_id, marker);
-      await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-watermarks", args.old_intent_id, { schema_version: 1, old_intent_id: args.old_intent_id, recovery_id: recoveryId, marker_sha256: digest7(marker) });
+      await putAuthorizedOnceExact(this.dataRoot, "branch-lease-repossession-watermarks", args.old_intent_id, { schema_version: 1, old_intent_id: args.old_intent_id, recovery_id: recoveryId, marker_sha256: digest8(marker) });
       await this.hooks?.afterTombstone?.();
       const finalBinding = await readBinding(args), finalLease = await this.readLease(id);
-      if (digest7(finalBinding) !== digest7(marker.binding)) throw new Error("lease repossession worktree Git binding changed");
+      if (digest8(finalBinding) !== digest8(marker.binding)) throw new Error("lease repossession worktree Git binding changed");
       if (!finalLease || !selectionMatches(finalBinding, id, finalLease, args, true)) throw new Error("branch lease owner or generation selector changed");
       const finalReason = await this.inspect(finalBinding, id, finalLease, marker, guard);
       if (finalReason) throw new Error(`branch lease repossession refused: ${finalReason}`);
@@ -27266,7 +28079,7 @@ var BranchLeaseRecoveryStore = class {
   }
   async journal(intent) {
     const journal = await optionalRead(this.dataRoot, "branch-lease-repossession-selections", safeId4(intent));
-    if (journal && (journal.schema_version !== 1 || journal.kind !== "orphan_branch_lease_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest7({ kind: "orphan_branch_lease_repossessed", ...request(journal) }))) throw new Error("signed lease repossession selection journal is invalid");
+    if (journal && (journal.schema_version !== 1 || journal.kind !== "orphan_branch_lease_selection" || journal.old_intent_id !== intent || journal.recovery_id !== digest8({ kind: "orphan_branch_lease_repossessed", ...request(journal) }))) throw new Error("signed lease repossession selection journal is invalid");
     return journal;
   }
   async readLease(id) {
@@ -27281,8 +28094,8 @@ var BranchLeaseRecoveryStore = class {
   }
   async provenance(args, binding, lease) {
     const entries = await inventory(this.dataRoot), owner = lease.payload;
-    const intentMatches = (entry) => entry.id === owner.intentId || contains(entry.value, owner.intentId);
-    const operationMatches = (entry) => typeof owner.operationToken === "string" && (entry.id === owner.operationToken || contains(entry.value, owner.operationToken));
+    const intentMatches = (entry) => entry.id === owner.intentId || contains2(entry.value, owner.intentId);
+    const operationMatches = (entry) => typeof owner.operationToken === "string" && (entry.id === owner.operationToken || contains2(entry.value, owner.operationToken));
     const matching = entries.filter((entry) => intentMatches(entry) || operationMatches(entry));
     const intent = matching.find((entry) => entry.bucket === "intents" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
     const operation = matching.find((entry) => entry.bucket === "begin-operations" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
@@ -27291,18 +28104,18 @@ var BranchLeaseRecoveryStore = class {
     let recordedRootMatches = false;
     if (typeof intent?.projectRoot === "string") {
       try {
-        recordedRootMatches = samePath7(await realpath4(intent.projectRoot), intent.projectRoot) && samePath7(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
+        recordedRootMatches = samePath9(await realpath7(intent.projectRoot), intent.projectRoot) && samePath9(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
       } catch {
       }
     }
-    const exactCaller = intent && operation && sessionMatch === "same" && operation.sessionId === args.session_id && operation.schemaVersion === 1 && typeof operation.operationToken === "string" && (owner.operationToken === void 0 || owner.operationToken === operation.operationToken) && typeof operation.projectRoot === "string" && samePath7(operation.projectRoot, intent.projectRoot) && operation.targetBranch === binding.branch && intent.targetBranch === binding.branch && recordedRootMatches;
+    const exactCaller = intent && operation && sessionMatch === "same" && operation.sessionId === args.session_id && operation.schemaVersion === 1 && typeof operation.operationToken === "string" && (owner.operationToken === void 0 || owner.operationToken === operation.operationToken) && typeof operation.projectRoot === "string" && samePath9(operation.projectRoot, intent.projectRoot) && operation.targetBranch === binding.branch && intent.targetBranch === binding.branch && recordedRootMatches;
     return {
       matched_buckets: [...new Set(matching.map((entry) => entry.bucket))].sort(),
       intent_reference: matching.some(intentMatches),
       operation_reference: matching.some(operationMatches),
       session_match: sessionMatch,
       recorded_root_matches_repository: recordedRootMatches,
-      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path13.resolve(intent.projectRoot), target_worktree: path13.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
+      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path16.resolve(intent.projectRoot), target_worktree: path16.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
     };
   }
   async marker(intent) {
@@ -27312,18 +28125,18 @@ var BranchLeaseRecoveryStore = class {
       if (mark || await optionalRead(this.dataRoot, "branch-lease-repossession-results", intent)) throw new Error("lease repossession marker tail regressed behind signed watermark");
       return void 0;
     }
-    if (marker.schema_version !== 1 || marker.kind !== "orphan_branch_lease_repossessed" || marker.old_intent_id !== intent || marker.recovery_id !== digest7({ kind: marker.kind, ...request(marker) })) throw new Error("signed lease repossession marker is invalid");
-    if (mark && (mark.schema_version !== 1 || mark.old_intent_id !== intent || mark.recovery_id !== marker.recovery_id || mark.marker_sha256 !== digest7(marker))) throw new Error("signed lease repossession watermark is invalid");
+    if (marker.schema_version !== 1 || marker.kind !== "orphan_branch_lease_repossessed" || marker.old_intent_id !== intent || marker.recovery_id !== digest8({ kind: marker.kind, ...request(marker) })) throw new Error("signed lease repossession marker is invalid");
+    if (mark && (mark.schema_version !== 1 || mark.old_intent_id !== intent || mark.recovery_id !== marker.recovery_id || mark.marker_sha256 !== digest8(marker))) throw new Error("signed lease repossession watermark is invalid");
     return marker;
   }
   async inspect(binding, selectedId, lease, marker, ownGuard) {
     const owner = lease.payload;
     if (!/^intent-[A-Za-z0-9_-]+$/.test(owner.intentId)) return "nonlegacy_resource_owner";
-    if (Object.keys(owner).some((key2) => !["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key2))) return "owner_metadata_present";
+    if (Object.keys(owner).some((key3) => !["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key3))) return "owner_metadata_present";
     if (typeof owner.leaseToken !== "string" || !owner.leaseToken) throw new Error("signed branch lease token is invalid");
     if (owner.operationToken !== void 0 && (typeof owner.operationToken !== "string" || owner.operationToken.length > 256 || !/^[A-Za-z0-9_-]+$/.test(owner.operationToken))) return "lease_binding_mismatch";
     if (lease.legacy && (typeof owner.commonGitDir !== "string" || typeof owner.targetBranch !== "string" || typeof owner.targetOid !== "string")) return "unbound_legacy_storage";
-    if (owner.commonGitDir !== void 0 && (typeof owner.commonGitDir !== "string" || !samePath7(owner.commonGitDir, binding.commonGitDir))) return "lease_binding_mismatch";
+    if (owner.commonGitDir !== void 0 && (typeof owner.commonGitDir !== "string" || !samePath9(owner.commonGitDir, binding.commonGitDir))) return "lease_binding_mismatch";
     if (owner.targetBranch !== void 0 && owner.targetBranch !== binding.branch) return "lease_binding_mismatch";
     if (owner.targetOid !== void 0) {
       if (typeof owner.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(owner.targetOid)) return "lease_binding_mismatch";
@@ -27335,18 +28148,18 @@ var BranchLeaseRecoveryStore = class {
     }
     const entries = await inventory(this.dataRoot);
     const selectors = [owner.intentId, ...typeof owner.operationToken === "string" ? [owner.operationToken] : []];
-    if (entries.some((entry) => selectors.some((selector) => entry.id === selector || contains(entry.value, selector)))) return "surviving_authority";
+    if (entries.some((entry) => selectors.some((selector) => entry.id === selector || contains2(entry.value, selector)))) return "surviving_authority";
     if (entries.some((entry) => ownerApplies(entry, binding) && isActive(entry))) return "active_worktree_owner";
-    const names = [...await directoryNames3(path13.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path13.join(this.dataRoot, "lease-watermarks"))];
+    const names = [...await directoryNames3(path16.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path16.join(this.dataRoot, "lease-watermarks"))];
     const ids = new Set(names.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
-    for (const name of await directoryNames3(path13.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
+    for (const name of await directoryNames3(path16.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
     for (const id of ids) {
       if (id === selectedId) continue;
       const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, safeId4(id));
       if (!current || current.state !== "held") continue;
-      if (ownGuard && id === ownGuard.id && current.revision === ownGuard.revision && digest7(current.payload) === digest7(ownGuard.payload)) continue;
+      if (ownGuard && id === ownGuard.id && current.revision === ownGuard.revision && digest8(current.payload) === digest8(ownGuard.payload)) continue;
       if (marker && id === gateId(owner.intentId) && this.recoverableGuard(current, marker)) continue;
-      if (selectors.some((selector) => contains(current.payload, selector))) return "surviving_authority";
+      if (selectors.some((selector) => contains2(current.payload, selector))) return "surviving_authority";
       if (applies(current.payload, binding)) return "active_worktree_owner";
     }
     if (await hasTaskWorkspaceFootprint(binding, owner.intentId)) return "surviving_task_workspace";
@@ -27355,7 +28168,7 @@ var BranchLeaseRecoveryStore = class {
   recoverableGuard(lease, marker) {
     const p = lease.payload;
     const operation = marker.kind === "failed_begin_operator_selection" ? "failed-begin-repossession-attempt" : "branch-repossession-attempt";
-    return !lease.legacy && lease.revision !== null && p.intentId === marker.old_intent_id && p.operation === operation && p.sessionId === marker.session_id && p.recoveryId === marker.recovery_id && p.resourceGeneration === marker.resource_generation && p.ownerHost === os4.hostname() && stopped(p.ownerPid);
+    return !lease.legacy && lease.revision !== null && p.intentId === marker.old_intent_id && p.operation === operation && p.sessionId === marker.session_id && p.recoveryId === marker.recovery_id && p.resourceGeneration === marker.resource_generation && p.ownerHost === os5.hostname() && stopped(p.ownerPid);
   }
   async withGuard(args, recoveryId, action2, selected) {
     const id = gateId(args.old_intent_id), previous = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
@@ -27364,10 +28177,10 @@ var BranchLeaseRecoveryStore = class {
       if (!marker || marker.recovery_id !== recoveryId || !this.recoverableGuard(previous, marker) || previous.revision === null) throw new Error("lease repossession Begin attempt owner is active or ambiguous");
       await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, previous.payload.leaseToken, previous.revision, generation2(id, previous.revision, previous.payload));
     }
-    const payload = { intentId: args.old_intent_id, leaseToken: randomUUID4(), operation: selected ? "failed-begin-repossession-attempt" : "branch-repossession-attempt", sessionId: args.session_id, recoveryId, resourceGeneration: args.resource_generation, ownerHost: os4.hostname(), ownerPid: process.pid };
+    const payload = { intentId: args.old_intent_id, leaseToken: randomUUID5(), operation: selected ? "failed-begin-repossession-attempt" : "branch-repossession-attempt", sessionId: args.session_id, recoveryId, resourceGeneration: args.resource_generation, ownerHost: os5.hostname(), ownerPid: process.pid };
     await acquireAuthorizedLease(this.dataRoot, id, payload);
     const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
-    if (!snapshot || snapshot.state !== "held" || snapshot.revision === null || digest7(snapshot.payload) !== digest7(payload)) throw new Error("lease repossession Begin attempt generation changed");
+    if (!snapshot || snapshot.state !== "held" || snapshot.revision === null || digest8(snapshot.payload) !== digest8(payload)) throw new Error("lease repossession Begin attempt generation changed");
     const guard = { id, payload, revision: snapshot.revision, generation: generation2(id, snapshot.revision, payload) };
     try {
       return await action2(guard);
@@ -27377,7 +28190,7 @@ var BranchLeaseRecoveryStore = class {
   }
   async assertGuard(guard) {
     const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, guard.id);
-    if (!current || current.state !== "held" || current.revision !== guard.revision || digest7(current.payload) !== digest7(guard.payload)) throw new Error("lease repossession Begin attempt generation changed");
+    if (!current || current.state !== "held" || current.revision !== guard.revision || digest8(current.payload) !== digest8(guard.payload)) throw new Error("lease repossession Begin attempt generation changed");
   }
 };
 function request(args) {
@@ -27385,7 +28198,7 @@ function request(args) {
 }
 function normalizeDiagnostic(args) {
   for (const [name, value] of Object.entries(args)) if (typeof value !== "string" || !value.trim() || value.length > 4096) throw new Error(`lease recovery ${name} is invalid`);
-  return { project_root: path13.resolve(args.project_root), target_worktree: path13.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
+  return { project_root: path16.resolve(args.project_root), target_worktree: path16.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
 }
 function normalizeRequest(args) {
   const base = normalizeDiagnostic({ project_root: args.project_root, target_worktree: args.target_worktree, target_branch: args.target_branch, session_id: args.session_id });
@@ -27402,27 +28215,27 @@ function selectionMatches(binding, id, lease, args, allowReleased) {
 }
 var readGit = (cwd, args) => git(["--no-optional-locks", ...args], cwd);
 async function readBinding(args) {
-  const root = path13.resolve(args.project_root), target = path13.resolve(args.target_worktree);
-  for (const location of [root, target]) if (!samePath7(await realpath4(location), location) || !samePath7(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
-  const commonGitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
-  if (!samePath7(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
-  if (!samePath7(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
+  const root = path16.resolve(args.project_root), target = path16.resolve(args.target_worktree);
+  for (const location of [root, target]) if (!samePath9(await realpath7(location), location) || !samePath9(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
+  const commonGitDir = path16.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  if (!samePath9(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
+  if (!samePath9(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
   const branch = await readGit(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(target, ["rev-parse", "--verify", "HEAD^{commit}"]);
   if (branch !== args.target_branch || head !== await readGit(target, ["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("lease recovery target branch HEAD binding changed");
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
     const file = await readGit(target, ["rev-parse", "--path-format=absolute", "--git-path", name]);
     try {
-      await lstat5(file);
+      await lstat8(file);
       throw new Error(`lease recovery refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
-  return { projectRoot: root, branch, head, commonGitDir, gitDir: path13.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
+  return { projectRoot: root, branch, head, commonGitDir, gitDir: path16.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
 }
 async function directoryNames3(directory) {
   try {
-    return await readdir9(directory);
+    return await readdir11(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -27432,9 +28245,9 @@ async function hasTaskWorkspaceFootprint(binding, intentId) {
   const refs = (await readGit(binding.topLevel, ["for-each-ref", "--format=%(refname)"])).split(/\r?\n/);
   if (refs.includes(`refs/heads/captain/${safeId4(intentId)}`)) return true;
   const worktrees = await readGit(binding.topLevel, ["worktree", "list", "--porcelain"]);
-  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path13.basename(line.slice(9)) === intentId)) return true;
+  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path16.basename(line.slice(9)) === intentId)) return true;
   try {
-    await lstat5(path13.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
+    await lstat8(path16.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
     return true;
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -27449,13 +28262,13 @@ async function optionalRead(root, bucket3, id) {
     return void 0;
   }
 }
-function contains(value, selector) {
+function contains2(value, selector) {
   if (value === selector) return true;
-  return Boolean(value && typeof value === "object" && Object.values(value).some((child) => contains(child, selector)));
+  return Boolean(value && typeof value === "object" && Object.values(value).some((child) => contains2(child, selector)));
 }
 function applies(value, binding) {
-  if ([value.worktree, value.worktreePath, value.source_worktree, value.target_worktree, value.topLevel].some((location) => typeof location === "string" && samePath7(location, binding.topLevel))) return true;
-  if ([value.branch, value.targetBranch, value.target_branch].includes(binding.branch) && typeof value.commonGitDir === "string" && samePath7(value.commonGitDir, binding.commonGitDir)) return true;
+  if ([value.worktree, value.worktreePath, value.source_worktree, value.target_worktree, value.topLevel].some((location) => typeof location === "string" && samePath9(location, binding.topLevel))) return true;
+  if ([value.branch, value.targetBranch, value.target_branch].includes(binding.branch) && typeof value.commonGitDir === "string" && samePath9(value.commonGitDir, binding.commonGitDir)) return true;
   return [value.before, value.source_binding, value.target_binding].some((child) => child && typeof child === "object" && applies(child, binding));
 }
 function ownerApplies(entry, binding) {
@@ -27468,22 +28281,22 @@ function ownerApplies(entry, binding) {
 function targetOwnerDiagnostic(entry, entries, binding, evidence) {
   const v = entry.value;
   const references = ["intentId", "runId", "operationToken"];
-  const supplied = references.filter((key2) => typeof v[key2] === "string");
-  const correlated = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && candidate.value.schemaVersion === 1 && supplied.length && supplied.every((key2) => key2 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key2]) : candidate.value[key2] === v[key2]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
+  const supplied = references.filter((key3) => typeof v[key3] === "string");
+  const correlated = entries.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && candidate.value.schemaVersion === 1 && supplied.length && supplied.every((key3) => key3 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key3]) : candidate.value[key3] === v[key3]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
   const run = correlated.length === 1 ? correlated[0] : void 0;
   const verified = Boolean(run && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(run.value.phase) && ["running", "paused", "green", "red"].includes(run.value.status));
-  const commonMatches = typeof v.commonGitDir === "string" && samePath7(v.commonGitDir, binding.commonGitDir);
+  const commonMatches = typeof v.commonGitDir === "string" && samePath9(v.commonGitDir, binding.commonGitDir);
   return {
     bucket: entry.bucket,
     schema_recognized: v.schemaVersion === 1 || v.schema_version === 1,
-    actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some((location) => typeof location === "string" && samePath7(location, binding.topLevel)),
+    actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some((location) => typeof location === "string" && samePath9(location, binding.topLevel)),
     actual_branch_matches: v.branch === binding.branch && commonMatches,
     common_git_matches: commonMatches,
     planned_target_branch_matches: [v.targetBranch, v.target_branch].includes(binding.branch),
     nested_actual_target_binding_matches: [v.before, v.source_binding, v.target_binding].some((child) => child && typeof child === "object" && applies(child, binding)),
-    original_intent_reference: entry.id === evidence.intent.intentId || contains(v, evidence.intent.intentId),
-    original_operation_reference: entry.id === evidence.operation.operationToken || contains(v, evidence.operation.operationToken),
-    original_run_reference: entry.id === evidence.operation.runId || contains(v, evidence.operation.runId),
+    original_intent_reference: entry.id === evidence.intent.intentId || contains2(v, evidence.intent.intentId),
+    original_operation_reference: entry.id === evidence.operation.operationToken || contains2(v, evidence.operation.operationToken),
+    original_run_reference: entry.id === evidence.operation.runId || contains2(v, evidence.operation.runId),
     correlated_latest_run_verified: verified,
     correlated_run_phase: verified ? run.value.phase : "unknown",
     correlated_run_status: verified ? run.value.status : "unknown",
@@ -27491,7 +28304,7 @@ function targetOwnerDiagnostic(entry, entries, binding, evidence) {
   };
 }
 async function savedMergeBindingDiagnostic(location, saved, selected) {
-  const shape = typeof location === "string" && saved && ["topLevel", "branch", "commonGitDir", "gitDir", "head"].every((key2) => typeof saved[key2] === "string" && saved[key2]) && /^[0-9a-f]{40,64}$/i.test(saved.head);
+  const shape = typeof location === "string" && saved && ["topLevel", "branch", "commonGitDir", "gitDir", "head"].every((key3) => typeof saved[key3] === "string" && saved[key3]) && /^[0-9a-f]{40,64}$/i.test(saved.head);
   const basic = {
     read_verified: false,
     schema_recognized: Boolean(shape),
@@ -27499,19 +28312,19 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
     saved_head_matches_current: false,
     saved_commit_exists: false,
     pending_git_operation: "unknown",
-    matches_selected_target: Boolean(shape && saved.branch === selected.branch && samePath7(saved.commonGitDir, selected.commonGitDir)),
+    matches_selected_target: Boolean(shape && saved.branch === selected.branch && samePath9(saved.commonGitDir, selected.commonGitDir)),
     saved_head_matches_selected_target: Boolean(shape && saved.head === selected.head)
   };
   if (!shape) return basic;
   try {
-    const root = await realpath4(location), top = path13.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path13.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
+    const root = await realpath7(location), top = path16.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path16.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path16.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
     const branch = await readGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]);
-    const exists2 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
+    const exists3 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
     let pending = false;
     for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
       const file = await readGit(root, ["rev-parse", "--path-format=absolute", "--git-path", name]);
       try {
-        await lstat5(file);
+        await lstat8(file);
         pending = true;
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -27520,9 +28333,9 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
     return {
       ...basic,
       read_verified: true,
-      saved_binding_matches_current: samePath7(root, top) && samePath7(saved.topLevel, top) && samePath7(saved.commonGitDir, common) && samePath7(saved.gitDir, gitDir) && saved.branch === branch,
+      saved_binding_matches_current: samePath9(root, top) && samePath9(saved.topLevel, top) && samePath9(saved.commonGitDir, common) && samePath9(saved.gitDir, gitDir) && saved.branch === branch,
       saved_head_matches_current: saved.head === head,
-      saved_commit_exists: exists2,
+      saved_commit_exists: exists3,
       pending_git_operation: pending
     };
   } catch {
@@ -27560,7 +28373,7 @@ function stopped(pid) {
   }
 }
 async function leaseInventory(root) {
-  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path13.join(root, bucket3))));
+  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path16.join(root, bucket3))));
   const ids = new Set([...revisions, ...watermarks].map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
   for (const name of projections) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
   const snapshots = await Promise.all([...ids].map(async (id) => ({ id: safeId4(id), snapshot: await readAuthorizedLeaseSnapshotReadOnly(root, safeId4(id)) })));
@@ -27571,7 +28384,7 @@ async function inventory(root) {
   for (const bucket3 of signedBuckets) {
     const map = /* @__PURE__ */ new Map();
     byBucket.set(bucket3, map);
-    for (const name of await directoryNames3(path13.join(root, bucket3))) {
+    for (const name of await directoryNames3(path16.join(root, bucket3))) {
       if (!name.endsWith(".json")) continue;
       const id = safeId4(name.slice(0, -5)), value = await readAuthorizedReadOnly(root, bucket3, id);
       if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("signed lease recovery authority record is invalid");
@@ -27594,7 +28407,7 @@ async function inventory(root) {
       let previous;
       for (const revision of numbers) {
         const entry = revisions.get(`${id}-${revision}`), current = entry.value, mark = marks.get(`${id}-${revision}`)?.value;
-        if (!mark || current[idField] !== id || current.revision !== revision || current[previousField] !== (previous ? digest7(previous) : void 0) || mark[idField] !== id || mark.revision !== revision || mark[hashField] !== digest7(current)) throw new Error("signed ownership revision chain or watermark is invalid");
+        if (!mark || current[idField] !== id || current.revision !== revision || current[previousField] !== (previous ? digest8(previous) : void 0) || mark[idField] !== id || mark.revision !== revision || mark[hashField] !== digest8(current)) throw new Error("signed ownership revision chain or watermark is invalid");
         if (revision < numbers.length - 1) obsolete.add(entry);
         previous = current;
       }
@@ -27633,7 +28446,7 @@ async function captainBegin(store, { intent_id, objective, project_root, task_id
     const lease = await store.ensureBeginTargetLease(operation, repository);
     await dependencies.afterStage?.("lease-acquired");
     await store.checkpointBeginLease(operation, repository, lease);
-    const workspace = await dependencies.ensureWorktree(repository.projectRoot, repository.baseHead, intent_id, operation.targetBranch, repository.commonGitDir);
+    const workspace = await dependencies.ensureWorktree(repository.projectRoot, repository.baseHead, intent_id, operation.targetBranch, repository.commonGitDir, dependencies.storageDataRoot, identified.invocationWorktree ?? project_root);
     await dependencies.afterStage?.("worktree-created");
     await store.checkpointBeginWorkspace(operation, workspace);
     const run = await store.checkpointBeginRun(operation, policy);
@@ -27677,16 +28490,16 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   if (action2 === "start" && resume_of) throw new Error("start action conflicts with resume selector");
   const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action: action2, requestKind: request_kind, sourceRequestId: source_request_id, ...source ? { adapterPrompt } : {} }, async () => {
     if (!resume_of && task_id && action2 !== "start") {
-      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path14.resolve(run.projectRoot) === path14.resolve(project_root));
+      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path17.resolve(run.projectRoot) === path17.resolve(project_root));
       const candidates = await Promise.all(selected.map((run) => store.status(run.intentId)));
-      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path14.resolve(run.projectRoot) === path14.resolve(project_root));
+      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path17.resolve(run.projectRoot) === path17.resolve(project_root));
       if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
       resume_of = matching[0]?.intentId;
     }
     if (action2 === "resume" && !resume_of) throw new Error("no unfinished run found; supply task_id or resume_of");
     if (resume_of) {
       const run = await store.status(resume_of);
-      if (run.status === "green" && !isPendingPlanReview(run) || path14.resolve(run.projectRoot) !== path14.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
+      if (run.status === "green" && !isPendingPlanReview(run) || path17.resolve(run.projectRoot) !== path17.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
       if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
       if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
       if (run.status !== "paused" && run.status !== "green" && run.sessionId !== session_id) {
@@ -27704,8 +28517,8 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
       targetOid = await git(["rev-parse", "--verify", `refs/heads/${target_branch}^{commit}`], project_root);
       await repositoryIdentity(project_root, target_branch, targetOid);
     }
-    const intentId2 = `intent-${randomUUID5()}`;
-    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path14.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
+    const intentId2 = `intent-${randomUUID6()}`;
+    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path17.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
   });
   const intentId = issued.intentId;
   resume_of = issued.resumeOf;
@@ -27821,12 +28634,12 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   return discarded;
 }
 async function startCaptainMcp() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path14.join(process.env.CODEX_HOME || path14.join(os5.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path17.join(process.env.CODEX_HOME || path17.join(os6.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.8.2" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.9.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -27852,7 +28665,7 @@ async function startCaptainMcp() {
     return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...merge_id ? { merge_id } : {}, ...next_step ? { next_step } : {} } };
   });
   server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), client_pid: external_exports.number().int().positive().optional(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
-    const run = await captainBegin(store, args);
+    const run = await captainBegin(store, args, { ...beginDependencies, storageDataRoot: dataRoot });
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
   }));
   server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional(), request_kind: external_exports.enum(["instruction", "goal"]).optional(), source_request_id: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
@@ -28056,7 +28869,7 @@ async function startCaptainMcp() {
   }));
   await server.connect(new StdioServerTransport());
 }
-if (process.argv[1] && path14.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
+if (process.argv[1] && path17.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
 export {
   captainAbortMerge,
   captainBegin,

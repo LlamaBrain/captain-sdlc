@@ -187,7 +187,23 @@ thread, find IDs or reauthorize work to compensate for a stale tool inventory.
 Never bypass hook decisions or mark untrusted changed hooks as trusted. Actual
 Codex hook trust prompts still belong to the human.
 
-If the repository's committed `HEAD` lacks `.captain-sdlc/codex-policy.json`, Captain does not govern that repository yet; use its normal project workflow. This opt-in behavior allows a repository to bootstrap or repair its policy without deadlocking behind unavailable Captain entry points.
+If the repository's committed `HEAD` lacks `.captain-sdlc/codex-policy.json`, use
+its normal commit, test and integration workflow with the
+[worktree storage skill](../worktree-storage/SKILL.md). Whenever that workflow
+creates a worktree, create it through the storage helper so it receives a forward
+cleanup registration under the primary checkout's `.captain-sdlc/worktrees/`.
+On resuming a registered ordinary task, run the helper's `resume` command before
+continuing so its active branch reservation protects it from chain cleanup.
+Replace the same declared active build slot before every build or publish.
+After the task and its required human checks are complete and its authorized merge
+has landed, run the helper's cleanup from the retained target, passing the compact
+proof reports to preserve. This includes eligible terminal predecessors in the
+recorded chain and reports any retained checkout with a concrete reason. Do not
+use task-named or timestamp-named publish folders, create nested worktrees,
+silently leave merged worktrees behind, or register old worktrees for deletion.
+Existing worktrees remain excluded from automatic removal. Ordinary work can
+still bootstrap or repair Captain policy without unavailable MCP entry points;
+ordinary storage receipts never claim signed Captain implementation proof.
 
 For a legacy target reservation with no discoverable owning run/merge, use
 `captain_branch_lease_diagnose` with the exact project root, target checkout,

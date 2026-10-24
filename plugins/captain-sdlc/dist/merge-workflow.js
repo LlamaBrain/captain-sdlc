@@ -6,6 +6,10 @@ import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAut
 import { BookkeepingFinalizationStore } from "./bookkeeping-finalization.js";
 import { LifecycleStore } from "./lifecycle.js";
 import { applyPreparedCommit, assertWorktreeBinding, bookkeepingHistoryValid, commitAtomic, gateRunner, git, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState } from "./workspace.js";
+import { cleanupRegisteredWorktrees, readWorktreeCleanupCompletion, retainedWorktreeHead } from "./worktree-cleanup.js";
+import { readWorktreeRegistration, storageRegistrationId } from "./worktree-storage.js";
+import { prepareScopeOutputs } from "./output-retention.js";
+import { primaryRepositoryRoot } from "./workspace.js";
 /** Context is attached only after Prep has established its caller-owned signed record. */
 export class MergeWorkflowError extends Error {
     merge_id;
@@ -174,6 +178,7 @@ export class MergeWorkflowStore {
                             await assertAuthority();
                             await this.bindings(record, false);
                             await this.assertInputs(record, inputs);
+                            await prepareScopeOutputs(record.source_worktree, record.captured_policy, scope);
                             const command = record.captured_policy.commands[scope], result = await this.runner(command, record.source_worktree);
                             record = await this.update({ ...record, gates: [...record.gates, { scope, commandSha256: hash(command), exitCode: result.exitCode, stdoutSha256: hash(result.stdout), stderrSha256: hash(result.stderr) }] });
                             if (result.exitCode !== 0)
@@ -265,9 +270,14 @@ export class MergeWorkflowStore {
             this.match(record, args);
             if (!["ready", "integrating", "merged"].includes(record.state) || !record.ready_inputs)
                 throw new Error("Merge Back requires a successful current ready Merge Prep");
-            if (record.state !== "merged")
-                record = await this.finalizeSelected(record, args.finalization, assertOperation);
-            return this.resources(record, async (assertResources) => {
+            if (record.state === "merged") {
+                await this.assertHistoricalMerge(record);
+                if (record.cleanup?.removed_worktrees.length && record.cleanup.retained_worktrees.length === 0)
+                    return this.output(record, true);
+                return this.cleanupMergedChain(record, assertOperation);
+            }
+            record = await this.finalizeSelected(record, args.finalization, assertOperation);
+            record = await this.resources(record, async (assertResources) => {
                 await assertOperation();
                 await assertResources();
                 if (record.state !== "merged") {
@@ -280,15 +290,8 @@ export class MergeWorkflowStore {
                 }
                 const targetHead = await git(["rev-parse", "HEAD"], record.target_worktree), sourceHead = this.deliveryInputs(record).source.head;
                 await this.assertReady(record, targetHead === sourceHead);
-                if (record.state === "merged") {
-                    if (targetHead !== sourceHead)
-                        throw new Error("completed Merge Back target HEAD changed");
-                    return this.output(record, true);
-                }
-                if (targetHead === sourceHead) {
-                    record = await this.update({ ...record, state: "merged", integrated_head: sourceHead });
-                    return this.output(record, true);
-                }
+                if (targetHead === sourceHead)
+                    return this.update({ ...record, state: "merged", integrated_head: sourceHead });
                 record = await this.update({ ...record, state: "integrating" });
                 await assertOperation();
                 await assertResources();
@@ -297,8 +300,10 @@ export class MergeWorkflowStore {
                 await git(["merge", "--ff-only", sourceHead], record.target_worktree);
                 await this.assertReady(record, true);
                 record = await this.update({ ...record, state: "merged", integrated_head: sourceHead });
-                return this.output(record, true);
+                return record;
             });
+            // Release integration resources before taking independent, exact cleanup guards.
+            return this.cleanupMergedChain(record, assertOperation);
         });
     }
     async status(args) {
@@ -306,6 +311,15 @@ export class MergeWorkflowStore {
         const record = await this.read(safeId(args.merge_id));
         this.match(record, args);
         const operation_lease = await this.operationLeaseStatus(record);
+        if (record.state === "merged") {
+            try {
+                await this.assertHistoricalMerge(record);
+                return { ...this.output(record, true), operation_lease };
+            }
+            catch (error) {
+                return { ...this.output(record, false), stale_reason: error.message, operation_lease };
+            }
+        }
         if (["ready", "integrating", "merged"].includes(record.state)) {
             try {
                 await this.assertReady(record, await git(["rev-parse", "HEAD"], record.target_worktree) === this.deliveryInputs(record)?.source.head);
@@ -316,6 +330,132 @@ export class MergeWorkflowStore {
             }
         }
         return { ...this.output(record, false), operation_lease };
+    }
+    async assertHistoricalMerge(record) {
+        const source = this.deliveryInputs(record)?.source;
+        if (!source || record.integrated_head !== source.head || record.gates.length !== record.scopes.length ||
+            record.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record.scopes[index] || gate.commandSha256 !== hash(record.captured_policy.commands[gate.scope])))
+            throw new Error("signed merged operation has no complete integration proof");
+        const lookup = await this.historicalRepository(record);
+        const targetHead = await git(["rev-parse", "--verify", `refs/heads/${record.target_branch}^{commit}`], lookup);
+        if (!await ancestor(source.head, targetHead, lookup))
+            throw new Error("integrated commit is no longer retained by the target");
+        for (const root of record.cleanup?.removed_worktrees ?? []) {
+            const registration = await readWorktreeRegistration(this.dataRoot, record.target_binding.commonGitDir, root);
+            if (!registration)
+                throw new Error("removed worktree creation record is missing");
+            const completionHead = record.cleanup?.removed_heads?.[root] ?? (samePath(root, record.source_worktree) ? source.head : await this.cleanedHead(record, root));
+            if (!completionHead || !await readWorktreeCleanupCompletion(this.dataRoot, registration, completionHead))
+                throw new Error("removed worktree has no authenticated proof retention receipt");
+        }
+    }
+    async historicalRepository(record) {
+        try {
+            await lstat(record.target_worktree);
+            await assertWorktreeBinding(record.target_worktree, record.target_branch, record.target_binding.commonGitDir, undefined, false, record.target_binding.gitDir);
+            return record.target_worktree;
+        }
+        catch (error) {
+            if (error.code !== "ENOENT")
+                throw error;
+            const registration = await readWorktreeRegistration(this.dataRoot, record.target_binding.commonGitDir, record.target_worktree);
+            if (!registration || registration.branch !== record.target_branch || !samePath(registration.git_dir, record.target_binding.gitDir))
+                throw new Error("historical merge target is missing without its registered identity");
+            const retained = await retainedWorktreeHead(this.dataRoot, registration);
+            if (!retained)
+                throw new Error("historical merge target has no authenticated cleanup receipt");
+            const primary = await primaryRepositoryRoot(registration.project_root, registration.common_git_dir);
+            const branchHead = await git(["rev-parse", "--verify", `refs/heads/${record.target_branch}^{commit}`], primary);
+            if (!await ancestor(retained, branchHead, primary))
+                throw new Error("retired merge target branch lost its retained head");
+            return primary;
+        }
+    }
+    async cleanedHead(record, root) {
+        const candidates = await this.cleanupCandidates(record);
+        return candidates.find(candidate => samePath(candidate.registration.worktree_path, root))?.head;
+    }
+    async compactEvidence(record) {
+        const selected = [];
+        for (const [role, relative] of Object.entries(record.captured_policy.artifactPaths ?? {})) {
+            if (role === "build") {
+                if (/\.(json|jsonl|xml|txt|log|md)$/i.test(relative))
+                    selected.push(relative);
+                continue;
+            }
+            const required = role === "smoke" && record.scopes.includes("feature-smoke") || role === "visual" && record.captured_policy.visualRequired;
+            if (required)
+                selected.push(relative);
+            else {
+                try {
+                    await lstat(path.join(record.source_worktree, relative));
+                    selected.push(relative);
+                }
+                catch (error) {
+                    if (error.code !== "ENOENT")
+                        throw error;
+                }
+            }
+        }
+        return selected;
+    }
+    async cleanupCandidates(record) {
+        const common = record.source_binding.commonGitDir, candidates = new Map();
+        const add = async (root, head, evidencePaths = [], outputRoots = []) => {
+            const registration = await readWorktreeRegistration(this.dataRoot, common, root);
+            if (!registration)
+                return;
+            const key = storageRegistrationId(common, root), existing = candidates.get(key);
+            if (existing && existing.head !== head && !samePath(root, record.source_worktree))
+                existing.retentionReason = "predecessor has conflicting completed heads; preserve its ambiguous checkout";
+            if (!existing)
+                candidates.set(key, { registration, head, evidencePaths, outputRoots });
+        };
+        await add(record.source_worktree, this.deliveryInputs(record).source.head, await this.compactEvidence(record), Object.values(record.captured_policy.outputRetention?.roots ?? {}).flat());
+        if (!candidates.size)
+            return [];
+        const names = await directoryNames(path.join(this.dataRoot, "merge-revisions"));
+        const ids = [...new Set(names.map(name => /^(.*)-0\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))];
+        const merged = [];
+        for (const id of ids) {
+            const previous = await this.read(id);
+            if (previous.state === "merged" && samePath(previous.source_binding.commonGitDir, common))
+                merged.push(previous);
+        }
+        const lookup = await this.historicalRepository(record);
+        for (let index = 0; index < candidates.size; index++) {
+            if (candidates.size > 256)
+                throw new Error("worktree chain exceeds the bounded cleanup graph");
+            const candidate = [...candidates.values()][index], parent = candidate.registration.parent_worktree;
+            if (parent) {
+                const registration = await readWorktreeRegistration(this.dataRoot, common, parent.worktree_path);
+                if (!registration || storageRegistrationId(common, parent.worktree_path) !== parent.registration_id || registration.branch !== parent.branch || !samePath(registration.git_dir, parent.git_dir))
+                    throw new Error("worktree predecessor registration diverged");
+                await add(parent.worktree_path, parent.head);
+            }
+            for (const previous of merged)
+                if (samePath(previous.target_worktree, candidate.registration.worktree_path)) {
+                    const previousHead = previous.integrated_head;
+                    if (previousHead && await ancestor(previousHead, candidate.head, lookup))
+                        await add(previous.source_worktree, previousHead, await this.compactEvidence(previous), Object.values(previous.captured_policy.outputRetention?.roots ?? {}).flat());
+                }
+        }
+        return [...candidates.values()];
+    }
+    async cleanupMergedChain(record, assertOperation) {
+        let cleanup;
+        try {
+            const candidates = await this.cleanupCandidates(record);
+            cleanup = candidates.length ? await cleanupRegisteredWorktrees(this.dataRoot, await this.historicalRepository(record), candidates, assertOperation) :
+                { removed_worktrees: [], retained_worktrees: [{ worktree: record.source_worktree, reason: "legacy or unregistered worktree; automatic cleanup applies only to new creation records" }] };
+        }
+        catch (error) {
+            cleanup = { removed_worktrees: record.cleanup?.removed_worktrees ?? [], retained_worktrees: [{ worktree: record.source_worktree, reason: error.message }] };
+        }
+        await assertOperation();
+        if (digest(cleanup) !== digest(record.cleanup ?? null))
+            record = await this.update({ ...record, cleanup });
+        return this.output(record, true);
     }
     async operationLeaseStatus(record) {
         const leaseId = hash(`merge-operation\0${record.merge_id}`), operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);

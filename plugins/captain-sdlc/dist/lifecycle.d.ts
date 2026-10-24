@@ -5,6 +5,7 @@ import { type BookkeepingPolicy } from "./bookkeeping.js";
 import { recordUserAuthorizations, type AuthorizationQuery } from "./user-authorization.js";
 import { type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
 import { type UserRequestSourceQuery } from "./user-request-source.js";
+import { type OutputRetention } from "./output-retention.js";
 export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
@@ -68,6 +69,7 @@ export type ProjectPolicy = {
     visualRequired: boolean;
     commands: Record<string, string>;
     artifactPaths?: Record<string, string>;
+    outputRetention?: OutputRetention;
     redGate?: {
         expectedExitCodes: number[];
         outputPattern: string;
@@ -537,7 +539,9 @@ export declare class LifecycleStore {
         leaseRevision?: number;
         resourceGeneration?: string;
     }): Promise<BeginLease>;
-    checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken">): Promise<BeginWorkspace>;
+    checkpointBeginWorkspace(operation: BeginOperation, workspace: Omit<BeginWorkspace, "schemaVersion" | "operationToken"> & {
+        primaryProjectRoot?: string;
+    }): Promise<BeginWorkspace>;
     checkpointBeginRun(operation: BeginOperation, policy: ProjectPolicy): Promise<Run>;
     checkpointBeginPermit(operation: BeginOperation, run: Run): Promise<ReturnType<LifecycleStore["permit"]>>;
     checkpointBeginActive(operation: BeginOperation): Promise<{

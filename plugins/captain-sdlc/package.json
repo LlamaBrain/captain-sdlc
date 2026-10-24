@@ -1,6 +1,6 @@
 {
   "name": "@captain-sdlc/codex-plugin",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "test:windows": "node --test tests/windows-launcher.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --import tsx --test tests/*.test.ts",
-    "smoke": "node scripts/mcp-smoke.mjs && node scripts/bookkeeping-mcp-smoke.mjs && node scripts/orphan-lease-mcp-smoke.mjs && node scripts/failed-begin-mcp-smoke.mjs",
+    "smoke": "node scripts/mcp-smoke.mjs && node scripts/bookkeeping-mcp-smoke.mjs && node scripts/orphan-lease-mcp-smoke.mjs && node scripts/failed-begin-mcp-smoke.mjs && node scripts/storage-mcp-smoke.mjs",
     "smoke:merge": "node scripts/merge-mcp-smoke.mjs && node scripts/merge-lifecycle-mcp-smoke.mjs",
     "test:pending-work": "node --import tsx --test tests/pending-work.test.ts"
   },
