@@ -24,6 +24,11 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    # Hosted Windows TEMP can be an 8.3 alias. Fixtures require canonical roots.
+    env:
+      TMPDIR: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
     defaults:
       run:
         working-directory: plugins/captain-sdlc

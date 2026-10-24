@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-23
+
+### Fixed
+
+- Use native absolute mutation-boundary test paths and canonical runner temporary directories for Windows and Linux CI (v0.9.2).
+- Preserve historical machine-local evidence paths as text instead of broken published documentation links (v0.9.2).
+
 ## [0.9.1] - 2026-10-23
 
 ### Changed

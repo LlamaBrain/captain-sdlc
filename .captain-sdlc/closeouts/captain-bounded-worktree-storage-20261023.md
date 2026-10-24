@@ -88,3 +88,11 @@ Continue signed Merge Prep/Back to dev and local install.
 Apply the prepared narrow global worktree skill update only after the installed
 storage helper is present and the original skill hash still matches. Continue
 this same task and worktree across any handoff.
+
+## Signed proof and integration verification
+
+The original implementation run completed green at f88cce3e9ea58a69bfd58fae29b15536e68e4ee5, revision 18. Build, all 762 tests, public MCP smoke (including storage and ordinary CLI) and typecheck passed. The implementation proof remains bound to that revision.
+
+PR #10 exposed verification infrastructure failures: the existing boundary fixture used Windows drive paths on Linux; the Windows hosted runner TEMP used an 8.3 alias inconsistent with canonical Git identity; and a historical Churn record linked 11 ignored local logs. The authorized integration repair uses native fixture paths, canonical runner.temp variables, and text references for unpublished historical logs. Storage logic and captured implementation criteria are unchanged. Version 0.9.2 synchronizes the repair metadata. Focused checks, CI and fresh Merge Prep must verify the actual integration head before Back and installation.
+
+GitHub dev remains six earlier local-dev commits behind the selected local target. The draft PR explicitly identifies that baseline; public dev integration is not performed. Existing worktrees remain excluded from cleanup.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import { mutationDecision } from "../src/policy.js";
 
@@ -7,10 +8,12 @@ test("denies mutation before a same-turn Captain permit", () => {
 });
 
 test("denies permit reuse from another turn and mutation outside owned worktree", () => {
-  const permit = { sessionId: "s", worktreePath: "C:/repo/.captain-sdlc/worktrees/x", phase: "implement" };
-  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "other", permit, command: "*** Update File: C:/repo/.captain-sdlc/worktrees/x/a.ts" }).allow, false);
-  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "s", permit, command: "*** Update File: C:/repo/outside.ts" }).allow, false);
-  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "s", permit, command: "*** Update File: C:/repo/.captain-sdlc/worktrees/x/a.ts" }).allow, true);
+  const repository = path.resolve("policy-boundary-fixture");
+  const permit = { sessionId: "s", worktreePath: path.join(repository, ".captain-sdlc/worktrees/x"), phase: "implement" };
+  const ownedPatch = `*** Update File: ${path.join(permit.worktreePath, "a.ts")}`;
+  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "other", permit, command: ownedPatch }).allow, false);
+  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "s", permit, command: `*** Update File: ${path.join(repository, "outside.ts")}` }).allow, false);
+  assert.equal(mutationDecision({ toolName: "apply_patch", cwd: permit.worktreePath, sessionId: "s", permit, command: ownedPatch }).allow, true);
 });
 
 test("read-only tools remain available before Captain begins", () => {
