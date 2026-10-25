@@ -1,6 +1,6 @@
 # 2026-10-24 â€” Unrelated paused projection blocks exact failed-Begin cancellation
 
-**Status: ONGOING**
+**Status: RESOLVED**
 
 **Occurrence:** 2026-10-24, America/Los_Angeles. **Recorded:** 2026-10-24.
 
@@ -99,3 +99,15 @@ plugins/captain-sdlc/Temp/automation-scratch/failed-begin-paused-projection/.
 Those outcomes retain their actual working-file hashes and base revision.
 Independent review, final captured FEATURE proof, integration/installation and
 the real Dirigible cancellation are still pending at this update.
+
+## Resolution — 2026-10-24
+
+Bounded repair committed at 0e9b4a549d6af8b867ac7610844dfc008aed6f6f (plugin 0.9.5). Signed implementation intent-4e6ddca0-dd9e-40b9-8985-cabe6bfdea3e reached complete/green revision18: build, full ticket regression, public MCP smokes and affected-regression typecheck all exit0. Independent review found no blockers; focused cancellation race tests passed25/25. This is local signed proof, not hosted CI or release proof. No frozen plan or HITL was bound.
+
+Signed merge-bbcf3c18-6753-4ff9-9b36-f61e8cf01e1a prepared LOW build and fast-forwarded dev to the exact tested commit. Back retired its completed source checkout. Installed0.9.5 via documented CLI; public MCP handshake and server SHA256 ea28d66fa1a6054eddcf73b9df017c39858afcf0690a67cbfd44371d0c3fcdbd match integrated source. Existing authority directory and hook trust remain intact.
+
+After the unrelated session owner actually reached complete/green, original same-caller public cancellation succeeded for intent-b7a6c6f0-ebef-414f-a2ff-05b28d99a1df at exact held revision418/generation3da018332a3419a358a87e9d5b69d2042a49149e0fa740706b1bae8d16a13ba0. Follow-up installed public diagnosis observes released revision419 and no original task footprint. This real state change justifies the retry; no approval-review bypass or signed-store edits occurred. The paused-owner exception is separately proven by focused regression; the actual later cancellation also had an authenticated completed owner.
+
+Corrected cleanup Begin omitted target_branch and created intent-635f09c7-a439-4fed-a9a7-03bba1d0764f at original Dirigible basec45a206. It retains archives and work already done; no progressed original checkout was replaced. Cleanup migration/LOW proof and authorized selective trimming continue under that task. Newly active lighting and mechanical consumers retain their package hosts per Michael's explicit instruction.
+
+Proof/merge/cancellation receipts and copied focused logs: E:/Personal/dirigible2D/Artifacts/WorktreeStorageConsolidation/. Historical operator classification findings remain non-blocking follow-ups.
