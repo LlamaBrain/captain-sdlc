@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-10-24
+
+### Fixed
+
+- Authenticate an unrelated released paused session owner before cancelling an exact terminal pre-workspace Begin, preserving actual target ownership, live/progressed refusals, fresh gate checks and generation CAS (v0.9.4).
+
 ## [0.9.3] - 2026-10-23
 
 ### Fixed

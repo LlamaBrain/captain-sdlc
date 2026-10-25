@@ -163,6 +163,7 @@ export class LifecycleStore {
     catch (error: any) { if (error.code !== "ENOENT") throw error; }
     let completedSessionTombstone = false;
     let completedSessionOwner = false;
+    let pausedSessionOwner: Pick<Run, "worktreePath" | "branch" | "commonGitDir"> | undefined;
     if (activeProjection) {
       const sessionLeaseId = digest(`session-active\0${operation.sessionId}`);
       const sessionLease = await readAuthorizedLeaseSnapshotReadOnly<any>(this.dataRoot, sessionLeaseId);
@@ -214,6 +215,30 @@ export class LifecycleStore {
           // An absent legacy chain grants no completed-owner exception. Existing paused-owner
           // recovery authenticates its own evidence independently.
         }
+        // A paused task retains its task-owner projection after releasing the session.
+        // Authenticate legacy paused records independently; they never gain the completed-owner exception.
+        let pausedRun = priorRun;
+        if (!pausedRun) {
+          try {
+            const legacyRun = await readAuthorizedReadOnly<Run>(this.dataRoot, "runs", safeId(owner.intentId));
+            if (legacyRun.status === "paused") pausedRun = legacyRun;
+          } catch (error: any) { if (error.code !== "ENOENT") throw error; }
+        }
+        const pausedActivation = pausedRun?.activationToken ?? pausedRun?.operationToken;
+        if (pausedRun?.schemaVersion === 1 && pausedRun.status === "paused" &&
+            ["tdd_red", "implement", "prove", "hitl", "complete"].includes(pausedRun.phase) &&
+            pausedRun.intentId === owner.intentId && pausedRun.runId === owner.runId &&
+            pausedRun.sessionId === operation.sessionId && pausedActivation === owner.operationToken &&
+            typeof pausedRun.operationToken === "string" && pausedRun.operationToken.trim() &&
+            pausedRun.operationToken !== operation.operationToken &&
+            (pausedRun.sessionLeaseId === undefined || pausedRun.sessionLeaseId === sessionLeaseId) &&
+            (pausedRun.sessionLeaseToken === undefined || pausedRun.sessionLeaseToken === owner.leaseToken) &&
+            typeof pausedRun.worktreePath === "string" && pausedRun.worktreePath.trim() &&
+            typeof pausedRun.branch === "string" && pausedRun.branch.trim() &&
+            typeof pausedRun.commonGitDir === "string" && pausedRun.commonGitDir.trim()) {
+          pausedSessionOwner = { worktreePath: pausedRun.worktreePath, branch: pausedRun.branch,
+            commonGitDir: pausedRun.commonGitDir };
+        }
         if (priorRun?.phase === "complete" && priorRun.status === "green") {
           const priorOperation = await readAuthorizedReadOnly<BeginOperation>(
             this.dataRoot, "begin-operations", safeId(owner.intentId));
@@ -231,7 +256,7 @@ export class LifecycleStore {
         }
       }
     }
-    return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };
+    return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner, pausedSessionOwner };
   }
   async recordBeginCancellation(marker: BeginCancellationMarker) {
     return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId(marker.intentId), marker);

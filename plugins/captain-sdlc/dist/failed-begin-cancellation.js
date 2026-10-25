@@ -21,12 +21,18 @@ function assertDiagnosticIdentity(diagnostic, args) {
         diagnostic.reservation !== "verified")
         fail("failed Begin identity or pre-workspace eligibility could not be verified");
 }
-function assertDiagnosticBinding(diagnostic, args, requireHeld, completedSessionTombstone = false) {
+function assertDiagnosticBinding(diagnostic, args, requireHeld, evidence) {
     assertDiagnosticIdentity(diagnostic, args);
+    const pausedOwner = evidence.pausedSessionOwner;
+    // A planned targetBranch is not ownership. Refuse either an actual target path or its Git branch.
+    const unrelatedPausedOwner = pausedOwner !== undefined &&
+        !samePath(pausedOwner.worktreePath, args.target_worktree) &&
+        !(samePath(pausedOwner.commonGitDir, evidence.repository.commonGitDir) && pausedOwner.branch === args.target_branch);
+    const unrelatedSessionProjection = evidence.completedSessionTombstone || evidence.completedSessionOwner || unrelatedPausedOwner;
     const later = diagnostic.later_state;
     if (!isRecord(later) ||
         later.workspace !== false || later.run !== false ||
-        (later.active !== false && !(later.active === true && completedSessionTombstone && diagnostic.stage === "lease_checkpointed")) ||
+        (later.active !== false && !(later.active === true && unrelatedSessionProjection && diagnostic.stage === "lease_checkpointed")) ||
         later.activated !== false || later.permit !== false ||
         later.canonical_path_exists !== false ||
         later.canonical_worktree_registered !== false ||
@@ -127,7 +133,7 @@ export async function captainCancelFailedBegin(store, args) {
         if (!selectorMatches(existing, args, initialEvidence)) {
             throw new Error("a different signed cancellation already owns this Begin intent");
         }
-        assertDiagnosticBinding(initial, args, false, (initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner));
+        assertDiagnosticBinding(initial, args, false, initialEvidence);
         return store.withBeginAttemptGate(args.intent_id, async () => {
             const current = await store.beginCancellationFor(args.intent_id);
             if (!current)
@@ -139,13 +145,13 @@ export async function captainCancelFailedBegin(store, args) {
             const fresh = await store.diagnoseBegin(diagnosticArgs(args));
             if (!isRecord(fresh))
                 throw new Error("signed Begin diagnosis is unavailable");
-            assertDiagnosticBinding(fresh, args, false, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
+            assertDiagnosticBinding(fresh, args, false, evidence);
             // The authority CAS accepts only the original held generation or its exact
             // released N+1 successor; it never follows a same-token replacement.
             return retryExactCancellation(store, current, args, evidence);
         });
     }
-    assertDiagnosticBinding(initial, args, true, (initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner));
+    assertDiagnosticBinding(initial, args, true, initialEvidence);
     return store.withBeginAttemptGate(args.intent_id, async () => {
         // A retry may have committed the terminal marker before a failed release.
         const fresh = await store.diagnoseBegin(diagnosticArgs(args));
@@ -157,10 +163,10 @@ export async function captainCancelFailedBegin(store, args) {
             if (!selectorMatches(priorMarker, args, evidence)) {
                 throw new Error("a different signed cancellation already owns this Begin intent");
             }
-            assertDiagnosticBinding(fresh, args, false, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
+            assertDiagnosticBinding(fresh, args, false, evidence);
             return retryExactCancellation(store, priorMarker, args, evidence);
         }
-        assertDiagnosticBinding(fresh, args, true, (evidence.completedSessionTombstone || evidence.completedSessionOwner));
+        assertDiagnosticBinding(fresh, args, true, evidence);
         const operation = evidence.operation;
         const repository = evidence.repository;
         const lease = evidence.lease;

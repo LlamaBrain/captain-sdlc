@@ -9034,6 +9034,7 @@ var init_lifecycle = __esm({
         }
         let completedSessionTombstone = false;
         let completedSessionOwner = false;
+        let pausedSessionOwner;
         if (activeProjection) {
           const sessionLeaseId = digest3(`session-active\0${operation.sessionId}`);
           const sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionLeaseId);
@@ -9060,6 +9061,23 @@ var init_lifecycle = __esm({
               const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath6(error2.path, path10.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
               if (!absentLegacyChain) throw error2;
             }
+            let pausedRun = priorRun;
+            if (!pausedRun) {
+              try {
+                const legacyRun = await readAuthorizedReadOnly(this.dataRoot, "runs", safeId2(owner.intentId));
+                if (legacyRun.status === "paused") pausedRun = legacyRun;
+              } catch (error2) {
+                if (error2.code !== "ENOENT") throw error2;
+              }
+            }
+            const pausedActivation = pausedRun?.activationToken ?? pausedRun?.operationToken;
+            if (pausedRun?.schemaVersion === 1 && pausedRun.status === "paused" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(pausedRun.phase) && pausedRun.intentId === owner.intentId && pausedRun.runId === owner.runId && pausedRun.sessionId === operation.sessionId && pausedActivation === owner.operationToken && typeof pausedRun.operationToken === "string" && pausedRun.operationToken.trim() && pausedRun.operationToken !== operation.operationToken && (pausedRun.sessionLeaseId === void 0 || pausedRun.sessionLeaseId === sessionLeaseId) && (pausedRun.sessionLeaseToken === void 0 || pausedRun.sessionLeaseToken === owner.leaseToken) && typeof pausedRun.worktreePath === "string" && pausedRun.worktreePath.trim() && typeof pausedRun.branch === "string" && pausedRun.branch.trim() && typeof pausedRun.commonGitDir === "string" && pausedRun.commonGitDir.trim()) {
+              pausedSessionOwner = {
+                worktreePath: pausedRun.worktreePath,
+                branch: pausedRun.branch,
+                commonGitDir: pausedRun.commonGitDir
+              };
+            }
             if (priorRun?.phase === "complete" && priorRun.status === "green") {
               const priorOperation = await readAuthorizedReadOnly(
                 this.dataRoot,
@@ -9071,7 +9089,7 @@ var init_lifecycle = __esm({
             }
           }
         }
-        return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner };
+        return { intent, operation, repository, lease, consumed, completedSessionTombstone, completedSessionOwner, pausedSessionOwner };
       }
       async recordBeginCancellation(marker) {
         return putAuthorizedOnceExact(this.dataRoot, "begin-cancellations", safeId2(marker.intentId), marker);
@@ -11442,10 +11460,13 @@ var samePath = (left, right) => path.resolve(left).replace(/[\\/]+$/, "").toLowe
 function assertDiagnosticIdentity(diagnostic, args) {
   if (diagnostic.diagnosis !== "inspected" || diagnostic.session_match !== "same" || diagnostic.project_root_matches !== true || diagnostic.target_worktree_matches !== true || diagnostic.target_branch_matches !== true || diagnostic.target_ref_matches !== true || diagnostic.issuance !== "verified" || diagnostic.reservation !== "verified") fail("failed Begin identity or pre-workspace eligibility could not be verified");
 }
-function assertDiagnosticBinding(diagnostic, args, requireHeld, completedSessionTombstone = false) {
+function assertDiagnosticBinding(diagnostic, args, requireHeld, evidence) {
   assertDiagnosticIdentity(diagnostic, args);
+  const pausedOwner = evidence.pausedSessionOwner;
+  const unrelatedPausedOwner = pausedOwner !== void 0 && !samePath(pausedOwner.worktreePath, args.target_worktree) && !(samePath(pausedOwner.commonGitDir, evidence.repository.commonGitDir) && pausedOwner.branch === args.target_branch);
+  const unrelatedSessionProjection = evidence.completedSessionTombstone || evidence.completedSessionOwner || unrelatedPausedOwner;
   const later = diagnostic.later_state;
-  if (!isRecord(later) || later.workspace !== false || later.run !== false || later.active !== false && !(later.active === true && completedSessionTombstone && diagnostic.stage === "lease_checkpointed") || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false) {
+  if (!isRecord(later) || later.workspace !== false || later.run !== false || later.active !== false && !(later.active === true && unrelatedSessionProjection && diagnostic.stage === "lease_checkpointed") || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false) {
     fail("Begin has progressed or has ambiguous later state; cancellation was refused");
   }
   if (diagnostic.repository_checkpoint !== "verified" || diagnostic.lease_checkpoint !== "verified" || diagnostic.stage !== "lease_checkpointed" || diagnostic.target_lease?.bindings_match !== true || diagnostic.target_lease?.generation_revisioned !== true || diagnostic.target_worktree_matches !== true) {
@@ -11518,7 +11539,7 @@ async function captainCancelFailedBegin(store, args) {
     if (!selectorMatches(existing, args, initialEvidence)) {
       throw new Error("a different signed cancellation already owns this Begin intent");
     }
-    assertDiagnosticBinding(initial, args, false, initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner);
+    assertDiagnosticBinding(initial, args, false, initialEvidence);
     return store.withBeginAttemptGate(args.intent_id, async () => {
       const current = await store.beginCancellationFor(args.intent_id);
       if (!current) throw new Error("signed Begin cancellation marker disappeared");
@@ -11528,11 +11549,11 @@ async function captainCancelFailedBegin(store, args) {
       }
       const fresh = await store.diagnoseBegin(diagnosticArgs(args));
       if (!isRecord(fresh)) throw new Error("signed Begin diagnosis is unavailable");
-      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone || evidence.completedSessionOwner);
+      assertDiagnosticBinding(fresh, args, false, evidence);
       return retryExactCancellation(store, current, args, evidence);
     });
   }
-  assertDiagnosticBinding(initial, args, true, initialEvidence.completedSessionTombstone || initialEvidence.completedSessionOwner);
+  assertDiagnosticBinding(initial, args, true, initialEvidence);
   return store.withBeginAttemptGate(args.intent_id, async () => {
     const fresh = await store.diagnoseBegin(diagnosticArgs(args));
     if (!isRecord(fresh)) throw new Error("signed Begin diagnosis is unavailable");
@@ -11542,10 +11563,10 @@ async function captainCancelFailedBegin(store, args) {
       if (!selectorMatches(priorMarker, args, evidence)) {
         throw new Error("a different signed cancellation already owns this Begin intent");
       }
-      assertDiagnosticBinding(fresh, args, false, evidence.completedSessionTombstone || evidence.completedSessionOwner);
+      assertDiagnosticBinding(fresh, args, false, evidence);
       return retryExactCancellation(store, priorMarker, args, evidence);
     }
-    assertDiagnosticBinding(fresh, args, true, evidence.completedSessionTombstone || evidence.completedSessionOwner);
+    assertDiagnosticBinding(fresh, args, true, evidence);
     const operation = evidence.operation;
     const repository = evidence.repository;
     const lease = evidence.lease;
@@ -28639,7 +28660,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.9.3" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.9.4" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {

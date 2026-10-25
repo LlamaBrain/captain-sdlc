@@ -487,6 +487,7 @@ export declare class LifecycleStore {
         };
         completedSessionTombstone: boolean;
         completedSessionOwner: boolean;
+        pausedSessionOwner: Pick<Run, "commonGitDir" | "worktreePath" | "branch"> | undefined;
     }>;
     recordBeginCancellation(marker: BeginCancellationMarker): Promise<BeginCancellationMarker>;
     releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string): Promise<void>;
