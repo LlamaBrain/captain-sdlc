@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-10-24
+
+### Changed
+
+- Retain the paused-owner cancellation developer fragment with its committed repair revision and pinned dev target, and normalize task-owned version/incident metadata to LF before signed integration (v0.9.5).
+
 ## [0.9.4] - 2026-10-24
 
 ### Fixed
