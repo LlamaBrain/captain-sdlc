@@ -16,6 +16,17 @@ stdin.
 
 The worktree shell hook is defense in depth for direct agent commands, not a Git security boundary: user-defined aliases can hide Git operations from textual hooks. Captain's approval gate independently resolves the Git common directory and rejects every noncanonical recorded worktree.
 
+For guarded add/move commands, the hook rejects chaining, shell expansion and
+composed command words. Run these commands from the owning repository's working
+directory: Git context overrides (`-C`, `--git-dir`, `--work-tree`, `--bare`, and
+`core.worktree`) and inline `GIT_DIR`, `GIT_WORK_TREE`, or `GIT_COMMON_DIR`
+assignments are unsupported and rejected. Unrelated shell commands pass
+through. The hook does not parse arbitrary shell programs or resolve aliases.
+
+The Worktree hook workflow runs syntax checks and the stdin regression suite on
+Linux and Windows for hook changes. This hook has no build, typecheck, or lint
+configuration; its executable regression tests are the verification gate.
+
 ## Wiring (in `~/.claude/settings.json`)
 
 ```json
@@ -49,7 +60,7 @@ The worktree shell hook is defense in depth for direct agent commands, not a Git
 ## Smoke test
 
 ```
-node enforce-worktree-location.test.js                             # 9 checks
+node --test enforce-worktree-location.test.js                      # regression suite
 echo {"tool_input":{"file_path":".env"}} | node protect-files.js   # exit 2
 echo {"tool_input":{"file_path":"src/a.ts"}} | node protect-files.js  # exit 0
 echo {"cwd":"."} | node compact-anchor.js                          # prints anchors

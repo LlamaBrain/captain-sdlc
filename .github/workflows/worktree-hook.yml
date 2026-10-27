@@ -1,0 +1,36 @@
+name: Worktree hook
+
+on:
+  pull_request:
+    paths:
+      - 'tools/hooks/enforce-worktree-location*.js'
+      - '.github/workflows/worktree-hook.yml'
+  push:
+    branches: [dev, main]
+    paths:
+      - 'tools/hooks/enforce-worktree-location*.js'
+      - '.github/workflows/worktree-hook.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  hook:
+    name: hook (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check hook syntax
+        run: node --check tools/hooks/enforce-worktree-location.js
+      - name: Check test syntax
+        run: node --check tools/hooks/enforce-worktree-location.test.js
+      - name: Test hook through its stdin interface
+        run: node --test tools/hooks/enforce-worktree-location.test.js

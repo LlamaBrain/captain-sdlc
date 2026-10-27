@@ -20,9 +20,9 @@ A per-project state directory at the repo root, holding Captain SDLC's persisten
 
 ```
 .captain-sdlc/
-â”œâ”€â”€ worktrees/                        # All Git worktrees owned by this repository
-â”‚   â””â”€â”€ <run-id-or-ticket>/           # One isolated checkout per governed unit of work
-â”œâ”€â”€ project-policy.json               # Commit/version/changelog enforcement contract
+├── worktrees/                        # All Git worktrees owned by this repository
+│   └── <run-id-or-ticket>/           # One isolated checkout per governed unit of work
+├── project-policy.json               # Commit/version/changelog enforcement contract
 ├── trace/                            # Pipeline trace events (see trace-schema.md)
 │   └── YYYY-MM-DD.jsonl              # One file per day, append-only
 ├── side-store/                       # personal/sensitive payloads (see privacy-framework.md)
