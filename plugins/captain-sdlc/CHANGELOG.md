@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-28
+
+### Changed
+
+- Retain the developer fragment for the independently verified hook compatibility repair at its actual source revision (v0.10.3).
+
 ## [0.10.2] - 2026-10-28
 
 ### Fixed
