@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-28
+
+### Changed
+
+- Retain the audited documentation lifecycle developer fragment at its actual implementation revision and pinned target; record focused compatibility and negative-test results separately from pending signed proof (v0.10.1).
+
 ## [0.10.0] - 2026-10-28
 
 ### Added

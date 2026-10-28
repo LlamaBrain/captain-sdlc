@@ -70,3 +70,20 @@ separate external requirements; no remote status or protection change is claimed
 Captain owns implementation, negative tests, captured proof, local installation
 and resumption of the original docs task. Existing commit/integration authority
 remains valid; no repeated human approval is required for this bounded repair.
+
+## Update - 2026-10-28: implementation and focused verification
+
+Repair implementation is committed as `83e545800c7db7731e8138cb1596a5fe1bb32eac`
+(v0.10.0), including the documentation schema-2 downgrade fence. Final focused
+API/MCP/hook checks passed 33 tests with one physical Windows file-symlink test
+skipped for missing privilege. Deterministic staged-link and junction coverage
+passed. Legacy lifecycle, policy and authorized commit recovery passed 43/43.
+Typecheck and build passed. The initial five public smoke scripts passed on their
+actual earlier build; final captured proof remains pending at this update.
+Logs are retained under `plugins/captain-sdlc/Temp/automation-scratch/` as
+`documentation-focused-final.log` and `documentation-legacy-final.log`.
+
+The developer fragment retains that implementation OID and target `d6d0ff1`.
+The original docs run remains paused at schema 1 until the verified runtime is
+installed and the supported same-task recovery runs. No CI, remote GitHub or live
+review-provider success is inferred from these local tests.
