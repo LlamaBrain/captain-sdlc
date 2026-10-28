@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-28
+
+### Added
+
+- Add an audited documentation-only transition for existing owned runs, retaining captured policy and proof gates without fabricating a failing code test. Bind planned/retained file scopes, exact version metadata, commit candidates, recovery and proof; reject executable/control changes and unsafe links or modes (v0.10.0).
+
 ## [0.9.5] - 2026-10-24
 
 ### Changed

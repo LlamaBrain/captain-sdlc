@@ -10,6 +10,7 @@ import { recordUserAuthorizations, userAuthorizationStatus } from "./user-author
 import { recordUserRequest, userRequestStatus } from "./user-request.js";
 import { readUserRequestSource } from "./user-request-source.js";
 import { prepareScopeOutputs } from "./output-retention.js";
+import { assertDocumentationScope, captureDocumentationScope } from "./documentation-scope.js";
 class ProofSourceDivergenceError extends Error {
     fence;
     constructor(fence) {
@@ -49,6 +50,7 @@ export function effectiveGateDisclosure(run) {
         progressLocation: "signed run evidence and pause handoffs; approved plans are immutable",
         proofStatus: pendingReview ? { phase: "complete", status: "green" } : { phase: run.phase, status: run.status },
         phaseAcceptance: humanReviewStatus.needsChangesCheckIds.length ? `human requested changes for ${humanReviewStatus.needsChangesCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : humanReviewStatus.acceptedCheckIds.length ? `human accepted ${humanReviewStatus.acceptedCheckIds.length}/${declaredIds.length} declared checks; automated proof status remains separate` : pendingReview ? "awaiting declared human review" : "not inferred from proof status",
+        ...(run.documentationScope ? { workKind: "documentation", documentationScope: run.documentationScope } : {}),
         taskTicket: run.taskTicket ?? null,
         ticketCommand: run.taskTicket?.command ?? run.policy.commands.ticket ?? null,
         gates: proofScopes(run).map(scope => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
@@ -557,6 +559,8 @@ export class LifecycleStore {
     async checkpointBeginActivated(operation) { await this.assertBeginOperation(operation); const run = await this.run(operation.intentId), active = await this.load("begin-active", operation.operationToken); if (run.runId !== operation.runId || active.intentId !== operation.intentId || active.operationToken !== operation.operationToken)
         throw new Error("begin activation checkpoints are incomplete"); await this.assertSessionLease(run); await this.captureSessionOwner(run); await putAuthorizedOnceExact(this.dataRoot, "begin-activated", operation.operationToken, { schemaVersion: 1, operationToken: operation.operationToken, intentId: operation.intentId, runId: operation.runId, sessionId: operation.sessionId, turnId: operation.turnId }); await this.project("active", operation.sessionId, active); return run; }
     async begin(input) {
+        if ("documentationScope" in input || "schemaVersion" in input)
+            throw new Error("Begin cannot inject documentation scope or schema; use the audited public transition");
         return this.withSerializedBeginAttempt(input.intentId, async () => {
             const operation = await this.reserveBegin({ intentId: input.intentId, objective: input.objective, projectRoot: input.projectRoot, taskId: input.taskId, leaseToken: input.leaseToken });
             const activated = await this.activatedBeginRun(operation);
@@ -835,6 +839,29 @@ export class LifecycleStore {
         }
         return migrated;
     }
+    async prepareDocumentation(intentId, paths, reason, expectedHead) {
+        await this.assertFrozenScope(intentId);
+        const run = await this.run(intentId);
+        await this.assertSessionLease(run);
+        if (run.status === "paused" || run.status === "green")
+            throw new Error("documentation preparation requires an active owned run; resume the original task first");
+        if (run.documentationScope) {
+            this.phase(run, "implement");
+            if (JSON.stringify([...paths].sort()) !== JSON.stringify(run.documentationScope.paths) || reason.trim() !== run.documentationScope.reason || expectedHead !== run.documentationScope.expectedHead)
+                throw new Error("documentation scope replay must match its original paths, reason and revision");
+            await assertDocumentationScope(run);
+            return run;
+        }
+        this.phase(run, "tdd_red");
+        if (run.preparedCommit || run.commitOperation || run.mutationOperation || run.preparedMerges?.length || run.committedState || run.taskTicket || run.evidence.some(item => item.kind === "tdd_red"))
+            throw new Error("documentation classification requires an uncommitted pre-implementation task without pending operations");
+        if (!this.probe || expectedHead !== this.expectedHead(run))
+            throw new Error("documentation scope must pin the current governed revision");
+        this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), expectedHead);
+        const documentationScope = await captureDocumentationScope(run, paths, reason, expectedHead);
+        this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), expectedHead);
+        return this.update({ ...run, schemaVersion: 2, documentationScope, phase: "implement", evidence: [...run.evidence, { kind: "documentation_scope", ...documentationScope }] });
+    }
     async recordRed(intentId, command, ticketFilter) {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
@@ -854,6 +881,8 @@ export class LifecycleStore {
         return this.update({ ...run, ...(selected.binding ? { taskTicket: selected.binding } : {}), phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(selected.command), ...(selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
     }
     async recordPreparedMerge(intentId, prepared) {
+        if ((await this.run(intentId)).documentationScope)
+            throw new Error("documentation scope requires standalone Merge Prep after task completion");
         const run = await this.run(intentId);
         this.phase(run, "implement");
         if (this.probe)
@@ -880,6 +909,8 @@ export class LifecycleStore {
         await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
+        if (run.documentationScope && kind === "merge")
+            throw new Error("documentation scope must complete commit and proof before standalone Merge Prep imports upstream code");
         const requestSha256 = digest(JSON.stringify(request)), leaseId = digest(`worktree-mutation\0${run.runId}`);
         if (run.mutationOperation) {
             if (run.mutationOperation.kind !== kind || run.mutationOperation.requestSha256 !== requestSha256)
@@ -955,6 +986,7 @@ export class LifecycleStore {
         await this.assertFrozenScope(intentId);
         let run = await this.run(intentId);
         this.phase(run, "implement");
+        await assertDocumentationScope(run);
         const requestSha256 = commitRequestSha256(request);
         if (run.preparedCommit && !run.commitOperation)
             throw new Error("signed prepared commit has no operation lease ownership");
@@ -996,6 +1028,7 @@ export class LifecycleStore {
         if (!run.preparedCommit || JSON.stringify({ preCommitHead: run.preparedCommit.preCommitHead, candidate: run.preparedCommit.candidate, tree: run.preparedCommit.tree, ...(run.preparedCommit.mergeHead ? { mergeHead: run.preparedCommit.mergeHead } : {}) }) !== JSON.stringify(prepared) || operation.stage !== "prepared")
             throw new Error("signed prepared commit authority changed before Git mutation");
         await this.assertCommitOperation(run, operation);
+        await assertDocumentationScope(run, prepared.candidate);
     }
     async discardCommitOperation(intentId, operation) {
         const run = await this.run(intentId);
@@ -1021,6 +1054,7 @@ export class LifecycleStore {
             throw new Error("prepared commit binding is invalid");
         if (prepared.preCommitHead !== this.expectedHead(run))
             throw new Error("prepared commit does not extend the governed HEAD");
+        await assertDocumentationScope(run, prepared.candidate);
         if (this.probe)
             this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), prepared.preCommitHead);
         return this.update({ ...run, commitOperation: { ...operation, stage: "prepared" }, preparedCommit: prepared, evidence: [...run.evidence, { kind: "commit_prepared", preCommitHead: prepared.preCommitHead, candidate: prepared.candidate, tree: prepared.tree, final: prepared.final, operationLeaseId: operation.leaseId }] });
@@ -1186,6 +1220,7 @@ export class LifecycleStore {
         await this.assertFrozenScope(intentId);
         const run = await this.run(intentId);
         this.phase(run, "implement");
+        await assertDocumentationScope(run, commit.head);
         const operation = run.commitOperation;
         if (run.targetBranch && (!run.preparedCommit || !operation) && !authorizedRecovery)
             throw new Error("governed target commits require signed prepared operation ownership");
@@ -1282,6 +1317,7 @@ export class LifecycleStore {
         this.phase(run, "implement");
         if (run.preparedCommit)
             throw new Error("prepared commit recovery must complete before iteration checks");
+        await assertDocumentationScope(run);
         const command = run.policy.commands[scope];
         if (!command || !["ticket", "feature-smoke", "affected-regression"].includes(scope))
             throw new Error("iteration check must be a trusted implementation scope");
@@ -1292,6 +1328,7 @@ export class LifecycleStore {
         const result = await this.runner(selected.command, run.worktreePath);
         if (this.probe)
             this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+        await assertDocumentationScope(run);
         return this.update({ ...run, ...(selected.binding && (run.taskTicket || result.exitCode === 0) ? { taskTicket: selected.binding } : {}), evidence: [...run.evidence, { kind: "iteration", scope, commandSha256: digest(selected.command), ...(selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}), exitCode: result.exitCode }] });
     }
     async prove(intentId) {
@@ -1521,6 +1558,8 @@ export class LifecycleStore {
             throw error;
     } const revisions = names.map(name => new RegExp(`^${prefix}([0-9]+)\\.json$`).exec(name)).filter((match) => Boolean(match)).map(match => Number(match[1])).sort((a, b) => a - b); if (!revisions.length) {
         const legacy = await this.load("runs", safe), normalized = { ...legacy, revision: legacy.revision ?? 0 };
+        if (normalized.schemaVersion !== 1 || normalized.documentationScope)
+            throw new Error("legacy run cannot inject documentation schema without its audited revision chain");
         await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${safe}-0`, normalized);
         await this.writeRunWatermark(normalized);
         return normalized;
@@ -1528,6 +1567,8 @@ export class LifecycleStore {
         if (revisions[index] !== index)
             throw new Error("signed run revision sequence is not contiguous"); let latest, previous; for (const revision of revisions) {
         latest = await this.load("run-revisions", `${safe}-${revision}`);
+        if (revision === 0 && (latest.schemaVersion !== 1 || latest.documentationScope))
+            throw new Error("initial signed run must use the ordinary schema before documentation classification");
         if (latest.intentId !== id || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== undefined : latest.previousRevisionSha256 !== digest(JSON.stringify(previous))))
             throw new Error("signed run revision binding is invalid");
         if (previous)
@@ -1557,9 +1598,37 @@ export class LifecycleStore {
             if (error.code !== "ENOENT" && !String(error.message).includes("not held"))
                 throw error;
         } }
-    assertStableRun(previous, current) { const stable = (run) => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir), gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy }); if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current)))
-        throw new Error("signed run immutable binding changed across revisions"); if (previous.taskTicket !== undefined && JSON.stringify(previous.taskTicket) !== JSON.stringify(current.taskTicket))
-        throw new Error("signed run immutable task ticket binding changed across revisions"); }
+    assertStableRun(previous, current) {
+        const scope = current.documentationScope;
+        const documentationMigration = previous.schemaVersion === 1 && current.schemaVersion === 2
+            && previous.phase === "tdd_red" && current.phase === "implement"
+            && previous.status === "running" && current.status === "running"
+            && !previous.documentationScope && scope?.schemaVersion === 1
+            && scope.expectedHead === this.expectedHead(previous)
+            && scope.policySha256 === digest(JSON.stringify(previous.policy))
+            && scope.sessionId === previous.sessionId && scope.turnId === previous.turnId
+            && current.sessionId === previous.sessionId && current.turnId === previous.turnId
+            && current.activationToken === previous.activationToken
+            && current.sessionLeaseId === previous.sessionLeaseId && current.sessionLeaseToken === previous.sessionLeaseToken
+            && current.evidence.length === previous.evidence.length + 1
+            && JSON.stringify(current.evidence.slice(0, -1)) === JSON.stringify(previous.evidence)
+            && JSON.stringify(current.evidence.at(-1)) === JSON.stringify({ kind: "documentation_scope", ...scope });
+        // Version 2 fences older runtimes: their immutable-schema guard rejects this
+        // transition before they can commit without understanding documentation scope.
+        if (![1, 2].includes(current.schemaVersion) || (current.schemaVersion === 2) !== Boolean(scope)
+            || (previous.schemaVersion !== current.schemaVersion && !documentationMigration))
+            throw new Error("signed run documentation schema transition is invalid");
+        const stable = (run) => ({ runId: run.runId, operationToken: run.operationToken, intentId: run.intentId,
+            taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath),
+            baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir),
+            gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
+        if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current)))
+            throw new Error("signed run immutable binding changed across revisions");
+        if (previous.documentationScope !== undefined && JSON.stringify(previous.documentationScope) !== JSON.stringify(current.documentationScope))
+            throw new Error("signed run immutable documentation scope changed across revisions");
+        if (previous.taskTicket !== undefined && JSON.stringify(previous.taskTicket) !== JSON.stringify(current.taskTicket))
+            throw new Error("signed run immutable task ticket binding changed across revisions");
+    }
     async project(bucket, id, value) { let failure; for (let attempt = 0; attempt < 3; attempt++)
         try {
             await this.save(bucket, id, value);
@@ -1594,6 +1663,7 @@ export class LifecycleStore {
     }
     async assertCommitted(run, repairFence) {
         await this.assertFrozenScope(run.intentId);
+        await assertDocumentationScope(run, run.committedState.head);
         const current = await this.probe(run.worktreePath, run.policy), expected = run.committedState;
         this.assertWorktreeBinding(run, current, expected.head);
         if (current.tree !== expected.tree)
