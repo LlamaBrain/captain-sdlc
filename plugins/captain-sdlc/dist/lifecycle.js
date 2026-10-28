@@ -11,6 +11,7 @@ import { recordUserRequest, userRequestStatus } from "./user-request.js";
 import { readUserRequestSource } from "./user-request-source.js";
 import { prepareScopeOutputs } from "./output-retention.js";
 import { assertDocumentationScope, captureDocumentationScope } from "./documentation-scope.js";
+import { assertRunRevisionTransition, isSupportedRunSchema, executionHead } from "./run-validation.js";
 class ProofSourceDivergenceError extends Error {
     fence;
     constructor(fence) {
@@ -20,7 +21,7 @@ class ProofSourceDivergenceError extends Error {
 }
 export function approvedPlanDigest(content) { return digest(content.replaceAll("\r\n", "\n")); }
 export function proofScopes(run) { return [...(run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...(run.profile === "pre-release" ? ["super-smoke"] : [])]), ...(run.visualRequired ? ["visual"] : [])]; }
-export function executionHead(run) { return run.continuityState?.head ?? run.committedState?.head ?? run.baseHead; }
+export { executionHead } from "./run-validation.js";
 export function isPendingPlanReview(run) {
     if (run.phase === "hitl")
         return true;
@@ -188,13 +189,14 @@ export class LifecycleStore {
                 sessionLease.payload.intentId !== intentId && typeof sessionLease.payload.operationToken === "string" &&
                 typeof sessionLease.payload.runId === "string" && typeof sessionLease.payload.leaseToken === "string") {
                 const priorIntentId = sessionLease.payload.intentId;
-                const [priorOperation, priorRun] = await Promise.all([
+                const [priorOperation, projectedPriorRun] = await Promise.all([
                     readAuthorizedReadOnly(this.dataRoot, "begin-operations", safeId(priorIntentId)),
                     readAuthorizedReadOnly(this.dataRoot, "runs", safeId(priorIntentId)),
                 ]);
+                const priorRun = projectedPriorRun.schemaVersion === 2 ? await this.interruptionRunReadOnly(priorIntentId) : projectedPriorRun;
                 completedSessionTombstone = priorOperation.schemaVersion === 1 && priorOperation.intentId === priorIntentId &&
                     priorOperation.sessionId === operation.sessionId && priorOperation.operationToken === activeProjection.operationToken &&
-                    priorOperation.runId === sessionLease.payload.runId && priorRun.schemaVersion === 1 &&
+                    priorOperation.runId === sessionLease.payload.runId && isSupportedRunSchema(priorRun) &&
                     priorRun.intentId === priorIntentId && priorRun.runId === sessionLease.payload.runId &&
                     priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
                     priorRun.phase === "complete" && priorRun.status === "green";
@@ -234,7 +236,7 @@ export class LifecycleStore {
                 if (!pausedRun) {
                     try {
                         const legacyRun = await readAuthorizedReadOnly(this.dataRoot, "runs", safeId(owner.intentId));
-                        if (legacyRun.status === "paused")
+                        if (legacyRun.schemaVersion === 1 && !legacyRun.documentationScope && legacyRun.status === "paused")
                             pausedRun = legacyRun;
                     }
                     catch (error) {
@@ -243,7 +245,7 @@ export class LifecycleStore {
                     }
                 }
                 const pausedActivation = pausedRun?.activationToken ?? pausedRun?.operationToken;
-                if (pausedRun?.schemaVersion === 1 && pausedRun.status === "paused" &&
+                if (pausedRun && isSupportedRunSchema(pausedRun) && pausedRun.status === "paused" &&
                     ["tdd_red", "implement", "prove", "hitl", "complete"].includes(pausedRun.phase) &&
                     pausedRun.intentId === owner.intentId && pausedRun.runId === owner.runId &&
                     pausedRun.sessionId === operation.sessionId && pausedActivation === owner.operationToken &&
@@ -262,7 +264,7 @@ export class LifecycleStore {
                     const activation = priorRun.activationToken ?? priorRun.operationToken;
                     completedSessionOwner = priorOperation.schemaVersion === 1 &&
                         priorOperation.intentId === owner.intentId && priorOperation.sessionId === operation.sessionId &&
-                        priorOperation.runId === owner.runId && priorRun.schemaVersion === 1 &&
+                        priorOperation.runId === owner.runId && isSupportedRunSchema(priorRun) &&
                         priorRun.intentId === owner.intentId && priorRun.runId === owner.runId &&
                         priorRun.operationToken === priorOperation.operationToken && priorRun.sessionId === operation.sessionId &&
                         activation === owner.operationToken &&
@@ -1567,12 +1569,9 @@ export class LifecycleStore {
         if (revisions[index] !== index)
             throw new Error("signed run revision sequence is not contiguous"); let latest, previous; for (const revision of revisions) {
         latest = await this.load("run-revisions", `${safe}-${revision}`);
-        if (revision === 0 && (latest.schemaVersion !== 1 || latest.documentationScope))
-            throw new Error("initial signed run must use the ordinary schema before documentation classification");
         if (latest.intentId !== id || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== undefined : latest.previousRevisionSha256 !== digest(JSON.stringify(previous))))
             throw new Error("signed run revision binding is invalid");
-        if (previous)
-            this.assertStableRun(previous, latest);
+        assertRunRevisionTransition(previous, latest);
         await this.writeRunWatermark(latest);
         previous = latest;
     } let watermarkNames = []; try {
@@ -1598,37 +1597,7 @@ export class LifecycleStore {
             if (error.code !== "ENOENT" && !String(error.message).includes("not held"))
                 throw error;
         } }
-    assertStableRun(previous, current) {
-        const scope = current.documentationScope;
-        const documentationMigration = previous.schemaVersion === 1 && current.schemaVersion === 2
-            && previous.phase === "tdd_red" && current.phase === "implement"
-            && previous.status === "running" && current.status === "running"
-            && !previous.documentationScope && scope?.schemaVersion === 1
-            && scope.expectedHead === this.expectedHead(previous)
-            && scope.policySha256 === digest(JSON.stringify(previous.policy))
-            && scope.sessionId === previous.sessionId && scope.turnId === previous.turnId
-            && current.sessionId === previous.sessionId && current.turnId === previous.turnId
-            && current.activationToken === previous.activationToken
-            && current.sessionLeaseId === previous.sessionLeaseId && current.sessionLeaseToken === previous.sessionLeaseToken
-            && current.evidence.length === previous.evidence.length + 1
-            && JSON.stringify(current.evidence.slice(0, -1)) === JSON.stringify(previous.evidence)
-            && JSON.stringify(current.evidence.at(-1)) === JSON.stringify({ kind: "documentation_scope", ...scope });
-        // Version 2 fences older runtimes: their immutable-schema guard rejects this
-        // transition before they can commit without understanding documentation scope.
-        if (![1, 2].includes(current.schemaVersion) || (current.schemaVersion === 2) !== Boolean(scope)
-            || (previous.schemaVersion !== current.schemaVersion && !documentationMigration))
-            throw new Error("signed run documentation schema transition is invalid");
-        const stable = (run) => ({ runId: run.runId, operationToken: run.operationToken, intentId: run.intentId,
-            taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath),
-            baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir),
-            gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
-        if (JSON.stringify(stable(previous)) !== JSON.stringify(stable(current)))
-            throw new Error("signed run immutable binding changed across revisions");
-        if (previous.documentationScope !== undefined && JSON.stringify(previous.documentationScope) !== JSON.stringify(current.documentationScope))
-            throw new Error("signed run immutable documentation scope changed across revisions");
-        if (previous.taskTicket !== undefined && JSON.stringify(previous.taskTicket) !== JSON.stringify(current.taskTicket))
-            throw new Error("signed run immutable task ticket binding changed across revisions");
-    }
+    assertStableRun(previous, current) { assertRunRevisionTransition(previous, current); }
     async project(bucket, id, value) { let failure; for (let attempt = 0; attempt < 3; attempt++)
         try {
             await this.save(bucket, id, value);
@@ -1821,8 +1790,7 @@ export class LifecycleStore {
             if (current.intentId !== intentId || current.revision !== index || current.previousRevisionSha256 !== (previous ? digest(JSON.stringify(previous)) : undefined) ||
                 watermark.intentId !== intentId || watermark.runId !== current.runId || watermark.revision !== index || watermark.runSha256 !== digest(JSON.stringify(current)))
                 throw new Error("signed run interruption revision binding is invalid");
-            if (previous)
-                this.assertStableRun(previous, current);
+            assertRunRevisionTransition(previous, current);
             previous = current;
         }
         const watermarks = await readdir(path.join(this.dataRoot, "run-watermarks"));

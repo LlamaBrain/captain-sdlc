@@ -332,7 +332,7 @@ export type LifecycleHooks = {
 };
 export declare function approvedPlanDigest(content: string): string;
 export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired">): string[];
-export declare function executionHead(run: Run): string;
+export { executionHead } from "./run-validation.js";
 export declare function isPendingPlanReview(run: Run): boolean;
 export declare function effectiveGateDisclosure(run: Run): {
     taskTicket: TaskTicket | null;
@@ -451,13 +451,13 @@ export declare class LifecycleStore {
         target_worktree_matches: boolean;
         target_ref_matches: boolean;
         issuance: "verified" | "missing_or_mismatched";
-        reservation: "verified" | "mismatched" | "absent";
-        repository_checkpoint: "verified" | "mismatched" | "absent";
-        lease_checkpoint: "verified" | "mismatched" | "absent";
+        reservation: "absent" | "verified" | "mismatched";
+        repository_checkpoint: "absent" | "verified" | "mismatched";
+        lease_checkpoint: "absent" | "verified" | "mismatched";
         stage: string;
         target_lease: {
             state: "held" | "released" | "absent";
-            owner: "legacy" | "unknown" | "live" | "stopped" | "foreign_host" | "other";
+            owner: "legacy" | "live" | "stopped" | "foreign_host" | "unknown" | "other";
             bindings_match: boolean;
             generation_revisioned: boolean;
             revision: number | null;
@@ -491,7 +491,7 @@ export declare class LifecycleStore {
         };
         completedSessionTombstone: boolean;
         completedSessionOwner: boolean;
-        pausedSessionOwner: Pick<Run, "commonGitDir" | "worktreePath" | "branch"> | undefined;
+        pausedSessionOwner: Pick<Run, "commonGitDir" | "branch" | "worktreePath"> | undefined;
     }>;
     recordBeginCancellation(marker: BeginCancellationMarker): Promise<BeginCancellationMarker>;
     releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string): Promise<void>;

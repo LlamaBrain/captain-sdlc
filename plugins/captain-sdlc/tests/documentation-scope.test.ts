@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { LifecycleStore, type ProjectPolicy } from "../src/lifecycle.js";
 import { readAuthorized, writeAuthorized } from "../src/authority.js";
 import { commitEvidence, git, sourceState } from "../src/workspace.js";
@@ -28,7 +30,7 @@ async function fixture(releaseMetadata = false, existingArchive = false, generat
   await writeFile(path.join(root, "README.md"), "# Original documentation\n");
   await writeFile(path.join(root, "CHANGELOG.md"), "# Changelog\n\n## [0.1.0]\n\n- Initial.\n");
   await writeFile(path.join(root, "VERSION"), "0.1.0\n");
-  await writeFile(path.join(root, ".gitignore"), ".captain-sdlc/\n.captain-proof/\n*.ignored.ts\n");
+  await writeFile(path.join(root, ".gitignore"), ".captain-sdlc/worktrees/\n.captain-proof/\n*.ignored.ts\n");
   await mkdir(path.join(root, "src")); await writeFile(path.join(root, "src", "program.ts"), "export const behavior = 1;\n");
   if (existingArchive) { await mkdir(path.dirname(path.join(root, fragmentPath)), { recursive: true }); await writeFile(path.join(root, fragmentPath), fragment()); }
   const policy: ProjectPolicy = structuredClone(capturedPolicy);
@@ -39,6 +41,7 @@ async function fixture(releaseMetadata = false, existingArchive = false, generat
     policy.commit!.version_surfaces!.push({ path: "src/version.ts", pattern: 'version: "(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)"' }, { path: "package-lock.json", pattern: '(?m)^  "version": "(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)"' });
     policy.outputRetention = { schema_version: 1, roots: { build: ["dist"] } };
   }
+  await mkdir(path.join(root, ".captain-sdlc")); await writeFile(path.join(root, ".captain-sdlc", "codex-policy.json"), JSON.stringify(policy));
   await git(["add", "."], root); await git(["commit", "-m", "baseline"], root);
   const baseHead = await git(["rev-parse", "HEAD"], root), worktree = path.join(root, ".captain-sdlc", "worktrees", "documentation");
   await git(["worktree", "add", "-b", "captain/documentation", worktree, baseHead], root);
@@ -83,11 +86,82 @@ test("documentation transition preserves captured policy and identity with signe
   assert.deepEqual(persisted.documentationScope, run.documentationScope);
 });
 
+test("actual authoritative hook readers accept an audited documentation schema transition", async () => {
+  const f = await fixture(), hooks = await import(new URL("../scripts/authoritative-state.mjs", import.meta.url).href);
+  assert.equal((await hooks.latestRun(f.data, "docs")).schemaVersion, 1);
+  assert.equal((await hooks.validPermit(f.data, "session", "turn")).run.runId, f.initial.runId);
+  await f.write("README.md", "# Updated documentation\n"); const classified = await f.prepare();
+  assert.equal(classified.schemaVersion, 2);
+  assert.equal((await hooks.latestRun(f.data, "docs")).schemaVersion, 2);
+  const permit = await hooks.validPermit(f.data, "session", "turn");
+  assert.equal(permit.run.runId, classified.runId); assert.equal(permit.permit.phase, "implement");
+});
+
 async function appendSignedRevision(data: string, run: { revision: number }, changes: Record<string, unknown>) {
   const previous = await readAuthorized<any>(data, "run-revisions", `docs-${run.revision}`);
   const next = { ...previous, ...changes, revision: previous.revision + 1, previousRevisionSha256: createHash("sha256").update(JSON.stringify(previous)).digest("hex") };
   await writeAuthorized(data, "run-revisions", `docs-${next.revision}`, next);
+  await writeRunWatermark(data, next);
 }
+
+async function writeRunWatermark(data: string, run: any) {
+  await writeAuthorized(data, "run-watermarks", `docs-${run.revision}`, { schemaVersion: 1, intentId: run.intentId, runId: run.runId, revision: run.revision, runSha256: createHash("sha256").update(JSON.stringify(run)).digest("hex"), previousRevisionSha256: run.previousRevisionSha256 });
+}
+
+test("actual authoritative hook readers retain ordinary schema-one implementation runs", async () => {
+  const f = await fixture(), hooks = await import(new URL("../scripts/authoritative-state.mjs", import.meta.url).href);
+  const store = new LifecycleStore(f.data, async () => ({ exitCode: 1, stdout: "expected test failure", stderr: "" }), sourceState);
+  const run = await store.recordRed("docs"); assert.equal(run.schemaVersion, 1);
+  assert.equal((await hooks.latestRun(f.data, "docs")).phase, "implement");
+  assert.equal((await hooks.validPermit(f.data, "session", "turn")).run.schemaVersion, 1);
+});
+
+test("actual authoritative hook readers reject a correctly signed initial schema-two record", async () => {
+  const f = await fixture(), hooks = await import(new URL("../scripts/authoritative-state.mjs", import.meta.url).href);
+  const initial = await readAuthorized<any>(f.data, "run-revisions", "docs-0"), forged = { ...initial, schemaVersion: 2 };
+  await writeAuthorized(f.data, "run-revisions", "docs-0", forged); await writeRunWatermark(f.data, forged);
+  await assert.rejects(() => hooks.latestRun(f.data, "docs"), /schema|documentation|initial/i);
+  await assert.rejects(() => hooks.validPermit(f.data, "session", "turn"), /schema|documentation|initial/i);
+});
+
+test("actual authoritative hook readers reject schema migration without audited documentation authority", async () => {
+  const f = await fixture(), hooks = await import(new URL("../scripts/authoritative-state.mjs", import.meta.url).href);
+  await appendSignedRevision(f.data, f.initial, { schemaVersion: 2, phase: "implement" });
+  await assert.rejects(() => hooks.latestRun(f.data, "docs"), /schema|documentation/i);
+  await assert.rejects(() => hooks.validPermit(f.data, "session", "turn"), /schema|documentation/i);
+});
+
+test("actual authoritative hook readers reject mutation of signed documentation scope", async () => {
+  const f = await fixture(), hooks = await import(new URL("../scripts/authoritative-state.mjs", import.meta.url).href);
+  await f.write("README.md", "# Updated\n"); const classified = await f.prepare();
+  await appendSignedRevision(f.data, classified, { documentationScope: { ...classified.documentationScope, reason: "Unapproved replacement scope" } });
+  await assert.rejects(() => hooks.latestRun(f.data, "docs"), /scope|documentation/i);
+  await assert.rejects(() => hooks.validPermit(f.data, "session", "turn"), /scope|documentation/i);
+});
+
+function actualHook(script: string, input: object, data: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [fileURLToPath(new URL(`../scripts/${script}`, import.meta.url))], { windowsHide: true, env: { ...process.env, PLUGIN_DATA: data, CAPTAIN_PLUGIN_DATA: data }, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "", stderr = ""; child.stdout.on("data", chunk => stdout += chunk); child.stderr.on("data", chunk => stderr += chunk);
+    child.on("error", reject); child.on("exit", code => code === 0 ? resolve(stdout) : reject(new Error(`actual hook exited ${code}: ${stderr}`)));
+    child.stdin.end(JSON.stringify(input));
+  });
+}
+
+test("actual mutation hook permits owned documentation edits after audited schema migration", async () => {
+  const f = await fixture(); await f.write("README.md", "# Updated\n"); await f.prepare();
+  const governance = await import(new URL("../scripts/governed-repository.mjs", import.meta.url).href);
+  assert.equal(await governance.repositoryIsGoverned(f.worktree), true); assert.equal(await governance.repositoryUsesLowStrictness(f.worktree), false);
+  const result = await actualHook("mutation-gate.mjs", { session_id: "session", turn_id: "turn", cwd: f.worktree, tool_name: "Write", tool_input: { file_path: path.join(f.worktree, "README.md") } }, f.data);
+  assert.equal(result, "", "a lawful classified run must not be mistaken for a missing permit");
+});
+
+test("actual completion hook recognizes fully proved documentation runs", async () => {
+  const f = await fixture(); await f.write("README.md", "# Updated\n"); await f.prepare();
+  await f.store.recordCommit("docs", await f.commit()); const complete = await f.store.prove("docs"); assert.equal(complete.status, "green");
+  const result = await actualHook("completion-gate.mjs", { session_id: "session", turn_id: "turn", cwd: f.worktree }, f.data);
+  assert.equal(result, "", "a green signed documentation run must pass the actual completion hook");
+});
 
 test("a signed documentation run cannot roll back its schema to an older unenforcing runtime format", async () => {
   const f = await fixture(); await f.write("README.md", "# Updated\n"); const run = await f.prepare();

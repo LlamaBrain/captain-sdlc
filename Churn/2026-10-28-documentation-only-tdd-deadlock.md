@@ -87,3 +87,44 @@ The developer fragment retains that implementation OID and target `d6d0ff1`.
 The original docs run remains paused at schema 1 until the verified runtime is
 installed and the supported same-task recovery runs. No CI, remote GitHub or live
 review-provider success is inferred from these local tests.
+
+## Update - 2026-10-28: actual hook compatibility follow-up
+
+The original repair completed signed FEATURE proof at
+`4e83880bbf60cf84457f2b8c1d4f8c0934fde98f` (v0.10.1): build, ticket,
+feature-smoke and affected-regression each exited 0. That historical result is
+retained unchanged in primary ignored scratch as
+`Temp/automation-scratch/docs-unblock/repair-complete-proof.json`. It does not
+certify the subsequent compatibility changes.
+
+Before installation, an isolated real-hook reproduction found a separate reader
+still enforcing the old immutable schema comparison. Core accepted the audited
+schema-1-to-2 documentation transition, but actual `latestRun` and `validPermit`
+both rejected it with `Captain signed run revision binding is invalid`. The
+initial hook unit test exercised policy selection rather than these actual
+readers. The failing reproduction and its isolated fixture are retained in
+primary ignored scratch as `authoritative-hook-repro.log` and its adjacent helper;
+the real authority store and original documentation task were not changed.
+
+Supported Begin opened bounded compatibility task
+`captain-docs-hook-compatibility-20261028`, intent
+`intent-ea1b807c-0324-4eaa-8ee3-54d41f9e2519`, run
+`codex-dd1ee1d8-537d-4e93-8e00-b70146f5a12b`, in the same retained repair
+worktree at base `4e83880`. A genuine actual-reader regression failed before
+product changes and the captured full ticket recorded signed red.
+
+The follow-up extracts Core's run validation into a shared module used by the
+lifecycle, actual hook readers and other signed-run consumers. Focused API/MCP
+and actual-hook checks passed 40 tests, with one physical Windows file-symlink
+test skipped for missing privilege; staged-link and junction cases passed.
+Actual governed mutation and completion child processes now accept the valid
+documentation run. Initial schema-2 records, unaudited migrations and altered
+documentation scopes remain rejected. Legacy lifecycle, policy, authorized
+commit recovery and hook checks passed 62/62; consumer compatibility checks
+passed 24/24. Follow-up logs are retained under the ignored automation scratch
+directory and copied into primary `Temp/automation-scratch/docs-unblock/`.
+
+The compatibility fix is being prepared as v0.10.2. Its signed final proof,
+installation, recovery of the original documentation intent and authorized local
+integration remain separate pending outcomes. The original task remains paused;
+no hosted CI, live reviewer, GitHub status or branch-protection success is claimed.

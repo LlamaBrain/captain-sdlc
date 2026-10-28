@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-28
+
+### Fixed
+
+- Share Core's signed run revision validation with actual hook readers, Begin diagnostics, commit finalization and branch lease recovery. Accept audited documentation schema transitions while rejecting unaudited migrations, scope mutations and schema rollback; preserve ordinary schema-1 workflows (v0.10.2).
+
 ## [0.10.1] - 2026-10-28
 
 ### Changed
