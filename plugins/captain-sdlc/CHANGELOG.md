@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-10-28
+
+### Changed
+
+- Document independent review authority, revision-bound PR lifecycle, shared review schemas, operator enforcement boundaries and evidence-backed M41-M44 implementation status (v0.9.6).
+
 ## [0.9.5] - 2026-10-24
 
 ### Changed

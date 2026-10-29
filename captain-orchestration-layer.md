@@ -114,3 +114,11 @@ implementation repos own code, packaging, and releases.
 ## Version History
 
 - 0.1.0 (2026-07-07): Initial orchestration-layer decision doc.
+
+## Independent pre-merge review (implementation in progress)
+
+[CIR](captain-independent-review.md) extends the M39 publication gate with a distinct, revision-bound PR review lifecycle. Core validates findings and calculates policy; Orchestrator invokes independent provider/scanner/GitHub adapters; daemon only schedules the shared path. Existing manual commands retain their meanings. Passing CIR permits human merge readiness and never performs merge. See ADR-0023/0024 and M41-M44 for the implementation increments and explicit unshipped context/quality capabilities.
+
+Core validates all observations before deterministic risk-preserving deduplication, retains known verified defects until independently evidenced resolution or a scoped human exception, and salts applicability with its policy-engine identity. Orchestrator preserves actual CI execution scope and rechecks the complete same-head PR set before authenticated publication; head-only CI and an ambiguous shared commit status cannot authorize readiness. Event/poll scheduling remains outside Core and must invoke this same path.
+
+Local Orchestrator history includes the initial `2446269` slice (164 tests), first hardening retained at `e4fd685` (205 tests), and engine/deduplication repair retained at `9d40d92` (220 executed tests, one Explicit paid-provider benchmark unexecuted). These locally merged revisions and their source-bound evidence do not close live provider/GitHub acceptance or mark M41-M44 shipped.

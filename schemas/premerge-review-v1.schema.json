@@ -1,0 +1,1440 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:captain-sdlc:premerge-review:1",
+  "schema_version": 1,
+  "title": "Captain Independent Review version 1 record contracts",
+  "description": "Documented serialized Core contracts. Runtime source/evidence corroboration, provenance trust, HMAC authenticity, stale input checks and deterministic policy remain authoritative in Captain.Core/Orchestrator. Nested ReviewHistory inherits the enclosing schema version.",
+  "$ref": "#/$defs/PrReviewRecord",
+  "$defs": {
+    "PrSnapshot": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "head_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "base_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "base_ref": {
+          "type": "string"
+        },
+        "merge_base_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "diff": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "canonical_requirements": {
+          "type": "string"
+        },
+        "repository_rules": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed",
+            "merged"
+          ]
+        },
+        "is_draft": {
+          "type": "boolean"
+        },
+        "mergeable": {
+          "type": "boolean"
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewEvidence"
+          }
+        },
+        "coverage_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewImpact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "test_merge_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "description": "Optional captured test-merge revision. Core and the GitHub adapter validate revision applicability; JSON shape alone cannot establish parent identities."
+        },
+        "open_head_pr_numbers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Complete captured set of open PR numbers in this repository sharing head_sha. Multiple PRs cannot share one successful PR-specific required status."
+        },
+        "status_scope_provenance": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Current open-PR-set collector provenance; GitHub publication requires github-open-pr-set/1. Missing scope fails closed in Core even though omitted legacy fields remain shape-compatible."
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "repository",
+        "number",
+        "head_sha",
+        "base_sha",
+        "base_ref",
+        "merge_base_sha",
+        "diff",
+        "title",
+        "description",
+        "canonical_requirements",
+        "repository_rules",
+        "state",
+        "is_draft",
+        "mergeable",
+        "sources",
+        "evidence",
+        "coverage_limitations",
+        "impact"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewPolicy": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "version": {
+          "type": "string"
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trusted_evidence_provenance_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reviewer_configuration": {
+          "type": "string"
+        },
+        "scanner_configuration": {
+          "type": "string"
+        },
+        "moderate_blocks": {
+          "type": "boolean"
+        },
+        "allow_exceptions": {
+          "type": "boolean"
+        },
+        "exception_identities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "version",
+        "required_evidence",
+        "trusted_evidence_provenance_prefixes",
+        "reviewer_configuration",
+        "scanner_configuration",
+        "moderate_blocks",
+        "allow_exceptions",
+        "exception_identities"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewEvidence": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "head_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "base_sha": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            },
+            {
+              "const": ""
+            }
+          ],
+          "description": "Empty only for explicit head_only evidence. Base-bound or legacy evidence must carry the full current base revision."
+        },
+        "outcome": {
+          "enum": [
+            "pass",
+            "fail",
+            "error"
+          ]
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "detail": {
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "head_only",
+            "head_and_base"
+          ],
+          "description": "Omitted for legacy base-bound evidence. Head-only observations cannot satisfy mandatory base-bound verification."
+        },
+        "tested_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+          "description": "For explicit scopes, the observed revision: current head for head_only; current head or captured test-merge revision for head_and_base. Core checks equality and collector applicability."
+        },
+        "resolved_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Explicit independently checked resolutions. Disappearance from a report is not resolution."
+        },
+        "producer_configuration": {
+          "type": "string",
+          "description": "Producer configuration identity required to match the confirming producer before lifecycle resolution can clear a known defect."
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "kind",
+        "version",
+        "digest",
+        "head_sha",
+        "base_sha",
+        "outcome",
+        "provenance",
+        "finding_ids",
+        "detail"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "scope"
+                ]
+              },
+              {
+                "required": [
+                  "tested_sha"
+                ]
+              }
+            ]
+          },
+          "properties": {
+            "base_sha": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            }
+          }
+        },
+        {
+          "required": [
+            "scope",
+            "tested_sha"
+          ],
+          "properties": {
+            "scope": {
+              "const": "head_only"
+            },
+            "base_sha": {
+              "const": ""
+            }
+          }
+        },
+        {
+          "required": [
+            "scope",
+            "tested_sha"
+          ],
+          "properties": {
+            "scope": {
+              "const": "head_and_base"
+            },
+            "base_sha": {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            }
+          }
+        }
+      ]
+    },
+    "ReviewFinding": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "category": {
+          "enum": [
+            "correctness",
+            "regression",
+            "contract_violation",
+            "security",
+            "concurrency",
+            "lifecycle",
+            "resource_management",
+            "test_coverage",
+            "design_drift",
+            "architectural_violation",
+            "maintainability"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "moderate",
+            "low",
+            "info"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reproduction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resolution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "const": "open"
+        },
+        "classification": {
+          "enum": [
+            "verified",
+            "hypothesis",
+            "advisory"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "category",
+        "severity",
+        "confidence",
+        "path",
+        "start_line",
+        "end_line",
+        "symbol",
+        "source_quote",
+        "observed",
+        "expected",
+        "reproduction",
+        "evidence_refs",
+        "resolution",
+        "state",
+        "classification"
+      ],
+      "additionalProperties": false
+    },
+    "AcceptanceAnalysis": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "expected_behavior": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "ambiguities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "negative_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "integration_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "expected_behavior",
+        "acceptance_criteria",
+        "ambiguities",
+        "invariants",
+        "negative_cases",
+        "integration_surfaces",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "ImplementationAnalysis": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewFinding"
+          }
+        },
+        "examined_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "counterexamples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "test_assessment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "findings",
+        "examined_paths",
+        "counterexamples",
+        "test_assessment",
+        "provider",
+        "model",
+        "provenance"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewException": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "finding_id",
+        "fingerprint",
+        "identity",
+        "reason",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "PrReviewRecord": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_id": {
+          "type": "string",
+          "pattern": "^cir-[0-9a-f]{32}$"
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "head_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "base_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "state": {
+          "enum": [
+            "premerge_review_pending",
+            "premerge_changes_requested",
+            "premerge_review_passed",
+            "ready_for_human_merge",
+            "merged",
+            "closed_unmerged"
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "fail",
+            "needs_human_review",
+            "error"
+          ]
+        },
+        "authority_tag": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "acceptance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AcceptanceAnalysis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "implementation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImplementationAnalysis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/ReviewPolicy"
+        },
+        "impact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewImpact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reported_cost_usd": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewFinding"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewEvidence"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewException"
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewHistory"
+          }
+        },
+        "coverage_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finding_lifecycle": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingLifecycleEntry"
+          },
+          "description": "Optional signed retained defect lifecycle. Omitted legacy records are reconstructed conservatively from current/history findings; missing observations cannot silently clear known defects."
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "review_id",
+        "repository",
+        "number",
+        "task_id",
+        "run_id",
+        "head_sha",
+        "base_sha",
+        "fingerprint",
+        "state",
+        "verdict",
+        "authority_tag",
+        "acceptance",
+        "implementation",
+        "policy",
+        "impact",
+        "elapsed_ms",
+        "reported_cost_usd",
+        "findings",
+        "evidence",
+        "errors",
+        "exceptions",
+        "history",
+        "coverage_limitations",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "SarifReviewEnvelope": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "head_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "base_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "diff_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sarif_json": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "head_sha",
+        "base_sha",
+        "diff_digest",
+        "sarif_json"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewHistory": {
+      "type": "object",
+      "properties": {
+        "review_id": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "state": {
+          "enum": [
+            "premerge_review_pending",
+            "premerge_changes_requested",
+            "premerge_review_passed",
+            "ready_for_human_merge",
+            "merged",
+            "closed_unmerged"
+          ]
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "fail",
+            "needs_human_review",
+            "error"
+          ]
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewFinding"
+          }
+        }
+      },
+      "required": [
+        "review_id",
+        "fingerprint",
+        "state",
+        "verdict",
+        "at",
+        "findings"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewImpact": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "modified_symbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "public_contracts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "potential_call_sites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "potential_tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "module_and_configuration_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "persistence_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coverage_limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "changed_paths",
+        "modified_symbols",
+        "public_contracts",
+        "potential_call_sites",
+        "potential_tests",
+        "module_and_configuration_surfaces",
+        "persistence_surfaces",
+        "coverage_limitations"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewRemediationAttempt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_id": {
+          "type": "string",
+          "pattern": "^cir-[0-9a-f]{32}$"
+        },
+        "reviewed_head": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "handoff_path": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidencePacket"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "attempt",
+        "review_id",
+        "reviewed_head",
+        "finding_ids",
+        "handoff_path",
+        "outcome",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "ReviewRemediationResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "needs_human"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrReviewRecord"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReviewRemediationAttempt"
+          }
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "task_id",
+        "run_id",
+        "status",
+        "reason",
+        "review",
+        "attempts",
+        "elapsed_ms"
+      ],
+      "additionalProperties": false
+    },
+    "EvidencePacket": {
+      "type": "object",
+      "properties": {
+        "authority_tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "evidence_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refs": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authority_tag",
+        "schema_version",
+        "evidence_id",
+        "run_id",
+        "kind",
+        "created_at",
+        "summary",
+        "payload",
+        "refs"
+      ],
+      "additionalProperties": false
+    },
+    "PrPublicationRecord": {
+      "type": "object",
+      "description": "Informational publication transition; does not authorize merge or replace authoritative signed pre-merge review.",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "head_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "state": {
+          "const": "draft_pr_opened"
+        },
+        "authorizes_merge": {
+          "type": "boolean",
+          "const": false
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "task_id",
+        "run_id",
+        "branch",
+        "pr_url",
+        "head_sha",
+        "state",
+        "authorizes_merge",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "FindingLifecycleEntry": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "const": "captain-core-finding-lifecycle/1"
+        },
+        "finding": {
+          "$ref": "#/$defs/ReviewFinding"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "resolved"
+          ]
+        },
+        "first_review_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_confirmed_review_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_confirmed_head_sha": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            },
+            {
+              "const": ""
+            }
+          ],
+          "description": "Empty only when preserving legacy history without its original revision receipt."
+        },
+        "last_confirmed_base_sha": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            },
+            {
+              "const": ""
+            }
+          ],
+          "description": "Empty only when preserving legacy history without its original revision receipt."
+        },
+        "last_confirmed_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "const": ""
+            }
+          ]
+        },
+        "producer_provenance": {
+          "type": "string",
+          "description": "May be empty for legacy history with no retained producer receipt; this does not establish resolution authority."
+        },
+        "producer_version": {
+          "type": "string"
+        },
+        "producer_configuration": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confirmation_scope": {
+          "enum": [
+            "head_only",
+            "head_and_base"
+          ],
+          "description": "Omitted for null/legacy confirmation scope. Head-only resolution cannot clear a previously base-bound confirmation."
+        },
+        "resolution_evidence_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "resolved_review_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "resolved_head_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "resolved_base_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "resolved_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "provenance",
+        "finding",
+        "state",
+        "first_review_id",
+        "last_confirmed_review_id",
+        "last_confirmed_head_sha",
+        "last_confirmed_base_sha",
+        "last_confirmed_fingerprint",
+        "producer_provenance",
+        "producer_version",
+        "producer_configuration",
+        "resolution_evidence_id",
+        "resolved_review_id",
+        "resolved_head_sha",
+        "resolved_base_sha",
+        "resolved_fingerprint"
+      ],
+      "additionalProperties": false
+    },
+    "FindingLifecycleResult": {
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FindingLifecycleEntry"
+          }
+        },
+        "unresolved_blocking_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "provenance": {
+          "const": "captain-core-finding-lifecycle/1"
+        }
+      },
+      "required": [
+        "entries",
+        "unresolved_blocking_ids",
+        "errors",
+        "schema_version",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "description": "Serialized Core reconciliation result. SchemaVersion is emitted explicitly but currently lacks JsonRequired on this nonpersisted result DTO; do not infer strict deserialization enforcement from this shape contract."
+    }
+  }
+}

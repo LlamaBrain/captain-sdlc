@@ -23,3 +23,6 @@
 - [ADR-0021: Task capsules are the operational-memory boundary for resumable phases](0021-task-capsules-resumable-phases-operational-memory.md)
 
 - [ADR-0022: Approved scope and resumable work](0022-approved-scope-and-resumable-work.md)
+
+- [ADR-0023: Independent review and Core authority](0023-independent-review-core-authority.md)
+- [ADR-0024: Revision-bound PR review lifecycle](0024-pr-review-lifecycle-authority.md)
