@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-10-29
+
+### Changed
+
+- Normalize proof source-repair files to the repository line endings for merge validation (v0.10.11).
+
 ## [0.10.10] - 2026-10-29
 
 ### Changed
