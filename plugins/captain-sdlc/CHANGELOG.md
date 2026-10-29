@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-10-29
+
+### Changed
+
+- Retain the developer changelog fragment for the proof source-repair commits at their tested source revision (v0.10.10).
+
 ## [0.10.9] - 2026-10-29
 
 ### Changed
