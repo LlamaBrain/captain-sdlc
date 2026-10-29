@@ -2,23 +2,41 @@
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-10-29
+
+### Changed
+
+- Reconcile the signed CIR documentation and proof source-repair histories during integration (v0.10.12).
+
+## [0.10.11] - 2026-10-29
+
+### Changed
+
+- Normalize proof source-repair files to the repository line endings for merge validation (v0.10.11).
+
 ## [0.10.10] - 2026-10-29
 
 ### Changed
 
 - Record remediation ledger safeguards, verification evidence and execution limits (v0.10.10).
+- Retain the developer changelog fragment for the proof source-repair commits at their tested source revision (v0.10.10).
 
 ## [0.10.9] - 2026-10-29
 
 ### Changed
 
 - Record the exact Orchestrator adapter revisions and verification scope (v0.10.9).
+- Regenerate the tracked distribution for the proof source-repair fix and its version metadata (v0.10.9).
 
 ## [0.10.8] - 2026-10-29
 
 ### Changed
 
 - Record the routed Codex reviewer, bounded synthetic benchmark and remaining isolation and GitHub enforcement limits (v0.10.8).
+
+### Fixed
+
+- Allow active red proof runs to return to implementation for source repair while preserving revision, activation, and lease fences; retain concurrent pause or resume state on generic proof errors (v0.10.8).
 
 ## [0.10.7] - 2026-10-29
 
