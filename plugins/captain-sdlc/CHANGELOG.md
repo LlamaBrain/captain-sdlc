@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-10-29
+
+### Changed
+
+- Record remediation ledger safeguards, verification evidence and execution limits (v0.10.10).
+
 ## [0.10.9] - 2026-10-29
 
 ### Changed
