@@ -1,6 +1,6 @@
 {
   "name": "captain-sdlc",
-  "version": "0.10.4",
+  "version": "0.10.5",
   "description": "Fail-closed Captain SDLC implementation lifecycle for Codex",
   "author": {
     "name": "LlamaBrain"

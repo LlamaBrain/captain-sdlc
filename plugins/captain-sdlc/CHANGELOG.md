@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-10-28
+
+### Changed
+
+- Retain the bounded proof diagnostic fragment at its actual source revision and preserve the earlier failed proof independently (v0.10.5).
+
 ## [0.10.4] - 2026-10-28
 
 ### Fixed
