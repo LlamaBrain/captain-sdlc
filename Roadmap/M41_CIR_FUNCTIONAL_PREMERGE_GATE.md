@@ -1,10 +1,10 @@
 # M41 - CIR_FUNCTIONAL_PREMERGE_GATE
 Status: In progress
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
 
 ## Definition of Done
 
-- [ ] Independent reviewer adapter with a functioning provider through existing routing.
+- [x] Independent reviewer adapter with a functioning provider through existing routing (synthetic live boundary benchmark).
 - [x] Validated structured findings and deterministic Core verdict (local tests).
 - [x] Idempotent draft publication and distinct PR review lifecycle records (fake API).
 - [x] Exact-head GitHub status, stale/failure tests and explicit human merge boundary (fake API).
@@ -35,16 +35,11 @@ so a lower-severity duplicate cannot hide a verified high-severity defect. CLI
 reconciliation still requires trusted scheduling and real strict repository
 protections; it is not an instantaneous or atomic GitHub PR-scope transaction.
 
-HTTP and isolated native providers use existing routing, but successful live
-review remains unverified. Claude is logged out and no local HTTP endpoint was
-available. Outside the sandbox, Codex is authenticated but safe reviewer isolation
-has not been established, and GitHub CLI access to the orchestrator repository is
-authenticated. The GitHub connector separately lacks repository access and status
-write capability. No live PR/status/protection, remote CI-green, release, shipped
-milestone or completed MVP is claimed.
-Implementation reports, operations and measured deterministic corpus evidence are
-retained under captain-orchestrator's `docs/` directory. Authenticated provider
-and live GitHub acceptance remain required before closing M41.
+The `codex-cli` adapter now uses existing routing and separate acceptance and implementation invocations. It fingerprints the executable, prompts, invocation controls and observed MCP inventory, checks inventory/configuration before and after review, and fails closed on tool or error events, invalid output and incomplete turns. Trusted local configuration can race these checks; managed sources may not all be represented. This is not an OS sandbox or proof that all managed sources are disabled.
+
+The actual adapter completed a two-case synthetic C# boundary benchmark: the final run detected the seeded defect, Core blocked the defective case using independently verified scanner evidence, and a fresh review passed the corrected case. The detection metric is location-based and does not mechanically prove the reproduction; findings at other locations are not counted as false positives. The earlier ambiguous corrected-contract result (`needs_human_review`) and later severity-metric failure remain retained as historical evidence. This small benchmark is neither a real PR nor a Unity runtime observation and does not establish general review accuracy.
+
+GitHub CLI access to the Orchestrator repository is authenticated, while the separate connector lacked repository access and status-write capability. GitHub protection/rules reads returned 403, so required enforcement remains unknown. No real PR/status lifecycle, remote CI-green, release, shipped milestone or completed MVP is claimed. Implementation reports, operations and measured evidence are retained under captain-orchestrator's `docs/` directory. Live GitHub acceptance remains required before closing M41.
 
 The separate canonical workflow repair `cfff620` (Captain plugin v0.10.5) completed
 its four signed gates with 821 passing tests and one physical-link privilege skip;

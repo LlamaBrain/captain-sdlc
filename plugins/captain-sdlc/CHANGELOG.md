@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-10-29
+
+### Changed
+
+- Record the routed Codex reviewer, bounded synthetic benchmark and remaining isolation and GitHub enforcement limits (v0.10.8).
+
 ## [0.10.7] - 2026-10-29
 
 ### Changed

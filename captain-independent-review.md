@@ -1,6 +1,6 @@
 # Captain Independent Review and pre-merge governance
 
-Updated: 2026-10-28
+Updated: 2026-10-29
 Version: 1
 Status: implementation in progress; no release or live GitHub enforcement claimed.
 
@@ -30,6 +30,12 @@ Publish captain/premerge-review for the inspected head: pending during evaluatio
 
 These rules run when a trusted CLI/event/poll invocation reconciles the PR. Material requirements, policy or evidence changes at the same head are not observed instantaneously by a SHA-scoped status. Operators must arrange reconciliation and required strict protections. Publication checks and best-effort revocation narrow races; the local slice supplies neither a resident event service nor an atomic GitHub PR-scope transaction.
 
+## Codex reviewer boundary
+
+The `codex-cli` adapter is available through the existing reviewer routing. It uses separate ephemeral acceptance and implementation invocations, while Core validates findings and determines the verdict. The adapter fingerprints the model, executable, prompts, invocation controls and observed MCP inventory. It inventories configured MCP servers, disables observed names and checks configuration and executable identity before and after review; tool or error events, invalid output and incomplete turns fail closed.
+
+These controls depend on trusted, stable local configuration: a concurrent change can race the inventory checks, and managed or plugin MCP sources may not all be represented. They do not prove that all managed sources are disabled, and the read-only working directory and credential scrubbing are not an OS sandbox. Use an operator-controlled isolated environment without privileged credentials for untrusted PRs.
+
 ## Scanner and context boundary
 
 Use scanner adapters with enablement, mandatory/advisory behavior, severity threshold, tool/version provenance, timeout/failure behavior and reasoned suppressions. Mandatory unavailable or unreadable output cannot pass. Normalize scanner evidence; duplicate reports are not independent confirmations. Authenticated publication is separate from untrusted-code execution. PR text, repository docs, comments and model output cannot redefine policy or trusted instructions.
@@ -56,7 +62,9 @@ The original slice was committed as `acddaa8` (v0.4.0), retained in `2446269` (v
 
 An independent review then reproduced a low-before-high deduplication false pass. Source `d9db30a343393593834a10544f3752f1f280ef8c` fixes validation order, risk-preserving deduplication and engine-version fingerprint invalidation; retention `9d40d92e73115832bb0183a9bbbd7cc4079bf02a` (v0.4.5) merged locally without a push. Thirteen of fourteen targeted cases failed before the correction; all fourteen then passed, including the real runner transition from an old cached pass through pending to a fresh high-severity failure. Final warning-as-error build recorded zero warnings/errors, and the full suite passed 81 Core plus 139 Orchestrator tests (220 executed). One Explicit paid-provider benchmark was not executed. An independent linked-source review passed 18 checks and found no blocker; it does not establish live model quality or remote enforcement.
 
-Live acceptance remains open. The read-only GitHub connector authenticates, but fetching the requested repository README returned 404 and installed-repository search returned no match; it exposes no commit-status write capability. Earlier sandboxed authentication checks were misleading: outside that sandbox the GitHub CLI is authenticated and has access to the orchestrator repository, and the Codex CLI reports a ChatGPT login. Claude remains logged out and no local HTTP reviewer endpoint was available. Codex CLI reviewer isolation has not been established, and the authenticated CLI is not itself evidence of a safe reviewer. These separate observations do not imply that every GitHub authentication route is unavailable. No live review, remote CI-green, PR/status/protection change or completed MVP is claimed.
+The actual routed Codex adapter completed a two-case synthetic C# boundary benchmark with separate acceptance and implementation invocations. In the final run it identified the seeded defect, Core blocked the defective case using independently verified scanner evidence, and the corrected case passed a fresh review. This is not a real PR or a Unity runtime test, nor a general accuracy estimate. Its location-based detection metric requires a reproduction but does not itself prove that reproduction demonstrates the seeded behavior; findings elsewhere are not counted as false positives. The earlier integrated run that returned `needs_human_review` for an ambiguous corrected contract remains historical evidence, as do the later severity-metric failure and correction. See Orchestrator `docs/independent-review-implementation-report.md` and its retained evidence for exact results and revisions.
+
+Live GitHub acceptance remains open. The read-only GitHub connector authenticated but lacked repository access and status-write capability; separately, outside the sandbox, GitHub CLI access to the Orchestrator repository and a Codex ChatGPT login were confirmed. GitHub protection/rules reads returned 403, so enforcement is unknown. No real PR/status lifecycle, remote CI-green, protection change, release or completed MVP is claimed.
 
 ## References
 
