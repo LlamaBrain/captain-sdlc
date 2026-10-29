@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.13] - 2026-10-29
+
+### Changed
+
+- Retain the CIR Codex documentation integration fragment at its recorded source revision (v0.10.13).
+
 ## [0.10.12] - 2026-10-29
 
 ### Changed
