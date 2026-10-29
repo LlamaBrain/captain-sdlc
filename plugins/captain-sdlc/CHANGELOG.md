@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-10-28
+
+### Changed
+
+- Retain the original independent-review documentation fragment with its actual source/base revisions, separate from workflow repair proof and outstanding live acceptance (v0.9.7).
+
 ## [0.9.6] - 2026-10-28
 
 ### Changed
