@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-10-29
+
+### Changed
+
+- Regenerate the tracked distribution for the proof source-repair fix and its version metadata (v0.10.9).
+
 ## [0.10.8] - 2026-10-29
 
 ### Fixed

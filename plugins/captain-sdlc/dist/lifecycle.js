@@ -1344,6 +1344,8 @@ export class LifecycleStore {
         }
         if (current.phase === "complete" && current.status === "green")
             return this.finalizeCompletion(intentId);
+        if (current.phase === "prove" && current.status !== "running" && current.status !== "red")
+            throw new Error("proof requires an active running or red run");
         const repairFence = current.phase === "prove" ? await this.proofSourceRepairFence(current) : undefined;
         try {
             return await this.proveAttempt(intentId, repairFence);
@@ -1351,7 +1353,7 @@ export class LifecycleStore {
         catch (error) {
             if (error instanceof ProofSourceDivergenceError) {
                 const latest = await this.run(intentId), expected = error.fence;
-                if (latest.phase !== "prove" || latest.status !== "running" || latest.runId !== expected.runId ||
+                if (latest.phase !== "prove" || latest.status !== current.status || latest.runId !== expected.runId ||
                     latest.revision !== expected.runRevision || digest(JSON.stringify(latest.committedState)) !== expected.committedStateSha256 ||
                     (latest.activationToken ?? latest.operationToken) !== expected.activationToken)
                     throw new Error("Captain run changed concurrently; source repair was not authorized", { cause: error });
@@ -1363,7 +1365,7 @@ export class LifecycleStore {
                 throw new Error(`${error.message}; run returned to implement for repair`, { cause: error });
             }
             const latest = await this.run(intentId);
-            if (latest.phase === "prove")
+            if (latest.phase === "prove" && latest.runId === current.runId && latest.revision === current.revision && latest.status === current.status)
                 await this.update({ ...latest, evidence: [...latest.evidence,
                         { kind: "proof_error", messageSha256: digest(String(error.message)) }] });
             throw error;
