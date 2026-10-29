@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-10-29
+
+### Changed
+
+- Record the exact Orchestrator adapter revisions and verification scope (v0.10.9).
+
 ## [0.10.8] - 2026-10-29
 
 ### Changed
