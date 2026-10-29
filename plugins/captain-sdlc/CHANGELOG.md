@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-28
+
+### Fixed
+
+- Bound independent test-file workers to four and retain the complete native TAP report under ignored automation scratch while preserving console output, every test and the test runner's failure exit code (v0.10.4).
+
 ## [0.10.3] - 2026-10-28
 
 ### Changed

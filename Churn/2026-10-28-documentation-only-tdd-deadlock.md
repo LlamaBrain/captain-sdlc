@@ -128,3 +128,29 @@ The compatibility fix is being prepared as v0.10.2. Its signed final proof,
 installation, recovery of the original documentation intent and authorized local
 integration remain separate pending outcomes. The original task remains paused;
 no hosted CI, live reviewer, GitHub status or branch-protection success is claimed.
+
+## Update - 2026-10-28: failed full proof and retained diagnostics
+
+At `8ad723a8d5d062804363e66d4ac086839af0fff6` (v0.10.3), the captured build
+passed and ticket exited 1. The same compatibility run returned to
+`implement/red`, revision 17. Its public evidence retains the actual failure;
+the original docs run was not replaced or advanced. Captain did not retain the
+test output, so the exact failed test or infrastructure cause is unknown.
+
+Three read-only diagnostic batches then exercised all 57 ticket test files at
+that unchanged clean head: ownership 147/147, lifecycle 74/74, and remaining
+files 600 passed with one physical Windows symlink-privilege skip. Combined:
+821 passed, one skipped, zero failures. These are manual diagnostic results,
+not signed completion or a claim that the original failure was identified.
+The suspected truncated completed-owner fixtures also passed; neither fixtures
+nor immutable run validation were weakened. Raw logs are retained in
+`plugins/captain-sdlc/Temp/automation-scratch/proof-regression-*.log` and copied
+to primary `Temp/automation-scratch/docs-unblock/`.
+
+The next checkpoint caps independent test-file workers at four and duplicates
+native TAP output to an ignored log. It keeps all tests, internal race scenarios,
+the runner's actual exit status and the original captured policy. A separate
+reporter probe confirmed exit 1 for a failing child and 0 for a passing child;
+that probe is not Captain red or product proof. Every captured gate must run
+again before installation and original-task recovery. The prior failure remains
+historical even if the next proof passes.

@@ -362,3 +362,13 @@ Released ready/preparing Merge Prep receipts likewise cease exclusive target own
 Then continue the original authorized Prep in the same task and target worktrees.
 This companion does not extend orphan eligibility or permit takeover of active
 or progressed work.
+
+### Full-suite test diagnostics
+
+`npm test` retains the native TAP report at
+`Temp/automation-scratch/package-test.tap` and also prints it to the console.
+The ignored report is replaced by the next run; copy it with its source revision
+when retaining a failure. Independent test files use four workers. All test cases
+and their explicit competing-actor scenarios still run, and any failure keeps
+the actual nonzero exit code. Captured Captain proof commands remain unchanged.
+This uses Node's [multiple reporters](https://nodejs.org/download/release/v22.17.0/docs/api/test.html#multiple-reporters).
