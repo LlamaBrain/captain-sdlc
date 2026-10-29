@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-10-29
+
+### Changed
+
+- Normalize the independent-review documentation for the signed target-relative merge check (v0.10.7).
+
 ## [0.10.6] - 2026-10-29
 
 ### Changed
