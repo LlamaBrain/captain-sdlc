@@ -28,6 +28,45 @@ Doxygen can be repaired in that new commit. Every candidate version surface must
 
 Each governed repository must commit `.captain-sdlc/codex-policy.json`. When `commitPolicyPath` is configured, its schema-versioned repository policy is also loaded from the captured base. Proof commands and commit rules come only from that trusted state; MCP callers cannot replace them with `exit 0` or mutable working-tree policy.
 
+## Documentation-only work
+
+After Begin, use `captain_prepare_documentation` before editing a clean documentation
+task, or to recover documentation already retained in the same task worktree:
+
+```json
+{
+  "intent_id": "<existing intent>",
+  "paths": ["README.md", "docs/operator-guide.md"],
+  "reason": "Update operator guidance without changing executable behavior",
+  "expected_head": "<exact current governed commit SHA>"
+}
+```
+
+A clean worktree can declare existing or new documents. With existing changes, the
+selected paths must match the entire dirty set. Captain validates paths, regular
+file modes, link boundaries and contents, then records schema-versioned
+`documentationScope` evidence and moves the original run to `implement`. The run
+advances from schema 1 to schema 2 through that audited transition, so older
+runtimes reject its revision chain instead of ignoring the new restrictions. Use
+the installed runtime's public transport if the host still exposes older tools.
+Ordinary code runs retain schema 1. The documentation transition does
+not record a failing test or alter the captured project policy. Exact retries are
+idempotent; a changed request cannot replace the scope.
+
+Commit reservation, candidate authorization, commit recovery and proof enforce the
+whole pinned-base delta. Code, control-plane Markdown, executable sequence fences,
+ignored executable inputs and arbitrary generated changes are refused. Captured
+release surfaces can change only their version metadata; generated JavaScript can
+propagate one exact version property. Captured changelogs and new task-owned
+developer fragments remain supported. This narrow profile is not a classifier for
+arbitrary build systems that execute documentation.
+
+Use the normal TDD workflow for work that changes code or controls. Documentation
+still requires every captured build, ticket, smoke, regression and human gate.
+Complete its commit and proof before standalone Merge Prep imports upstream code.
+Do not create another task, edit signed policy, or manufacture a red test to recover
+an existing documentation task.
+
 ## Original objectives and task consent
 
 Captain keeps the exact human request and its objective lines separately from the agent-supplied implementation objective. Prompt hooks capture repository-bound source events even before a task exists; intent adapters bind them to the validated task. `captain_issue_intent` accepts `request_kind: "goal"` for a user-requested goal and an optional `source_request_id` from the prompt hook. These are internal adapter fields, not phrases the human must repeat.
@@ -323,3 +362,13 @@ Released ready/preparing Merge Prep receipts likewise cease exclusive target own
 Then continue the original authorized Prep in the same task and target worktrees.
 This companion does not extend orphan eligibility or permit takeover of active
 or progressed work.
+
+### Full-suite test diagnostics
+
+`npm test` retains the native TAP report at
+`Temp/automation-scratch/package-test.tap` and also prints it to the console.
+The ignored report is replaced by the next run; copy it with its source revision
+when retaining a failure. Independent test files use four workers. All test cases
+and their explicit competing-actor scenarios still run, and any failure keeps
+the actual nonzero exit code. Captured Captain proof commands remain unchanged.
+This uses Node's [multiple reporters](https://nodejs.org/download/release/v22.17.0/docs/api/test.html#multiple-reporters).

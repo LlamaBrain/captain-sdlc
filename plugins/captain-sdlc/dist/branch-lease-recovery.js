@@ -5,6 +5,7 @@ import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedLegacyLeaseMigrationReadOnly, readAuthorizedReadOnly, releaseAuthorizedLeaseAtGeneration, releaseAuthorizedLegacyLeaseAtGeneration } from "./authority.js";
 import { git } from "./workspace.js";
 import { LifecycleStore } from "./lifecycle.js";
+import { assertRunRevisionTransition, isSupportedRunSchema } from "./run-validation.js";
 import { BookkeepingFinalizationStore } from "./bookkeeping-finalization.js";
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { verifiedFailedBeginCancellationMarker } from "./failed-begin-cancellation.js";
@@ -215,7 +216,7 @@ export class BranchLeaseRecoveryStore {
         const entries = await inventory(this.dataRoot);
         const run = owner && typeof owner.runId === "string" ? entries.find(entry => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : undefined;
         const r = run?.value, activation = r?.activationToken ?? r?.operationToken;
-        const verified = Boolean(r && r.schemaVersion === 1 && sessionLease && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && typeof activation === "string" && activation && r.sessionId === original.sessionId && owner?.sessionId === original.sessionId && owner?.operation === "session-active" && owner?.operationToken === activation && owner?.leaseToken === activation && typeof r.phase === "string" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(r.phase) && ["running", "paused", "green", "red"].includes(r.status));
+        const verified = Boolean(r && isSupportedRunSchema(r) && sessionLease && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && typeof activation === "string" && activation && r.sessionId === original.sessionId && owner?.sessionId === original.sessionId && owner?.operation === "session-active" && owner?.operationToken === activation && owner?.leaseToken === activation && typeof r.phase === "string" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(r.phase) && ["running", "paused", "green", "red"].includes(r.status));
         const terminalShape = Boolean(projection && digest(Object.keys(projection).sort()) === digest(["complete", "intentId", "operationToken"]) && projection.intentId === "none" && projection.complete === true && typeof projection.operationToken === "string");
         const ownerShape = Boolean(projection && projection.schemaVersion === 1 && digest(Object.keys(projection).sort()) === digest(["intentId", "leaseId", "leaseToken", "operationToken", "runId", "schemaVersion", "sessionId"]) && typeof projection.intentId === "string" && typeof projection.operationToken === "string");
         return {
@@ -661,12 +662,12 @@ function targetOwnerDiagnostic(entry, entries, binding, evidence) {
     const v = entry.value;
     const references = ["intentId", "runId", "operationToken"];
     const supplied = references.filter(key => typeof v[key] === "string");
-    const correlated = entries.filter(candidate => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && candidate.value.schemaVersion === 1 && supplied.length && supplied.every(key => key === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key]) : candidate.value[key] === v[key]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
+    const correlated = entries.filter(candidate => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && isSupportedRunSchema(candidate.value) && supplied.length && supplied.every(key => key === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key]) : candidate.value[key] === v[key]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
     const run = correlated.length === 1 ? correlated[0] : undefined;
     const verified = Boolean(run && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(run.value.phase) && ["running", "paused", "green", "red"].includes(run.value.status));
     const commonMatches = typeof v.commonGitDir === "string" && samePath(v.commonGitDir, binding.commonGitDir);
     return {
-        bucket: entry.bucket, schema_recognized: v.schemaVersion === 1 || v.schema_version === 1,
+        bucket: entry.bucket, schema_recognized: ["runs", "run-revisions"].includes(entry.bucket) ? isSupportedRunSchema(v) : v.schemaVersion === 1 || v.schema_version === 1,
         actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some(location => typeof location === "string" && samePath(location, binding.topLevel)),
         actual_branch_matches: v.branch === binding.branch && commonMatches, common_git_matches: commonMatches,
         planned_target_branch_matches: [v.targetBranch, v.target_branch].includes(binding.branch),
@@ -792,6 +793,8 @@ async function inventory(root) {
                 const entry = revisions.get(`${id}-${revision}`), current = entry.value, mark = marks.get(`${id}-${revision}`)?.value;
                 if (!mark || current[idField] !== id || current.revision !== revision || current[previousField] !== (previous ? digest(previous) : undefined) || mark[idField] !== id || mark.revision !== revision || mark[hashField] !== digest(current))
                     throw new Error("signed ownership revision chain or watermark is invalid");
+                if (kind === "run")
+                    assertRunRevisionTransition(previous, current);
                 if (revision < numbers.length - 1)
                     obsolete.add(entry);
                 previous = current;
@@ -805,6 +808,9 @@ async function inventory(root) {
     }
     // Historical records still protect their exact old intent. Only ownership checks use latest revisions.
     const latestRuns = entries.filter(entry => !obsolete.has(entry) && ["runs", "run-revisions"].includes(entry.bucket));
+    for (const entry of latestRuns)
+        if (entry.bucket === "runs" && (entry.value.schemaVersion === 2 || entry.value.documentationScope))
+            throw new Error("documentation ownership requires its audited run revision chain");
     for (const entry of entries) {
         if (!["begin-workspaces", "begin-active", "begin-activated", "permits", "resume-operations"].includes(entry.bucket))
             continue;

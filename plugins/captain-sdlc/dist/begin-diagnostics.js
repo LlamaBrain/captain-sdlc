@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { assertRunRevisionTransition, isSupportedRunSchema } from "./run-validation.js";
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const digestText = (value) => createHash("sha256").update(value).digest("hex");
 const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -77,7 +78,7 @@ async function inspectRunHistory(intentId, operation, intent, canonicalWorktreeP
     const watermarks = exactRevisions(watermarkNames, intentId, "run-watermark");
     if (revisions.length === 0 && watermarks.length === 0) {
         if (legacy.present) {
-            if (!runMatches(legacy.value, intentId, operation, intent, canonicalWorktreePath)) {
+            if (legacy.value.schemaVersion !== 1 || legacy.value.documentationScope || !runMatches(legacy.value, intentId, operation, intent, canonicalWorktreePath)) {
                 throw new Error("legacy_run_binding_invalid");
             }
             return { present: true, integrity: "verified", revisionCount: 0 };
@@ -92,8 +93,7 @@ async function inspectRunHistory(intentId, operation, intent, canonicalWorktreeP
         const current = await maybeRead(deps, "run-revisions", intentId + "-" + revision);
         if (!current.present)
             throw new Error("run_revision_missing");
-        if (current.value.schemaVersion !== 1 ||
-            current.value.intentId !== intentId ||
+        if (current.value.intentId !== intentId ||
             current.value.revision !== revision ||
             !runMatches(current.value, intentId, operation, intent, canonicalWorktreePath) ||
             (revision === 0
@@ -112,6 +112,7 @@ async function inspectRunHistory(intentId, operation, intent, canonicalWorktreeP
         if (!watermark.present || JSON.stringify(watermark.value) !== JSON.stringify(expected)) {
             throw new Error("run_watermark_invalid");
         }
+        assertRunRevisionTransition(previous, current.value);
         previous = current.value;
     }
     if (watermarks.some(value => value > revisions.length - 1)) {
@@ -125,7 +126,7 @@ async function inspectRunHistory(intentId, operation, intent, canonicalWorktreeP
     return { present: true, integrity: "verified", revisionCount: revisions.length };
 }
 function runMatches(run, intentId, operation, intent, canonicalWorktreePath) {
-    return run.schemaVersion === 1 &&
+    return isSupportedRunSchema(run) &&
         run.intentId === intentId &&
         run.runId === operation.runId &&
         run.operationToken === operation.operationToken &&

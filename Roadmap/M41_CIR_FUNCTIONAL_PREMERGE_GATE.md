@@ -36,12 +36,12 @@ reconciliation still requires trusted scheduling and real strict repository
 protections; it is not an instantaneous or atomic GitHub PR-scope transaction.
 
 HTTP and isolated native providers use existing routing, but successful live
-review remains unverified: Claude/Codex CLIs are unauthenticated and no local HTTP
-endpoint is available. The read-only GitHub connector authenticates, while the
-requested repository README returned 404 and installed-repository search found
-no match; no commit-status write capability is exposed. The actual GitHub CLI
-adapter still has invalid local credentials. No live PR/status/protection,
-remote CI-green, release, shipped milestone or completed MVP is claimed.
+review remains unverified. Claude is logged out and no local HTTP endpoint was
+available. Outside the sandbox, Codex is authenticated but safe reviewer isolation
+has not been established, and GitHub CLI access to the orchestrator repository is
+authenticated. The GitHub connector separately lacks repository access and status
+write capability. No live PR/status/protection, remote CI-green, release, shipped
+milestone or completed MVP is claimed.
 Implementation reports, operations and measured deterministic corpus evidence are
 retained under captain-orchestrator's `docs/` directory. Authenticated provider
 and live GitHub acceptance remain required before closing M41.

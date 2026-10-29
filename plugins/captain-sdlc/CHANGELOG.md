@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-10-29
+
+### Changed
+
+- Integrate the independently verified review architecture and pre-merge governance documentation with the audited documentation lifecycle (v0.10.6).
+
+## [0.10.5] - 2026-10-28
+
+### Changed
+
+- Retain the bounded proof diagnostic fragment at its actual source revision and preserve the earlier failed proof independently (v0.10.5).
+
+## [0.10.4] - 2026-10-28
+
+### Fixed
+
+- Bound independent test-file workers to four and retain the complete native TAP report under ignored automation scratch while preserving console output, every test and the test runner's failure exit code (v0.10.4).
+
+## [0.10.3] - 2026-10-28
+
+### Changed
+
+- Retain the developer fragment for the independently verified hook compatibility repair at its actual source revision (v0.10.3).
+
+## [0.10.2] - 2026-10-28
+
+### Fixed
+
+- Share Core's signed run revision validation with actual hook readers, Begin diagnostics, commit finalization and branch lease recovery. Accept audited documentation schema transitions while rejecting unaudited migrations, scope mutations and schema rollback; preserve ordinary schema-1 workflows (v0.10.2).
+
+## [0.10.1] - 2026-10-28
+
+### Changed
+
+- Retain the audited documentation lifecycle developer fragment at its actual implementation revision and pinned target; record focused compatibility and negative-test results separately from pending signed proof (v0.10.1).
+
+## [0.10.0] - 2026-10-28
+
+### Added
+
+- Add an audited documentation-only transition for existing owned runs, retaining captured policy and proof gates without fabricating a failing code test. Bind planned/retained file scopes, exact version metadata, commit candidates, recovery and proof; reject executable/control changes and unsafe links or modes (v0.10.0).
+
 ## [0.9.7] - 2026-10-28
 
 ### Changed

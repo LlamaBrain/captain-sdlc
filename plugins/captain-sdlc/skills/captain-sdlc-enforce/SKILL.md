@@ -66,6 +66,24 @@ Retain evidence at its real revision; documentation alone does not justify repea
 checks. Signed proof validation still applies. Retry failures only after the relevant input
 or diagnosed cause changes; after three unsuccessful approaches, record the blocker once.
 
+## Documentation-only tasks
+
+After Begin, use `captain_prepare_documentation` for a documentation-only task.
+Pass the existing intent, exact governed `expected_head`, selected `paths`, and a
+concrete `reason`. For a clean worktree, declare intended existing/new documents
+before editing them. If documents are already dirty, select the entire changed
+set. The public operation validates the files and records signed documentation
+scope, then enters `implement` without pretending a failing code test ran.
+
+Keep the same task and captured policy. Every captured proof command and human
+gate still applies. Code/control paths, executable fences, ignored code, link or
+mode changes, and changes outside the signed documentation/release scope are
+refused at commit and proof. Version surfaces permit exact metadata changes only;
+generated output directories do not grant code-write authority. Use normal TDD
+for code or control changes. Finish documentation commit/proof before standalone
+Merge Prep imports upstream implementation changes. Never fabricate a test or
+replace the original run merely to commit its documents.
+
 ## Fluid task lifecycle
 
 Keep one task in its existing worktree across turns, models and sessions. Use the issue
