@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-10-29
+
+### Fixed
+
+- Allow active red proof runs to return to implementation for source repair while preserving revision, activation, and lease fences; retain concurrent pause or resume state on generic proof errors (v0.10.8).
+
 ## [0.10.7] - 2026-10-29
 
 ### Changed

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { LifecycleStore, type SourceState, type Run } from "../src/lifecycle.js";
-import { ensureAuthorizedLease, readAuthorizedLease, releaseAuthorizedLease, writeAuthorized } from "../src/authority.js";
+import { ensureAuthorizedLease, readAuthorized, readAuthorizedLease, releaseAuthorizedLease, writeAuthorized } from "../src/authority.js";
 
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), "captain-proof-repair-"));
@@ -16,11 +17,12 @@ async function fixture() {
   const state: SourceState = { ...binding, head: "a".repeat(40), branchHead: "a".repeat(40), tree: "c".repeat(40), status: "", manifest: "manifest-before", topLevel: worktree };
   const commands: string[] = [];
   let red = true, sequence = 0, commitCount = 0;
-  const controls: { onProbe?: () => Promise<void>; onCommand?: (command: string) => Promise<void> } = {};
+  const controls: { onProbe?: () => Promise<void>; onCommand?: (command: string) => Promise<void>; failBuild?: boolean } = {};
   const store = new LifecycleStore(data, async command => {
     commands.push(command);
     await controls.onCommand?.(command);
     if (command === "ticket" && red) { red = false; return { exitCode: 1, stdout: "ticket fails", stderr: "" }; }
+    if (command === "build" && controls.failBuild) return { exitCode: 1, stdout: "build fails", stderr: "" };
     if (command === "build") await writeFile(path.join(worktree, "build.zip"), `build-${++sequence}`);
     if (command === "smoke") await writeFile(path.join(worktree, "smoke.json"), `smoke-${++sequence}`);
     return { exitCode: 0, stdout: command, stderr: "" };
@@ -37,6 +39,110 @@ async function fixture() {
   commands.length = 0;
   return { root, data, worktree, policy, state, commands, controls, store, committed, commit };
 }
+
+for (const timing of ["before", "during"] as const) test(`red proof after a repair commit returns to implementation on ${timing} build source divergence`, async () => {
+  const f = await fixture();
+  f.controls.failBuild = true;
+  await assert.rejects(() => f.store.prove("repair"), /build proof failed/);
+  f.controls.failBuild = false;
+  const recommitted = await f.commit("d".repeat(40));
+  assert.equal(recommitted.phase, "prove"); assert.equal(recommitted.status, "red");
+  f.commands.length = 0;
+  if (timing === "before") f.state.manifest = "generated-version-divergence";
+  else f.controls.onCommand = async command => { if (command === "build") f.state.manifest = "generated-version-divergence"; };
+  await assert.rejects(() => f.store.prove("repair"), /source state diverged.*returned to implement/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "implement"); assert.equal(after.status, "red");
+  retained(recommitted, after);
+  assert.equal(after.evidence.at(-1)?.repairRequired, true);
+  assert.deepEqual(f.commands, timing === "before" ? [] : ["build"]);
+});
+
+for (const interference of ["pause", "resume", "lease-aba"] as const) test(`red proof ${interference} cannot grant source repair`, async () => {
+  const f = await fixture();
+  f.controls.failBuild = true;
+  await assert.rejects(() => f.store.prove("repair"), /build proof failed/);
+  f.controls.failBuild = false;
+  const recommitted = await f.commit("d".repeat(40));
+  f.commands.length = 0;
+  let protectedRun: Run | undefined;
+  f.controls.onProbe = async () => {
+    f.controls.onProbe = undefined;
+    if (interference === "pause") {
+      await f.store.pause("repair", { summary: "Pause during red proof", nextSteps: ["Continue retained run"] });
+      protectedRun = await f.store.status("repair");
+    } else if (interference === "resume") {
+      await f.store.markIntent({ intentId: "resume", sessionId: "owner", turnId: "turn-2", projectRoot: f.root, prompt: "continue", resumeOf: "repair" });
+      await f.store.resume("resume");
+      protectedRun = await f.store.status("repair");
+    } else {
+      const payload = await readAuthorizedLease<any>(f.data, recommitted.sessionLeaseId!);
+      await releaseAuthorizedLease(f.data, recommitted.sessionLeaseId!, "repair", recommitted.sessionLeaseToken!);
+      await ensureAuthorizedLease(f.data, recommitted.sessionLeaseId!, payload);
+      protectedRun = recommitted;
+    }
+    f.state.status = " M src/x.ts";
+  };
+  await assert.rejects(() => f.store.prove("repair"), /changed concurrently|lease generation|ownership/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "prove");
+  assert.equal(after.status, interference === "pause" ? "paused" : "red");
+  if (interference === "resume") assert.equal(after.turnId, "turn-2");
+  assert.equal(after.revision, protectedRun!.revision);
+  assert.deepEqual(after.evidence, protectedRun!.evidence);
+  assert.deepEqual(f.commands, []);
+});
+
+test("paused proof cannot grant repair or run commands", async () => {
+  const f = await fixture();
+  await f.store.pause("repair", { summary: "Pause before proof", nextSteps: ["Resume proof"] });
+  const paused = await f.store.status("repair"); f.state.status = " M src/x.ts";
+  await assert.rejects(() => f.store.prove("repair"), /active running or red/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "prove"); assert.equal(after.status, "paused");
+  assert.equal(after.revision, paused.revision); assert.deepEqual(after.evidence, paused.evidence);
+  assert.deepEqual(f.commands, []);
+});
+
+test("red proof with foreign activation cannot grant repair", async () => {
+  const f = await fixture(); f.controls.failBuild = true;
+  await assert.rejects(() => f.store.prove("repair"), /build proof failed/);
+  f.controls.failBuild = false;
+  const recommitted = await f.commit("d".repeat(40)); f.commands.length = 0;
+  await writeAuthorized(f.data, "active", "owner", { operationToken: "foreign" });
+  f.state.status = " M src/x.ts";
+  await assert.rejects(() => f.store.prove("repair"), /activation|ownership/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "prove"); assert.equal(after.status, "red");
+  assert.equal(after.revision, recommitted.revision); assert.deepEqual(after.evidence, recommitted.evidence);
+  assert.deepEqual(f.commands, []);
+});
+
+test("green proof phase cannot grant repair or run commands", async () => {
+  const f = await fixture();
+  const previous = await readAuthorized<Run>(f.data, "run-revisions", `repair-${f.committed.revision}`);
+  const green = { ...previous, status: "green" as const, revision: previous.revision + 1, previousRevisionSha256: createHash("sha256").update(JSON.stringify(previous)).digest("hex") };
+  await writeAuthorized(f.data, "run-revisions", `repair-${green.revision}`, green);
+  f.state.status = " M src/x.ts";
+  await assert.rejects(() => f.store.prove("repair"), /active running or red/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "prove"); assert.equal(after.status, "green");
+  assert.equal(after.revision, green.revision); assert.deepEqual(after.evidence, green.evidence);
+  assert.deepEqual(f.commands, []);
+});
+
+test("generic probe error preserves a concurrent pause", async () => {
+  const f = await fixture(); let paused: Run | undefined;
+  f.controls.onProbe = async () => {
+    f.controls.onProbe = undefined;
+    await f.store.pause("repair", { summary: "Pause before probe failure", nextSteps: ["Resume"] });
+    paused = await f.store.status("repair"); throw new Error("probe inaccessible");
+  };
+  await assert.rejects(() => f.store.prove("repair"), /probe inaccessible/);
+  const after = await f.store.status("repair");
+  assert.equal(after.phase, "prove"); assert.equal(after.status, "paused");
+  assert.equal(after.revision, paused!.revision); assert.deepEqual(after.evidence, paused!.evidence);
+});
 
 function retained(before: Run, after: Run) {
   for (const key of ["runId", "intentId", "worktreePath", "branch", "sessionId", "policy", "committedState"] as const)
