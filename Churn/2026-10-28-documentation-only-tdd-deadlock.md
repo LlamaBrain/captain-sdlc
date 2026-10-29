@@ -1,6 +1,6 @@
 # 2026-10-28 - Documentation-only work cannot leave the code TDD phase
 
-**Status: ONGOING - repair in progress**
+**Status: RESOLVED locally - original task recovered and merged**
 
 **Occurrence:** 2026-10-28, America/Los_Angeles.
 **Date basis:** Current conversation, public Captain status and rejected commit.
@@ -154,3 +154,32 @@ reporter probe confirmed exit 1 for a failing child and 0 for a passing child;
 that probe is not Captain red or product proof. Every captured gate must run
 again before installation and original-task recovery. The prior failure remains
 historical even if the next proof passes.
+
+## Update - 2026-10-29: recovery and integration
+
+The compatibility follow-up completed all four captured signed gates at
+`cfff62090ce1c06611bed688f72fc0c18e2e9c63`; its full ticket recorded 821 passes
+and one Windows physical-symlink privilege skip. The previous unexplained failed
+proof remains a distinct historical observation. The installed v0.10.5 public
+runtime resumed the original intent and run, preserved the captured policy, and
+completed the documentation-only proof at `1b2e975b35432b5f00afa30b92b2d5d1d724787b`
+without inventing a code-test failure. Status is schema 2, complete/green,
+revision 22.
+
+Merge Prep `merge-169eebe0-4ac2-4921-aa12-3019b7873a4a` imported the current
+target and preserved both version histories. Its first integration commit failed
+the target-relative whitespace check because nine documentation blobs contained
+CRLF bytes. Normalizing those task-owned files and making a separate versioned
+repair commit produced a passing check. The same operation reached signed ready
+at `c71d0ebdb45ebfc74fb9d113b87cfe10312d497e`, with the captured merge build
+passing, then merged locally with a valid receipt. Captain removed the completed
+documentation worktree; the separate repair worktree remains retained because it
+contains a nested Git repository. The installed plugin was refreshed to v0.10.7
+and read the original signed run successfully.
+
+An earlier sandbox-only authentication diagnosis was misleading. Outside that
+sandbox, GitHub CLI has access to the orchestrator repository and Codex CLI is
+authenticated; Claude is logged out and Codex reviewer isolation is unproven.
+Read-only requests for GitHub branch protection and rulesets returned HTTP 403
+requiring an eligible plan or a public repository. No live reviewer benchmark,
+remote CI success, protection change, or push is claimed.
