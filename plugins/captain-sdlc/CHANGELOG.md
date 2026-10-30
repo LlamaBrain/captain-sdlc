@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-29
+
+### Fixed
+
+- Keep Windows storage-smoke Git fixtures on short owned paths when the primary checkout is deeply nested (v0.11.2).
+
 ## [0.11.1] - 2026-10-29
 
 ### Changed

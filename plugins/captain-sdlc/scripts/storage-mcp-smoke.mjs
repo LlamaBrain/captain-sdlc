@@ -19,7 +19,10 @@ try {
   if (path.basename(common).toLowerCase() === ".git") {
     const primary = path.dirname(common), relative = "Temp/automation-scratch/storage-mcp/";
     await git(primary, "check-ignore", "--quiet", "--", relative);
-    scratchRoot = path.join(primary, relative);
+    const candidate = path.join(primary, relative);
+    // Git's Windows GIT_DIR limit still applies with core.longpaths enabled.
+    // Reserve room for fixture names, linked worktrees and their intent IDs.
+    if (process.platform !== "win32" || candidate.length <= 120) scratchRoot = candidate;
   }
 } catch { /* An installed runtime outside a Git checkout uses a disposable OS temp fixture. */ }
 await mkdir(scratchRoot, { recursive: true });
