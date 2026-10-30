@@ -266,7 +266,22 @@ test("gate failure prevents Back and unchanged retries", async () => {
   const f = await fixture(); let failed = true, count = 0; const store = new MergeWorkflowStore(f.data, async () => { count++; return failed ? { ...ok, exitCode: 1 } : ok; }); await commit(f.source, "task.txt", "task\n"); const first = await store.prep(f.args); assert.equal(first.state, "failed"); await assert.rejects(() => store.back({ merge_id: first.merge_id, session_id: f.args.session_id }), /ready/); failed = false; await assert.rejects(() => store.prep({ ...f.args, merge_id: first.merge_id }), /relevant.*input|unchanged/); assert.equal(count, 1); await commit(f.source, "task.txt", "repaired\n"); assert.equal((await store.prep({ ...f.args, merge_id: first.merge_id })).state, "ready"); assert.equal(count, 2);
 });
 test("Back rejects target and source movement", async () => { for (const changed of ["target", "source"] as const) { const f = await fixture(), store = new MergeWorkflowStore(f.data, async () => ok); await commit(f.source, "task.txt", "task\n"); const ready = await store.prep(f.args); await commit(f[changed], "shared.txt", `${changed}\n`); await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /stale|changed|diverged/); } });
-test("Back pins ignored inputs and untracked root metadata", async () => { for (const filename of ["vendor/code.txt", "vendor.meta"]) { const f = await fixture(), store = new MergeWorkflowStore(f.data, async () => ok); await mkdir(path.join(f.source, "vendor")); await writeFile(path.join(f.source, filename), "before\n"); await commit(f.source, "task.txt", "task\n"); const ready = await store.prep(f.args); assert.equal(ready.state, "ready"); await writeFile(path.join(f.source, filename), "after\n"); await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /input|stale|changed/); } });
+test("Back pins ignored inputs and untracked metadata", async () => { for (const filename of ["vendor/code.txt", "vendor.meta", "vendor/nested.META"]) { const f = await fixture(), store = new MergeWorkflowStore(f.data, async () => ok); await mkdir(path.join(f.source, "vendor")); await writeFile(path.join(f.source, filename), "before\n"); await commit(f.source, "task.txt", "task\n"); const ready = await store.prep(f.args); assert.equal(ready.state, "ready"); await writeFile(path.join(f.source, filename), "after\n"); await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /input|stale|changed/); } });
+test("inherited literal pathspec mode cannot hide ignored metadata", async () => {
+  const f = await fixture(), store = new MergeWorkflowStore(f.data, async () => ok);
+  await mkdir(path.join(f.source, "vendor"));
+  const metadata = path.join(f.source, "vendor", "nested.META");
+  await writeFile(metadata, "before\n"); await commit(f.source, "task.txt", "task\n");
+  const previous = process.env.GIT_LITERAL_PATHSPECS;
+  process.env.GIT_LITERAL_PATHSPECS = "1";
+  try {
+    const ready = await store.prep(f.args); assert.equal(ready.state, "ready");
+    await writeFile(metadata, "after\n");
+    assert.equal((await store.status({ merge_id: ready.merge_id, session_id: f.args.session_id })).receipt_valid, false);
+  } finally {
+    if (previous === undefined) delete process.env.GIT_LITERAL_PATHSPECS; else process.env.GIT_LITERAL_PATHSPECS = previous;
+  }
+});
 test("local file packages pin actual content and revision", async () => {
   const f = await fixture(), dep = path.join(f.container, "dependency"); await mkdir(dep); await git(dep, "init", "-b", "main"); await git(dep, "config", "user.name", "Captain Test"); await git(dep, "config", "user.email", "captain@example.invalid"); await commit(dep, "code.ts", "before\n"); await mkdir(path.join(f.source, "Packages")); await writeFile(path.join(f.source, "Packages", "manifest.json"), JSON.stringify({ dependencies: { "com.example.dep": `file:${dep.replaceAll("\\", "/")}` } })); await git(f.source, "add", "Packages"); await git(f.source, "commit", "-m", "feat(test): package fixture"); const store = new MergeWorkflowStore(f.data, async () => ok), ready = await store.prep(f.args); assert.equal(ready.state, "ready"); await writeFile(path.join(dep, "code.ts"), "dirty after\n"); await assert.rejects(() => store.back({ merge_id: ready.merge_id, session_id: f.args.session_id }), /depend|input|stale/);
 });

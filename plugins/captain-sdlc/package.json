@@ -1,6 +1,6 @@
 {
   "name": "@captain-sdlc/codex-plugin",
-  "version": "0.10.7",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "node -e \"require('node:fs').mkdirSync('Temp/automation-scratch', { recursive: true })\"",
     "test": "npm run build && node --import tsx --test --test-concurrency=4 --test-reporter=tap --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=Temp/automation-scratch/package-test.tap tests/*.test.ts",
-    "smoke": "node scripts/mcp-smoke.mjs && node scripts/bookkeeping-mcp-smoke.mjs && node scripts/orphan-lease-mcp-smoke.mjs && node scripts/failed-begin-mcp-smoke.mjs && node scripts/storage-mcp-smoke.mjs",
+    "smoke": "node scripts/mcp-smoke.mjs && node scripts/bookkeeping-mcp-smoke.mjs && node scripts/orphan-lease-mcp-smoke.mjs && node scripts/failed-begin-mcp-smoke.mjs && node scripts/storage-mcp-smoke.mjs && node scripts/lfs-mcp-smoke.mjs",
     "smoke:merge": "node scripts/merge-mcp-smoke.mjs && node scripts/merge-lifecycle-mcp-smoke.mjs",
     "test:pending-work": "node --import tsx --test tests/pending-work.test.ts"
   },

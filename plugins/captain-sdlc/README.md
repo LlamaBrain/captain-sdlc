@@ -84,6 +84,42 @@ and groups predecessor branches under their unmerged descendants. The audit
 keeps integration, local installation, proof and human acceptance separate; it
 does not authorize merging, cleanup or implementation of discovered work.
 
+## Git LFS and Unreal projects
+
+Captain can inspect hydrated Git LFS files, create worktrees from locally available LFS
+objects, and stage changed LFS assets as pointers. It uses isolated Git metadata rather
+than executing repository-configured clean, smudge, process, or merge drivers. LFS object
+contents are checked against their SHA-256 pointers; fetch missing objects with your normal
+Git LFS tooling before starting Captain. The supported object store is the repository's
+default local LFS store. Custom `lfs.storage`, LFS pointer extensions, and LFS assets
+that are still unhydrated are rejected instead of being silently converted.
+
+For an Unreal project, a trusted policy may explicitly list generated project roots
+`Binaries`, `Intermediate`, `Saved`, and `DerivedDataCache`, and descriptor-bound
+plugin `Binaries`, `Intermediate`, and `Saved` directories, in
+`sourceManifestExcludes`. These exclusions do not authorize deletion, cover plugin
+source or descriptors, or hide tracked files. Captain rejects links or junctions at the
+excluded roots and continues to bind the installed plugin files and game assets.
+
+LFS fast-forwards and divergent merges use signed, recoverable file/index transactions.
+Divergent merges require Git 2.43 or newer; conflicting merges with multiple merge
+bases are refused. Captain retains a private `refs/captain-sdlc/lfs-merges/` reference
+for each prepared divergent merge to keep its objects available during recovery. Those
+references are retained until an audited cleanup policy is available. Captain does not
+yet support aborting an in-progress LFS merge; retain the signed operation for recovery.
+
+Transactions refuse lockable paths, cross-volume worktrees, incompatible Windows file
+permissions, custom LFS storage and pointer extensions. Bookkeeping finalization also
+refuses LFS-configured repositories and configured external filter or merge drivers.
+On Windows, new destination directories are published with signed identities and
+checked inherited permissions; foreign paths or incompatible inheritance are refused.
+On POSIX, destination parent directories must already exist and are identity-checked;
+creating new parents is refused until a recoverable POSIX directory transaction exists.
+LFS worktree checkout refuses committed symlinks and submodules. Git metadata, index,
+and path batches have explicit size bounds; oversized inputs are rejected. Keep the
+worktrees idle while Captain validates and publishes a transaction: portable filesystem
+APIs cannot make that sequence atomic against another process with the same user access.
+
 ## Merge Prep and Merge Back
 
 Integration uses two explicit MCP operations in the existing task checkout:

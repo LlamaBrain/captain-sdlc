@@ -44,6 +44,10 @@ type Inputs = {
     source: Awaited<ReturnType<typeof sourceState>>;
     metadata: string;
     dependencies: Array<Record<string, unknown>>;
+    lfs_objects?: Array<{
+        oid: string;
+        size: number;
+    }>;
 };
 type GateEvidence = {
     scope: string;
@@ -88,6 +92,14 @@ export type MergeRecord = {
     ready_inputs?: Inputs;
     failure?: string;
     integrated_head?: string;
+    lfs_fast_forward?: {
+        id: string;
+        sha256: string;
+    };
+    lfs_merge?: {
+        id: string;
+        sha256: string;
+    };
     cleanup?: WorktreeCleanupResult;
 };
 export type MergeLeaseOwner = {
@@ -139,6 +151,8 @@ export declare class MergeWorkflowStore {
     private readonly runner;
     private readonly activeOperations;
     constructor(dataRoot: string, runner?: GateRunner);
+    private fastForwardCheckpoint;
+    private lfsMergeCheckpoint;
     diagnose(args: MergeDiagnosticArgs): Promise<MergeDiagnostic>;
     prep(args: MergePrepArgs): Promise<MergeStatus>;
     /** Recover an older signed Prep candidate without trusting caller-supplied source evidence. */
@@ -176,6 +190,9 @@ export declare class MergeWorkflowStore {
     private match;
     private output;
     private bindings;
+    private validateLfsFastForwardInputs;
+    private resumeLfsMerge;
+    private assertTargetLfsCompatibility;
     private assertInputs;
     private assertReady;
     private deliveryInputs;

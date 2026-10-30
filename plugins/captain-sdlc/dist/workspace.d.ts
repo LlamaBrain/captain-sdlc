@@ -86,6 +86,7 @@ export declare function sourceState(worktree: string, policy?: ProjectPolicy): P
     gitDir: string;
     manifest: string;
     productManifest?: string;
+    revalidate?: () => Promise<void>;
     head: string;
     tree: string;
     status: string;
@@ -97,6 +98,7 @@ export declare function assertWorktreeBinding(worktree: string, expectedBranch?:
     topLevel: string;
     head: string;
 }>;
+export declare function assertSafeGitAttributesAtCommit(cwd: string, commit: string): Promise<boolean>;
 export declare function assertSafeGitAttributesInWorktree(cwd: string, selectedPaths: string[]): Promise<void>;
 export declare function bookkeepingPathAllowed(relative: string, policy: CommitPolicy): Promise<boolean>;
 /** Blob validation preserves raw bytes at whitespace/control boundaries. */
@@ -105,3 +107,10 @@ export declare function bookkeepingBlobAllowed(worktree: string, oid: string): P
 export declare function bookkeepingCommitValid(worktree: string, parent: string, hash: string, subject: string, policy: CommitPolicy): Promise<boolean>;
 /** Proof extension admits only descendant record commits; old proof stays at base. */
 export declare function bookkeepingHistoryValid(worktree: string, base: string, head: string, policy: CommitPolicy): Promise<boolean>;
+/** Bind normal inputs, then permit a final recheck after another worktree is scanned. */
+export declare function captureJournalInputManifest(root: string, policy: ProjectPolicy, exactJournalPaths: string[]): Promise<{
+    manifest: string;
+    revalidate: () => Promise<void>;
+}>;
+/** Bind every normal source input except the exact regular files owned by a signed transaction. */
+export declare function sourceManifestExcludingJournal(root: string, policy: ProjectPolicy, exactJournalPaths: string[]): Promise<string>;

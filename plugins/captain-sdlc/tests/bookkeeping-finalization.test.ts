@@ -2,7 +2,7 @@
 import test, { type TestContext } from "node:test";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -47,6 +47,25 @@ test("supported stash parks allowed tracked and untracked records and retains ex
   assert.equal(receipt.state, "stashed"); assert.equal(receipt.before.head, f.head); assert.equal(receipt.after.head, f.head); assert.match(receipt.stash_oid, /^[0-9a-f]{40,64}$/); assert.equal(await runGit(f.root, "rev-parse", "refs/stash"), receipt.stash_oid); assert.equal(await runGit(f.root, "status", "--porcelain"), "");
   assert.equal(await runGit(f.root, "show", `${receipt.stash_oid}^3:Churn/incident.md`), content.trim()); assert.match(await runGit(f.root, "show", "-s", "--format=%s", receipt.stash_oid), new RegExp(receipt.finalization_id));
   const retry = await store.finalize(request(f.root, "stash", receipt.finalization_id)); assert.equal(retry.stash_oid, receipt.stash_oid); assert.equal((await runGit(f.root, "stash", "list")).split("\n").length, 1);
+});
+
+test("bookkeeping stash rejects LFS filters before any repository driver can execute", async t => {
+  const f = await fixture(t), marker = path.join(f.root, "stash-filter-marker");
+  await runGit(f.root, "lfs", "install", "--local");
+  await put(f.root, ".gitattributes", "/.captain-sdlc/notebook/*.json filter=lfs diff=lfs merge=lfs -text\n");
+  await runGit(f.root, "add", ".gitattributes");
+  await runGit(f.root, "add", "--renormalize", "--", ".captain-sdlc/notebook/notes.json");
+  await runGit(f.root, "commit", "-m", "genuine LFS bookkeeping fixture");
+  await dirty(f.root);
+  const notes = await readFile(path.join(f.root, ".captain-sdlc/notebook/notes.json"));
+  await runGit(f.root, "config", "filter.lfs.process", "echo CALLED > stash-filter-marker; exit 1");
+  await assert.rejects(() => new f.Store(f.dataRoot).finalize(request(f.root, "stash")));
+  await assert.rejects(() => access(marker), { code: "ENOENT" });
+  assert.deepEqual(await readFile(path.join(f.root, ".captain-sdlc/notebook/notes.json")), notes);
+  await assert.rejects(() => runGit(f.root, "rev-parse", "--verify", "refs/stash"));
+  // Control: ordinary Git hash-object on this selected path invokes the driver.
+  try { await runGit(f.root, "hash-object", "--", ".captain-sdlc/notebook/notes.json"); } catch { /* hostile process may fail */ }
+  await access(marker);
 });
 
 test("finalization refuses mixed dirty work and out-of-selection index before mutation", async t => {

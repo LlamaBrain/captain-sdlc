@@ -5,7 +5,8 @@ import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLeaseAtGeneration } from "./authority.js";
 import { bookkeepingCaptured, bookkeepingPathAllowed, bookkeepingSubjectAllowed, bookkeepingTextAllowed } from "./bookkeeping.js";
 import { assertRunRevisionTransition } from "./run-validation.js";
-import { applyPreparedCommit, assertSafeGitAttributesInWorktree, assertWorktreeBinding, bookkeepingBlobAllowed, bookkeepingCommitValid, commitAtomic, git, loadPolicy, reconcilePreparedCommit, repositoryIdentity } from "./workspace.js";
+import { applyPreparedCommit, assertSafeGitAttributesAtCommit, assertSafeGitAttributesInWorktree, assertWorktreeBinding, bookkeepingBlobAllowed, bookkeepingCommitValid, commitAtomic, git, loadPolicy, reconcilePreparedCommit, repositoryIdentity } from "./workspace.js";
+import { withShadowGit } from "./git-safe-status.js";
 export class BookkeepingFinalizationError extends Error {
     finalization_id;
     constructor(finalization_id, cause) {
@@ -47,6 +48,7 @@ export class BookkeepingFinalizationStore {
                         throw new Error("bookkeeping finalization expected HEAD changed before reservation");
                     await assertNoOperation(before.topLevel);
                     await repositoryIdentity(before.topLevel);
+                    await assertBookkeepingFilterSafety(before.topLevel, before.head, normalized.paths);
                     const policy = options.policy ?? await loadPolicy(before.topLevel, before.head);
                     if (!policy.commit || !bookkeepingCaptured(policy.commit))
                         throw new Error("bookkeeping finalization requires a committed opt-in captured policy");
@@ -68,6 +70,7 @@ export class BookkeepingFinalizationStore {
                     await assertAuthority();
                     await assertWorktreeBinding(record.worktree, record.before.branch, record.before.commonGitDir, undefined, false, record.before.gitDir);
                     await assertNoOperation(record.worktree);
+                    await assertBookkeepingFilterSafety(record.worktree, record.before.head, record.paths);
                     if (record.disposition === "commit") {
                         if (record.prepared_commit) {
                             const prepared = record.prepared_commit, actualHead = await git(["rev-parse", "HEAD"], record.worktree);
@@ -99,6 +102,7 @@ export class BookkeepingFinalizationStore {
                         await assertAuthority();
                         await assertUnchanged(record);
                         await assertSafeGitAttributesInWorktree(record.worktree, record.paths);
+                        await assertBookkeepingFilterSafety(record.worktree, record.before.head, record.paths);
                         await git(["stash", "push", "--include-untracked", "--message", record.stash_marker, "--", ...record.paths], record.worktree);
                         await this.hooks.afterStash?.();
                         stashOid = await findStash(record);
@@ -342,6 +346,22 @@ catch (error) {
     return [];
 } }
 function generation(id, selected) { return digest({ leaseId: id, revision: selected.revision, state: selected.state, payload: selected.payload }); }
+async function assertBookkeepingFilterSafety(worktree, head, selected) {
+    // Native stash and hash-object still consult real Git configuration. Refuse LFS
+    // and configured external drivers until a journaled shadow stash is available.
+    // The older non-LFS native stash path still assumes its owned worktree's Git
+    // configuration and attributes are not changed concurrently by another process.
+    if (await assertSafeGitAttributesAtCommit(worktree, head))
+        throw new Error("bookkeeping finalization is unavailable for Git LFS repositories until safe stash/snapshot support is available");
+    const config = (await git(["config", "--null", "--list"], worktree)).split("\0");
+    if (config.some(entry => /^(?:filter\..+\.(?:clean|smudge|process)|merge\..+\.driver)(?:\n|$)/i.test(entry)))
+        throw new Error("bookkeeping finalization refuses repository-configured Git filter or merge commands");
+    const attrs = await withShadowGit(worktree, git, shadow => shadow.checkAttributes(selected, ["filter", "merge"]));
+    for (const entry of attrs)
+        for (const value of Object.values(entry.attributes))
+            if (value !== "unspecified" && value !== "unset")
+                throw new Error(`bookkeeping finalization refuses filtered Git paths: ${entry.path}`);
+}
 async function assertNoOperation(worktree) { for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer"]) {
     const file = await git(["rev-parse", "--git-path", name], worktree);
     try {

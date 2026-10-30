@@ -89,6 +89,19 @@ export function effectiveGateDisclosure(run: Run) {
 }
 
 /** Derive a task-owned scalar selector while preserving the captured policy command. */
+/** Reject unmistakable runner/loader failures even when a policy matches a generic failure count. */
+function hasRedInfrastructureFailure(output: string): boolean {
+  return output.split(/\r?\n/).some(raw => {
+    const line = raw.replace(/^\s*(?:#\s*)?/, "");
+    return /^(?:Error:\s*)?The service is no longer running:\s*spawn\s+.+\s+(?:ENOENT|EACCES)\s*$/i.test(line)
+      || /^(?:Error:\s*)?spawn\s+.+\s+(?:ENOENT|EACCES)\s*$/i.test(line)
+      || /^Error \[(?:ERR_MODULE_NOT_FOUND|ERR_UNKNOWN_FILE_EXTENSION)\]:/i.test(line)
+      || /^Error:\s*Cannot find (?:module|package)\s+['"]/i.test(line)
+      || /^npm\s+(?:ERR!|error)\s+code\s+(?:ENOENT|EACCES)\s*$/i.test(line)
+      || /^(?:Error:\s*)?(?:stdout|stderr) maxBuffer length exceeded\s*$/i.test(line);
+  });
+}
+
 function taskTicketCommand(run: Run, scope: string, requestedFilter?: string): { command: string; binding?: TaskTicket } {
   const configured = run.policy.commands[scope];
   if (requestedFilter !== undefined && scope !== "ticket") throw new Error("ticket filter is only supported for the ticket scope");
@@ -609,6 +622,7 @@ export class LifecycleStore {
     const selected = taskTicketCommand(run, "ticket", ticketFilter);
     await prepareScopeOutputs(run.worktreePath, run.policy, "ticket");
     const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate; if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+    if (hasRedInfrastructureFailure(`${result.stdout}\n${result.stderr}`)) throw new Error("TDD red gate rejected a test-runner or loader infrastructure failure");
     if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}\n${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
     return this.update({ ...run, ...(selected.binding ? { taskTicket: selected.binding } : {}), phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest(selected.command), ...(selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}), exitCode: result.exitCode, outputSha256: digest(`${result.stdout}\n${result.stderr}`) }] });
   }

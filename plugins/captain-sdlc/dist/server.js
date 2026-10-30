@@ -408,11 +408,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants4) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants4);
         return this;
       }
       get names() {
@@ -429,10 +429,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants4) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants4);
         return this;
       }
       get names() {
@@ -493,8 +493,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants4) {
+        this.code = optimizeExpr(this.code, names, constants4);
         return this;
       }
       get names() {
@@ -523,12 +523,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants4) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants4))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -581,12 +581,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants4) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants4);
+        if (!(super.optimizeNames(names, constants4) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants4);
         return this;
       }
       get names() {
@@ -609,10 +609,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants4) {
+        if (!super.optimizeNames(names, constants4))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants4);
         return this;
       }
       get names() {
@@ -648,10 +648,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants4) {
+        if (!super.optimizeNames(names, constants4))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants4);
         return this;
       }
       get names() {
@@ -693,11 +693,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants4) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants4);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants4);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants4);
         return this;
       }
       get names() {
@@ -998,7 +998,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants4) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -1013,14 +1013,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants4[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants4[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -2792,11 +2792,11 @@ var require_validate = __commonJS({
         jsonPointer = $data;
         data = names_1.default.rootData;
       } else {
-        const matches = RELATIVE_JSON_POINTER.exec($data);
-        if (!matches)
+        const matches2 = RELATIVE_JSON_POINTER.exec($data);
+        if (!matches2)
           throw new Error(`Invalid JSON-pointer: ${$data}`);
-        const up = +matches[1];
-        jsonPointer = matches[2];
+        const up = +matches2[1];
+        jsonPointer = matches2[2];
         if (jsonPointer === "#") {
           if (up >= dataLevel)
             throw new Error(errorMsg("property/index", up));
@@ -2809,8 +2809,8 @@ var require_validate = __commonJS({
           return data;
       }
       let expr = data;
-      const segments = jsonPointer.split("/");
-      for (const segment of segments) {
+      const segments2 = jsonPointer.split("/");
+      for (const segment of segments2) {
         if (segment) {
           data = (0, codegen_1._)`${data}${(0, codegen_1.getProperty)((0, util_1.unescapeJsonPointer)(segment))}`;
           expr = (0, codegen_1._)`${expr} && ${data}`;
@@ -3200,28 +3200,28 @@ var require_utils = __commonJS({
         if (left.length === 1 && left[0] === "") left.length = 0;
         if (right.length === 1 && right[0] === "") right.length = 0;
       }
-      const parts = left.concat(right);
+      const parts2 = left.concat(right);
       let hextetCount = 0;
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
+      for (let i = 0; i < parts2.length; i++) {
+        const part = parts2[i];
         if (part === "") return void 0;
         if (part.indexOf(".") !== -1) {
-          if (i !== parts.length - 1 || compression !== -1 && right.length === 0 || !isIPv4(part)) return void 0;
+          if (i !== parts2.length - 1 || compression !== -1 && right.length === 0 || !isIPv4(part)) return void 0;
           hextetCount += 2;
           continue;
         }
         if (!isHextet(part)) return void 0;
-        parts[i] = parseInt(part, 16).toString(16);
+        parts2[i] = parseInt(part, 16).toString(16);
         hextetCount++;
       }
       if (compression === -1) {
         if (hextetCount !== 8) return void 0;
-        return compressIPv6ZeroRun(parts);
+        return compressIPv6ZeroRun(parts2);
       }
       if (hextetCount >= 8) return void 0;
-      const expanded = parts.slice(0, left.length);
+      const expanded = parts2.slice(0, left.length);
       for (let i = hextetCount; i < 8; i++) expanded.push("0");
-      for (let i = left.length; i < parts.length; i++) expanded.push(parts[i]);
+      for (let i = left.length; i < parts2.length; i++) expanded.push(parts2[i]);
       return compressIPv6ZeroRun(expanded);
     }
     function normalizeIPv6(host) {
@@ -3259,8 +3259,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path20) {
-      let input = path20;
+    function removeDotSegments(path27) {
+      let input = path27;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3665,8 +3665,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path20 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path20 && path20 !== "/" ? path20 : void 0;
+        const path27 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path27 && path27 !== "/" ? path27 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -3678,11 +3678,11 @@ var require_schemes = __commonJS({
         urnComponent.error = "URN can not be parsed";
         return urnComponent;
       }
-      const matches = urnComponent.path.match(URN_REG);
-      if (matches && matches[0] === urnComponent.path) {
+      const matches2 = urnComponent.path.match(URN_REG);
+      if (matches2 && matches2[0] === urnComponent.path) {
         const scheme = options.scheme || urnComponent.scheme || "urn";
-        urnComponent.nid = matches[1].toLowerCase();
-        urnComponent.nss = matches[2];
+        urnComponent.nid = matches2[1].toLowerCase();
+        urnComponent.nss = matches2[2];
         const urnScheme = `${scheme}:${options.nid || urnComponent.nid}`;
         const schemeHandler = getSchemeHandler(urnScheme);
         urnComponent.path = void 0;
@@ -3996,8 +3996,8 @@ var require_fast_uri = __commonJS({
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
     var AUTHORITY_PREFIX = /^(?:[^#/:?]+:)?\/\/([^/?#]*)/;
     var AUTHORITY_INTRODUCER_REGION = /^(?:[^#/:?]+:)?([/\\\t\n\r]*)/;
-    function getParseError(parsed, matches) {
-      if (matches[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
+    function getParseError(parsed, matches2) {
+      if (matches2[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
         return 'URI path must start with "/" when authority is present.';
       }
       if (typeof parsed.port === "number" && (parsed.port < 0 || parsed.port > 65535)) {
@@ -4016,9 +4016,9 @@ var require_fast_uri = __commonJS({
       }
       return false;
     }
-    function hasMalformedComponentPercentEncoding(matches) {
-      const host = matches[4];
-      return hasMalformedPercentEncoding(matches[3]) || host !== void 0 && !(host[0] === "[" && host[host.length - 1] === "]") && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches[6]) || hasMalformedPercentEncoding(matches[7]) || hasMalformedPercentEncoding(matches[8]);
+    function hasMalformedComponentPercentEncoding(matches2) {
+      const host = matches2[4];
+      return hasMalformedPercentEncoding(matches2[3]) || host !== void 0 && !(host[0] === "[" && host[host.length - 1] === "]") && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches2[6]) || hasMalformedPercentEncoding(matches2[7]) || hasMalformedPercentEncoding(matches2[8]);
     }
     function canonicalizeHost(parsed, options, schemeHandler, isIP) {
       if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && parsed.host[0] !== "[" && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
@@ -4075,15 +4075,15 @@ var require_fast_uri = __commonJS({
           }
         }
       }
-      const matches = uri.match(URI_PARSE);
-      if (matches) {
-        parsed.scheme = matches[1];
-        parsed.userinfo = matches[3];
-        parsed.host = matches[4];
-        parsed.port = parseInt(matches[5], 10);
-        parsed.path = matches[6] || "";
-        parsed.query = matches[7];
-        parsed.fragment = matches[8];
+      const matches2 = uri.match(URI_PARSE);
+      if (matches2) {
+        parsed.scheme = matches2[1];
+        parsed.userinfo = matches2[3];
+        parsed.host = matches2[4];
+        parsed.port = parseInt(matches2[5], 10);
+        parsed.path = matches2[6] || "";
+        parsed.query = matches2[7];
+        parsed.fragment = matches2[8];
         if (parsed.scheme !== void 0) {
           const decodedScheme = unescape(parsed.scheme);
           if (VALID_SCHEME.test(decodedScheme)) {
@@ -4093,14 +4093,14 @@ var require_fast_uri = __commonJS({
             malformedScheme = true;
           }
         }
-        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches);
+        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches2);
         if (malformedPercentEncoding) {
           parsed.error = parsed.error || "URI contains malformed percent-encoding.";
         }
         if (isNaN(parsed.port)) {
-          parsed.port = matches[5];
+          parsed.port = matches2[5];
         }
-        const parseError = getParseError(parsed, matches);
+        const parseError = getParseError(parsed, matches2);
         if (parseError !== void 0) {
           parsed.error = parsed.error || parseError;
           malformedAuthorityOrPort = true;
@@ -4617,9 +4617,9 @@ var require_core = __commonJS({
         const rules = this.RULES.all;
         metaSchema = JSON.parse(JSON.stringify(metaSchema));
         for (const jsonPointer of keywordsJsonPointers) {
-          const segments = jsonPointer.split("/").slice(1);
+          const segments2 = jsonPointer.split("/").slice(1);
           let keywords = metaSchema;
-          for (const seg of segments)
+          for (const seg of segments2)
             keywords = keywords[seg];
           for (const key3 in rules) {
             const rule = rules[key3];
@@ -6946,12 +6946,12 @@ var require_formats = __commonJS({
     var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     function date3(str) {
-      const matches = DATE.exec(str);
-      if (!matches)
+      const matches2 = DATE.exec(str);
+      if (!matches2)
         return false;
-      const year = +matches[1];
-      const month = +matches[2];
-      const day = +matches[3];
+      const year = +matches2[1];
+      const month = +matches2[2];
+      const day = +matches2[3];
       return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && isLeapYear(year) ? 29 : DAYS[month]);
     }
     function compareDate(d1, d2) {
@@ -6966,16 +6966,16 @@ var require_formats = __commonJS({
     var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
       return function time3(str) {
-        const matches = TIME.exec(str);
-        if (!matches)
+        const matches2 = TIME.exec(str);
+        if (!matches2)
           return false;
-        const hr = +matches[1];
-        const min = +matches[2];
-        const sec = +matches[3];
-        const tz = matches[4];
-        const tzSign = matches[5] === "-" ? -1 : 1;
-        const tzH = +(matches[6] || 0);
-        const tzM = +(matches[7] || 0);
+        const hr = +matches2[1];
+        const min = +matches2[2];
+        const sec = +matches2[3];
+        const tz = matches2[4];
+        const tzSign = matches2[5] === "-" ? -1 : 1;
+        const tzH = +(matches2[6] || 0);
+        const tzM = +(matches2[7] || 0);
         if (tzH > 23 || tzM > 59 || strictTimeZone && !tz)
           return false;
         if (hr <= 23 && min <= 59 && sec < 60)
@@ -7413,7 +7413,7 @@ async function readAuthorizedLeaseSnapshotReadOnly(root, id) {
       return [];
     }
   };
-  const numbers = (entries2) => entries2.map((name) => expression.exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
+  const numbers = (entries3) => entries3.map((name) => expression.exec(name)).filter((match) => Boolean(match)).map((match) => Number(match[1])).sort((a, b) => a - b);
   const revisions = numbers(await names("lease-revisions")), watermarks = numbers(await names("lease-watermarks"));
   const validPayload = (value) => Boolean(value && typeof value === "object" && typeof value.intentId === "string" && typeof value.leaseToken === "string");
   if (!revisions.length) {
@@ -7443,8 +7443,8 @@ async function readAuthorizedLeaseSnapshotReadOnly(root, id) {
   return { state: previous.state, payload: previous.payload, revision: previous.revision, legacy: false };
 }
 async function readAuthorizedLeaseStateReadOnly(root, id) {
-  const snapshot = await readAuthorizedLeaseSnapshotReadOnly(root, id);
-  return snapshot && { state: snapshot.state, payload: snapshot.payload };
+  const snapshot2 = await readAuthorizedLeaseSnapshotReadOnly(root, id);
+  return snapshot2 && { state: snapshot2.state, payload: snapshot2.payload };
 }
 async function releaseAuthorizedLegacyLeaseAtGeneration(root, id, intentId, leaseToken, resourceGeneration, afterMigration, afterRevision) {
   const leaseId = safe(id);
@@ -7982,8 +7982,8 @@ function createBeginDiagnosticAdapter(dataRoot) {
       }
     },
     async readLease(leaseId) {
-      const snapshot = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, leaseId);
-      return snapshot && { ...snapshot, integrity: "verified" };
+      const snapshot2 = await readAuthorizedLeaseSnapshotReadOnly(dataRoot, leaseId);
+      return snapshot2 && { ...snapshot2, integrity: "verified" };
     },
     async inspectGit(input) {
       const projectRoot = path5.resolve(gitRead(input.projectRoot, "rev-parse", "--show-toplevel"));
@@ -8064,9 +8064,9 @@ async function processStart(pid) {
   if (process.platform === "linux") {
     try {
       const [stat3, boot] = await Promise.all([readFile2(`/proc/${pid}/stat`, "utf8"), readFile2("/proc/sys/kernel/random/boot_id", "utf8")]);
-      const fields = stat3.slice(stat3.lastIndexOf(")") + 2).trim().split(/\s+/);
-      if (!/^\d+$/.test(fields[19] ?? "") || !boot.trim()) throw new Error("client process start identity unavailable");
-      return `linux:${boot.trim()}:${fields[19]}`;
+      const fields2 = stat3.slice(stat3.lastIndexOf(")") + 2).trim().split(/\s+/);
+      if (!/^\d+$/.test(fields2[19] ?? "") || !boot.trim()) throw new Error("client process start identity unavailable");
+      return `linux:${boot.trim()}:${fields2[19]}`;
     } catch (error2) {
       if (error2.code === "ENOENT") {
         try {
@@ -8567,8 +8567,8 @@ import { lstat, mkdir as mkdir2, readdir as readdir5, realpath as realpath2, rm,
 import path9 from "node:path";
 function outputRoot(value) {
   if (typeof value !== "string" || !value || path9.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error("output retention root must use a safe repository-relative path");
-  const relative = normalized(value), segments = relative.split("/"), lower = segments.map((segment) => segment.toLowerCase());
-  if (segments.some((segment) => !segment || segment === "." || segment === ".." || /[. ]$/.test(segment)) || lower.some((segment) => protectedSegments.has(segment))) throw new Error("output retention root overlaps a protected metadata or worktree path");
+  const relative = normalized(value), segments2 = relative.split("/"), lower = segments2.map((segment) => segment.toLowerCase());
+  if (segments2.some((segment) => !segment || segment === "." || segment === ".." || /[. ]$/.test(segment)) || lower.some((segment) => protectedSegments.has(segment))) throw new Error("output retention root overlaps a protected metadata or worktree path");
   if (lower.includes(".captain-sdlc") && !(lower[0] === ".captain-sdlc" && lower[1] === "output" && lower.length >= 3)) throw new Error("output retention root overlaps protected Captain metadata");
   if (!lower.some((segment) => generated.has(segment)) && !payloadExtension.test(relative)) throw new Error("output retention root must name generated output, not authored source");
   return relative;
@@ -8612,9 +8612,9 @@ async function captureOutputRetention(root, baseHead, raw, artifactPaths = {}, t
       buildRoots.push(relative);
     };
     if (artifactPaths.build) {
-      const artifact = normalized(artifactPaths.build), segments = artifact.split("/"), payloadIndex = segments.findIndex((segment) => payloadDirectories.has(segment.toLowerCase()));
+      const artifact = normalized(artifactPaths.build), segments2 = artifact.split("/"), payloadIndex = segments2.findIndex((segment) => payloadDirectories.has(segment.toLowerCase()));
       if (payloadIndex >= 0) {
-        const candidate = segments.slice(0, payloadIndex + 1).join("/");
+        const candidate = segments2.slice(0, payloadIndex + 1).join("/");
         add(candidate);
       }
       if (tracked.some((file) => file.startsWith(artifact + "/"))) add(artifact);
@@ -8685,7 +8685,7 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
   const root = path9.resolve(worktree), actual = path9.resolve(await git(["rev-parse", "--show-toplevel"], root));
   if (!samePath4(root, actual) || !samePath4(root, await realpath2(root))) throw new Error("output retention requires the real Git worktree root");
   const registered = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path9.resolve(entry.slice(9)));
-  const snapshot = await trackedSnapshot(root), tracked = snapshot.files;
+  const snapshot2 = await trackedSnapshot(root), tracked = snapshot2.files;
   const isTracked = (relative) => [...tracked].some((file) => contains(file, relative));
   const plans = [];
   for (const relative of roots) {
@@ -8723,7 +8723,7 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
   if (options.validateOnly) return { ...summary, roots: plans.map((plan) => plan.relative) };
   for (const plan of plans) {
     const current = await trackedSnapshot(root);
-    if (current.head !== snapshot.head || current.index !== snapshot.index) throw new Error("output retention HEAD or index changed during preflight; preserve the new tracked state and retry under its owner");
+    if (current.head !== snapshot2.head || current.index !== snapshot2.index) throw new Error("output retention HEAD or index changed during preflight; preserve the new tracked state and retry under its owner");
     const currentWorktrees = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path9.resolve(entry.slice(9)));
     if (currentWorktrees.some((other) => contains(plan.absolute, other))) throw new Error("output retention root acquired a registered worktree during preflight");
     for (const file of plan.files) {
@@ -8787,8 +8787,8 @@ function safePath(value) {
 }
 function documentationPath(relative) {
   safePath(relative);
-  const parts = relative.toLowerCase().split("/");
-  if (parts.some((part) => part.startsWith(".") || ["src", "plugins", "scripts", "tools", "tests", "test", "skills", "hooks", "node_modules", "sequences"].includes(part)) || ["agents.md", "claude.md", "skill.md"].includes(parts.at(-1))) return false;
+  const parts2 = relative.toLowerCase().split("/");
+  if (parts2.some((part) => part.startsWith(".") || ["src", "plugins", "scripts", "tools", "tests", "test", "skills", "hooks", "node_modules", "sequences"].includes(part)) || ["agents.md", "claude.md", "skill.md"].includes(parts2.at(-1))) return false;
   return /\.(?:md|txt|rst)$/i.test(relative) || /^schemas\/(?:[A-Za-z0-9_ -]+\/)*[A-Za-z0-9_. -]+\.schema\.json$/.test(relative);
 }
 function text(value, label) {
@@ -8811,9 +8811,9 @@ function documentText(value, relative) {
 async function regularFile(root, relative, allowAbsent) {
   safePath(relative);
   let missing2 = false;
-  const parts = relative.split("/");
-  for (let index = 0; index <= parts.length; index++) {
-    const target = path10.join(root, ...parts.slice(0, index));
+  const parts2 = relative.split("/");
+  for (let index = 0; index <= parts2.length; index++) {
+    const target = path10.join(root, ...parts2.slice(0, index));
     let info;
     try {
       info = await lstat2(target);
@@ -8824,8 +8824,8 @@ async function regularFile(root, relative, allowAbsent) {
       }
       throw error2;
     }
-    if (missing2 || info.isSymbolicLink() || (index < parts.length ? !info.isDirectory() : !info.isFile())) fail2(`${relative} crosses a link or is not a regular file`);
-    if (index === parts.length && ((info.mode & 73) !== 0 || info.size > maxText)) fail2(`${relative} has executable mode or exceeds the text limit`);
+    if (missing2 || info.isSymbolicLink() || (index < parts2.length ? !info.isDirectory() : !info.isFile())) fail2(`${relative} crosses a link or is not a regular file`);
+    if (index === parts2.length && ((info.mode & 73) !== 0 || info.size > maxText)) fail2(`${relative} has executable mode or exceeds the text limit`);
   }
   return missing2 ? null : text(await readFile3(path10.join(root, relative), "utf8"), relative);
 }
@@ -8868,9 +8868,9 @@ async function blob(root, revision, relative, map) {
 }
 function versionCapture(value, pattern, expectedVersion) {
   value = value.replace(/\r\n/g, "\n");
-  const multiline = pattern.startsWith("(?m)"), expression = compileSafeRegex(multiline ? pattern.slice(4) : pattern, `dg${multiline ? "m" : ""}`, "documentation version surface"), matches = [...value.matchAll(expression)].filter((match2) => expectedVersion === void 0 || (match2.groups?.version ?? match2[1]) === expectedVersion);
-  if (matches.length !== 1) fail2("version surface requires exactly one version capture");
-  const match = matches[0], version2 = match.groups?.version ?? match[1], range = match.indices?.groups?.version ?? match.indices?.[1];
+  const multiline = pattern.startsWith("(?m)"), expression = compileSafeRegex(multiline ? pattern.slice(4) : pattern, `dg${multiline ? "m" : ""}`, "documentation version surface"), matches2 = [...value.matchAll(expression)].filter((match2) => expectedVersion === void 0 || (match2.groups?.version ?? match2[1]) === expectedVersion);
+  if (matches2.length !== 1) fail2("version surface requires exactly one version capture");
+  const match = matches2[0], version2 = match.groups?.version ?? match[1], range = match.indices?.groups?.version ?? match.indices?.[1];
   if (!range || !parseStrictSemVer(version2)) fail2("version surface lacks one strict version capture");
   return { version: version2, normalized: value.slice(0, range[0]) + "<captain-version>" + value.slice(range[1]) };
 }
@@ -9133,6 +9133,12 @@ function effectiveGateDisclosure(run) {
     gates: proofScopes(run).map((scope) => ({ scope, command: run.policy.commands[scope] ?? null, artifactPath: run.policy.artifactPaths?.[bindings[scope]] ?? null }))
   };
 }
+function hasRedInfrastructureFailure(output) {
+  return output.split(/\r?\n/).some((raw) => {
+    const line = raw.replace(/^\s*(?:#\s*)?/, "");
+    return /^(?:Error:\s*)?The service is no longer running:\s*spawn\s+.+\s+(?:ENOENT|EACCES)\s*$/i.test(line) || /^(?:Error:\s*)?spawn\s+.+\s+(?:ENOENT|EACCES)\s*$/i.test(line) || /^Error \[(?:ERR_MODULE_NOT_FOUND|ERR_UNKNOWN_FILE_EXTENSION)\]:/i.test(line) || /^Error:\s*Cannot find (?:module|package)\s+['"]/i.test(line) || /^npm\s+(?:ERR!|error)\s+code\s+(?:ENOENT|EACCES)\s*$/i.test(line) || /^(?:Error:\s*)?(?:stdout|stderr) maxBuffer length exceeded\s*$/i.test(line);
+  });
+}
 function taskTicketCommand(run, scope, requestedFilter) {
   const configured = run.policy.commands[scope];
   if (requestedFilter !== void 0 && scope !== "ticket") throw new Error("ticket filter is only supported for the ticket scope");
@@ -9177,9 +9183,9 @@ async function hashPath(target) {
   const info = await lstat4(target);
   if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
   if (info.isFile()) return createHash9("sha256").update(await readFile4(target)).digest("hex");
-  const entries2 = await readdir6(target, { withFileTypes: true });
+  const entries3 = await readdir6(target, { withFileTypes: true });
   const lines2 = [];
-  for (const entry of entries2.sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const entry of entries3.sort((a, b) => a.name.localeCompare(b.name))) {
     const child = path12.join(target, entry.name);
     lines2.push(`${entry.name}:${await hashPath(child)}`);
   }
@@ -9508,26 +9514,26 @@ var init_lifecycle = __esm({
           await releaseAuthorizedLease(this.dataRoot, leaseId, prior.intentId, priorLease.leaseToken);
           await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
         }
-        const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
-        if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath6(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+        const snapshot2 = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, leaseId);
+        if (!snapshot2 || snapshot2.state !== "held" || snapshot2.legacy || !Number.isSafeInteger(snapshot2.revision) || snapshot2.payload.intentId !== operation.intentId || snapshot2.payload.leaseToken !== operation.leaseToken || snapshot2.payload.operationToken !== operation.operationToken || snapshot2.payload.targetBranch !== operation.targetBranch || snapshot2.payload.targetOid !== operation.targetOid || !samePath6(snapshot2.payload.commonGitDir, repository.commonGitDir)) {
           throw new Error("target lease changed before the signed Begin lease checkpoint");
         }
-        const resourceGeneration = digest5(JSON.stringify({ leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
-        return { leaseId, leaseToken: operation.leaseToken, leaseRevision: snapshot.revision, resourceGeneration };
+        const resourceGeneration = digest5(JSON.stringify({ leaseId, revision: snapshot2.revision, state: snapshot2.state, payload: snapshot2.payload }));
+        return { leaseId, leaseToken: operation.leaseToken, leaseRevision: snapshot2.revision, resourceGeneration };
       }
       async checkpointBeginLease(operation, repository, lease) {
         await this.assertBeginOperation(operation);
         let leaseFields = {};
         if (lease) {
-          const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
-          if (!snapshot || snapshot.state !== "held" || snapshot.legacy || !Number.isSafeInteger(snapshot.revision) || snapshot.payload.intentId !== operation.intentId || snapshot.payload.leaseToken !== operation.leaseToken || snapshot.payload.operationToken !== void 0 && snapshot.payload.operationToken !== operation.operationToken || snapshot.payload.targetBranch !== operation.targetBranch || snapshot.payload.targetOid !== operation.targetOid || !samePath6(snapshot.payload.commonGitDir, repository.commonGitDir)) {
+          const snapshot2 = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, lease.leaseId);
+          if (!snapshot2 || snapshot2.state !== "held" || snapshot2.legacy || !Number.isSafeInteger(snapshot2.revision) || snapshot2.payload.intentId !== operation.intentId || snapshot2.payload.leaseToken !== operation.leaseToken || snapshot2.payload.operationToken !== void 0 && snapshot2.payload.operationToken !== operation.operationToken || snapshot2.payload.targetBranch !== operation.targetBranch || snapshot2.payload.targetOid !== operation.targetOid || !samePath6(snapshot2.payload.commonGitDir, repository.commonGitDir)) {
             throw new Error("target lease checkpoint does not match its signed authority");
           }
-          const resourceGeneration = digest5(JSON.stringify({ leaseId: lease.leaseId, revision: snapshot.revision, state: snapshot.state, payload: snapshot.payload }));
-          if (lease.leaseRevision !== void 0 && lease.leaseRevision !== snapshot.revision || lease.resourceGeneration !== void 0 && lease.resourceGeneration !== resourceGeneration) {
+          const resourceGeneration = digest5(JSON.stringify({ leaseId: lease.leaseId, revision: snapshot2.revision, state: snapshot2.state, payload: snapshot2.payload }));
+          if (lease.leaseRevision !== void 0 && lease.leaseRevision !== snapshot2.revision || lease.resourceGeneration !== void 0 && lease.resourceGeneration !== resourceGeneration) {
             throw new Error("target lease changed before the signed Begin lease checkpoint");
           }
-          leaseFields = { leaseRevision: snapshot.revision, resourceGeneration };
+          leaseFields = { leaseRevision: snapshot2.revision, resourceGeneration };
         }
         const value = { schemaVersion: 1, operationToken: operation.operationToken, ...lease ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken, ...leaseFields, commonGitDir: repository.commonGitDir, targetBranch: operation.targetBranch, targetOid: operation.targetOid } : {} };
         if (Boolean(operation.targetBranch) !== Boolean(lease) || lease && lease.leaseToken !== operation.leaseToken) throw new Error("target lease checkpoint does not match the signed begin reservation");
@@ -9870,10 +9876,10 @@ var init_lifecycle = __esm({
       async linkBlocker(blockedIntentId, blockerIntentId) {
         const blocked = await this.run(blockedIntentId), blocker = await this.run(blockerIntentId);
         if (blocked.status !== "paused" || blocker.status === "green" || !samePath6(blocked.projectRoot, blocker.projectRoot)) throw new Error("blocker link requires a paused parent and an active same-project blocker");
-        const candidate = { schemaVersion: 1, blockedIntentId: blocked.intentId, blockerIntentId: blocker.intentId, blockedRunId: blocked.runId, blockerRunId: blocker.runId, projectRoot: blocked.projectRoot, createdAt: (/* @__PURE__ */ new Date()).toISOString() }, link2 = await putAuthorizedOnceExact(this.dataRoot, "blocker-links", `${blocked.intentId}-${blocker.intentId}`, candidate);
+        const candidate = { schemaVersion: 1, blockedIntentId: blocked.intentId, blockerIntentId: blocker.intentId, blockedRunId: blocked.runId, blockerRunId: blocker.runId, projectRoot: blocked.projectRoot, createdAt: (/* @__PURE__ */ new Date()).toISOString() }, link5 = await putAuthorizedOnceExact(this.dataRoot, "blocker-links", `${blocked.intentId}-${blocker.intentId}`, candidate);
         const handoff = (await this.handoffs()).find((candidate2) => candidate2.intentId === blocked.intentId && candidate2.planPath);
         if (handoff?.planPath) await this.projectPlanState(blocked, handoff.planPath, { status: "blocked", phase: handoff.phaseLabel ?? blocked.phase, handoff: `${handoff.intentId}-${handoff.revision}`, blocker: blockerIntentId, next: handoff.nextSteps });
-        return link2;
+        return link5;
       }
       async doctor() {
         const handoffs = await this.handoffs();
@@ -9936,6 +9942,8 @@ var init_lifecycle = __esm({
         await prepareScopeOutputs(run.worktreePath, run.policy, "ticket");
         const result = await this.runner(selected.command, run.worktreePath), red = run.policy.redGate;
         if (this.probe) this.assertWorktreeBinding(run, await this.probe(run.worktreePath, run.policy), this.expectedHead(run));
+        if (hasRedInfrastructureFailure(`${result.stdout}
+${result.stderr}`)) throw new Error("TDD red gate rejected a test-runner or loader infrastructure failure");
         if (!red || !red.expectedExitCodes.includes(result.exitCode) || !compileSafeRegex(red.outputPattern, "i", "trusted red gate pattern").test(`${result.stdout}
 ${result.stderr}`.slice(0, 1024 * 1024))) throw new Error("TDD red gate must be an expected failing test result, not an infrastructure failure");
         return this.update({ ...run, ...selected.binding ? { taskTicket: selected.binding } : {}, phase: "implement", evidence: [...run.evidence, { kind: "tdd_red", commandSha256: digest5(selected.command), ...selected.binding ? { ticketFilter: selected.binding.filter, policyCommandSha256: selected.binding.policyCommandSha256 } : {}, exitCode: result.exitCode, outputSha256: digest5(`${result.stdout}
@@ -10497,8 +10505,8 @@ ${result.stderr}`) }] });
       safePlanPath(run, relative) {
         const normalized2 = relative.replaceAll("\\", "/");
         if (!normalized2.endsWith(".md") || normalized2.startsWith("/") || normalized2.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
-        const file = path12.resolve(run.worktreePath, normalized2), inside = path12.relative(run.worktreePath, file);
-        if (inside.startsWith("..") || path12.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
+        const file = path12.resolve(run.worktreePath, normalized2), inside2 = path12.relative(run.worktreePath, file);
+        if (inside2.startsWith("..") || path12.isAbsolute(inside2)) throw new Error(`plan path escapes owned worktree: ${relative}`);
         return normalized2;
       }
       async projectPlanState(run, relative, state) {
@@ -10846,17 +10854,1220 @@ ${result.stderr}`) }] });
   }
 });
 
+// src/unreal-outputs.ts
+import { constants } from "node:fs";
+import { lstat as lstat5, open, readdir as readdir7 } from "node:fs/promises";
+import path13 from "node:path";
+function segments(relative) {
+  if (!relative || relative.includes("\\") || path13.posix.isAbsolute(relative) || !/^[A-Za-z0-9._/& -]+$/.test(relative)) return null;
+  const parts2 = relative.split("/");
+  if (parts2.some((part) => !part || part === "." || part === ".." || /[. ]$/.test(part))) return null;
+  return parts2;
+}
+function isUnrealGeneratedPath(relative) {
+  const parts2 = segments(relative);
+  if (!parts2) return false;
+  const lower = parts2.map((part) => part.toLowerCase());
+  if (parts2.length === 1) return projectGeneratedNames.has(lower[0]);
+  return lower[0] === "plugins" && parts2.length >= 3 && generatedNames.has(lower.at(-1)) && lower.slice(1, -1).every((part) => !authoredNames.has(part));
+}
+async function isApprovedUnrealGeneratedPath(root, relative, trackedBasePaths) {
+  if (!isUnrealGeneratedPath(relative)) return false;
+  const lower = relative.toLowerCase();
+  if (!trackedBasePaths.some((candidate) => /^[^/\\]+\.uproject$/i.test(candidate))) return false;
+  if (!lower.includes("/")) return true;
+  let cursor = root;
+  for (const part of relative.split("/").slice(0, -1)) {
+    let entries3;
+    try {
+      entries3 = await readdir7(cursor);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return false;
+      throw error2;
+    }
+    const matches2 = entries3.filter((entry) => entry.toLowerCase() === part.toLowerCase());
+    if (matches2.length > 1) throw new Error(`Unreal plugin path has ambiguous casing: ${relative}`);
+    if (!matches2.length) return false;
+    cursor = path13.join(cursor, matches2[0]);
+    const info = await lstat5(cursor);
+    if (info.isSymbolicLink()) throw new Error(`Unreal plugin path crosses a reparse point: ${relative}`);
+    if (!info.isDirectory()) return false;
+  }
+  const descriptors = (await readdir7(cursor)).filter((entry) => entry.toLowerCase().endsWith(".uplugin"));
+  if (descriptors.length !== 1) return false;
+  const descriptor = path13.join(cursor, descriptors[0]);
+  const before = await lstat5(descriptor);
+  if (before.isSymbolicLink() || !before.isFile()) throw new Error(`Unreal plugin descriptor is not a regular file: ${relative}`);
+  if (before.size > 1024 * 1024) throw new Error(`Unreal plugin descriptor exceeds its size limit: ${relative}`);
+  const handle = await open(descriptor, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    const opened = await handle.stat();
+    if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino || opened.size !== before.size || opened.mtimeMs !== before.mtimeMs) throw new Error(`Unreal plugin descriptor changed before reading: ${relative}`);
+    const buffer = Buffer.alloc(opened.size + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const result = await handle.read(buffer, length, buffer.length - length, length);
+      if (!result.bytesRead) break;
+      length += result.bytesRead;
+    }
+    const bytes = buffer.subarray(0, length);
+    const after = await lstat5(descriptor);
+    if (after.isSymbolicLink() || !after.isFile() || after.dev !== opened.dev || after.ino !== opened.ino || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs || bytes.length !== opened.size) throw new Error(`Unreal plugin descriptor changed while reading: ${relative}`);
+    let value;
+    try {
+      value = JSON.parse(bytes.toString("utf8"));
+    } catch {
+      throw new Error(`Unreal plugin descriptor is invalid JSON: ${relative}`);
+    }
+    return Boolean(value && typeof value === "object" && !Array.isArray(value) && Number.isInteger(value.FileVersion) && value.FileVersion > 0);
+  } finally {
+    await handle.close();
+  }
+}
+function assertNoTrackedExcludedPaths(exclusions, trackedPaths) {
+  const roots = exclusions.map((relative) => {
+    if (!segments(relative)) throw new Error("source manifest exclusion path must be a safe repository-relative path");
+    return relative.toLowerCase();
+  });
+  for (const candidate of trackedPaths) {
+    const file = candidate.replaceAll("\\", "/").toLowerCase();
+    if (roots.some((root) => file === root || file.startsWith(root + "/"))) {
+      throw new Error(`source manifest exclusion contains a tracked file: ${candidate}`);
+    }
+  }
+}
+async function assertUnrealExclusionRootsSafe(root, exclusions) {
+  for (const relative of exclusions) {
+    if (!isUnrealGeneratedPath(relative)) continue;
+    let cursor = root;
+    for (const part of relative.split("/")) {
+      let entries3;
+      try {
+        entries3 = await readdir7(cursor);
+      } catch (error2) {
+        if (error2.code === "ENOENT") break;
+        throw error2;
+      }
+      const matches2 = entries3.filter((entry) => entry.toLowerCase() === part.toLowerCase());
+      if (matches2.length > 1) throw new Error(`source manifest exclusion has ambiguous path casing: ${relative}`);
+      if (!matches2.length) break;
+      cursor = path13.join(cursor, matches2[0]);
+      let info;
+      try {
+        info = await lstat5(cursor);
+      } catch (error2) {
+        if (error2.code === "ENOENT") break;
+        throw error2;
+      }
+      if (info.isSymbolicLink()) throw new Error(`source manifest exclusion crosses a reparse point: ${relative}`);
+      if (!info.isDirectory()) throw new Error(`source manifest exclusion is not a directory: ${relative}`);
+    }
+  }
+}
+var generatedNames, projectGeneratedNames, authoredNames;
+var init_unreal_outputs = __esm({
+  "src/unreal-outputs.ts"() {
+    "use strict";
+    generatedNames = /* @__PURE__ */ new Set(["binaries", "intermediate", "saved"]);
+    projectGeneratedNames = /* @__PURE__ */ new Set([...generatedNames, "deriveddatacache"]);
+    authoredNames = /* @__PURE__ */ new Set(["source", "content", "config", "resources", "binaries", "intermediate", "saved", "deriveddatacache", ".git", ".captain-sdlc"]);
+  }
+});
+
+// src/lfs.ts
+import { createHash as createHash10, randomUUID as randomUUID2 } from "node:crypto";
+import { constants as constants2 } from "node:fs";
+import { link as link2, lstat as lstat6, mkdir as mkdir3, open as open2, readFile as readFile5, rename as rename2, unlink as unlink2 } from "node:fs/promises";
+import path14 from "node:path";
+function checkedPointer(value) {
+  if (!value || !/^[0-9a-f]{64}$/.test(value.oid) || !Number.isSafeInteger(value.size) || value.size < 0) throw new Error("invalid Git LFS object pointer");
+  if (value.size === 0 && value.oid !== emptyOid) throw new Error("invalid Git LFS empty object hash");
+  return { oid: value.oid, size: value.size };
+}
+function parseLfsPointer(bytes) {
+  if (!bytes.length || !bytes.subarray(0, 8).equals(Buffer.from("version "))) return null;
+  const probe = bytes.subarray(0, pointerLimit).toString("utf8");
+  if (!probe.startsWith("version https://") && !probe.startsWith("version http://") && !probe.includes("\noid sha256:")) return null;
+  if (bytes.length >= pointerLimit) throw new Error("Git LFS pointer exceeds its size limit");
+  let value;
+  try {
+    value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error("invalid Git LFS pointer encoding");
+  }
+  const match = /^version ([^\r\n]+)\noid sha256:([0-9a-f]{64})\nsize (0|[1-9][0-9]*)\n$/.exec(value);
+  if (!match) throw new Error("malformed or unsupported Git LFS pointer or extension");
+  if (match[1] !== currentVersion && match[1] !== legacyVersion && match[1] !== alphaVersion) throw new Error("unsupported Git LFS pointer version");
+  return checkedPointer({ oid: match[2], size: Number(match[3]) });
+}
+function formatLfsPointer(value) {
+  const pointer = checkedPointer(value);
+  return pointer.size === 0 ? Buffer.alloc(0) : Buffer.from(`version ${currentVersion}
+oid sha256:${pointer.oid}
+size ${pointer.size}
+`, "utf8");
+}
+function parts(value) {
+  const absolute2 = path14.resolve(value), root = path14.parse(absolute2).root;
+  const relative = path14.relative(root, absolute2);
+  return { absolute: absolute2, root, parts: relative ? relative.split(path14.sep).filter(Boolean) : [] };
+}
+async function safeDirectory(value, create) {
+  const parsed = parts(value);
+  let current = parsed.root;
+  for (const component of parsed.parts) {
+    current = path14.join(current, component);
+    try {
+      let entry;
+      try {
+        entry = await lstat6(current);
+      } catch (error2) {
+        if (error2.code !== "ENOENT" || !create) throw error2;
+        try {
+          await mkdir3(current);
+        } catch (creationError) {
+          if (creationError.code !== "EEXIST") throw creationError;
+        }
+        entry = await lstat6(current);
+      }
+      if (entry.isSymbolicLink()) throw new Error(`Git LFS path crosses a symlink or reparse point: ${current}`);
+      if (!entry.isDirectory()) throw new Error(`Git LFS path is not a directory: ${current}`);
+    } catch (error2) {
+      if (error2.code === "ENOENT") throw new Error(`Git LFS object directory is missing: ${current}`, { cause: error2 });
+      throw error2;
+    }
+  }
+  return parsed.absolute;
+}
+function sameFile(a, b) {
+  return a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
+}
+async function checkedFile(value) {
+  const file = path14.resolve(value);
+  await safeDirectory(path14.dirname(file), false);
+  const info = await lstat6(file, { bigint: true });
+  if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git LFS file must be regular and cannot be a symlink: ${file}`);
+  return { file, info };
+}
+async function writeAll(handle, buffer) {
+  let offset = 0;
+  while (offset < buffer.length) {
+    const { bytesWritten } = await handle.write(buffer, offset, buffer.length - offset, null);
+    if (!bytesWritten) throw new Error("Git LFS object write made no progress");
+    offset += bytesWritten;
+  }
+}
+async function streamLfsFile(value, chunk) {
+  const { file, info } = await checkedFile(value);
+  const handle = await open2(file, constants2.O_RDONLY | noFollow);
+  try {
+    const start = await handle.stat({ bigint: true });
+    if (!start.isFile() || !sameFile(info, start)) throw new LfsFileChangedError("Git LFS file changed before reading");
+    const digest11 = createHash10("sha256");
+    let size = 0;
+    for await (const value2 of handle.createReadStream({ autoClose: false })) {
+      const buffer = Buffer.isBuffer(value2) ? value2 : Buffer.from(value2);
+      size += buffer.length;
+      if (!Number.isSafeInteger(size)) throw new Error("Git LFS object size is outside the safe range");
+      digest11.update(buffer);
+      if (chunk) await chunk(buffer);
+    }
+    const end = await handle.stat({ bigint: true });
+    const after = await checkedFile(file);
+    if (!sameFile(start, end) || !sameFile(end, after.info) || BigInt(size) !== end.size) throw new LfsFileChangedError("Git LFS file changed while reading");
+    return { oid: digest11.digest("hex"), size };
+  } finally {
+    await handle.close();
+  }
+}
+async function hashLfsFile(file) {
+  return streamLfsFile(file);
+}
+function objectPath(objectsRoot, value) {
+  const pointer = checkedPointer(value);
+  return path14.join(path14.resolve(objectsRoot), pointer.oid.slice(0, 2), pointer.oid.slice(2, 4), pointer.oid);
+}
+async function verifyLfsObject(objectsRoot, value) {
+  const pointer = checkedPointer(value), file = objectPath(objectsRoot, pointer);
+  await safeDirectory(path14.dirname(file), false);
+  let actual;
+  try {
+    actual = await streamLfsFile(file);
+  } catch (error2) {
+    if (error2.code === "ENOENT") throw new Error("Git LFS object is missing", { cause: error2 });
+    throw error2;
+  }
+  if (actual.oid !== pointer.oid || actual.size !== pointer.size) throw new Error("Git LFS object integrity check failed");
+  return file;
+}
+async function checkOwnedTemporary(file, identity2) {
+  const { info } = await checkedFile(file);
+  if (info.dev !== identity2.dev || info.ino !== identity2.ino) throw new Error(`Git LFS temporary file changed: ${file}`);
+}
+async function verifyOwnedTemporary(file, identity2, expected) {
+  await checkOwnedTemporary(file, identity2);
+  const actual = await streamLfsFile(file);
+  if (actual.oid !== expected.oid || actual.size !== expected.size) throw new Error("Git LFS temporary content integrity check failed");
+  await checkOwnedTemporary(file, identity2);
+}
+async function removeOwnedTemporary(file, identity2) {
+  try {
+    await checkOwnedTemporary(file, identity2);
+    await unlink2(file);
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+  }
+}
+async function persistLfsObject(objectsRoot, sourceFile) {
+  const root = await safeDirectory(objectsRoot, true);
+  const temp = path14.join(root, `.captain-lfs-${randomUUID2()}.tmp`);
+  let output;
+  let identity2;
+  let tempPending = false;
+  try {
+    output = await open2(temp, constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | noFollow, 384);
+    tempPending = true;
+    identity2 = await output.stat({ bigint: true });
+    const pointer = await streamLfsFile(sourceFile, (value) => writeAll(output, value));
+    await output.sync();
+    await output.close();
+    output = void 0;
+    const destination = objectPath(root, pointer);
+    await safeDirectory(path14.dirname(destination), true);
+    await safeDirectory(root, false);
+    await verifyOwnedTemporary(temp, identity2, pointer);
+    try {
+      await link2(temp, destination);
+    } catch (error2) {
+      if (error2.code !== "EEXIST") throw error2;
+    }
+    await removeOwnedTemporary(temp, identity2);
+    tempPending = false;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await verifyLfsObject(root, pointer);
+        break;
+      } catch (error2) {
+        if (!(error2 instanceof LfsFileChangedError) || attempt >= 2) throw error2;
+      }
+    }
+    return pointer;
+  } finally {
+    try {
+      if (output) await output.close();
+    } finally {
+      if (tempPending && identity2) await removeOwnedTemporary(temp, identity2);
+    }
+  }
+}
+async function hydrateLfsObject(objectsRoot, value, destinationFile) {
+  const pointer = checkedPointer(value), destination = await checkedFile(destinationFile);
+  if (destination.info.size >= BigInt(pointerLimit)) throw new Error("Git LFS hydration destination is not a pointer");
+  const original = await readFile5(destination.file), existing = parseLfsPointer(original);
+  if (!existing || existing.oid !== pointer.oid || existing.size !== pointer.size) throw new Error("Git LFS hydration destination no longer matches the pointer");
+  const source = await verifyLfsObject(objectsRoot, pointer);
+  const temp = path14.join(path14.dirname(destination.file), `.captain-lfs-${randomUUID2()}.tmp`);
+  let output;
+  let identity2;
+  let tempPending = false;
+  try {
+    output = await open2(temp, constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | noFollow, 384);
+    tempPending = true;
+    identity2 = await output.stat({ bigint: true });
+    const actual = await streamLfsFile(source, (value2) => writeAll(output, value2));
+    if (actual.oid !== pointer.oid || actual.size !== pointer.size) throw new Error("Git LFS object integrity check failed during hydration");
+    await output.chmod(Number(destination.info.mode & 0o777n));
+    await output.sync();
+    await output.close();
+    output = void 0;
+    const current = await checkedFile(destination.file);
+    if (!sameFile(destination.info, current.info) || !(await readFile5(destination.file)).equals(original)) throw new Error("Git LFS hydration destination changed during copy");
+    await safeDirectory(path14.dirname(destination.file), false);
+    await verifyOwnedTemporary(temp, identity2, pointer);
+    const finalDestination = await checkedFile(destination.file);
+    if (!sameFile(destination.info, finalDestination.info) || !(await readFile5(destination.file)).equals(original)) throw new Error("Git LFS hydration destination changed during verification");
+    await rename2(temp, destination.file);
+    tempPending = false;
+  } finally {
+    try {
+      if (output) await output.close();
+    } finally {
+      if (tempPending && identity2) await removeOwnedTemporary(temp, identity2);
+    }
+  }
+}
+var currentVersion, legacyVersion, alphaVersion, emptyOid, pointerLimit, LfsFileChangedError, noFollow;
+var init_lfs = __esm({
+  "src/lfs.ts"() {
+    "use strict";
+    currentVersion = "https://git-lfs.github.com/spec/v1";
+    legacyVersion = "https://hawser.github.com/spec/v1";
+    alphaVersion = "http://git-media.io/v/2";
+    emptyOid = createHash10("sha256").update(Buffer.alloc(0)).digest("hex");
+    pointerLimit = 1024;
+    LfsFileChangedError = class extends Error {
+    };
+    noFollow = typeof constants2.O_NOFOLLOW === "number" ? constants2.O_NOFOLLOW : 0;
+  }
+});
+
+// src/git-safe-status.ts
+import { spawn } from "node:child_process";
+import { createHash as createHash11 } from "node:crypto";
+import { constants as fsConstants } from "node:fs";
+import { lstat as lstat7, mkdir as mkdir4, mkdtemp, open as open3, readFile as readFile6, readdir as readdir8, realpath as realpath4, rename as rename3, rm as rm2, unlink as unlink3, utimes, writeFile as writeFile3 } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path15 from "node:path";
+function assertMergeTreeGitVersion(value) {
+  const match = /^git version (\d+)\.(\d+)\.(\d+)(?:\.[^\s]+)?\s*$/.exec(value);
+  if (!match) throw new Error("cannot verify Git version; isolated LFS merge requires Git 2.43 or newer");
+  const major = Number(match[1]), minor = Number(match[2]);
+  if (!Number.isSafeInteger(major) || !Number.isSafeInteger(minor) || major < 2 || major === 2 && minor < 43) throw new Error("isolated LFS merge requires Git 2.43 or newer");
+}
+function utf8(value) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(value);
+  } catch {
+    throw new Error("Git paths or attributes are not valid UTF-8");
+  }
+}
+function safeEnvironment() {
+  const env = { ...process.env };
+  for (const key3 of Object.keys(env)) if (/^GIT_/i.test(key3) || key3 === "PLUGIN_DATA" || key3 === "CAPTAIN_PLUGIN_DATA") delete env[key3];
+  return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" };
+}
+async function invokeResult(args, cwd, env, input) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", args, { cwd, env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    const out = [], err = [];
+    let length = 0, errorLength = 0, overflow = false;
+    child.stdout.on("data", (part) => {
+      length += part.length;
+      if (length > maxOutput) {
+        overflow = true;
+        child.kill();
+      } else out.push(part);
+    });
+    child.stderr.on("data", (part) => {
+      errorLength += part.length;
+      if (errorLength <= 1024 * 1024) err.push(part);
+    });
+    child.once("error", reject);
+    child.once("close", (code) => {
+      if (overflow) reject(new Error("isolated Git output exceeds its bounded limit"));
+      else if (code === null) reject(new Error("isolated Git terminated without an exit status"));
+      else resolve({ status: code, output: Buffer.concat(out), error: Buffer.concat(err).toString("utf8").trim() });
+    });
+    child.stdin.on("error", () => {
+    });
+    child.stdin.end(input);
+  });
+}
+async function invoke(args, cwd, env, input) {
+  const result = await invokeResult(args, cwd, env, input);
+  if (result.status !== 0) throw new Error(`isolated Git ${args.at(-1) ?? "command"} failed: ${result.error}`);
+  return result.output;
+}
+function binaryAttributeRule(relative) {
+  const parts2 = relative.split("/");
+  if (!relative || /[\x00-\x1f\x7f\\]/.test(relative) || relative.includes("\uFFFD") || path15.isAbsolute(relative) || parts2.some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git")) throw new Error("unsafe LFS merge path");
+  const literal2 = relative.replace(/[\*?\[\]]/g, (value) => `\\${value}`).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"/${literal2}" -merge
+`;
+}
+async function metadata(file) {
+  try {
+    const info = await lstat7(file, { bigint: true });
+    if (info.isSymbolicLink() || !info.isFile() || info.size > BigInt(maxMetadata) || !samePath7(await realpath4(file), file)) throw new Error(`unsafe Git metadata: ${file}`);
+    const handle = await open3(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    try {
+      const before = await handle.stat({ bigint: true });
+      if (before.dev !== info.dev || before.ino !== info.ino || before.size !== info.size || before.size > BigInt(maxMetadata)) throw new Error(`Git metadata changed while opening: ${file}`);
+      const value = await handle.readFile(), after = await handle.stat({ bigint: true }), current = await lstat7(file, { bigint: true });
+      if (value.length > maxMetadata || current.isSymbolicLink() || !current.isFile() || current.dev !== before.dev || current.ino !== before.ino || current.size !== after.size || current.mtimeNs !== after.mtimeNs || current.ctimeNs !== after.ctimeNs || after.size !== before.size || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs) throw new Error(`Git metadata changed while reading: ${file}`);
+      return value;
+    } finally {
+      await handle.close();
+    }
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw error2;
+  }
+}
+async function safeTempCleanup(root) {
+  if (!samePath7(path15.dirname(root), tmpdir()) || !path15.basename(root).startsWith("captain-shadow-git-") || !samePath7(await realpath4(root), root)) throw new Error("refusing unsafe isolated Git cleanup");
+  async function inspect(dir) {
+    for (const entry of await readdir8(dir, { withFileTypes: true })) {
+      const child = path15.join(dir, entry.name), info = await lstat7(child);
+      if (info.isSymbolicLink()) throw new Error("refusing isolated Git cleanup containing a reparse point");
+      if (info.isDirectory()) await inspect(child);
+    }
+  }
+  await inspect(root);
+  await rm2(root, { recursive: true, force: false });
+}
+function shadowConfig(raw) {
+  const entries3 = /* @__PURE__ */ new Map();
+  for (const record3 of raw.split("\0")) {
+    if (!record3) continue;
+    const split = record3.indexOf("\n"), key3 = (split < 0 ? record3 : record3.slice(0, split)).toLowerCase();
+    entries3.set(key3, split < 0 ? void 0 : record3.slice(split + 1));
+  }
+  if (entries3.has("core.excludesfile")) throw new Error("repository core.excludesFile is not supported by isolated Git status");
+  const sections = { core: [], status: [], diff: [] };
+  let fileMode = true;
+  const keys = {
+    "core.autocrlf": "autocrlf",
+    "core.eol": "eol",
+    "core.filemode": "bool",
+    "core.symlinks": "bool",
+    "core.ignorecase": "bool",
+    "core.quotepath": "bool",
+    "core.precomposeunicode": "bool",
+    "core.trustctime": "bool",
+    "core.checkstat": "checkstat",
+    "core.ignorestat": "bool",
+    "core.safecrlf": "safecrlf",
+    "status.renames": "renames",
+    "diff.renames": "renames",
+    "diff.renamelimit": "limit"
+  };
+  for (const [key3, kind] of Object.entries(keys)) {
+    if (!entries3.has(key3)) continue;
+    const original = entries3.get(key3), value = original === void 0 ? "true" : original.toLowerCase();
+    let normalized2;
+    if (["bool", "autocrlf", "renames", "safecrlf"].includes(kind) && ["true", "yes", "on", "1"].includes(value)) normalized2 = "true";
+    else if (["bool", "autocrlf", "renames", "safecrlf"].includes(kind) && ["false", "no", "off", "0", ""].includes(value)) normalized2 = "false";
+    else if (kind === "autocrlf" && value === "input" || kind === "renames" && value === "copies" || kind === "safecrlf" && value === "warn" || kind === "eol" && ["lf", "crlf", "native"].includes(value) || kind === "checkstat" && ["default", "minimal"].includes(value) || kind === "limit" && /^(?:0|[1-9][0-9]{0,6})$/.test(value)) normalized2 = value;
+    else throw new Error(`unsupported Git setting: ${key3}`);
+    if (key3 === "core.filemode") fileMode = normalized2 === "true";
+    const [section, name] = key3.split(".");
+    sections[section].push(`	${name} = ${normalized2}
+`);
+  }
+  if (!entries3.has("core.filemode")) sections.core.push("	filemode = true\n");
+  return { config: Object.entries(sections).filter(([, values]) => values.length).map(([section, values]) => `
+[${section}]
+${values.join("")}`).join(""), fileMode };
+}
+async function withShadowGit(worktree, git2, operation) {
+  const root = path15.resolve(worktree), head = await git2(["rev-parse", "--verify", "HEAD^{commit}"], root);
+  if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(head)) throw new Error("invalid Git HEAD for isolated status");
+  const locations = (await git2(["rev-parse", "--path-format=absolute", "--show-object-format", "--git-path", "index", "--git-path", "objects", "--git-path", "info/exclude", "--git-path", "info/attributes", "--shared-index-path"], root)).split(/\r?\n/);
+  if (locations.length < 5 || locations.length > 6 || locations.slice(1).some((value) => !path15.isAbsolute(value))) throw new Error("invalid Git metadata paths for isolated status");
+  const [objectFormat, indexValue, objectsValue, excludeValue, attributesValue, sharedPathValue] = locations;
+  if (objectFormat !== "sha1" && objectFormat !== "sha256") throw new Error("unsupported Git object format");
+  const indexPath = path15.resolve(indexValue), objectDir = path15.resolve(objectsValue);
+  const objectInfo = await lstat7(objectDir, { bigint: true });
+  if (objectInfo.isSymbolicLink() || !objectInfo.isDirectory() || !objectInfo.ino || !samePath7(await realpath4(objectDir), objectDir)) throw new Error("Git object store resolves through a reparse point or has no stable identity");
+  const assertObjectStore = async () => {
+    try {
+      const current = await lstat7(objectDir, { bigint: true });
+      if (current.isSymbolicLink() || !current.isDirectory() || current.dev !== objectInfo.dev || current.ino !== objectInfo.ino || !samePath7(await realpath4(objectDir), objectDir)) throw new Error("identity diverged");
+    } catch (error2) {
+      throw new Error("Git object store changed during isolated operation", { cause: error2 });
+    }
+  };
+  const originalIndex = await metadata(indexPath);
+  if (!originalIndex) throw new Error("Git index is missing; prepare an index before isolated status");
+  const sharedPath = sharedPathValue ? path15.resolve(sharedPathValue) : void 0;
+  if (sharedPath && !/^sharedindex\.[a-f0-9]{40,64}$/.test(path15.basename(sharedPath))) throw new Error("unsafe Git shared-index path");
+  const shared = sharedPath ? await metadata(sharedPath) : void 0;
+  if (sharedPath && !shared) throw new Error("Git shared index is missing");
+  const excludePath = path15.resolve(excludeValue);
+  const exclude = await metadata(excludePath);
+  const attributesPath = path15.resolve(attributesValue);
+  const infoAttributes = await metadata(attributesPath);
+  if ((exclude?.length ?? 0) > 1024 * 1024 || (infoAttributes?.length ?? 0) > 1024 * 1024) throw new Error("Git info metadata exceeds its bounded limit");
+  const blockedAttributes = Buffer.concat([infoAttributes ?? Buffer.alloc(0), Buffer.from("\n* -filter -merge\n")]);
+  const { config: config2, fileMode } = shadowConfig(await git2(["config", "--null", "--list"], root));
+  const temp = await mkdtemp(path15.join(tmpdir(), "captain-shadow-git-")), dir = path15.join(temp, "git");
+  const env = safeEnvironment();
+  env.GIT_ALTERNATE_OBJECT_DIRECTORIES = JSON.stringify(objectDir.replaceAll("\\", "/"));
+  try {
+    await invoke(["init", "--bare", "-q", `--object-format=${objectFormat}`, dir], temp, env);
+    if (config2) await writeFile3(path15.join(dir, "config"), config2, { flag: "a" });
+    await writeFile3(path15.join(dir, "HEAD"), `${head}
+`);
+    await writeFile3(path15.join(dir, "index"), originalIndex);
+    if (shared && sharedPath) await writeFile3(path15.join(dir, path15.basename(sharedPath)), shared);
+    if (exclude) await writeFile3(path15.join(dir, "info", "exclude"), exclude);
+    await writeFile3(path15.join(dir, "info", "attributes"), blockedAttributes);
+    const run = (args, input) => invoke([`--git-dir=${dir}`, `--work-tree=${root}`, "-c", `core.hooksPath=${path15.join(temp, "hooks")}`, "-c", "core.fsmonitor=false", "-c", "merge.default=text", ...args], root, env, input);
+    await mkdir4(path15.join(temp, "hooks"));
+    let expectedIndex = originalIndex;
+    const checkAttributes = async (paths, attributes, cached2 = false) => {
+      if (!attributes.length || attributes.some((name) => !/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(name))) throw new Error("invalid Git attribute names");
+      const found = [], attrsPath = path15.join(dir, "info", "attributes");
+      try {
+        await writeFile3(attrsPath, infoAttributes ?? Buffer.alloc(0));
+        for (const batch of paths.length ? [paths] : []) {
+          const input = Buffer.from(batch.map((value) => `${value}\0`).join(""));
+          if (input.length > maxOutput) throw new Error("Git attribute inputs exceed their bounded limit");
+          const fields2 = utf8(await run(["check-attr", ...cached2 ? ["--cached"] : [], "-z", "--stdin", ...attributes], input)).split("\0");
+          if (fields2.at(-1) === "") fields2.pop();
+          if (fields2.length !== batch.length * attributes.length * 3) throw new Error("Git attribute result count diverged");
+          for (let i = 0; i < batch.length; i++) {
+            const values = {};
+            for (let j = 0; j < attributes.length; j++) {
+              const offset = (i * attributes.length + j) * 3;
+              if (fields2[offset] !== batch[i] || fields2[offset + 1] !== attributes[j]) throw new Error("Git attribute result diverged");
+              values[attributes[j]] = fields2[offset + 2];
+            }
+            found.push({ path: batch[i], attributes: values });
+          }
+        }
+      } finally {
+        await writeFile3(attrsPath, blockedAttributes);
+      }
+      return found;
+    };
+    const writeObject = async (value) => {
+      await assertObjectStore();
+      const writeEnv = { ...env, GIT_OBJECT_DIRECTORY: objectDir };
+      delete writeEnv.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+      const actual = (await invoke([`--git-dir=${dir}`, `--work-tree=${root}`, "hash-object", "-w", "--stdin"], root, writeEnv, value)).toString("ascii").trim();
+      const expected = createHash11(objectFormat).update(`blob ${value.length}\0`).update(value).digest("hex");
+      await assertObjectStore();
+      if (actual !== expected) throw new Error("Git object write diverged");
+      return actual;
+    };
+    const writeMergeCommit = async (tree2, ours, theirs) => {
+      const oid = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
+      if (![tree2, ours, theirs].every((value2) => oid.test(value2) && value2.length === head.length) || ours !== head) throw new Error("invalid isolated merge commit binding");
+      for (const [value2, type] of [[tree2, "tree"], [ours, "commit"], [theirs, "commit"]]) {
+        if ((await run(["cat-file", "-t", value2])).toString("ascii").trim() !== type) throw new Error("isolated merge commit object type diverged");
+      }
+      const value = Buffer.from(`tree ${tree2}
+parent ${ours}
+parent ${theirs}
+author Captain SDLC <captain@invalid> 0 +0000
+committer Captain SDLC <captain@invalid> 0 +0000
+
+Private merge preparation
+`);
+      await assertObjectStore();
+      const writeEnv = { ...env, GIT_OBJECT_DIRECTORY: objectDir };
+      delete writeEnv.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+      const actual = (await invoke([`--git-dir=${dir}`, `--work-tree=${root}`, "hash-object", "-t", "commit", "-w", "--stdin"], root, writeEnv, value)).toString("ascii").trim();
+      const expected = createHash11(objectFormat).update(`commit ${value.length}\0`).update(value).digest("hex");
+      await assertObjectStore();
+      if (actual !== expected) throw new Error("isolated merge commit object write diverged");
+      return actual;
+    };
+    const stageFiles = async (paths) => {
+      const writeEnv = { ...env, GIT_OBJECT_DIRECTORY: objectDir };
+      delete writeEnv.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+      for (const batch of batches(paths, (value) => value)) {
+        await assertObjectStore();
+        await utimes(path15.join(dir, "index"), /* @__PURE__ */ new Date(1e3), /* @__PURE__ */ new Date(1e3));
+        await invoke(["--literal-pathspecs", `--git-dir=${dir}`, `--work-tree=${root}`, "-c", `core.hooksPath=${path15.join(temp, "hooks")}`, "-c", "core.fsmonitor=false", "add", "--", ...batch], root, writeEnv);
+        await assertObjectStore();
+      }
+    };
+    const publishIndex = async () => {
+      await assertObjectStore();
+      const lockPath = `${indexPath}.lock`, lock = await open3(lockPath, "wx");
+      let closed = false, published = false;
+      const ownedLock = await lock.stat({ bigint: true });
+      try {
+        const current = await metadata(indexPath);
+        if (!current || !current.equals(expectedIndex) || await git2(["rev-parse", "--verify", "HEAD^{commit}"], root) !== head) throw new Error("Git HEAD or index changed before index publication");
+        await run(["update-index", "--no-split-index"]);
+        const replacement = await metadata(path15.join(dir, "index"));
+        if (!replacement) throw new Error("isolated Git index is missing");
+        await lock.writeFile(replacement);
+        await lock.sync();
+        const lockInfo = await lock.stat({ bigint: true }), pathInfo = await lstat7(lockPath, { bigint: true });
+        const unchanged = await metadata(indexPath);
+        if (pathInfo.isSymbolicLink() || pathInfo.dev !== lockInfo.dev || pathInfo.ino !== lockInfo.ino || !unchanged || !unchanged.equals(expectedIndex) || await git2(["rev-parse", "--verify", "HEAD^{commit}"], root) !== head) throw new Error("Git index authority changed during publication");
+        await lock.close();
+        closed = true;
+        await assertObjectStore();
+        await rename3(lockPath, indexPath);
+        published = true;
+        expectedIndex = replacement;
+      } finally {
+        if (!closed) await lock.close();
+        if (!published) {
+          try {
+            const found = await lstat7(lockPath, { bigint: true });
+            if (!found.isSymbolicLink() && found.dev === ownedLock.dev && found.ino === ownedLock.ino && found.ino !== 0n) await unlink3(lockPath);
+          } catch (error2) {
+            if (error2.code !== "ENOENT") throw error2;
+          }
+        }
+      }
+    };
+    let shadow;
+    const mergeTree = async (ours, theirs) => {
+      assertMergeTreeGitVersion((await run(["version"])).toString("utf8").trim());
+      const oidPattern = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/;
+      if (!oidPattern.test(ours) || !oidPattern.test(theirs) || ours !== head) throw new Error("invalid isolated merge-tree commit binding");
+      if ((await run(["cat-file", "-t", theirs])).toString("ascii").trim() !== "commit") throw new Error("isolated merge-tree target is not a commit");
+      const expectedTree = (await run(["rev-parse", `${ours}^{tree}`])).toString("ascii").trim();
+      const currentTree = (await run(["write-tree"])).toString("ascii").trim();
+      if (currentTree !== expectedTree) throw new Error("isolated merge-tree requires the unchanged source index");
+      const originals = entries2(await run(["ls-files", "--stage", "-v", "-z"]));
+      if (originals.some((item) => item.flag.toUpperCase() === "S" || /^[a-z]$/.test(item.flag))) throw new Error("isolated merge-tree refuses hidden index entries");
+      const bases = (await run(["merge-base", "--all", ours, theirs])).toString("ascii").trim().split(/\r?\n/).filter(Boolean);
+      if (!bases.length || bases.some((value) => !oidPattern.test(value))) throw new Error("isolated merge-tree requires a valid merge base");
+      const snapshots = [], binary = /* @__PURE__ */ new Set();
+      for (const revision of [.../* @__PURE__ */ new Set([ours, theirs, ...bases])]) {
+        await run(["read-tree", "--no-sparse-checkout", revision]);
+        const indexed2 = entries2(await run(["ls-files", "--stage", "-v", "-z"]));
+        const lfs = await indexedLfs(shadow, false), selected = new Set(lfs.map((item) => item.path));
+        for (const item of lfs) binary.add(item.path);
+        snapshots.push({ files: new Set(indexed2.map((item) => item.path)), lfs: selected });
+      }
+      for (const name of binary) for (const snapshot2 of snapshots) if (snapshot2.files.has(name) && !snapshot2.lfs.has(name)) throw new Error(`LFS attribute transition requires explicit resolution: ${name}`);
+      const binaryPaths = [...binary].sort(), folded = /* @__PURE__ */ new Set();
+      for (const name of binaryPaths) {
+        const key3 = process.platform === "win32" ? name.toLowerCase() : name;
+        if (folded.has(key3)) throw new Error("LFS merge has case-colliding paths");
+        folded.add(key3);
+      }
+      await run(["read-tree", "--no-sparse-checkout", ours]);
+      const attrsPath = path15.join(dir, "info", "attributes"), rules = Buffer.concat([infoAttributes ?? Buffer.alloc(0), Buffer.from(`
+* -filter
+${binaryPaths.map(binaryAttributeRule).join("")}`)]);
+      if (rules.length > maxOutput) throw new Error("LFS merge attribute rules exceed the bounded limit");
+      try {
+        await writeFile3(attrsPath, rules);
+        if (binaryPaths.length) {
+          const input = Buffer.from(binaryPaths.map((value) => `${value}\0`).join(""));
+          const fields2 = utf8(await run(["check-attr", "--cached", "-z", "--stdin", "filter", "merge"], input)).split("\0");
+          if (fields2.at(-1) === "") fields2.pop();
+          if (fields2.length !== binaryPaths.length * 6) throw new Error("LFS merge attribute verification diverged");
+          for (let i = 0; i < binaryPaths.length; i++) {
+            const part = fields2.slice(i * 6, i * 6 + 6);
+            if (part[0] !== binaryPaths[i] || part[1] !== "filter" || part[2] !== "unset" || part[3] !== binaryPaths[i] || part[4] !== "merge" || part[5] !== "unset") throw new Error(`LFS merge path does not use the binary driver: ${binaryPaths[i]}`);
+          }
+        }
+        await assertObjectStore();
+        const writeEnv = { ...env, GIT_OBJECT_DIRECTORY: objectDir };
+        delete writeEnv.GIT_ALTERNATE_OBJECT_DIRECTORIES;
+        const result2 = await invokeResult([`--attr-source=${ours}`, `--git-dir=${dir}`, `--work-tree=${root}`, "-c", `core.hooksPath=${path15.join(temp, "hooks")}`, "-c", "core.fsmonitor=false", "-c", "merge.default=text", "merge-tree", "--write-tree", "-z", ours, theirs], root, writeEnv);
+        await assertObjectStore();
+        if (result2.status !== 0 && result2.status !== 1) throw new Error(`isolated Git merge-tree failed: ${result2.error}`);
+        return { status: result2.status === 0 ? "clean" : "conflicts", output: result2.output, binaryPaths };
+      } finally {
+        await writeFile3(attrsPath, blockedAttributes);
+      }
+    };
+    shadow = { dir, root, indexFile: path15.join(dir, "index"), fileMode, run, mergeTree, checkAttributes, writeObject, writeMergeCommit, stageFiles, publishIndex };
+    const result = await operation(shadow);
+    await assertObjectStore();
+    const finalIndex = await metadata(indexPath), finalShared = sharedPath ? await metadata(sharedPath) : void 0, finalExclude = await metadata(excludePath), finalAttributes = await metadata(attributesPath);
+    if (!finalIndex || !finalIndex.equals(expectedIndex) || shared && (!finalShared || !finalShared.equals(shared)) || Boolean(exclude) !== Boolean(finalExclude) || exclude && !exclude.equals(finalExclude) || Boolean(infoAttributes) !== Boolean(finalAttributes) || infoAttributes && !infoAttributes.equals(finalAttributes) || await git2(["rev-parse", "--verify", "HEAD^{commit}"], root) !== head) throw new Error("Git HEAD, index, or info metadata changed during isolated status");
+    return result;
+  } finally {
+    await safeTempCleanup(temp);
+  }
+}
+function entries2(data, allowUnmerged = false) {
+  const result = [];
+  for (const line of utf8(data).split("\0").filter(Boolean)) {
+    const match = /^([A-Za-z?]) (\d{6}) ([a-f0-9]{40}(?:[a-f0-9]{24})?) ([0-3])\t([\s\S]+)$/.exec(line);
+    if (!match) throw new Error("invalid Git index entry");
+    if (match[4] !== "0" && !allowUnmerged) throw new Error("unmerged Git index requires explicit conflict resolution");
+    const relative = match[5];
+    if (path15.isAbsolute(relative) || relative.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("unsafe Git index path");
+    result.push({ path: relative, oid: match[3], mode: match[2], flag: match[1], stage: match[4] });
+  }
+  return result;
+}
+function batches(items, render) {
+  const result = [];
+  let current = [], length = 0;
+  for (const item of items) {
+    const size = Buffer.byteLength(render(item)) + 4;
+    if (size > 7e3) throw new Error("Git path exceeds isolated command limit");
+    if (length + size > 7e3) {
+      result.push(current);
+      current = [];
+      length = 0;
+    }
+    current.push(item);
+    length += size;
+  }
+  if (current.length) result.push(current);
+  return result;
+}
+function parsePointer(pointer, indexOid) {
+  const algorithm = indexOid.length === 40 ? "sha1" : "sha256";
+  if (createHash11(algorithm).update(`blob ${pointer.length}\0`).update(pointer).digest("hex") !== indexOid) throw new Error("LFS pointer Git object hash mismatch");
+  if (pointer.length === 0) return { oid: createHash11("sha256").update(pointer).digest("hex"), size: 0 };
+  const value = parseLfsPointer(pointer);
+  if (!value || value.size <= 0) throw new Error("LFS index contains an invalid pointer or unsupported extension");
+  return value;
+}
+async function indexedLfs(shadow, allowUnmerged) {
+  const all = entries2(await shadow.run(["ls-files", "--stage", "-v", "-z"]), allowUnmerged);
+  if (all.some((item) => item.stage !== "0" && path15.posix.basename(item.path).toLowerCase() === ".gitattributes")) throw new Error("unmerged Git attributes require explicit conflict resolution");
+  const indexed2 = all.filter((item) => item.stage === "0");
+  const selected = [], attributes = await shadow.checkAttributes(indexed2.map((item) => item.path), ["filter"], true);
+  for (let i = 0; i < indexed2.length; i++) {
+    const item = indexed2[i], value = attributes[i].attributes.filter;
+    if (value === "lfs") {
+      if (item.mode !== "100644" && item.mode !== "100755") throw new Error("LFS input must be a regular tracked file");
+      if (item.flag.toUpperCase() === "S") throw new Error(`sparse LFS path requires an expanded index: ${item.path}`);
+      selected.push(item);
+    } else if (value !== "unspecified" && value !== "unset") throw new Error(`unsupported Git clean filter for ${item.path}`);
+  }
+  const oids = [...new Set(selected.map((item) => item.oid))];
+  if (!oids.length) return [];
+  const sizes = (await shadow.run(["cat-file", "--batch-check"], `${oids.join("\n")}
+`)).toString("utf8").trimEnd().split("\n");
+  if (sizes.length !== oids.length) throw new Error("LFS object size result count diverged");
+  for (let i = 0; i < oids.length; i++) {
+    const match = /^([a-f0-9]+) blob ([0-9]+)$/.exec(sizes[i]);
+    if (!match || match[1] !== oids[i] || Number(match[2]) >= 1024) throw new Error("LFS index contains a missing, oversized, or non-pointer object");
+  }
+  const output = await shadow.run(["cat-file", "--batch"], `${oids.join("\n")}
+`), pointers = /* @__PURE__ */ new Map();
+  let position = 0;
+  for (const oid of oids) {
+    const end = output.indexOf(10, position);
+    if (end < 0) throw new Error("truncated LFS object header");
+    const match = /^([a-f0-9]+) blob ([0-9]+)$/.exec(output.subarray(position, end).toString("ascii"));
+    if (!match || match[1] !== oid || Number(match[2]) >= 1024) throw new Error("unexpected LFS object header");
+    const size = Number(match[2]), first = end + 1, last = first + size;
+    if (last >= output.length || output[last] !== 10) throw new Error("truncated LFS object content");
+    pointers.set(oid, output.subarray(first, last));
+    position = last + 1;
+  }
+  if (position !== output.length) throw new Error("unexpected trailing LFS object data");
+  return selected.map((item) => {
+    const pointer = pointers.get(item.oid);
+    return { path: item.path, indexOid: item.oid, pointer, ...parsePointer(pointer, item.oid) };
+  });
+}
+async function hydrated(root, item) {
+  const file = path15.resolve(root, ...item.path.split("/")), relative = path15.relative(root, file);
+  if (!relative || relative.startsWith(".." + path15.sep) || path15.isAbsolute(relative)) throw new Error("LFS path escapes its worktree");
+  let info;
+  try {
+    info = await lstat7(file, { bigint: true });
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw error2;
+  }
+  if (info.isSymbolicLink()) throw new Error(`LFS path is a reparse point: ${item.path}`);
+  if (!info.isFile()) return void 0;
+  if (!samePath7(await realpath4(file), file)) throw new Error(`LFS path resolves through a reparse point: ${item.path}`);
+  if (info.size !== BigInt(item.size)) {
+    if (info.size === BigInt(item.pointer.length) && (await readFile6(file)).equals(item.pointer)) throw new Error(`LFS asset is not hydrated: ${item.path}`);
+    return void 0;
+  }
+  const handle = await open3(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+  try {
+    const before = await handle.stat({ bigint: true });
+    if (before.dev !== info.dev || before.ino !== info.ino || before.size !== info.size) throw new Error(`LFS input changed while opening: ${item.path}`);
+    const hash8 = createHash11("sha256");
+    for await (const chunk of handle.createReadStream({ autoClose: false })) hash8.update(chunk);
+    const after = await handle.stat({ bigint: true }), current = await lstat7(file, { bigint: true });
+    if (!current.isFile() || current.isSymbolicLink() || after.size !== before.size || after.mode !== before.mode || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs || current.ino !== before.ino || current.dev !== before.dev || current.size !== after.size || current.mode !== after.mode || current.mtimeNs !== after.mtimeNs || current.ctimeNs !== after.ctimeNs) throw new Error(`LFS input changed while hashing: ${item.path}`);
+    if (hash8.digest("hex") !== item.oid) return void 0;
+    return { path: file, dev: after.dev, ino: after.ino, size: after.size, mode: after.mode, mtimeNs: after.mtimeNs, ctimeNs: after.ctimeNs };
+  } finally {
+    await handle.close();
+  }
+}
+async function safeWorktreeQuery(worktree, git2, command) {
+  const result = await withShadowGit(worktree, git2, async (shadow) => {
+    const indexed2 = entries2(await shadow.run(["ls-files", "--stage", "-v", "-z"]), true).filter((item) => item.stage === "0");
+    const assumed = indexed2.filter((item) => item.flag !== item.flag.toUpperCase()).map((item) => item.path);
+    const sparse = indexed2.filter((item) => item.flag.toUpperCase() === "S").map((item) => item.path);
+    for (const batch of batches(assumed, (item) => item)) await shadow.run(["update-index", "--no-assume-unchanged", "--", ...batch]);
+    for (const batch of batches(sparse, (item) => item)) await shadow.run(["update-index", "--no-skip-worktree", "--", ...batch]);
+    const lfs = await indexedLfs(shadow, true), clean = [], witnesses = [];
+    const checked = new Array(lfs.length);
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(8, lfs.length) }, async () => {
+      for (; ; ) {
+        const index = next++;
+        if (index >= lfs.length) return;
+        checked[index] = await hydrated(shadow.root, lfs[index]);
+      }
+    }));
+    const indexedModes = new Map(indexed2.map((item) => [item.path, item.mode]));
+    for (let index = 0; index < lfs.length; index++) {
+      const witness = checked[index], mode = indexedModes.get(lfs[index].path);
+      if (witness && (!shadow.fileMode || (witness.mode & 0o100n) !== 0n === (mode === "100755"))) {
+        clean.push(lfs[index].path);
+        witnesses.push(witness);
+      }
+    }
+    for (const batch of batches(clean, (item) => item)) await shadow.run(["update-index", "--assume-unchanged", "--", ...batch]);
+    await utimes(shadow.indexFile, /* @__PURE__ */ new Date(1e3), /* @__PURE__ */ new Date(1e3));
+    return { output: await shadow.run(command), witnesses };
+  });
+  for (const witness of result.witnesses) {
+    const current = await lstat7(witness.path, { bigint: true });
+    if (!current.isFile() || current.isSymbolicLink() || current.dev !== witness.dev || current.ino !== witness.ino || current.size !== witness.size || current.mode !== witness.mode || current.mtimeNs !== witness.mtimeNs || current.ctimeNs !== witness.ctimeNs) throw new Error("LFS input changed during isolated status");
+  }
+  return result.output;
+}
+function safeGitDiffRaw(worktree, git2, base) {
+  if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(base)) throw new Error("working-tree diff requires a full commit object ID");
+  return safeWorktreeQuery(worktree, git2, ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z", base, "--"]);
+}
+async function safeGitUnmergedNames(worktree, git2) {
+  return withShadowGit(worktree, git2, async (shadow) => (await shadow.run(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"])).toString("utf8").trim());
+}
+var maxOutput, maxMetadata, samePath7, listShadowIndexedLfs, listIndexedLfs, safeGitStatus, safeGitJournalStatusRaw, safeGitDiffNames, safeGitDiffHeadRaw;
+var init_git_safe_status = __esm({
+  "src/git-safe-status.ts"() {
+    "use strict";
+    init_lfs();
+    maxOutput = 32 * 1024 * 1024;
+    maxMetadata = 32 * 1024 * 1024;
+    samePath7 = (a, b) => process.platform === "win32" ? path15.resolve(a).toLowerCase() === path15.resolve(b).toLowerCase() : path15.resolve(a) === path15.resolve(b);
+    listShadowIndexedLfs = (shadow) => indexedLfs(shadow, false);
+    listIndexedLfs = (worktree, git2) => withShadowGit(worktree, git2, listShadowIndexedLfs);
+    safeGitStatus = async (worktree, git2) => (await safeWorktreeQuery(worktree, git2, ["status", "--porcelain", "--untracked-files=normal"])).toString("utf8").trim();
+    safeGitJournalStatusRaw = (worktree, git2) => safeWorktreeQuery(worktree, git2, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"]);
+    safeGitDiffNames = async (worktree, git2) => (await safeWorktreeQuery(worktree, git2, ["diff", "--no-ext-diff", "--no-textconv", "--name-only"])).toString("utf8").trim();
+    safeGitDiffHeadRaw = (worktree, git2) => safeWorktreeQuery(worktree, git2, ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD"]);
+  }
+});
+
+// src/git-lfs-checkout.ts
+import { lstat as lstat8, readdir as readdir9, writeFile as writeFile4 } from "node:fs/promises";
+import path16 from "node:path";
+async function requireRealDirectory(value) {
+  const absolute2 = path16.resolve(value), root = path16.parse(absolute2).root;
+  let cursor = root;
+  for (const component of path16.relative(root, absolute2).split(path16.sep).filter(Boolean)) {
+    cursor = path16.join(cursor, component);
+    const info = await lstat8(cursor);
+    if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`Git LFS checkout path crosses a reparse point or non-directory: ${cursor}`);
+  }
+}
+function validateTree(tree2) {
+  const files = /* @__PURE__ */ new Map(), names = /* @__PURE__ */ new Set(), directories = /* @__PURE__ */ new Set();
+  for (const record3 of tree2.split("\0").filter(Boolean)) {
+    const match = /^(\d{6}) ([a-z]+) ([a-f0-9]{40}(?:[a-f0-9]{24})?)\t([\s\S]+)$/.exec(record3);
+    if (!match || match[1] !== "100644" && match[1] !== "100755" || match[2] !== "blob") throw new Error("Git LFS checkout refuses symlink, submodule, or unsupported tree mode");
+    const relative = match[4], parts2 = relative.split("/");
+    if (!relative || relative.includes("\uFFFD") || /[\x00-\x1f\x7f\\]/.test(relative) || parts2.some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git")) throw new Error(`unsafe Git LFS checkout path: ${relative}`);
+    if (process.platform === "win32" && parts2.some((part) => /[<>:"|?*]/.test(part) || /[. ]$/.test(part) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(part))) throw new Error(`unsupported Windows Git LFS checkout path: ${relative}`);
+    const key3 = process.platform === "win32" ? relative.toLowerCase() : relative;
+    if (names.has(key3) || directories.has(key3)) throw new Error(`duplicate or conflicting Git LFS checkout path: ${relative}`);
+    for (let index = 1; index < parts2.length; index++) {
+      const prefix = parts2.slice(0, index).join("/"), dir = process.platform === "win32" ? prefix.toLowerCase() : prefix;
+      if (names.has(dir)) throw new Error(`conflicting Git LFS checkout path: ${relative}`);
+      directories.add(dir);
+    }
+    names.add(key3);
+    files.set(relative, { oid: match[3], mode: match[1] });
+  }
+  return files;
+}
+function validateIndex(index, files) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const record3 of index.split("\0").filter(Boolean)) {
+    const match = /^(\d{6}) ([a-f0-9]{40}(?:[a-f0-9]{24})?) 0\t([\s\S]+)$/.exec(record3);
+    if (!match) throw new Error("Git LFS checkout index contains an invalid or unmerged entry");
+    const expected = files.get(match[3]);
+    if (!expected || seen.has(match[3]) || expected.mode !== match[1] || expected.oid !== match[2]) throw new Error("Git LFS checkout index and pinned tree diverged");
+    seen.add(match[3]);
+  }
+  if (seen.size !== files.size) throw new Error("Git LFS checkout index and pinned tree diverged");
+}
+async function populateLfsWorktree(sourceRoot, targetRoot, baseHead, git2) {
+  const source = path16.resolve(sourceRoot), target = path16.resolve(targetRoot);
+  if (samePath8(source, target) || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(baseHead)) throw new Error("invalid Git LFS checkout source, target, or pinned commit");
+  await requireRealDirectory(source);
+  await requireRealDirectory(target);
+  const sourceCommon = path16.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-common-dir"], source));
+  const targetCommon = path16.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-common-dir"], target));
+  const targetGit = path16.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-dir"], target));
+  if (!samePath8(sourceCommon, targetCommon) || !samePath8(path16.dirname(targetGit), path16.join(sourceCommon, "worktrees"))) throw new Error("Git LFS checkout worktree binding diverged");
+  await requireRealDirectory(sourceCommon);
+  await requireRealDirectory(targetGit);
+  for (const root of [source, target]) {
+    let storage;
+    try {
+      storage = await git2(["config", "--get-all", "lfs.storage"], root);
+    } catch (error2) {
+      if (error2.code !== 1) throw error2;
+    }
+    if (storage !== void 0) throw new Error("explicit lfs.storage is not supported");
+  }
+  if (await git2(["rev-parse", "--verify", "HEAD^{commit}"], target) !== baseHead || await git2(["rev-parse", "--verify", `${baseHead}^{commit}`], source) !== baseHead) throw new Error("Git LFS checkout commit binding diverged");
+  const present = await readdir9(target);
+  if (present.length !== 1 || present[0] !== ".git") throw new Error("Git LFS checkout requires an empty newly linked worktree");
+  const marker = await lstat8(path16.join(target, ".git"));
+  if (marker.isSymbolicLink() || !marker.isFile()) throw new Error("Git LFS checkout worktree metadata is not a regular file");
+  const index = path16.join(targetGit, "index");
+  try {
+    await lstat8(index);
+    throw new Error("Git LFS checkout target index already exists");
+  } catch (error2) {
+    if (error2.code !== "ENOENT") throw error2;
+  }
+  const files = validateTree(await git2(["ls-tree", "-r", "-z", "--full-tree", baseHead], source));
+  await git2(["read-tree", baseHead], target);
+  const indexInfo = await lstat8(index);
+  if (indexInfo.isSymbolicLink() || !indexInfo.isFile()) throw new Error("Git LFS checkout index is not a regular file");
+  validateIndex(await git2(["ls-files", "--stage", "-z"], target), files);
+  const selected = await listIndexedLfs(target, git2), objectsRoot = path16.join(sourceCommon, "lfs", "objects"), checked = /* @__PURE__ */ new Set();
+  for (const item of selected) {
+    if (!files.has(item.path) || files.get(item.path).oid !== item.indexOid) throw new Error("Git LFS checkout index and pinned tree diverged");
+    if (path16.posix.basename(item.path).toLowerCase() === ".gitattributes") throw new Error("Git LFS cannot track its own attributes file");
+    if (item.pointer.length === 0) {
+      if (item.size !== 0) throw new Error("invalid empty Git LFS checkout pointer");
+      continue;
+    }
+    const pointer = parseLfsPointer(item.pointer);
+    if (!pointer || pointer.oid !== item.oid || pointer.size !== item.size) throw new Error("Git LFS checkout pointer metadata diverged");
+    if (!checked.has(item.oid)) {
+      await verifyLfsObject(objectsRoot, pointer);
+      checked.add(item.oid);
+    }
+  }
+  const selectedPaths = new Set(selected.map((item) => item.path));
+  const ordinary = [...files.keys()].filter((relative) => !selectedPaths.has(relative));
+  ordinary.sort((a, b) => {
+    const aAttr = path16.posix.basename(a).toLowerCase() === ".gitattributes", bAttr = path16.posix.basename(b).toLowerCase() === ".gitattributes";
+    return aAttr === bAttr ? a.localeCompare(b) : aAttr ? -1 : 1;
+  });
+  await withShadowGit(target, git2, async (shadow) => {
+    validateIndex((await shadow.run(["ls-files", "--stage", "-z"])).toString("utf8"), files);
+    const checkout = async (paths) => {
+      if (paths.length) await shadow.run(["checkout-index", "-z", "--stdin"], Buffer.from(paths.join("\0") + "\0"));
+    };
+    await checkout(ordinary);
+    await writeFile4(path16.join(shadow.dir, "info", "attributes"), "* -filter -merge -text -ident !working-tree-encoding !eol\n");
+    await checkout(selected.map((item) => item.path));
+  });
+  for (const item of selected) {
+    if (item.pointer.length === 0) continue;
+    const pointer = parseLfsPointer(item.pointer);
+    await hydrateLfsObject(objectsRoot, pointer, path16.join(target, ...item.path.split("/")));
+  }
+}
+var samePath8;
+var init_git_lfs_checkout = __esm({
+  "src/git-lfs-checkout.ts"() {
+    "use strict";
+    init_lfs();
+    init_git_safe_status();
+    samePath8 = (a, b) => process.platform === "win32" ? path16.resolve(a).toLowerCase() === path16.resolve(b).toLowerCase() : path16.resolve(a) === path16.resolve(b);
+  }
+});
+
+// src/git-lfs-stage.ts
+import { createHash as createHash12 } from "node:crypto";
+import { lstat as lstat9, readFile as readFile7, readlink } from "node:fs/promises";
+import path17 from "node:path";
+function safePath2(value) {
+  if (!value || value.includes("\0") || value.includes("\\") || path17.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git"))
+    throw new Error("Git staging selection must contain safe repository-relative paths");
+  return value;
+}
+function fields(value) {
+  if (!value.length) return [];
+  if (value[value.length - 1] !== 0) throw new Error("invalid Git NUL-delimited path result");
+  let decoded;
+  try {
+    decoded = new TextDecoder("utf-8", { fatal: true }).decode(value);
+  } catch {
+    throw new Error("Git path is not valid UTF-8");
+  }
+  const result = decoded.split("\0");
+  result.pop();
+  return result;
+}
+function indexEntries(data) {
+  return fields(data).map((line) => {
+    const match = /^(\d{6}) [a-f0-9]{40}(?:[a-f0-9]{24})? ([0-3])\t([\s\S]+)$/.exec(line);
+    if (!match) throw new Error("invalid Git index entry during staging");
+    return { path: safePath2(match[3]), mode: match[1], stage: match[2] };
+  });
+}
+function batches2(values) {
+  const result = [];
+  let batch = [], length = 0;
+  for (const value of values) {
+    const size = Buffer.byteLength(value) + 4;
+    if (size > 7e3) throw new Error("Git staging path exceeds the supported command limit");
+    if (length + size > 7e3) {
+      result.push(batch);
+      batch = [];
+      length = 0;
+    }
+    batch.push(value);
+    length += size;
+  }
+  if (batch.length) result.push(batch);
+  return result;
+}
+async function rejectAlternateStorage(worktree, git2) {
+  try {
+    await git2(["config", "--get-all", "lfs.storage"], worktree);
+  } catch (error2) {
+    if (error2.code === 1) return;
+    throw error2;
+  }
+  throw new Error("configured lfs.storage is not yet supported by safe LFS staging");
+}
+async function safeDirectory2(value) {
+  const absolute2 = path17.resolve(value), base = path17.parse(absolute2).root;
+  let current = base;
+  for (const component of path17.relative(base, absolute2).split(path17.sep).filter(Boolean)) {
+    current = path17.join(current, component);
+    let info;
+    try {
+      info = await lstat9(current);
+    } catch (error2) {
+      if (error2.code === "ENOENT") return false;
+      throw error2;
+    }
+    if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`Git staging path crosses a link or non-directory: ${current}`);
+  }
+  return true;
+}
+async function snapshot(root, relative, git2) {
+  const file = path17.resolve(root, ...relative.split("/"));
+  if (!file.startsWith(path17.resolve(root) + path17.sep)) throw new Error("Git staging path escapes the worktree");
+  if (!await safeDirectory2(path17.dirname(file))) return void 0;
+  let info;
+  try {
+    info = await lstat9(file, { bigint: true });
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw error2;
+  }
+  if (info.isSymbolicLink()) {
+    const target = await readlink(file, { encoding: "buffer" }), after = await lstat9(file, { bigint: true });
+    if (!after.isSymbolicLink() || identity(info) !== identity(after) || !await safeDirectory2(path17.dirname(file))) throw new Error(`Git symlink changed during staging: ${relative}`);
+    return { path: relative, kind: "symlink", target, mode: info.mode };
+  }
+  if (info.isFile()) return { path: relative, kind: "file", pointer: await hashLfsFile(file), mode: info.mode };
+  if (info.isDirectory()) {
+    const marker = path17.join(file, ".git"), markerInfo = await lstat9(marker, { bigint: true }).catch((error2) => {
+      if (error2.code === "ENOENT") throw new Error(`Git submodule is not initialized: ${relative}`);
+      throw error2;
+    });
+    if (markerInfo.isSymbolicLink() || !markerInfo.isDirectory() && !markerInfo.isFile() || markerInfo.size > 1024n * 1024n) throw new Error(`unsafe Git submodule metadata: ${relative}`);
+    const markerBytes = markerInfo.isFile() ? await readFile7(marker) : Buffer.alloc(0);
+    const top = await git2(["rev-parse", "--show-toplevel"], file), gitDir = path17.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-dir"], file));
+    if (!samePath9(top, file) || !await safeDirectory2(gitDir)) throw new Error(`Git submodule identity diverged: ${relative}`);
+    const gitInfo = await lstat9(gitDir, { bigint: true }), head = await git2(["rev-parse", "--verify", "HEAD^{commit}"], file);
+    if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(head)) throw new Error(`invalid Git submodule HEAD: ${relative}`);
+    const current = await lstat9(file, { bigint: true }), markerAfter = await lstat9(marker, { bigint: true }), gitAfter = await lstat9(gitDir, { bigint: true });
+    if (!current.isDirectory() || current.isSymbolicLink() || identity(info) !== identity(current) || identity(markerInfo) !== identity(markerAfter) || identity(gitInfo) !== identity(gitAfter) || markerInfo.isFile() && !markerBytes.equals(await readFile7(marker)) || !await safeDirectory2(path17.dirname(file)) || !await safeDirectory2(gitDir)) throw new Error(`Git submodule changed during staging: ${relative}`);
+    return { path: relative, kind: "gitlink", head, identity: `${identity(info)}\0${identity(markerInfo)}\0${createHash12("sha256").update(markerBytes).digest("hex")}\0${gitDir}\0${identity(gitInfo)}` };
+  }
+  throw new Error(`Git staging requires a regular file, symlink, or initialized submodule: ${relative}`);
+}
+function equalSnapshot(a, b) {
+  if (!a || !b) return !a && !b;
+  if (a.path !== b.path || a.kind !== b.kind) return false;
+  if (a.kind === "file" && b.kind === "file") return a.mode === b.mode && a.pointer.size === b.pointer.size && a.pointer.oid === b.pointer.oid;
+  if (a.kind === "symlink" && b.kind === "symlink") return a.mode === b.mode && a.target.equals(b.target);
+  return a.kind === "gitlink" && b.kind === "gitlink" && a.head === b.head && a.identity === b.identity;
+}
+async function stageLfsSelection(worktree, selection, git2) {
+  if (!selection.length) throw new Error("Git staging requires explicit selected paths");
+  const root = path17.resolve(worktree), selected = [...new Set(selection.map(safePath2))];
+  await rejectAlternateStorage(root, git2);
+  const common = path17.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
+  const objects = path17.join(common, "lfs", "objects");
+  await withShadowGit(root, git2, async (shadow) => {
+    const conflicts = indexEntries(await shadow.run(["ls-files", "--stage", "-z"])).filter((item) => item.stage !== "0");
+    for (const item of conflicts) {
+      if (!selected.some((value) => item.path === value || item.path.startsWith(`${value}/`))) throw new Error(`unselected conflict requires explicit resolution: ${item.path}`);
+      if (!["100644", "100755", "120000", "160000"].includes(item.mode)) throw new Error(`unsupported indexed conflict type: ${item.path}`);
+    }
+    const all = /* @__PURE__ */ new Set(), indexed2 = /* @__PURE__ */ new Map();
+    for (const batch of batches2(selected)) {
+      const command = ["--literal-pathspecs", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...batch];
+      for (const name of fields(await shadow.run(command))) all.add(safePath2(name.endsWith("/") ? name.slice(0, -1) : name));
+      for (const item of indexEntries(await shadow.run(["--literal-pathspecs", "ls-files", "--stage", "-z", "--", ...batch]))) {
+        const previous = indexed2.get(item.path);
+        if (!previous || item.stage === "2" || previous.stage !== "2" && item.stage === "0") indexed2.set(item.path, item);
+        all.add(item.path);
+      }
+      for (const name of fields(await shadow.run(["--literal-pathspecs", "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", ...batch]))) all.add(safePath2(name));
+    }
+    const paths = [...all].sort();
+    for (const wanted of selected) if (!paths.some((value) => value === wanted || value.startsWith(`${wanted}/`))) throw new Error(`Git staging selection matched no paths: ${wanted}`);
+    for (const batch of batches2(selected)) for (const item of fields(await shadow.run(["--literal-pathspecs", "ls-files", "-v", "-z", "--", ...batch]))) {
+      if (item[0].toLowerCase() === "s") throw new Error("Git LFS staging does not support sparse skip-worktree paths");
+    }
+    const attrs = await shadow.checkAttributes(paths, ["filter", "merge"]);
+    const modes = (await shadow.run(["config", "--get", "core.filemode"]).catch(() => Buffer.from("true"))).toString("utf8").trim() !== "false";
+    const snapshots = /* @__PURE__ */ new Map(), ordinary = [], prepared = [];
+    for (const row of attrs) {
+      const filter = row.attributes.filter, merge2 = row.attributes.merge;
+      if (!["lfs", "unspecified", "unset"].includes(filter)) throw new Error(`unsupported Git clean filter: ${row.path}`);
+      if (!["lfs", "unspecified", "unset"].includes(merge2)) throw new Error(`unsupported Git merge driver: ${row.path}`);
+      const current = await snapshot(root, row.path, git2);
+      snapshots.set(row.path, current);
+      if (!current) {
+        if (indexed2.has(row.path)) ordinary.push(row.path);
+        continue;
+      }
+      if (filter !== "lfs") {
+        if (current.kind === "gitlink") prepared.push({ path: row.path, mode: "160000", oid: current.head });
+        else ordinary.push(row.path);
+        continue;
+      }
+      if (current.kind !== "file" || conflicts.some((item) => item.path === row.path && item.mode !== "100644" && item.mode !== "100755")) throw new Error(`Git LFS asset must be a regular file: ${row.path}`);
+      const pointer = await persistLfsObject(objects, path17.join(root, ...row.path.split("/")));
+      if (pointer.oid !== current.pointer.oid || pointer.size !== current.pointer.size) throw new Error(`Git LFS file changed during staging: ${row.path}`);
+      if (pointer.size > 0 && pointer.size < 1024) {
+        const bytes = await readFile7(await verifyLfsObject(objects, pointer));
+        if (bytes.length !== pointer.size || createHash12("sha256").update(bytes).digest("hex") !== pointer.oid) throw new Error(`Git LFS object changed during staging: ${row.path}`);
+        if (parseLfsPointer(bytes)) throw new Error(`Git LFS asset is an unhydrated pointer: ${row.path}`);
+      }
+      const old = indexed2.get(row.path);
+      if (old && old.mode !== "100644" && old.mode !== "100755") throw new Error(`Git LFS asset is not a regular indexed file: ${row.path}`);
+      const mode = !modes && old ? old.mode : (current.mode & 0o100n) !== 0n ? "100755" : "100644";
+      const oid = await shadow.writeObject(formatLfsPointer(pointer));
+      prepared.push({ path: row.path, mode, oid });
+    }
+    if (ordinary.length) await shadow.stageFiles(ordinary);
+    if (prepared.length) {
+      const input = Buffer.from(prepared.map((item) => `${item.mode} ${item.oid}	${item.path}\0`).join(""), "utf8");
+      await shadow.run(["update-index", "-z", "--index-info"], input);
+    }
+    if (fields(await shadow.run(["ls-files", "--unmerged", "-z"])).length) throw new Error("Git staging left unresolved conflicts in its private index");
+    for (const [name, before] of snapshots) if (!equalSnapshot(before, await snapshot(root, name, git2))) throw new Error(`Git staging source changed while preparing the index: ${name}`);
+    const afterAttrs = await shadow.checkAttributes(paths, ["filter", "merge"]);
+    if (JSON.stringify(attrs) !== JSON.stringify(afterAttrs)) throw new Error("Git attributes changed during staging");
+    await rejectAlternateStorage(root, git2);
+    await shadow.publishIndex();
+  });
+}
+var samePath9, identity;
+var init_git_lfs_stage = __esm({
+  "src/git-lfs-stage.ts"() {
+    "use strict";
+    init_git_safe_status();
+    init_lfs();
+    samePath9 = (a, b) => process.platform === "win32" ? path17.resolve(a).toLowerCase() === path17.resolve(b).toLowerCase() : path17.resolve(a) === path17.resolve(b);
+    identity = (value) => `${value.dev}:${value.ino}:${value.size}:${value.mtimeNs}:${value.ctimeNs}`;
+  }
+});
+
 // src/workspace.ts
 var workspace_exports = {};
 __export(workspace_exports, {
   abortMerge: () => abortMerge,
   applyPreparedCommit: () => applyPreparedCommit,
+  assertSafeGitAttributesAtCommit: () => assertSafeGitAttributesAtCommit,
   assertSafeGitAttributesInWorktree: () => assertSafeGitAttributesInWorktree,
   assertWorktreeBinding: () => assertWorktreeBinding,
   bookkeepingBlobAllowed: () => bookkeepingBlobAllowed,
   bookkeepingCommitValid: () => bookkeepingCommitValid,
   bookkeepingHistoryValid: () => bookkeepingHistoryValid,
   bookkeepingPathAllowed: () => bookkeepingPathAllowed,
+  captureJournalInputManifest: () => captureJournalInputManifest,
   commitAtomic: () => commitAtomic,
   commitEvidence: () => commitEvidence,
   ensureWorktree: () => ensureWorktree,
@@ -10870,35 +12081,51 @@ __export(workspace_exports, {
   reconcilePreparedCommit: () => reconcilePreparedCommit,
   reconcilePreparedMerge: () => reconcilePreparedMerge,
   repositoryIdentity: () => repositoryIdentity,
+  sourceManifestExcludingJournal: () => sourceManifestExcludingJournal,
   sourceState: () => sourceState
 });
 import { execFile as execFile2 } from "node:child_process";
-import { createHash as createHash10 } from "node:crypto";
-import { cp, lstat as lstat5, mkdtemp, readFile as readFile5, readdir as readdir7, realpath as realpath4, writeFile as writeFile3 } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path13 from "node:path";
+import { createHash as createHash13 } from "node:crypto";
+import { constants as constants3, createReadStream } from "node:fs";
+import { cp, lstat as lstat10, mkdtemp as mkdtemp2, open as open4, readFile as readFile8, readdir as readdir10, realpath as realpath5, writeFile as writeFile5 } from "node:fs/promises";
+import { tmpdir as tmpdir2 } from "node:os";
+import path18 from "node:path";
 import { promisify as promisify2 } from "node:util";
 function scrubbedEnvironment() {
   const env = { ...process.env };
-  for (const name of Object.keys(env)) if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA") delete env[name];
+  for (const name of Object.keys(env)) if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS|(?:LITERAL|GLOB|NOGLOB|ICASE)_PATHSPECS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA") delete env[name];
   return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" };
 }
 async function gitControls() {
   isolatedGitControlRoot ??= (async () => {
-    const root = await mkdtemp(path13.join(tmpdir(), "captain-git-controls-"));
-    await writeFile3(path13.join(root, "attributes"), "");
+    const root = await mkdtemp2(path18.join(tmpdir2(), "captain-git-controls-"));
+    await writeFile5(path18.join(root, "attributes"), "");
     return root;
   })();
   return isolatedGitControlRoot;
 }
 async function gitInvocation(args, cwd) {
   const controls = await gitControls();
-  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path13.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path18.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
 }
 async function git(args, cwd) {
+  if (args.length === 2 && args[0] === "status" && args[1] === "--porcelain") return safeGitStatus(cwd, git);
+  if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only"].join("\0")) return safeGitDiffNames(cwd, git);
+  if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD"].join("\0")) return (await safeGitDiffHeadRaw(cwd, git)).toString("utf8");
+  if (args.join("\0") === ["diff", "--name-only", "--diff-filter=U"].join("\0") || args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"].join("\0"))
+    return safeGitUnmergedNames(cwd, git);
+  if (args.length === 3 && args[0] === "merge" && args[1] === "--ff-only") {
+    const current = await git(["rev-parse", "--verify", "HEAD^{commit}"], cwd);
+    const incoming = await git(["rev-parse", "--verify", `${args[2]}^{commit}`], cwd);
+    if (await assertSafeGitAttributesAtCommit(cwd, current) || await assertSafeGitAttributesAtCommit(cwd, incoming))
+      throw new Error("Git LFS fast-forward requires a safe checkout implementation");
+  }
   return (await gitInvocation(args, cwd)).stdout.trim();
 }
 async function gitRaw(args, cwd) {
+  const prefix = ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z"];
+  if (args.length === 8 && args.slice(0, 6).join("\0") === prefix.join("\0") && args[7] === "--")
+    return (await safeGitDiffRaw(cwd, git, args[6])).toString("utf8");
   return (await gitInvocation(args, cwd)).stdout;
 }
 async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
@@ -10913,9 +12140,9 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     for (const source of [raw.hitlChecks ?? [], hitlChecks ?? []]) {
       if (!Array.isArray(source)) throw new Error("HITL checks must be an array");
       for (const check2 of source) {
-        const fields = ["id", "criterionId", "setup", "action", "expected", "evidence"];
-        if (!check2 || fields.some((field) => typeof check2[field] !== "string" || !check2[field].trim())) throw new Error("HITL checks require id, criterionId, setup, action, expected and evidence goals");
-        const normalized2 = Object.fromEntries(fields.map((field) => [field, check2[field]]));
+        const fields2 = ["id", "criterionId", "setup", "action", "expected", "evidence"];
+        if (!check2 || fields2.some((field) => typeof check2[field] !== "string" || !check2[field].trim())) throw new Error("HITL checks require id, criterionId, setup, action, expected and evidence goals");
+        const normalized2 = Object.fromEntries(fields2.map((field) => [field, check2[field]]));
         if (checks.has(normalized2.id) && JSON.stringify(checks.get(normalized2.id)) !== JSON.stringify(normalized2)) throw new Error(`conflicting frozen HITL check: ${normalized2.id}`);
         checks.set(normalized2.id, normalized2);
       }
@@ -10975,7 +12202,7 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   for (const value of raw.sourceManifestExcludes ?? []) {
     if (typeof value !== "string") throw new Error("source manifest exclusion must be a string");
     const relative = safeRepositoryPath(value, "source manifest exclusion");
-    if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`);
+    if (!approvedGeneratedPaths.has(relative.toLowerCase()) && !await isApprovedUnrealGeneratedPath(projectRoot, relative, trackedBasePaths)) throw new Error(`${relative} is not an approved generated-output path`);
     if (trackedBasePaths.some((candidate) => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`);
     parsed.sourceManifestExcludes.push(relative);
   }
@@ -10993,17 +12220,17 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   return parsed;
 }
 async function primaryRepositoryRoot(projectRoot, expectedCommonGitDir) {
-  const common = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
+  const common = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
   if (expectedCommonGitDir && pathKey4(common) !== pathKey4(expectedCommonGitDir)) throw new Error("primary worktree common Git directory binding diverged");
   const primary = (await worktreeEntries(projectRoot))[0]?.worktree;
   if (!primary) throw new Error("primary worktree could not be resolved");
-  const root = path13.resolve(primary);
-  if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" || pathKey4(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey4(common) || pathKey4(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey4(root) || pathKey4(await realpath4(root)) !== pathKey4(root) || pathKey4(await realpath4(common)) !== pathKey4(common))
+  const root = path18.resolve(primary);
+  if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" || pathKey4(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey4(common) || pathKey4(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey4(root) || pathKey4(await realpath5(root)) !== pathKey4(root) || pathKey4(await realpath5(common)) !== pathKey4(common))
     throw new Error("primary worktree must be a non-bare checkout with the exact common Git directory binding");
   return root;
 }
 async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
-  const root = path13.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
+  const root = path18.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
   if (targetBranch) await validateTargetBranch(root, targetBranch);
   const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root);
   if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase())) throw new Error("signed target branch oid does not match the current ref");
@@ -11012,23 +12239,23 @@ async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
 }
 async function hydrateIgnoredUnityPlugins(root, worktree) {
   for (const parent of ["Assets", "Packages"]) {
-    const sourceParent = path13.join(root, parent);
-    let entries2;
+    const sourceParent = path18.join(root, parent);
+    let entries3;
     try {
-      entries2 = await readdir7(sourceParent, { withFileTypes: true });
+      entries3 = await readdir10(sourceParent, { withFileTypes: true });
     } catch (error2) {
       if (error2.code === "ENOENT") continue;
       throw error2;
     }
-    for (const entry of entries2) {
+    for (const entry of entries3) {
       if (!entry.isDirectory()) continue;
       const relative = parent + "/" + entry.name;
       if (await optionalGit(["check-ignore", "--", relative], root) === null) continue;
-      await cp(path13.join(sourceParent, entry.name), path13.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
+      await cp(path18.join(sourceParent, entry.name), path18.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
       const siblingMeta = relative + ".meta";
       try {
-        const metadata = await lstat5(path13.join(root, siblingMeta));
-        if (metadata.isFile()) await cp(path13.join(root, siblingMeta), path13.join(worktree, siblingMeta), { force: false, errorOnExist: false });
+        const metadata2 = await lstat10(path18.join(root, siblingMeta));
+        if (metadata2.isFile()) await cp(path18.join(root, siblingMeta), path18.join(worktree, siblingMeta), { force: false, errorOnExist: false });
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
       }
@@ -11036,20 +12263,20 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
   }
 }
 async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir, storageDataRoot, invocationWorktree) {
-  const invocationRoot = path13.resolve(projectRoot), commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
-  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path13.join(root, ".captain-sdlc", "worktrees"), proposedPath = path13.join(container, safe2);
+  const invocationRoot = path18.resolve(projectRoot), commonGitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
+  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path18.join(root, ".captain-sdlc", "worktrees"), proposedPath = path18.join(container, safe2);
   if (!safe2 || storageDataRoot && safe2 !== intentId) throw new Error("intent id must produce an exact safe worktree name");
-  await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
+  const hasLfs = await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
   await assertSafeGitMetadataAttributes(root);
   await rejectReparseAncestors(root, container);
   if (targetBranch) {
     await validateTargetBranch(root, targetBranch);
     if (await git(["rev-parse", "--verify", `refs/heads/${targetBranch}^{commit}`], root) !== baseHead) throw new Error("target branch moved after its base was captured");
   }
-  const branch = targetBranch ?? `captain/${safe2}`, branchRef = `refs/heads/${branch}`, entries2 = await worktreeEntries(root);
-  const existing = entries2.find((value) => targetBranch ? value.branch === branchRef : pathKey4(value.worktree) === pathKey4(proposedPath));
-  const worktreePath = existing ? path13.resolve(existing.worktree) : proposedPath;
-  if (!sameDirectory(container, path13.dirname(worktreePath))) throw new Error("target branch is checked out outside the canonical worktree container");
+  const branch = targetBranch ?? `captain/${safe2}`, branchRef = `refs/heads/${branch}`, entries3 = await worktreeEntries(root);
+  const existing = entries3.find((value) => targetBranch ? value.branch === branchRef : pathKey4(value.worktree) === pathKey4(proposedPath));
+  const worktreePath = existing ? path18.resolve(existing.worktree) : proposedPath;
+  if (!sameDirectory(container, path18.dirname(worktreePath))) throw new Error("target branch is checked out outside the canonical worktree container");
   const expected = { schema_version: 1, intent_id: intentId, project_root: root, common_git_dir: commonGitDir, worktree_path: worktreePath, branch, base_head: baseHead };
   const assertCreationIdentity = (prior) => {
     if (prior.intent_id !== intentId || [prior.project_root, prior.common_git_dir, prior.worktree_path].some((value, index) => pathKey4(value) !== pathKey4([root, commonGitDir, worktreePath][index])) || prior.branch !== branch || prior.base_head !== baseHead) throw new Error("worktree creation retry changed its signed binding");
@@ -11068,7 +12295,7 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
       const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
       if (prior) reserved = assertCreationIdentity(prior);
       else {
-        const parentPath = path13.resolve(invocationWorktree ?? invocationRoot);
+        const parentPath = path18.resolve(invocationWorktree ?? invocationRoot);
         if (pathKey4(parentPath) !== pathKey4(root)) {
           const parent = await readWorktreeRegistration(storageDataRoot, commonGitDir, parentPath);
           if (parent) {
@@ -11083,7 +12310,8 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
         reserved = await reserveWorktreeCreation(storageDataRoot, expected);
       }
     }
-    await git(targetBranch ? ["worktree", "add", worktreePath, targetBranch] : ["worktree", "add", worktreePath, "-b", branch, baseHead], root);
+    await git(targetBranch ? ["worktree", "add", ...hasLfs ? ["--no-checkout"] : [], worktreePath, targetBranch] : ["worktree", "add", ...hasLfs ? ["--no-checkout"] : [], worktreePath, "-b", branch, baseHead], root);
+    if (hasLfs) await populateLfsWorktree(root, worktreePath, baseHead, git);
   }
   await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
   const binding = await assertWorktreeBinding(worktreePath, branch, commonGitDir, baseHead, true);
@@ -11092,7 +12320,7 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
   return { projectRoot: invocationRoot, worktreePath, baseHead, ...targetBranch ? { targetBranch } : {}, branch, commonGitDir, gitDir: binding.gitDir, primaryProjectRoot: root };
 }
 async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges = [], previousPhaseHead) {
-  const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+  const commitPolicy = policy?.commit ?? defaultCommitPolicy, head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), initialStatus = await git(["status", "--porcelain"], worktree), tree2 = await git(["rev-parse", `${head}^{tree}`], worktree);
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed2 = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
   let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
   const matchedPrepared = /* @__PURE__ */ new Set();
@@ -11113,7 +12341,7 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const previousPhaseRetained = !previousPhaseHead || hashes.includes(previousPhaseHead);
   const headParent = splitLines(await git(["rev-list", "--parents", "-n", "1", head], worktree))[0]?.split(" ")[1], bookkeepingOnly = Boolean(headParent && await bookkeepingCommitValid(worktree, headParent, head, subject, commitPolicy));
   const taskTrailerPresent = hasTaskTrailer(trailers, taskId);
-  return { head, tree, firstParent: headParent, changedPaths: changed2, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed2.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed2.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
+  return { head, tree: tree2, firstParent: headParent, changedPaths: changed2, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed2.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed2.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
 async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths");
@@ -11125,11 +12353,11 @@ async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commi
   if (taskOutcome && !taskId || !taskOutcome && taskId && commitPolicy.require_task_trailer || taskTrailer && !hasTaskTrailer(taskTrailer, taskId) || commitPolicy.require_task_trailer && !taskTrailer) throw new Error("commit must include the governed run task trailer");
   const binding = await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
   await assertSafeGitAttributesInWorktree(worktree, safePaths);
-  await git(["add", "--", ...safePaths], worktree);
+  await stageLfsSelection(worktree, safePaths, git);
   const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree));
   if (!staged.length || staged.some((changed2) => !safePaths.some((selected) => changed2 === selected || changed2.startsWith(`${selected}/`)))) throw new Error("commit preflight found staged paths outside the explicit selection");
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, binding.head, false, binding.gitDir);
-  const head = binding.head, mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
+  const head = binding.head, mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree2 = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree2, "-p", head];
   if (mergeHead) {
     if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state");
     candidateArgs.push("-p", mergeHead);
@@ -11139,17 +12367,17 @@ async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commi
   const candidate = await git(candidateArgs, worktree);
   await assertSafeGitAttributesAtCommit(worktree, candidate);
   if (!await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges)) throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
-  const prepared = { preCommitHead: head, candidate, tree, ...mergeHead ? { mergeHead } : {} };
+  const prepared = { preCommitHead: head, candidate, tree: tree2, ...mergeHead ? { mergeHead } : {} };
   if (authorize) await authorize(prepared);
   try {
-    if (await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== head || await git(["write-tree"], worktree) !== tree || await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) !== mergeHead) throw new Error("commit preflight state changed before commit");
+    if (await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== head || await git(["write-tree"], worktree) !== tree2 || await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) !== mergeHead) throw new Error("commit preflight state changed before commit");
     await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, head, false, binding.gitDir);
     if (validateAuthority) await validateAuthority(prepared);
     await git(["update-ref", "-m", subject, `refs/heads/${binding.branch}`, candidate, head], worktree);
     if (afterRefUpdate) await afterRefUpdate();
-    if (mergeHead) await git(["reset", "--mixed", candidate], worktree);
+    if (mergeHead) await git(["reset", "--mixed", "--no-refresh", candidate], worktree);
     const actual = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), actualValid = await candidateCommitValid(worktree, actual, head, commitPolicy, taskId, preparedMerges), actualTree = await git(["rev-parse", `${actual}^{tree}`], worktree), actualStatus = await git(["status", "--porcelain"], worktree);
-    if (actual !== candidate || !actualValid || actualTree !== tree || actualStatus) throw new Error(`created commit diverged from validated preflight evidence (head=${actual === candidate}, semantic=${actualValid}, tree=${actualTree === tree}, clean=${!actualStatus})`);
+    if (actual !== candidate || !actualValid || actualTree !== tree2 || actualStatus) throw new Error(`created commit diverged from validated preflight evidence (head=${actual === candidate}, semantic=${actualValid}, tree=${actualTree === tree2}, clean=${!actualStatus})`);
     await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, candidate, true, binding.gitDir);
     return prepared;
   } catch (error2) {
@@ -11163,10 +12391,10 @@ async function reconcilePreparedCommit(worktree, prepared, expectedBranch, expec
   const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree);
   if (prepared.mergeHead) {
     if (mergeHead && mergeHead.toLowerCase() !== prepared.mergeHead.toLowerCase()) throw new Error("prepared commit recovery found an unexpected MERGE_HEAD");
-    if (mergeHead) await git(["reset", "--mixed", prepared.candidate], worktree);
+    if (mergeHead) await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree);
   } else if (mergeHead) throw new Error("non-merge prepared commit recovery found MERGE_HEAD");
-  const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), status = await git(["status", "--porcelain"], worktree);
-  if (head !== prepared.candidate || tree !== prepared.tree || status) throw new Error("prepared commit recovery does not match the signed clean candidate tree");
+  const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), tree2 = await git(["rev-parse", `${head}^{tree}`], worktree), status = await git(["status", "--porcelain"], worktree);
+  if (head !== prepared.candidate || tree2 !== prepared.tree || status) throw new Error("prepared commit recovery does not match the signed clean candidate tree");
   await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, prepared.candidate, true, expectedGitDir);
 }
 async function applyPreparedCommit(worktree, prepared, expectedBranch, expectedCommonGitDir, expectedGitDir, validateAuthority) {
@@ -11178,7 +12406,7 @@ async function applyPreparedCommit(worktree, prepared, expectedBranch, expectedC
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, prepared.preCommitHead, false, binding.gitDir);
   await validateAuthority(prepared);
   await git(["update-ref", "-m", "Captain signed prepared commit recovery", `refs/heads/${binding.branch}`, prepared.candidate, prepared.preCommitHead], worktree);
-  if (prepared.mergeHead) await git(["reset", "--mixed", prepared.candidate], worktree);
+  if (prepared.mergeHead) await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree);
   await reconcilePreparedCommit(worktree, prepared, expectedBranch, expectedCommonGitDir, expectedGitDir);
 }
 async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, revoke, expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, afterMerge, operationToken, validateAuthority) {
@@ -11187,8 +12415,9 @@ async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, re
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree)) throw new Error("merge preparation refuses a preexisting merge state");
   const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree);
   if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit") throw new Error("merge target is not the pinned commit object");
-  await assertSafeGitAttributesAtCommit(worktree, preMergeHead);
-  await assertSafeGitAttributesAtCommit(worktree, resolved);
+  const existingLfs = await assertSafeGitAttributesAtCommit(worktree, preMergeHead);
+  const incomingLfs = await assertSafeGitAttributesAtCommit(worktree, resolved);
+  if (existingLfs || incomingLfs) throw new Error("Git LFS merge requires a safe merge implementation");
   const mergePaths = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", preMergeHead, resolved], worktree));
   await assertSafeGitAttributesInWorktree(worktree, mergePaths);
   if (await git(["status", "--porcelain"], worktree)) throw new Error("merge preparation requires a clean worktree");
@@ -11228,6 +12457,7 @@ async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, re
 async function abortMerge(worktree, prepared, validateAuthority) {
   const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree);
   if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead) throw new Error("current merge state does not match the pinned prepared merge");
+  if (await assertSafeGitAttributesAtCommit(worktree, currentHead) || await assertSafeGitAttributesAtCommit(worktree, prepared.targetOid)) throw new Error("Git LFS merge abort requires a safe recovery implementation");
   if (validateAuthority) await validateAuthority(prepared);
   await gitInvocation(["merge", "--abort"], worktree);
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("audited merge abort did not restore the clean pre-merge state");
@@ -11243,21 +12473,21 @@ async function reconcilePreparedMerge(worktree, prepared) {
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state");
 }
 async function sourceState(worktree, policy) {
-  const topLevel = path13.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+  const topLevel = path18.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree2 = await git(["rev-parse", `${head}^{tree}`], worktree);
   const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : void 0, policy);
   const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
-  return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
+  return { head, tree: tree2, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
 async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) {
-  const real = await realpath4(worktree), owned = path13.resolve(worktree);
-  if (path13.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
-  const topLevel = path13.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
+  const real = await realpath5(worktree), owned = path18.resolve(worktree);
+  if (path18.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
+  const topLevel = path18.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
   if (topLevel.toLowerCase() !== owned.toLowerCase()) throw new Error("Git top-level does not match the owned worktree");
   const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree);
   if (!branch || expectedBranch && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
-  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path13.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
-  if (expectedGitDir && gitDir.toLowerCase() !== path13.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
+  const commonGitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path18.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
+  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path18.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
+  if (expectedGitDir && gitDir.toLowerCase() !== path18.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
   const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branchHead = await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree);
   if (head !== branchHead || expectedHead && head !== expectedHead) throw new Error("worktree target branch ref binding diverged");
   if (requireClean && await git(["status", "--porcelain"], worktree)) throw new Error("target branch worktree must be clean before Captain uses it");
@@ -11275,9 +12505,9 @@ async function validateTargetBranch(root, branch) {
   await git(["check-ref-format", "--branch", branch], root);
 }
 async function worktreeEntries(root) {
-  const fields = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0"), result = [];
+  const fields2 = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0"), result = [];
   let current;
-  for (const field of fields) {
+  for (const field of fields2) {
     if (!field) {
       if (current) result.push(current);
       current = void 0;
@@ -11292,7 +12522,7 @@ async function worktreeEntries(root) {
 }
 async function assertMissingWorktreePath(worktreePath) {
   try {
-    await lstat5(worktreePath);
+    await lstat10(worktreePath);
     throw new Error(`canonical worktree path already exists: ${worktreePath}`);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -11304,24 +12534,27 @@ async function boundedGitShow(cwd, object3, label) {
   return value;
 }
 async function assertSafeGitAttributesAtCommit(cwd, commit2) {
-  for (const file of splitLines(await git(["ls-tree", "-r", "--name-only", commit2], cwd)).filter((value) => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
+  let hasLfs = false;
+  for (const file of (await gitRaw(["ls-tree", "-r", "-z", "--name-only", commit2], cwd)).split("\0").filter((value) => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
     const content = await boundedGitShow(cwd, `${commit2}:${file}`, "Git attributes");
-    if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`);
+    if (hasExecutableGitAttributes(content, true)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`);
+    hasLfs ||= hasLfsGitAttributes(content);
   }
+  return hasLfs;
 }
 async function assertSafeGitMetadataAttributes(cwd) {
-  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path13.resolve(cwd, raw);
+  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path18.resolve(cwd, raw);
   try {
-    const info = await lstat5(file);
+    const info = await lstat10(file);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file");
-    const content = await readFile5(file, "utf8");
+    const content = await readFile8(file, "utf8");
     if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers");
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
   }
 }
 async function trackedWorktreePaths(cwd) {
-  return splitLines(await git(["ls-files"], cwd));
+  return (await gitRaw(["ls-files", "-z"], cwd)).split("\0").filter(Boolean);
 }
 async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
   await assertSafeGitMetadataAttributes(cwd);
@@ -11329,66 +12562,70 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
   const collect = async (target) => {
     let info;
     try {
-      info = await lstat5(target);
+      info = await lstat10(target);
     } catch (error2) {
       if (error2.code === "ENOENT") return;
       throw error2;
     }
     if (info.isSymbolicLink()) return;
     if (info.isFile()) {
-      if (path13.basename(target).toLowerCase() === ".gitattributes") files.add(target);
+      if (path18.basename(target).toLowerCase() === ".gitattributes") files.add(target);
       return;
     }
     if (!info.isDirectory()) return;
-    for (const entry of await readdir7(target, { withFileTypes: true })) {
+    for (const entry of await readdir10(target, { withFileTypes: true })) {
       if (entry.name.toLowerCase() === ".git") continue;
-      const child = path13.join(target, entry.name);
+      const child = path18.join(target, entry.name);
       if (entry.name.toLowerCase() === ".gitattributes") files.add(child);
       else if (entry.isDirectory()) await collect(child);
     }
   };
   for (const selected of selectedPaths.length ? selectedPaths : ["."]) {
-    const segments = selected.replaceAll("\\", "/").split("/").filter((value) => value && value !== ".");
-    files.add(path13.join(cwd, ".gitattributes"));
-    for (let index = 1; index < segments.length; index++) files.add(path13.join(cwd, ...segments.slice(0, index), ".gitattributes"));
-    const target = path13.resolve(cwd, selected);
+    const segments2 = selected.replaceAll("\\", "/").split("/").filter((value) => value && value !== ".");
+    files.add(path18.join(cwd, ".gitattributes"));
+    for (let index = 1; index < segments2.length; index++) files.add(path18.join(cwd, ...segments2.slice(0, index), ".gitattributes"));
+    const target = path18.resolve(cwd, selected);
     try {
-      if ((await lstat5(target)).isDirectory()) await collect(target);
+      if ((await lstat10(target)).isDirectory()) await collect(target);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
   for (const file of files) {
     try {
-      const info = await lstat5(file);
-      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path13.relative(cwd, file)}`);
-      const content = await readFile5(file, "utf8");
-      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path13.relative(cwd, file)}`);
-      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path13.relative(cwd, file)}`);
+      const info = await lstat10(file);
+      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path18.relative(cwd, file)}`);
+      const content = await readFile8(file, "utf8");
+      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path18.relative(cwd, file)}`);
+      if (hasExecutableGitAttributes(content, true)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path18.relative(cwd, file)}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
 }
-function hasExecutableGitAttributes(content) {
+function hasLfsGitAttributes(content) {
+  return content.split(/\r?\n/).some((line) => /(?:^|\s)(?:filter|merge)=lfs(?=\s|$)/.test(line.replace(/\s+#.*$/, "").trim()));
+}
+function hasExecutableGitAttributes(content, allowLfs = false) {
   return content.split(/\r?\n/).some((line) => {
-    const value = line.replace(/\s+#.*$/, "").trim();
-    return value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value);
+    let value = line.replace(/\s+#.*$/, "").trim();
+    if (allowLfs) value = value.replace(/(^|\s)(?:filter|merge)=lfs(?=\s|$)/g, "$1");
+    return Boolean(value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value));
   });
 }
 async function rejectReparseAncestors(root, target) {
-  for (let cursor = path13.resolve(target); cursor.startsWith(path13.resolve(root)); cursor = path13.dirname(cursor)) {
+  for (let cursor = path18.resolve(target); cursor.startsWith(path18.resolve(root)); cursor = path18.dirname(cursor)) {
     try {
-      if ((await lstat5(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
+      if ((await lstat10(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
-    if (cursor === path13.resolve(root)) break;
+    if (cursor === path18.resolve(root)) break;
   }
 }
 function safeRepositoryPath(value, label) {
-  const normalized2 = value.replaceAll("\\", "/"), segments = normalized2.split("/");
-  if (path13.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
+  const normalized2 = value.replaceAll("\\", "/"), segments2 = normalized2.split("/");
+  if (path18.isAbsolute(value) || segments2.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
   return normalized2;
 }
 function objectValue(value, label) {
@@ -11440,8 +12677,8 @@ function validSubject(subject, policy) {
 }
 function hasTaskTrailer(message, taskId) {
   if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId)) return false;
-  const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
-  return matches.length === 1 && matches[0] === taskId;
+  const matches2 = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
+  return matches2.length === 1 && matches2[0] === taskId;
 }
 async function candidateCommitValid(worktree, hash8, expectedParent, policy, taskId, preparedMerges) {
   const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash8], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash8], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree), changed2 = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash8], worktree));
@@ -11485,8 +12722,8 @@ async function bookkeepingHistoryValid(worktree, base, head, policy) {
     if (!await bookkeepingCommitValid(worktree, parent, hash8, subject, policy)) return false;
     if (policy.require_task_trailer) {
       const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree);
-      const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
-      if (matches.length !== 1) return false;
+      const matches2 = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
+      if (matches2.length !== 1) return false;
     }
     parent = hash8;
   }
@@ -11503,8 +12740,8 @@ async function versionSurfacesMatch(worktree, hash8, subject, policy) {
   if (!expected) return false;
   for (const surface of surfaces) {
     try {
-      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
-      if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false;
+      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches2 = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+      if (matches2.length !== 1 || (matches2[0].groups?.version ?? matches2[0][1]) !== expected) return false;
     } catch {
       return false;
     }
@@ -11515,7 +12752,7 @@ async function versionAt(worktree, hash8, policy) {
   const values = [];
   for (const surface of policy.version_surfaces ?? []) {
     try {
-      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches2 = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches2.length === 1 ? matches2[0].groups?.version ?? matches2[0][1] : void 0;
       if (!value || !parseStrictSemVer(value)) return null;
       values.push(value);
     } catch {
@@ -11566,26 +12803,89 @@ async function changelogAddsVersion(worktree, parent, hash8, subject, policy) {
   const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash8, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
   return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
 }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy) {
+async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy, journalPaths = /* @__PURE__ */ new Set(), includeModes = false) {
   const lines2 = [], productLines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map((item) => item.replaceAll("\\", "/")));
+  const witnesses = [];
+  const sameWitness = (a, b) => a.isFile() === b.isFile() && a.isDirectory() === b.isDirectory() && !b.isSymbolicLink() && a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mode === b.mode && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
+  assertNoTrackedExcludedPaths(excludes, tracked);
+  await assertUnrealExclusionRootsSafe(root, excludes);
   async function walk(dir) {
-    for (const entry of (await readdir7(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const relative = path13.relative(root, path13.join(dir, entry.name)).replaceAll("\\", "/");
+    if (includeModes) {
+      const info = await lstat10(dir, { bigint: true });
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("journal input snapshot directory changed");
+      witnesses.push({ path: dir, info });
+    }
+    for (const entry of (await readdir10(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const relative = path18.relative(root, path18.join(dir, entry.name)).replaceAll("\\", "/");
       if (policy && outputPathExcluded(relative, policy, tracked)) continue;
       if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative.toLowerCase().endsWith(".meta") && !tracked.has(relative) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
-      const full = path13.join(dir, entry.name), info = await lstat5(full);
+      const full = path18.join(dir, entry.name), info = await lstat10(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
+      if (journalPaths.has(process.platform === "win32" ? relative.toLowerCase() : relative)) {
+        if (!info.isFile()) throw new Error(`journal input exclusion must be a regular file: ${relative}`);
+        continue;
+      }
       if (info.isDirectory()) await walk(full);
       else if (info.isFile()) {
-        const content = await readFile5(full), value = `${relative}:${createHash10("sha256").update(content).digest("hex")}`;
+        const hash8 = createHash13("sha256");
+        let modeBits = info.mode;
+        if (includeModes) {
+          const before = await lstat10(full, { bigint: true });
+          if (!before.isFile() || before.isSymbolicLink()) throw new Error("journal input snapshot file changed");
+          modeBits = Number(before.mode);
+          const handle = await open4(full, constants3.O_RDONLY | (constants3.O_NOFOLLOW ?? 0));
+          try {
+            if (!sameWitness(before, await handle.stat({ bigint: true }))) throw new Error("journal input snapshot changed before hashing");
+            for await (const chunk of createReadStream(full, { fd: handle.fd, autoClose: false })) hash8.update(chunk);
+            if (!sameWitness(before, await handle.stat({ bigint: true })) || !sameWitness(before, await lstat10(full, { bigint: true }))) throw new Error("journal input snapshot changed while hashing");
+            witnesses.push({ path: full, info: before });
+          } finally {
+            await handle.close();
+          }
+        } else {
+          for await (const chunk of createReadStream(full)) hash8.update(chunk);
+        }
+        const mode = includeModes && process.platform !== "win32" ? `:${modeBits & 511}` : "";
+        const value = `${relative}${mode}:${hash8.digest("hex")}`;
         lines2.push(value);
-        if (bookkeepingPolicy && (info.mode & 73) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
+        if (bookkeepingPolicy && info.size <= maxPolicyInput && (info.mode & 73) === 0 && bookkeepingTextAllowed(await readFile8(full)) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
         productLines.push(value);
       }
     }
   }
   await walk(root);
-  return { manifest: digest6(lines2.join("\n")), ...bookkeepingPolicy ? { productManifest: digest6(productLines.join("\n")) } : {} };
+  const revalidate = async () => {
+    for (let offset = 0; offset < witnesses.length; offset += 64) {
+      await Promise.all(witnesses.slice(offset, offset + 64).map(async (witness) => {
+        let current;
+        try {
+          current = await lstat10(witness.path, { bigint: true });
+        } catch {
+          throw new Error("journal input snapshot changed during the walk");
+        }
+        if (!sameWitness(witness.info, current)) throw new Error("journal input snapshot changed during the walk");
+      }));
+    }
+  };
+  if (includeModes) await revalidate();
+  return { manifest: digest6(lines2.join("\n")), ...bookkeepingPolicy ? { productManifest: digest6(productLines.join("\n")) } : {}, ...includeModes ? { revalidate } : {} };
+}
+async function captureJournalInputManifest(root, policy, exactJournalPaths) {
+  if (!Array.isArray(exactJournalPaths) || exactJournalPaths.length > 2e5) throw new Error("journal input paths must be a bounded array");
+  const paths = /* @__PURE__ */ new Set();
+  for (const value of exactJournalPaths) {
+    if (typeof value !== "string" || !value || value.includes("\\") || /[\x00-\x1f\x7f]/.test(value) || path18.posix.isAbsolute(value) || value.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git"))
+      throw new Error("journal input path must be a safe repository-relative file");
+    const key3 = process.platform === "win32" ? value.toLowerCase() : value;
+    if (paths.has(key3)) throw new Error("journal input paths must be unique");
+    paths.add(key3);
+  }
+  const captured = await sourceManifest(path18.resolve(root), policy.sourceManifestExcludes ?? [], policy.sourceManifestRootFileExcludes ?? [], void 0, policy, paths, true);
+  if (!captured.revalidate) throw new Error("journal input snapshot lacks witnesses");
+  return { manifest: captured.manifest, revalidate: captured.revalidate };
+}
+async function sourceManifestExcludingJournal(root, policy, exactJournalPaths) {
+  return (await captureJournalInputManifest(root, policy, exactJournalPaths)).manifest;
 }
 function rootFilePatternMatches(file, pattern) {
   const lower = file.toLowerCase(), expected = pattern.toLowerCase();
@@ -11599,6 +12899,10 @@ var init_workspace = __esm({
     init_validation();
     init_bookkeeping();
     init_output_retention();
+    init_unreal_outputs();
+    init_git_safe_status();
+    init_git_lfs_checkout();
+    init_git_lfs_stage();
     init_worktree_storage();
     exec2 = promisify2(execFile2);
     maxGitBuffer = 10 * 1024 * 1024;
@@ -11652,22 +12956,25 @@ var init_workspace = __esm({
         const result = await exec2(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
         return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
       } catch (error2) {
-        return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
+        let stderr = error2.stderr ?? "";
+        if (typeof error2.code === "string" && !/^\d+$/.test(error2.code) && error2.message && !stderr.includes(error2.message)) stderr = `${stderr}
+${error2.message}`;
+        return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr };
       }
     };
-    pathKey4 = (value) => process.platform === "win32" ? path13.resolve(value).toLowerCase() : path13.resolve(value);
+    pathKey4 = (value) => process.platform === "win32" ? path18.resolve(value).toLowerCase() : path18.resolve(value);
     sameDirectory = (left, right) => pathKey4(left) === pathKey4(right);
     normalizeSourceStatus = (status) => status.split(/\r?\n/).filter((line) => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
-    digest6 = (text2) => createHash10("sha256").update(text2).digest("hex");
+    digest6 = (text2) => createHash13("sha256").update(text2).digest("hex");
     splitLines = (value) => value.split(/\r?\n/).filter(Boolean);
   }
 });
 
 // src/bookkeeping.ts
-import { createHash as createHash11 } from "node:crypto";
-import { mkdtemp as mkdtemp2, readFile as readFile6, writeFile as writeFile4 } from "node:fs/promises";
-import { tmpdir as tmpdir2 } from "node:os";
-import path14 from "node:path";
+import { createHash as createHash14 } from "node:crypto";
+import { mkdtemp as mkdtemp3, readFile as readFile9, writeFile as writeFile6 } from "node:fs/promises";
+import { tmpdir as tmpdir3 } from "node:os";
+import path19 from "node:path";
 function validateBookkeepingPolicy(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("bookkeeping policy must declare a committed path_file");
   const value = input;
@@ -11688,9 +12995,9 @@ function bookkeepingTextAllowed(content) {
 }
 function safeRecordPath(relative, policy) {
   if (!relative || !/^[A-Za-z0-9._/& -]+$/.test(relative) || relative.includes("\\") || relative.startsWith("/") || relative.split("/").some((part) => !part || part === "." || part === "..")) return false;
-  const lower = relative.toLowerCase(), segments = lower.split("/"), filename = segments.at(-1);
+  const lower = relative.toLowerCase(), segments2 = lower.split("/"), filename = segments2.at(-1);
   const protectedPaths = [policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)].map((value) => value.toLowerCase());
-  if (protectedPaths.includes(lower) || filename === "agents.md" || segments.some((segment) => /^(?:hooks?|plans?|polic(?:y|ies)|dependenc(?:y|ies))$/.test(segment)) || /(?:^|[-_.])(?:polic(?:y|ies)|dependency|lock|hooks?|plans?)(?:[-_.]|$)/.test(filename)) return false;
+  if (protectedPaths.includes(lower) || filename === "agents.md" || segments2.some((segment) => /^(?:hooks?|plans?|polic(?:y|ies)|dependenc(?:y|ies))$/.test(segment)) || /(?:^|[-_.])(?:polic(?:y|ies)|dependency|lock|hooks?|plans?)(?:[-_.]|$)/.test(filename)) return false;
   if (lower.startsWith("churn/")) return lower.endsWith(".md");
   return recordRoots.some((root) => lower.startsWith(root)) && /\.(?:md|txt|json|jsonl|log|csv|xml|yaml|yml)$/.test(lower);
 }
@@ -11699,10 +13006,10 @@ async function matcherRoot(policy, git2) {
   let pending = matcherRoots.get(config2.sha256);
   if (!pending) {
     pending = (async () => {
-      const root2 = await mkdtemp2(path14.join(tmpdir2(), "captain-bookkeeping-rules-"));
+      const root2 = await mkdtemp3(path19.join(tmpdir3(), "captain-bookkeeping-rules-"));
       await git2(["init", "--template="], root2);
-      await writeFile4(path14.join(root2, ".gitignore"), config2.patterns, "utf8");
-      await writeFile4(path14.join(root2, "empty-excludes"), "", "utf8");
+      await writeFile6(path19.join(root2, ".gitignore"), config2.patterns, "utf8");
+      await writeFile6(path19.join(root2, "empty-excludes"), "", "utf8");
       return root2;
     })();
     matcherRoots.set(config2.sha256, pending);
@@ -11711,14 +13018,14 @@ async function matcherRoot(policy, git2) {
     });
   }
   const root = await pending;
-  if (hash4(await readFile6(path14.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
+  if (hash4(await readFile9(path19.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
   return root;
 }
 async function bookkeepingPathAllowedCore(relative, policy, git2) {
   if (!bookkeepingCaptured(policy) || !safeRecordPath(relative, policy)) return false;
   const root = await matcherRoot(policy, git2);
   try {
-    await git2(["-c", `core.excludesFile=${path14.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
+    await git2(["-c", `core.excludesFile=${path19.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
     return true;
   } catch (error2) {
     if (Number(error2.code) === 1) return false;
@@ -11736,7 +13043,7 @@ var init_bookkeeping = __esm({
     ruleFile = ".captain-sdlc/captain.ignore";
     matcherRoots = /* @__PURE__ */ new Map();
     recordRoots = [".captain-sdlc/notebook/", ".captain-sdlc/handoffs/", ".captain-sdlc/closeouts/", ".captain-sdlc/evidence/"];
-    hash4 = (value) => createHash11("sha256").update(value).digest("hex");
+    hash4 = (value) => createHash14("sha256").update(value).digest("hex");
   }
 });
 
@@ -12381,8 +13688,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path20, errorMaps, issueData } = params;
-  const fullPath = [...path20, ...issueData.path || []];
+  const { data, path: path27, errorMaps, issueData } = params;
+  const fullPath = [...path27, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -12498,11 +13805,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path20, key3) {
+  constructor(parent, value, path27, key3) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path20;
+    this._path = path27;
     this._key = key3;
   }
   get path() {
@@ -16070,9 +17377,9 @@ function assertNever(_x) {
 }
 function assert(_) {
 }
-function getEnumValues(entries2) {
-  const numericValues = Object.values(entries2).filter((v) => typeof v === "number");
-  const values = Object.entries(entries2).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
+function getEnumValues(entries3) {
+  const numericValues = Object.values(entries3).filter((v) => typeof v === "number");
+  const values = Object.entries(entries3).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
   return values;
 }
 function joinValues(array2, separator = "|") {
@@ -16140,10 +17447,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path20) {
-  if (!path20)
+function getElementAtPath(obj, path27) {
+  if (!path27)
     return obj;
-  return path20.reduce((acc, key3) => acc?.[key3], obj);
+  return path27.reduce((acc, key3) => acc?.[key3], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -16463,11 +17770,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path20, issues) {
+function prefixIssues(path27, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path20);
+    iss.path.unshift(path27);
     return iss;
   });
 }
@@ -19880,11 +21187,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path20) {
-  if (path20.length === 0) {
+function getDotPath(path27) {
+  if (path27.length === 0) {
     return "object root";
   }
-  return path20.reduce((acc, seg, index) => {
+  return path27.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -20444,10 +21751,10 @@ var ZodEnum2 = /* @__PURE__ */ $constructor("ZodEnum", (inst, def) => {
   };
 });
 function _enum(values, params) {
-  const entries2 = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
+  const entries3 = Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values;
   return new ZodEnum2({
     type: "enum",
-    entries: entries2,
+    entries: entries3,
     ...util_exports.normalizeParams(params)
   });
 }
@@ -25643,16 +26950,16 @@ var McpServer = class {
     this._promptHandlersInitialized = true;
   }
   resource(name, uriOrTemplate, ...rest) {
-    let metadata;
+    let metadata2;
     if (typeof rest[0] === "object") {
-      metadata = rest.shift();
+      metadata2 = rest.shift();
     }
     const readCallback = rest[0];
     if (typeof uriOrTemplate === "string") {
       if (this._registeredResources[uriOrTemplate]) {
         throw new Error(`Resource ${uriOrTemplate} is already registered`);
       }
-      const registeredResource = this._createRegisteredResource(name, void 0, uriOrTemplate, metadata, readCallback);
+      const registeredResource = this._createRegisteredResource(name, void 0, uriOrTemplate, metadata2, readCallback);
       this.setResourceRequestHandlers();
       this.sendResourceListChanged();
       return registeredResource;
@@ -25660,7 +26967,7 @@ var McpServer = class {
       if (this._registeredResourceTemplates[name]) {
         throw new Error(`Resource template ${name} is already registered`);
       }
-      const registeredResourceTemplate = this._createRegisteredResourceTemplate(name, void 0, uriOrTemplate, metadata, readCallback);
+      const registeredResourceTemplate = this._createRegisteredResourceTemplate(name, void 0, uriOrTemplate, metadata2, readCallback);
       this.setResourceRequestHandlers();
       this.sendResourceListChanged();
       return registeredResourceTemplate;
@@ -25685,11 +26992,11 @@ var McpServer = class {
       return registeredResourceTemplate;
     }
   }
-  _createRegisteredResource(name, title, uri, metadata, readCallback) {
+  _createRegisteredResource(name, title, uri, metadata2, readCallback) {
     const registeredResource = {
       name,
       title,
-      metadata,
+      metadata: metadata2,
       readCallback,
       enabled: true,
       disable: () => registeredResource.update({ enabled: false }),
@@ -25717,11 +27024,11 @@ var McpServer = class {
     this._registeredResources[uri] = registeredResource;
     return registeredResource;
   }
-  _createRegisteredResourceTemplate(name, title, template, metadata, readCallback) {
+  _createRegisteredResourceTemplate(name, title, template, metadata2, readCallback) {
     const registeredResourceTemplate = {
       resourceTemplate: template,
       title,
-      metadata,
+      metadata: metadata2,
       readCallback,
       enabled: true,
       disable: () => registeredResourceTemplate.update({ enabled: false }),
@@ -26143,18 +27450,19 @@ var StdioServerTransport = class {
 // src/server.ts
 import { fileURLToPath } from "node:url";
 import os6 from "node:os";
-import path19 from "node:path";
-import { randomUUID as randomUUID6 } from "node:crypto";
+import path26 from "node:path";
+import { randomUUID as randomUUID9 } from "node:crypto";
 
 // src/bookkeeping-finalization.ts
 init_authority();
 init_bookkeeping();
 init_run_validation();
 init_workspace();
-import { createHash as createHash12, randomUUID as randomUUID2 } from "node:crypto";
-import { lstat as lstat6, readFile as readFile7, readdir as readdir8 } from "node:fs/promises";
+init_git_safe_status();
+import { createHash as createHash15, randomUUID as randomUUID3 } from "node:crypto";
+import { lstat as lstat11, readFile as readFile10, readdir as readdir11 } from "node:fs/promises";
 import os2 from "node:os";
-import path15 from "node:path";
+import path20 from "node:path";
 var BookkeepingFinalizationError = class extends Error {
   constructor(finalization_id, cause) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
@@ -26162,9 +27470,9 @@ var BookkeepingFinalizationError = class extends Error {
     this.name = "BookkeepingFinalizationError";
   }
 };
-var hash5 = (text2) => createHash12("sha256").update(text2).digest("hex");
+var hash5 = (text2) => createHash15("sha256").update(text2).digest("hex");
 var digest7 = (value) => hash5(JSON.stringify(value));
-var samePath7 = (left, right) => process.platform === "win32" ? path15.resolve(left).toLowerCase() === path15.resolve(right).toLowerCase() : path15.resolve(left) === path15.resolve(right);
+var samePath10 = (left, right) => process.platform === "win32" ? path20.resolve(left).toLowerCase() === path20.resolve(right).toLowerCase() : path20.resolve(left) === path20.resolve(right);
 var idValue = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe finalization id");
   return id;
@@ -26178,7 +27486,7 @@ var BookkeepingFinalizationStore = class {
     this.hooks = hooks;
   }
   async finalize(args, options = {}) {
-    const normalized2 = validateRequest(args), id = idValue(args.finalization_id ?? `finalization-${randomUUID2()}`);
+    const normalized2 = validateRequest(args), id = idValue(args.finalization_id ?? `finalization-${randomUUID3()}`);
     try {
       return await this.attempt(id, normalized2.session_id, async (assertAttempt) => {
         let record3 = await this.optionalRead(id);
@@ -26191,18 +27499,19 @@ var BookkeepingFinalizationStore = class {
           if (options.expected_head && before.head !== options.expected_head) throw new Error("bookkeeping finalization expected HEAD changed before reservation");
           await assertNoOperation(before.topLevel);
           await repositoryIdentity(before.topLevel);
+          await assertBookkeepingFilterSafety(before.topLevel, before.head, normalized2.paths);
           const policy = options.policy ?? await loadPolicy(before.topLevel, before.head);
           if (!policy.commit || !bookkeepingCaptured(policy.commit)) throw new Error("bookkeeping finalization requires a committed opt-in captured policy");
           await this.assertNoOwner(before, id);
           await assertSelection(before.topLevel, normalized2.paths, policy);
           await assertSafeGitAttributesInWorktree(before.topLevel, normalized2.paths);
-          const snapshot = await captureSnapshot(before.topLevel, normalized2.paths), indexTree = await git(["write-tree"], before.topLevel);
+          const snapshot2 = await captureSnapshot(before.topLevel, normalized2.paths), indexTree = await git(["write-tree"], before.topLevel);
           await assertWorktreeBinding(before.topLevel, before.branch, before.commonGitDir, before.head, false, before.gitDir);
           const leaseSpecs = [
-            { id: hash5(`${path15.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
-            { id: hash5(`bookkeeping-worktree\0${path15.resolve(before.commonGitDir)}\0${path15.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
+            { id: hash5(`${path20.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID3(), operation: "bookkeeping-branch" },
+            { id: hash5(`bookkeeping-worktree\0${path20.resolve(before.commonGitDir)}\0${path20.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID3(), operation: "bookkeeping-worktree" }
           ].sort((a, b) => a.id.localeCompare(b.id));
-          record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized2, state: "pending", request_sha256: digest7(normalized2), before, policy, policy_sha256: digest7(policy), snapshot, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID2()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
+          record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized2, state: "pending", request_sha256: digest7(normalized2), before, policy, policy_sha256: digest7(policy), snapshot: snapshot2, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID3()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
         }
         const original = record3;
         return this.resources(record3, async (generations) => {
@@ -26216,6 +27525,7 @@ var BookkeepingFinalizationStore = class {
           await assertAuthority();
           await assertWorktreeBinding(record3.worktree, record3.before.branch, record3.before.commonGitDir, void 0, false, record3.before.gitDir);
           await assertNoOperation(record3.worktree);
+          await assertBookkeepingFilterSafety(record3.worktree, record3.before.head, record3.paths);
           if (record3.disposition === "commit") {
             if (record3.prepared_commit) {
               const prepared = record3.prepared_commit, actualHead = await git(["rev-parse", "HEAD"], record3.worktree);
@@ -26267,6 +27577,7 @@ var BookkeepingFinalizationStore = class {
             await assertAuthority();
             await assertUnchanged(record3);
             await assertSafeGitAttributesInWorktree(record3.worktree, record3.paths);
+            await assertBookkeepingFilterSafety(record3.worktree, record3.before.head, record3.paths);
             await git(["stash", "push", "--include-untracked", "--message", record3.stash_marker, "--", ...record3.paths], record3.worktree);
             await this.hooks.afterStash?.();
             stashOid = await findStash(record3);
@@ -26292,7 +27603,7 @@ var BookkeepingFinalizationStore = class {
     const record3 = await this.optionalRead(idValue(args.finalization_id));
     if (!record3) {
       const operationId = hash5(`bookkeeping-operation\0${idValue(args.finalization_id)}`), expression = new RegExp(`^${operationId}-[0-9]+\\.json$`);
-      const revisions = await directoryNames(path15.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path15.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path15.join(this.dataRoot, "leases"));
+      const revisions = await directoryNames(path20.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path20.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path20.join(this.dataRoot, "leases"));
       if (!revisions.some((name) => expression.test(name)) && !marks.some((name) => expression.test(name)) && !legacy.includes(`${operationId}.json`)) return false;
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, operationId);
       if (!selected || selected.state === "released") return false;
@@ -26302,25 +27613,25 @@ var BookkeepingFinalizationStore = class {
       return true;
     }
     if (record3.session_id !== args.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
-    if (args.worktree && !samePath7(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
+    if (args.worktree && !samePath10(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
     return true;
   }
   async status(args) {
     requiredText(args.session_id, "session");
     const record3 = await this.read(idValue(args.finalization_id));
     if (record3.session_id !== args.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
-    if (args.worktree && !samePath7(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
+    if (args.worktree && !samePath10(args.worktree, record3.worktree)) throw new Error("bookkeeping finalization worktree binding differs");
     return record3;
   }
   match(record3, normalized2, options) {
     if (record3.session_id !== normalized2.session_id) throw new Error("bookkeeping finalization belongs to another session owner");
     if (record3.request_sha256 !== digest7(normalized2)) throw new Error("bookkeeping finalization retry request does not match signed binding");
-    if (options.expected_binding && (record3.before.branch !== options.expected_binding.branch || !samePath7(record3.before.commonGitDir, options.expected_binding.commonGitDir) || !samePath7(record3.before.gitDir, options.expected_binding.gitDir) || !samePath7(record3.before.topLevel, options.expected_binding.topLevel))) throw new Error("bookkeeping retry expected binding does not match signed base");
+    if (options.expected_binding && (record3.before.branch !== options.expected_binding.branch || !samePath10(record3.before.commonGitDir, options.expected_binding.commonGitDir) || !samePath10(record3.before.gitDir, options.expected_binding.gitDir) || !samePath10(record3.before.topLevel, options.expected_binding.topLevel))) throw new Error("bookkeeping retry expected binding does not match signed base");
     if (options.expected_head && record3.before.head !== options.expected_head) throw new Error("bookkeeping finalization retry expected HEAD does not match signed base");
     if (options.policy && digest7(options.policy) !== record3.policy_sha256) throw new Error("bookkeeping finalization captured policy does not match signed request");
   }
   async attempt(id, session, action2) {
-    const leaseId = hash5(`bookkeeping-operation\0${id}`), key3 = `${path15.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
+    const leaseId = hash5(`bookkeeping-operation\0${id}`), key3 = `${path20.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID3();
     if (attemptOperations.has(key3)) throw new Error("bookkeeping finalization operation is already active");
     attemptOperations.add(key3);
     try {
@@ -26387,18 +27698,18 @@ var BookkeepingFinalizationStore = class {
   }
   async assertNoOwner(binding, ownId) {
     for (const run of await signedRunsReadOnly(this.dataRoot)) {
-      const applies2 = typeof run.worktreePath === "string" && samePath7(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath7(run.commonGitDir, binding.commonGitDir);
+      const applies2 = typeof run.worktreePath === "string" && samePath10(run.worktreePath, binding.topLevel) || run.branch === binding.branch && typeof run.commonGitDir === "string" && samePath10(run.commonGitDir, binding.commonGitDir);
       const pendingReview = run.phase === "hitl" || Boolean(run.policy?.hitlChecks?.length && run.evidence?.filter((item) => item.kind === "plan_review").at(-1)?.decision !== "accept");
       if (applies2 && (run.phase !== "complete" || run.status !== "green" || pendingReview)) throw new Error("worktree has an active Captain lifecycle owner; use its normal captain_commit path");
     }
-    const revisionNames = await directoryNames(path15.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path15.join(this.dataRoot, "leases"));
+    const revisionNames = await directoryNames(path20.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path20.join(this.dataRoot, "leases"));
     const leaseIds = [...new Set([...revisionNames.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]), ...legacyNames.map((name) => /^(.+)\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))];
     for (const id of leaseIds) {
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
       if (!selected || selected.state !== "held" || selected.payload.intentId === ownId) continue;
-      const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath7(value, binding.topLevel));
-      const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath7(owner.commonGitDir, binding.commonGitDir);
-      if (matchesWorktree || matchesBranch || id === hash5(`${path15.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
+      const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath10(value, binding.topLevel));
+      const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath10(owner.commonGitDir, binding.commonGitDir);
+      if (matchesWorktree || matchesBranch || id === hash5(`${path20.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
     }
   }
   async initial(record3) {
@@ -26425,11 +27736,11 @@ var BookkeepingFinalizationStore = class {
   }
   async optionalRead(id) {
     const expression = new RegExp(`^${idValue(id)}-[0-9]+\\.json$`);
-    const names = [...await directoryNames(path15.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path15.join(this.dataRoot, "bookkeeping-watermarks"))];
+    const names = [...await directoryNames(path20.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path20.join(this.dataRoot, "bookkeeping-watermarks"))];
     return names.some((name) => expression.test(name)) ? this.read(id) : void 0;
   }
   async read(id) {
-    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path15.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path15.join(this.dataRoot, "bookkeeping-watermarks"));
+    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path20.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path20.join(this.dataRoot, "bookkeeping-watermarks"));
     const revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) {
       if (marks.some((name) => expression.test(name))) throw new Error("bookkeeping signed revision tail regressed behind watermark");
@@ -26465,15 +27776,15 @@ function validateRequest(args) {
   if (args.disposition !== "commit" && args.disposition !== "stash") throw new Error("bookkeeping disposition must be commit or stash");
   if (!Array.isArray(args.paths) || !args.paths.length) throw new Error("bookkeeping paths must be explicit selected files");
   const paths = args.paths.map((value) => {
-    if (typeof value !== "string" || value.includes("\\") || path15.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
+    if (typeof value !== "string" || value.includes("\\") || path20.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
     return value;
   }).sort();
   if (new Set(paths).size !== paths.length) throw new Error("bookkeeping selected paths must be unique");
-  return { worktree: path15.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
+  return { worktree: path20.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
 }
 async function directoryNames(directory) {
   try {
-    return await readdir8(directory);
+    return await readdir11(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -26482,11 +27793,18 @@ async function directoryNames(directory) {
 function generation(id, selected) {
   return digest7({ leaseId: id, revision: selected.revision, state: selected.state, payload: selected.payload });
 }
+async function assertBookkeepingFilterSafety(worktree, head, selected) {
+  if (await assertSafeGitAttributesAtCommit(worktree, head)) throw new Error("bookkeeping finalization is unavailable for Git LFS repositories until safe stash/snapshot support is available");
+  const config2 = (await git(["config", "--null", "--list"], worktree)).split("\0");
+  if (config2.some((entry) => /^(?:filter\..+\.(?:clean|smudge|process)|merge\..+\.driver)(?:\n|$)/i.test(entry))) throw new Error("bookkeeping finalization refuses repository-configured Git filter or merge commands");
+  const attrs = await withShadowGit(worktree, git, (shadow) => shadow.checkAttributes(selected, ["filter", "merge"]));
+  for (const entry of attrs) for (const value of Object.values(entry.attributes)) if (value !== "unspecified" && value !== "unset") throw new Error(`bookkeeping finalization refuses filtered Git paths: ${entry.path}`);
+}
 async function assertNoOperation(worktree) {
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer"]) {
     const file = await git(["rev-parse", "--git-path", name], worktree);
     try {
-      await lstat6(path15.resolve(worktree, file));
+      await lstat11(path20.resolve(worktree, file));
       throw new Error(`bookkeeping finalization refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -26504,10 +27822,10 @@ async function assertSelection(worktree, selected, policy) {
 async function captureSnapshot(worktree, selected) {
   const snapshots = [];
   for (const relative of selected) {
-    const segments = relative.split("/");
-    for (let n = 1; n < segments.length; n++) {
+    const segments2 = relative.split("/");
+    for (let n = 1; n < segments2.length; n++) {
       try {
-        const parent = await lstat6(path15.join(worktree, ...segments.slice(0, n)));
+        const parent = await lstat11(path20.join(worktree, ...segments2.slice(0, n)));
         if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error(`bookkeeping path crosses a symlink or non-directory: ${relative}`);
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -26518,9 +27836,9 @@ async function captureSnapshot(worktree, selected) {
     for (const oid of [headEntry?.split(" ")[2]?.split("	")[0], indexEntry?.split(" ")[1]].filter((value) => Boolean(value))) if (!await bookkeepingBlobAllowed(worktree, oid)) throw new Error(`bookkeeping HEAD/index blob must be bounded text: ${relative}`);
     let workingHash = null, workingBlob = null;
     try {
-      const info = await lstat6(path15.join(worktree, relative));
+      const info = await lstat11(path20.join(worktree, relative));
       if (!info.isFile() || info.isSymbolicLink() || process.platform !== "win32" && info.mode & 73) throw new Error(`bookkeeping selected path must be a non-executable regular file: ${relative}`);
-      const bytes = await readFile7(path15.join(worktree, relative));
+      const bytes = await readFile10(path20.join(worktree, relative));
       if (!bookkeepingTextAllowed(bytes)) throw new Error(`bookkeeping snapshot must contain bounded text: ${relative}`);
       new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       workingHash = hash5(bytes);
@@ -26562,15 +27880,15 @@ async function assertStash(record3, oid) {
   const changed2 = [.../* @__PURE__ */ new Set([...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, oid], record3.worktree)), ...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, `${oid}^2`], record3.worktree)), ...untrackedTree ? records(await git(["ls-tree", "-r", "--name-only", "-z", untrackedTree], record3.worktree)) : []])].sort();
   if (digest7(changed2) !== digest7(record3.paths)) throw new Error("bookkeeping parked stash contains an unexpected actual path delta");
   for (const selected of record3.snapshot) {
-    const tree = selected.head_entry || selected.index_entry ? oid : untrackedTree;
-    const entry = tree ? await git(["ls-tree", tree, "--", selected.path], record3.worktree) : "";
+    const tree2 = selected.head_entry || selected.index_entry ? oid : untrackedTree;
+    const entry = tree2 ? await git(["ls-tree", tree2, "--", selected.path], record3.worktree) : "";
     if (!selected.working_blob) {
       if (entry) throw new Error("bookkeeping parked stash lost a selected deletion");
     } else if (!entry.startsWith(`100644 blob ${selected.working_blob}	`)) throw new Error("bookkeeping parked stash content/mode differs from signed selected snapshot");
   }
 }
 async function signedRunsReadOnly(dataRoot) {
-  const names = await directoryNames(path15.join(dataRoot, "run-revisions")), legacy = await directoryNames(path15.join(dataRoot, "runs")), marks = await directoryNames(path15.join(dataRoot, "run-watermarks"));
+  const names = await directoryNames(path20.join(dataRoot, "run-revisions")), legacy = await directoryNames(path20.join(dataRoot, "runs")), marks = await directoryNames(path20.join(dataRoot, "run-watermarks"));
   const ids = [...new Set([...names.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1]), ...legacy.map((name) => /^(.*)\.json$/.exec(name)?.[1]), ...marks.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))], runs = [];
   for (const id of ids) {
     idValue(id);
@@ -26600,16 +27918,16 @@ async function signedRunsReadOnly(dataRoot) {
 }
 async function assertExpectedBinding(worktree, expected) {
   const actual = await assertWorktreeBinding(worktree, expected?.branch, expected?.commonGitDir, void 0, false, expected?.gitDir);
-  if (expected && !samePath7(actual.topLevel, expected.topLevel)) throw new Error("bookkeeping finalization expected worktree top-level binding changed");
+  if (expected && !samePath10(actual.topLevel, expected.topLevel)) throw new Error("bookkeeping finalization expected worktree top-level binding changed");
   return actual;
 }
 
 // src/merge-workflow.ts
 init_authority();
-import { createHash as createHash14, randomUUID as randomUUID4 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID7 } from "node:crypto";
 import os4 from "node:os";
-import { lstat as lstat8, readFile as readFile9, readdir as readdir10, realpath as realpath6 } from "node:fs/promises";
-import path17 from "node:path";
+import { lstat as lstat14, readFile as readFile14, readdir as readdir14, realpath as realpath8 } from "node:fs/promises";
+import path24 from "node:path";
 init_lifecycle();
 init_workspace();
 
@@ -26619,25 +27937,25 @@ init_lifecycle();
 init_workspace();
 init_worktree_storage();
 init_output_retention();
-import { createHash as createHash13, randomUUID as randomUUID3 } from "node:crypto";
-import { lstat as lstat7, mkdir as mkdir3, readFile as readFile8, readdir as readdir9, realpath as realpath5, writeFile as writeFile5 } from "node:fs/promises";
-import path16 from "node:path";
+import { createHash as createHash16, randomUUID as randomUUID4 } from "node:crypto";
+import { lstat as lstat12, mkdir as mkdir5, readFile as readFile11, readdir as readdir12, realpath as realpath6, writeFile as writeFile7 } from "node:fs/promises";
+import path21 from "node:path";
 import os3 from "node:os";
-var digest8 = (value) => createHash13("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
-var same = (a, b) => process.platform === "win32" ? path16.resolve(a).toLowerCase() === path16.resolve(b).toLowerCase() : path16.resolve(a) === path16.resolve(b);
+var digest8 = (value) => createHash16("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
+var same = (a, b) => process.platform === "win32" ? path21.resolve(a).toLowerCase() === path21.resolve(b).toLowerCase() : path21.resolve(a) === path21.resolve(b);
 var within = (root, child) => {
-  const relative = path16.relative(path16.resolve(root), path16.resolve(child));
-  return relative === "" || !relative.startsWith(".." + path16.sep) && relative !== ".." && !path16.isAbsolute(relative);
+  const relative = path21.relative(path21.resolve(root), path21.resolve(child));
+  return relative === "" || !relative.startsWith(".." + path21.sep) && relative !== ".." && !path21.isAbsolute(relative);
 };
 var missing = (error2) => error2?.code === "ENOENT";
 var cleanupId = (registration, head) => digest8(`${storageRegistrationId(registration.common_git_dir, registration.worktree_path)}\0${head}`);
-var branchLeaseId = (common, branch) => digest8(`${path16.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
-var evidenceDirectory = (dataRoot, id) => path16.join(dataRoot, "worktree-evidence", id);
+var branchLeaseId = (common, branch) => digest8(`${path21.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var evidenceDirectory = (dataRoot, id) => path21.join(dataRoot, "worktree-evidence", id);
 var budget = 16 * 1024 * 1024;
 var generated2 = /* @__PURE__ */ new Set(["library", "temp", "logs", "build", "builds", "dist", "artifacts", "node_modules", "bin", "obj", "coverage", ".captain-proof"]);
 async function exists2(file) {
   try {
-    await lstat7(file);
+    await lstat12(file);
     return true;
   } catch (error2) {
     if (missing(error2)) return false;
@@ -26645,18 +27963,18 @@ async function exists2(file) {
   }
 }
 async function safeAncestors(file) {
-  for (let cursor = path16.resolve(file); ; cursor = path16.dirname(cursor)) {
+  for (let cursor = path21.resolve(file); ; cursor = path21.dirname(cursor)) {
     try {
-      if ((await lstat7(cursor)).isSymbolicLink()) throw new Error("cleanup path crosses a reparse point");
+      if ((await lstat12(cursor)).isSymbolicLink()) throw new Error("cleanup path crosses a reparse point");
     } catch (error2) {
       if (!missing(error2)) throw error2;
     }
-    if (cursor === path16.dirname(cursor)) break;
+    if (cursor === path21.dirname(cursor)) break;
   }
 }
 function relativeFile(value) {
   const normalized2 = value.replaceAll("\\", "/");
-  if (!normalized2 || path16.isAbsolute(value) || /^[A-Za-z]:/.test(value) || normalized2.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git") || value.includes("\0")) throw new Error("retained evidence requires a safe relative path");
+  if (!normalized2 || path21.isAbsolute(value) || /^[A-Za-z]:/.test(value) || normalized2.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git") || value.includes("\0")) throw new Error("retained evidence requires a safe relative path");
   return normalized2;
 }
 async function readOptional(root, bucket3, id) {
@@ -26677,16 +27995,16 @@ async function readWorktreeCleanupCompletion(dataRoot, registration, head) {
 }
 async function validateArchive(dataRoot, plan) {
   for (const item of plan.evidence) {
-    const file = path16.join(evidenceDirectory(dataRoot, plan.cleanup_id), relativeFile(item.relative));
+    const file = path21.join(evidenceDirectory(dataRoot, plan.cleanup_id), relativeFile(item.relative));
     await safeAncestors(file);
-    const content = await readFile8(file);
+    const content = await readFile11(file);
     if (content.length !== item.bytes || digest8(content) !== item.sha256) throw new Error("retained worktree proof archive changed");
   }
 }
 async function retainedWorktreeHead(dataRoot, registration) {
   let names;
   try {
-    names = await readdir9(path16.join(dataRoot, "worktree-cleanup-completions"));
+    names = await readdir12(path21.join(dataRoot, "worktree-cleanup-completions"));
   } catch (error2) {
     if (missing(error2)) return void 0;
     throw error2;
@@ -26702,12 +28020,12 @@ async function archiveEvidence(dataRoot, id, root, requested) {
   const files = /* @__PURE__ */ new Map();
   let bytes = 0, directories = 0;
   async function collect(relative) {
-    const full = path16.join(root, relative);
+    const full = path21.join(root, relative);
     await safeAncestors(full);
-    const info = await lstat7(full);
+    const info = await lstat12(full);
     if (info.isDirectory()) {
       if (++directories > 4096) throw new Error("required compact proof exceeds the directory retention budget");
-      for (const name of (await readdir9(full)).sort()) {
+      for (const name of (await readdir12(full)).sort()) {
         if (name.toLowerCase() === ".git") throw new Error("retained evidence contains a nested repository");
         await collect(relativeFile(relative + "/" + name));
       }
@@ -26715,7 +28033,7 @@ async function archiveEvidence(dataRoot, id, root, requested) {
       if (files.has(relative)) return;
       if (files.size >= 2048) throw new Error("required compact proof exceeds the 2048-file retention budget");
       if (bytes + info.size > budget) throw new Error("required compact proof exceeds the 16 MiB retention budget; preserve it explicitly before cleanup");
-      const content = await readFile8(full);
+      const content = await readFile11(full);
       bytes += content.length;
       if (bytes > budget) throw new Error("required proof changed beyond the retention budget");
       files.set(relative, content);
@@ -26725,15 +28043,15 @@ async function archiveEvidence(dataRoot, id, root, requested) {
     const relative = relativeFile(raw.replace(/\/$/, ""));
     await collect(relative);
   }
-  for (const relative of [".captain-sdlc/tasks", ".captain-sdlc/handoffs", ".captain-sdlc/closeouts", ".captain-sdlc/notebook"]) if (await exists2(path16.join(root, relative))) await collect(relative);
+  for (const relative of [".captain-sdlc/tasks", ".captain-sdlc/handoffs", ".captain-sdlc/closeouts", ".captain-sdlc/notebook"]) if (await exists2(path21.join(root, relative))) await collect(relative);
   const manifest = [];
   for (const [relative, content] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
-    const full = path16.join(evidenceDirectory(dataRoot, id), relative);
+    const full = path21.join(evidenceDirectory(dataRoot, id), relative);
     await safeAncestors(full);
-    await mkdir3(path16.dirname(full), { recursive: true });
+    await mkdir5(path21.dirname(full), { recursive: true });
     if (await exists2(full)) {
-      if (!(await readFile8(full)).equals(content)) throw new Error("retained proof conflicts with an existing cleanup attempt");
-    } else await writeFile5(full, content, { flag: "wx", mode: 384 });
+      if (!(await readFile11(full)).equals(content)) throw new Error("retained proof conflicts with an existing cleanup attempt");
+    } else await writeFile7(full, content, { flag: "wx", mode: 384 });
     manifest.push({ relative, sha256: digest8(content), bytes: content.length });
   }
   return manifest;
@@ -26745,27 +28063,27 @@ async function registeredTrees(root) {
   })).filter((item) => Boolean(item.path));
 }
 async function walkSafety(root, dir = root) {
-  for (const item of await readdir9(dir, { withFileTypes: true })) {
+  for (const item of await readdir12(dir, { withFileTypes: true })) {
     if (item.name.toLowerCase() === ".git") {
       if (!same(root, dir)) throw new Error("worktree contains a nested Git repository");
       continue;
     }
-    const full = path16.join(dir, item.name), info = await lstat7(full);
+    const full = path21.join(dir, item.name), info = await lstat12(full);
     if (info.isSymbolicLink()) {
-      const destination = await realpath5(full);
+      const destination = await realpath6(full);
       if (!within(root, destination)) throw new Error("worktree contains an external reparse point");
     } else if (info.isDirectory()) await walkSafety(root, full);
   }
 }
 async function sameContent(left, right) {
   try {
-    const a = await lstat7(left), b = await lstat7(right);
+    const a = await lstat12(left), b = await lstat12(right);
     if (a.isSymbolicLink() || b.isSymbolicLink()) return false;
-    if (a.isFile() && b.isFile()) return a.size === b.size && digest8(await readFile8(left)) === digest8(await readFile8(right));
+    if (a.isFile() && b.isFile()) return a.size === b.size && digest8(await readFile11(left)) === digest8(await readFile11(right));
     if (!a.isDirectory() || !b.isDirectory()) return false;
-    const aa = (await readdir9(left)).sort(), bb = (await readdir9(right)).sort();
+    const aa = (await readdir12(left)).sort(), bb = (await readdir12(right)).sort();
     if (digest8(aa) !== digest8(bb)) return false;
-    for (const name of aa) if (!await sameContent(path16.join(left, name), path16.join(right, name))) return false;
+    for (const name of aa) if (!await sameContent(path21.join(left, name), path21.join(right, name))) return false;
     return true;
   } catch (error2) {
     if (missing(error2)) return false;
@@ -26788,14 +28106,14 @@ async function assertIgnoredDataSafe(registration, evidence, outputRoots) {
   const comparison = (value) => process.platform === "win32" ? value.toLowerCase() : value;
   const classified = [...evidence, ...outputRoots].map(comparison);
   async function check2(relative) {
-    const parts = relative.toLowerCase().split("/"), comparable = comparison(relative);
-    if (parts.some((part) => generated2.has(part)) || classified.some((item) => comparable === item || comparable.startsWith(item + "/")) || /^\.captain-sdlc\/(tasks|handoffs|closeouts|notebook)(\/|$)/i.test(relative)) return;
-    const full = path16.join(registration.worktree_path, relative);
-    if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat7(full)).isDirectory()) {
-      for (const name of await readdir9(full)) await check2(relative + "/" + name);
+    const parts2 = relative.toLowerCase().split("/"), comparable = comparison(relative);
+    if (parts2.some((part) => generated2.has(part)) || classified.some((item) => comparable === item || comparable.startsWith(item + "/")) || /^\.captain-sdlc\/(tasks|handoffs|closeouts|notebook)(\/|$)/i.test(relative)) return;
+    const full = path21.join(registration.worktree_path, relative);
+    if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat12(full)).isDirectory()) {
+      for (const name of await readdir12(full)) await check2(relative + "/" + name);
       return;
     }
-    if (await sameContent(full, path16.join(registration.project_root, relative))) return;
+    if (await sameContent(full, path21.join(registration.project_root, relative))) return;
     throw new Error(`unclassified ignored content requires preservation before cleanup: ${relative}`);
   }
   for (const raw of ignored2) await check2(raw.replaceAll("\\", "/").replace(/\/$/, ""));
@@ -26805,7 +28123,7 @@ async function completedOwners(dataRoot, root, intentId) {
   if ((await lifecycle.doctor()).activeRuns.some((owner) => same(owner.worktreePath, root))) throw new Error("worktree has an unfinished Captain task");
   let names;
   try {
-    names = await readdir9(path16.join(dataRoot, "run-revisions"));
+    names = await readdir12(path21.join(dataRoot, "run-revisions"));
   } catch (error2) {
     if (missing(error2)) names = [];
     else throw error2;
@@ -26842,7 +28160,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       if (!/^[0-9a-f]{40,64}$/i.test(head)) throw new Error("cleanup requires an exact integrated commit");
       const verified = await readWorktreeRegistration(dataRoot, registration.common_git_dir, root);
       if (!verified || digest8(verified) !== digest8(registration)) throw new Error("worktree has no matching future creation registration");
-      if (!same(target.commonGitDir, registration.common_git_dir) || same(root, registration.project_root) || within(root, targetWorktree) || within(root, dataRoot) || !same(path16.dirname(root), path16.join(registration.project_root, ".captain-sdlc", "worktrees"))) throw new Error("cleanup path is outside its exact canonical task checkout");
+      if (!same(target.commonGitDir, registration.common_git_dir) || same(root, registration.project_root) || within(root, targetWorktree) || within(root, dataRoot) || !same(path21.dirname(root), path21.join(registration.project_root, ".captain-sdlc", "worktrees"))) throw new Error("cleanup path is outside its exact canonical task checkout");
       if (!same(await primaryRepositoryRoot(targetWorktree, registration.common_git_dir), registration.project_root)) throw new Error("cleanup primary repository binding diverged");
       await safeAncestors(root);
       await safeAncestors(dataRoot);
@@ -26870,28 +28188,28 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
           if (!stopped2) throw new Error("cleanup lease owner is active or cannot be verified stopped");
           await releaseAuthorizedLeaseAtGeneration(dataRoot, leaseId, id, payload.leaseToken, stale.revision, digest8({ leaseId, revision: stale.revision, state: "held", payload }));
         }
-        const token = randomUUID3();
+        const token = randomUUID4();
         await acquireAuthorizedLease(dataRoot, leaseId, { intentId: id, leaseToken: token, operation: "worktree-cleanup", ownerPid: process.pid, ownerHost: os3.hostname() });
         held.push({ id: leaseId, token });
       }
       const prior = await readWorktreeCleanupCompletion(dataRoot, registration, head);
       if (prior) {
-        if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("a checkout reappeared after cleanup; preserve its replacement identity");
+        if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree2) => same(tree2.path, root))) throw new Error("a checkout reappeared after cleanup; preserve its replacement identity");
         result.removed_worktrees.push(root);
         (result.removed_heads ??= {})[root] = head;
-        result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+        result.evidence_root = path21.join(dataRoot, "worktree-evidence");
         continue;
       }
       const plan = await readOptional(dataRoot, "worktree-cleanup-plans", id);
       if (!await exists2(root)) {
-        if (!plan || digest8(plan.registration) !== digest8(registration) || plan.head !== head || !same(plan.target_worktree, targetWorktree) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("missing worktree has no completed exact removal journal");
+        if (!plan || digest8(plan.registration) !== digest8(registration) || plan.head !== head || !same(plan.target_worktree, targetWorktree) || (await registeredTrees(targetWorktree)).some((tree2) => same(tree2.path, root))) throw new Error("missing worktree has no completed exact removal journal");
         await validateArchive(dataRoot, plan);
         const completion = { schema_version: 1, cleanup_id: id, plan_sha256: digest8(plan), worktree: root, head };
         await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-completions", id, completion);
         await readWorktreeCleanupCompletion(dataRoot, registration, head);
         result.removed_worktrees.push(root);
         (result.removed_heads ??= {})[root] = head;
-        result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+        result.evidence_root = path21.join(dataRoot, "worktree-evidence");
         continue;
       }
       const validate = async () => {
@@ -26903,11 +28221,11 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
         await completedOwners(dataRoot, root, registration.intent_id);
         await assertWorktreeBinding(root, registration.branch, registration.common_git_dir, head, true, registration.git_dir);
         for (const marker of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_LOG", "BISECT_START", "rebase-merge", "rebase-apply", "sequencer", "index.lock"]) {
-          if (await exists2(path16.join(registration.git_dir, marker))) throw new Error(`worktree has an unfinished Git operation or lock: ${marker}`);
+          if (await exists2(path21.join(registration.git_dir, marker))) throw new Error(`worktree has an unfinished Git operation or lock: ${marker}`);
         }
-        const entries2 = await registeredTrees(targetWorktree), selected = entries2.find((tree) => same(tree.path, root));
+        const entries3 = await registeredTrees(targetWorktree), selected = entries3.find((tree2) => same(tree2.path, root));
         if (!selected || selected.locked) throw new Error("worktree is missing or locked");
-        if (entries2.some((tree) => !same(tree.path, root) && within(root, tree.path))) throw new Error("worktree contains another registered worktree");
+        if (entries3.some((tree2) => !same(tree2.path, root) && within(root, tree2.path))) throw new Error("worktree contains another registered worktree");
         const actualTarget = await assertWorktreeBinding(targetWorktree, target.branch, target.commonGitDir, target.head, false, target.gitDir);
         await git(["merge-base", "--is-ancestor", head, actualTarget.head], targetWorktree);
       };
@@ -26919,7 +28237,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       let removal = plan;
       if (removal) {
         if (digest8(removal.registration) !== digest8(registration) || removal.head !== head || !same(removal.target_worktree, targetWorktree)) throw new Error("cleanup retry cannot adopt a replacement worktree");
-        for (const evidence of removal.evidence) if (digest8(await readFile8(path16.join(root, evidence.relative))) !== evidence.sha256) throw new Error("source proof changed after the cleanup journal");
+        for (const evidence of removal.evidence) if (digest8(await readFile11(path21.join(root, evidence.relative))) !== evidence.sha256) throw new Error("source proof changed after the cleanup journal");
         await validateArchive(dataRoot, removal);
       } else {
         const evidence = await archiveEvidence(dataRoot, id, root, evidencePaths);
@@ -26928,7 +28246,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
           cleanup_id: id,
           registration,
           head,
-          target_worktree: path16.resolve(targetWorktree),
+          target_worktree: path21.resolve(targetWorktree),
           target_branch: target.branch,
           target_common_git_dir: target.commonGitDir,
           target_head: target.head,
@@ -26938,12 +28256,12 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       await validate();
       await safeAncestors(root);
       await git(["worktree", "remove", root], registration.project_root);
-      if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("Git did not complete the exact worktree removal");
+      if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree2) => same(tree2.path, root))) throw new Error("Git did not complete the exact worktree removal");
       await putAuthorizedOnceExact(dataRoot, "worktree-cleanup-completions", id, { schema_version: 1, cleanup_id: id, plan_sha256: digest8(removal), worktree: root, head });
       await readWorktreeCleanupCompletion(dataRoot, registration, head);
       result.removed_worktrees.push(root);
       (result.removed_heads ??= {})[root] = head;
-      result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+      result.evidence_root = path21.join(dataRoot, "worktree-evidence");
     } catch (error2) {
       result.retained_worktrees.push({ worktree: root, reason: error2.message });
     } finally {
@@ -26957,6 +28275,800 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
 init_worktree_storage();
 init_output_retention();
 init_workspace();
+
+// src/git-lfs-fastforward.ts
+init_lfs();
+init_git_safe_status();
+import { createHash as createHash17, randomUUID as randomUUID5 } from "node:crypto";
+import { execFile as execFile3 } from "node:child_process";
+import { chmod, link as link3, lstat as lstat13, mkdir as mkdir6, mkdtemp as mkdtemp4, open as open5, readFile as readFile12, readdir as readdir13, realpath as realpath7, rename as rename4, unlink as unlink4, writeFile as writeFile8 } from "node:fs/promises";
+import path22 from "node:path";
+import { promisify as promisify3 } from "node:util";
+var maxIndexBytes = 32 * 1024 * 1024;
+var samePath11 = (a, b) => process.platform === "win32" ? path22.resolve(a).toLowerCase() === path22.resolve(b).toLowerCase() : path22.resolve(a) === path22.resolve(b);
+var hashText = (text2) => createHash17("sha256").update(text2).digest("hex");
+var exec3 = promisify3(execFile3);
+async function windowsAcl(file) {
+  if (process.platform !== "win32") throw new Error("Windows ACL inspection is unavailable on this platform");
+  const systemRoot = process.env.SystemRoot;
+  if (!systemRoot || !path22.isAbsolute(systemRoot)) throw new Error("Windows ACL inspection requires SystemRoot");
+  const executable = path22.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const script = "$ErrorActionPreference = 'Stop'; [Console]::Out.Write((Get-Acl -LiteralPath $env:CAPTAIN_LFS_ACL_PATH).Sddl)";
+  const environment = { ...process.env, CAPTAIN_LFS_ACL_PATH: file, PSModulePath: path22.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "Modules") };
+  let output;
+  try {
+    output = (await exec3(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], { env: environment, windowsHide: true, maxBuffer: 1024 * 1024, timeout: 3e4 })).stdout.trim();
+  } catch (error2) {
+    throw new Error(`Windows ACL metadata could not be verified: ${file}`, { cause: error2 });
+  }
+  if (!output.startsWith("O:") || !output.includes("G:") || !output.includes("D:")) throw new Error(`Windows ACL metadata is incomplete: ${file}`);
+  return output;
+}
+async function moveWindowsDirectoryNoReplace(source, destination) {
+  if (process.platform !== "win32") throw new Error("no-replace directory move requires Windows");
+  const systemRoot = process.env.SystemRoot;
+  if (!systemRoot || !path22.isAbsolute(systemRoot)) throw new Error("Windows directory move requires SystemRoot");
+  const extended = (value) => {
+    const absolute2 = path22.resolve(value);
+    return absolute2.startsWith("\\\\") ? `\\\\?\\UNC\\${absolute2.slice(2)}` : `\\\\?\\${absolute2}`;
+  };
+  const executable = path22.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const script = `$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class CaptainMoveDirectory { [DllImport("kernel32.dll", EntryPoint="MoveFileW", CharSet=CharSet.Unicode, SetLastError=true)] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool Move(string source, string destination); }'
+if (-not [CaptainMoveDirectory]::Move($env:CAPTAIN_LFS_MOVE_SOURCE, $env:CAPTAIN_LFS_MOVE_DESTINATION)) { $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error(); [Console]::Error.Write("Windows directory move refused: $code"); exit 1 }`;
+  const env = { ...process.env, CAPTAIN_LFS_MOVE_SOURCE: extended(source), CAPTAIN_LFS_MOVE_DESTINATION: extended(destination), PSModulePath: path22.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "Modules") };
+  try {
+    await exec3(executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], { env, windowsHide: true, maxBuffer: 1024 * 1024, timeout: 3e4 });
+  } catch (error2) {
+    throw new Error("Windows directory destination exists or the no-replace move was refused", { cause: error2 });
+  }
+}
+async function directoryIdentity(value) {
+  const info = await lstat13(value, { bigint: true });
+  if (info.isSymbolicLink() || !info.isDirectory() || !info.ino) throw new Error("Git LFS directory has no safe stable identity");
+  return { dev: info.dev.toString(), ino: info.ino.toString() };
+}
+function sameDirectoryIdentity(a, b) {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+async function capturePosixDirectories(root, changed2) {
+  if (process.platform === "win32") return void 0;
+  const directories = /* @__PURE__ */ new Map();
+  for (const name of changed2) {
+    let relative = "";
+    for (const component of name.split("/").slice(0, -1)) {
+      relative = relative ? `${relative}/${component}` : component;
+      const target = path22.join(root, ...relative.split("/"));
+      let value;
+      try {
+        value = await directoryIdentity(target);
+      } catch (error2) {
+        if (error2.code === "ENOENT") throw new Error(`POSIX fast-forward cannot create unjournaled destination directory: ${relative}`, { cause: error2 });
+        throw error2;
+      }
+      const previous = directories.get(relative);
+      if (previous && !sameDirectoryIdentity(previous, value)) throw new Error(`POSIX destination directory changed during planning: ${relative}`);
+      directories.set(relative, value);
+    }
+  }
+  return [...directories].map(([name, id]) => ({ path: name, id }));
+}
+function posixDirectoryLookup(plan) {
+  if (process.platform === "win32") {
+    if (plan.posix_directories?.length) throw new Error("POSIX directory plan cannot be published on Windows");
+    return void 0;
+  }
+  if (!Array.isArray(plan.posix_directories) || plan.posix_directories.length > 2e5) throw new Error("signed POSIX fast-forward plan lacks directory identities");
+  const lookup = /* @__PURE__ */ new Map();
+  for (const directory of plan.posix_directories) {
+    const relative = safeRelative(directory.path);
+    if (lookup.has(relative) || !directory.id || !directory.id.dev || !directory.id.ino) throw new Error("invalid signed POSIX directory identity");
+    lookup.set(relative, directory.id);
+  }
+  return lookup;
+}
+async function verifyPosixChangeParents(plan, name, lookup) {
+  if (process.platform === "win32") return;
+  if (!lookup) throw new Error("signed POSIX fast-forward plan lacks directory identities");
+  let relative = "";
+  for (const component of name.split("/").slice(0, -1)) {
+    relative = relative ? `${relative}/${component}` : component;
+    const expected = lookup.get(relative), target = path22.join(plan.root, ...relative.split("/"));
+    if (!expected) throw new Error(`signed POSIX fast-forward plan lacks a destination parent: ${relative}`);
+    await safeDir(target);
+    if (!sameDirectoryIdentity(expected, await directoryIdentity(target))) throw new Error(`POSIX destination directory identity changed: ${relative}`);
+  }
+}
+function safeRelative(value) {
+  const parts2 = value.split("/");
+  if (!value || /[\x00-\x1f\x7f\\]/.test(value) || value.includes("\uFFFD") || path22.isAbsolute(value) || parts2.some((p) => !p || p === "." || p === ".." || p.toLowerCase() === ".git")) throw new Error("unsafe Git LFS fast-forward path");
+  if (process.platform === "win32" && parts2.some((p) => /[<>:"|?*]/.test(p) || /[. ]$/.test(p) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(p))) throw new Error("unsafe Windows Git LFS fast-forward path");
+  return value;
+}
+function parsePaths(value) {
+  if (!value.length) return [];
+  if (value[value.length - 1] !== 0) throw new Error("truncated Git LFS fast-forward path list");
+  let text2;
+  try {
+    text2 = new TextDecoder("utf-8", { fatal: true }).decode(value);
+  } catch {
+    throw new Error("invalid Git path encoding");
+  }
+  const entries3 = text2.split("\0");
+  entries3.pop();
+  return entries3;
+}
+function indexed(data) {
+  const map = /* @__PURE__ */ new Map(), folded = /* @__PURE__ */ new Set();
+  for (const line of parsePaths(data)) {
+    const match = /^(\d{6}) ([a-f0-9]{40}(?:[a-f0-9]{24})?) ([0-3])\t([\s\S]+)$/.exec(line);
+    if (!match || match[3] !== "0") throw new Error("unmerged or invalid Git index in LFS fast-forward");
+    const name = safeRelative(match[4]), key3 = process.platform === "win32" ? name.toLowerCase() : name;
+    if (folded.has(key3)) throw new Error("case-colliding paths in Git LFS fast-forward");
+    folded.add(key3);
+    map.set(name, { path: name, mode: match[1], oid: match[2] });
+  }
+  return map;
+}
+function tree(data) {
+  const map = /* @__PURE__ */ new Map(), folded = /* @__PURE__ */ new Set();
+  for (const line of parsePaths(data)) {
+    const match = /^(\d{6}) (\w+) ([a-f0-9]{40}(?:[a-f0-9]{24})?)\t([\s\S]+)$/.exec(line);
+    if (!match || !["blob", "commit"].includes(match[2])) throw new Error("unsupported Git tree in LFS fast-forward");
+    const name = safeRelative(match[4]), key3 = process.platform === "win32" ? name.toLowerCase() : name;
+    if (folded.has(key3)) throw new Error("case-colliding paths in Git LFS fast-forward");
+    folded.add(key3);
+    map.set(name, { path: name, mode: match[1], oid: match[3] });
+  }
+  return map;
+}
+async function safeDir(value, create = false) {
+  const absolute2 = path22.resolve(value), base = path22.parse(absolute2).root;
+  let current = base;
+  for (const part of path22.relative(base, absolute2).split(path22.sep).filter(Boolean)) {
+    current = path22.join(current, part);
+    let info;
+    try {
+      info = await lstat13(current);
+    } catch (error2) {
+      if (error2.code !== "ENOENT" || !create) throw error2;
+      try {
+        await mkdir6(current);
+      } catch (e) {
+        if (e.code !== "EEXIST") throw e;
+      }
+      info = await lstat13(current);
+    }
+    if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`Git LFS fast-forward path crosses a reparse point or non-directory: ${current}`);
+  }
+}
+async function fingerprint(file) {
+  try {
+    await safeDir(path22.dirname(file));
+    const info = await lstat13(file, { bigint: true });
+    if (info.isSymbolicLink() || !info.isFile() || !info.ino) throw new Error(`Git LFS fast-forward requires a regular file with a stable ID: ${file}`);
+    const value = await hashLfsFile(file), after = await lstat13(file, { bigint: true });
+    if (after.dev !== info.dev || after.ino !== info.ino || after.size !== info.size || after.mtimeNs !== info.mtimeNs || after.ctimeNs !== info.ctimeNs) throw new Error("Git LFS fast-forward input changed while hashing");
+    return { sha256: value.oid, size: value.size, dev: info.dev.toString(), ino: info.ino.toString(), executable: process.platform !== "win32" && (info.mode & 0o100n) !== 0n };
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw error2;
+  }
+}
+function matches(actual, expected) {
+  return !actual && !expected || Boolean(actual && expected && actual.sha256 === expected.sha256 && actual.size === expected.size && actual.dev === expected.dev && actual.ino === expected.ino && actual.executable === expected.executable);
+}
+async function writeDurable(file, bytes) {
+  const handle = await open5(file, "wx", 384);
+  try {
+    await handle.writeFile(bytes);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+async function inheritedWindowsFileAcl(parent) {
+  await safeDir(parent);
+  const file = path22.join(parent, `captain-acl-probe-${randomUUID5()}`), handle = await open5(file, "wx");
+  const owned = await handle.stat({ bigint: true });
+  await handle.close();
+  try {
+    return await windowsAcl(file);
+  } finally {
+    const current = await lstat13(file, { bigint: true });
+    if (!current.isFile() || current.isSymbolicLink() || current.dev !== owned.dev || current.ino !== owned.ino) throw new Error("Windows ACL probe ownership changed");
+    await safeDir(parent);
+    await unlink4(file);
+  }
+}
+async function prepareWindowsDirectories(root, txn, changed2, next) {
+  const roots = [], byPath = /* @__PURE__ */ new Map();
+  if (process.platform !== "win32") return { roots, byPath };
+  const stagingParent = path22.join(txn, "directories");
+  await mkdir6(stagingParent);
+  const stagingAcl = await windowsAcl(stagingParent);
+  for (const name of changed2) {
+    if (!next.has(name)) continue;
+    let relative = "";
+    for (const part of name.split("/").slice(0, -1)) {
+      const previous = relative;
+      relative = relative ? `${relative}/${part}` : part;
+      const key3 = relative.toLowerCase();
+      if (byPath.has(key3)) continue;
+      const parentPlan = previous ? byPath.get(previous.toLowerCase()) : void 0;
+      if (parentPlan) {
+        const staged2 = path22.join(parentPlan.staged, part);
+        await mkdir6(staged2);
+        const node2 = { path: relative, id: await directoryIdentity(staged2), acl: await windowsAcl(staged2) };
+        parentPlan.root.nodes.push(node2);
+        byPath.set(key3, { root: parentPlan.root, staged: staged2, node: node2 });
+        continue;
+      }
+      const target = path22.join(root, ...relative.split("/"));
+      let info;
+      try {
+        info = await lstat13(target);
+      } catch (error2) {
+        if (error2.code !== "ENOENT") throw error2;
+      }
+      if (info) {
+        if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`Windows directory destination is not a regular directory: ${relative}`);
+        await safeDir(target);
+        continue;
+      }
+      const parent = path22.dirname(target);
+      await safeDir(parent);
+      const parentId = await directoryIdentity(parent), parentAcl = await windowsAcl(parent);
+      if (parentAcl !== stagingAcl) throw new Error(`Windows inherited directory ACL cannot be verified: ${relative}`);
+      const staged = path22.join(stagingParent, hashText(relative));
+      await mkdir6(staged);
+      const node = { path: relative, id: await directoryIdentity(staged), acl: await windowsAcl(staged) };
+      const entry = { path: relative, staged, parent_id: parentId, parent_acl: parentAcl, nodes: [node] };
+      roots.push(entry);
+      byPath.set(key3, { root: entry, staged, node });
+    }
+  }
+  return { roots, byPath };
+}
+async function optionalDirectory(value) {
+  try {
+    return await directoryIdentity(value);
+  } catch (error2) {
+    if (error2.code === "ENOENT") return void 0;
+    throw new Error(`Windows directory collision or unsafe path: ${value}`, { cause: error2 });
+  }
+}
+async function verifyWindowsDirectories(plan) {
+  if (process.platform !== "win32") {
+    if (plan.windows_directories?.length) throw new Error("Windows directory plan cannot be published on this platform");
+    return;
+  }
+  const roots = plan.windows_directories ?? [], seen = /* @__PURE__ */ new Set();
+  if (!Array.isArray(roots) || roots.length > 2e5) throw new Error("invalid Windows directory plan");
+  for (const entry of roots) {
+    const rootPath = safeRelative(entry.path), key3 = rootPath.toLowerCase(), target = path22.join(plan.root, ...rootPath.split("/"));
+    if (seen.has(key3) || roots.some((other) => other !== entry && (key3.startsWith(`${other.path.toLowerCase()}/`) || other.path.toLowerCase().startsWith(`${key3}/`))) || !samePath11(path22.dirname(entry.staged), path22.join(plan.transaction_dir, "directories")) || path22.basename(entry.staged) !== hashText(rootPath) || !Array.isArray(entry.nodes) || !entry.nodes.length) throw new Error("invalid Windows signed directory root");
+    seen.add(key3);
+    const parent = path22.dirname(target);
+    await safeDir(parent);
+    if (!sameDirectoryIdentity(entry.parent_id, await directoryIdentity(parent)) || entry.parent_acl !== await windowsAcl(parent)) throw new Error(`Windows directory parent changed: ${rootPath}`);
+    const staged = await optionalDirectory(entry.staged), published = await optionalDirectory(target);
+    if (Boolean(staged) === Boolean(published)) throw new Error(`Windows directory conflicts with foreign state: ${rootPath}`);
+    const active = staged ? entry.staged : target, nodeKeys = /* @__PURE__ */ new Set();
+    for (const node of entry.nodes) {
+      const name = safeRelative(node.path), nodeKey = name.toLowerCase();
+      if (nodeKeys.has(nodeKey) || !(nodeKey === key3 || nodeKey.startsWith(`${key3}/`))) throw new Error("invalid Windows signed directory node");
+      nodeKeys.add(nodeKey);
+      const suffix = name.slice(rootPath.length).replace(/^\//, ""), actual = suffix ? path22.join(active, ...suffix.split("/")) : active;
+      await safeDir(actual);
+      if (!sameDirectoryIdentity(node.id, await directoryIdentity(actual)) || node.acl !== await windowsAcl(actual)) throw new Error(`Windows directory identity or ACL changed: ${name}`);
+      const allowed = new Set(entry.nodes.filter((child) => path22.posix.dirname(child.path).toLowerCase() === nodeKey).map((child) => path22.posix.basename(child.path).toLowerCase()));
+      if (!staged) {
+        for (const change of plan.changes) if (change.after && path22.posix.dirname(change.path).toLowerCase() === nodeKey) allowed.add(path22.posix.basename(change.path).toLowerCase());
+      }
+      for (const name2 of await readdir13(actual)) if (!allowed.has(name2.toLowerCase())) throw new Error(`Windows directory contains foreign user data: ${node.path}/${name2}`);
+    }
+    if (!nodeKeys.has(key3)) throw new Error("Windows signed directory root node is missing");
+  }
+}
+async function windowsChangeParent(plan, name) {
+  const relative = path22.posix.dirname(name), key3 = relative.toLowerCase();
+  for (const entry of plan.windows_directories ?? []) {
+    if (!(key3 === entry.path.toLowerCase() || key3.startsWith(`${entry.path.toLowerCase()}/`))) continue;
+    const staged = await optionalDirectory(entry.staged), target = path22.join(plan.root, ...entry.path.split("/")), published = await optionalDirectory(target);
+    if (Boolean(staged) === Boolean(published)) throw new Error(`Windows directory conflicts with foreign state: ${entry.path}`);
+    const node = entry.nodes.find((value) => value.path.toLowerCase() === key3);
+    if (!node) throw new Error(`Windows directory plan is missing: ${relative}`);
+    const suffix = relative.slice(entry.path.length).replace(/^\//, ""), actual = suffix ? path22.join(staged ? entry.staged : target, ...suffix.split("/")) : staged ? entry.staged : target;
+    await safeDir(actual);
+    if (!sameDirectoryIdentity(node.id, await directoryIdentity(actual)) || node.acl !== await windowsAcl(actual)) throw new Error(`Windows directory identity or ACL changed: ${relative}`);
+    return actual;
+  }
+  return path22.dirname(path22.join(plan.root, ...name.split("/")));
+}
+function regular(entry) {
+  return !entry || entry.mode === "100644" || entry.mode === "100755";
+}
+async function rejectAlternateStorage2(root, git2) {
+  try {
+    await git2(["config", "--get-all", "lfs.storage"], root);
+  } catch (error2) {
+    if (error2.code === 1) return;
+    throw error2;
+  }
+  throw new Error("explicit lfs.storage is not supported by Git LFS fast-forward");
+}
+async function captureMetadata(root, git2) {
+  const local = await git2(["config", "--local", "--includes", "--null", "--list"], root);
+  let worktreeEnabled = false;
+  try {
+    worktreeEnabled = await git2(["config", "--local", "--includes", "--bool", "--get", "extensions.worktreeConfig"], root) === "true";
+  } catch (error2) {
+    if (error2.code !== 1) throw error2;
+  }
+  const worktree = worktreeEnabled ? await git2(["config", "--worktree", "--includes", "--null", "--list"], root) : "";
+  const attrs = path22.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-path", "info/attributes"], root));
+  const exclude = path22.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-path", "info/exclude"], root));
+  const attributes = await fingerprint(attrs), excluded2 = await fingerprint(exclude);
+  return { config_sha256: hashText(`${local}\0${worktree}`), ...attributes ? { attributes } : {}, ...excluded2 ? { exclude: excluded2 } : {} };
+}
+function sameMetadata(left, right) {
+  return left.config_sha256 === right.config_sha256 && matches(left.attributes, right.attributes) && matches(left.exclude, right.exclude);
+}
+async function assertVisibleFastForwardIndex(root, git2) {
+  const entries3 = (await git2(["ls-files", "-v", "-z"], root)).split("\0").filter(Boolean);
+  for (const entry of entries3) {
+    if (!/^[A-Za-z?] /.test(entry)) throw new Error("invalid Git index visibility result");
+    if (entry[0] === "S" || /^[a-z]$/.test(entry[0])) throw new Error("Git LFS fast-forward refuses assume-unchanged or skip-worktree entries");
+  }
+}
+async function prepareLfsFastForward(root, branch, oldHead, newHead, git2) {
+  root = path22.resolve(root);
+  if (!/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(oldHead) || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(newHead) || !branch || branch.startsWith("-") || branch.includes("\0")) throw new Error("invalid Git LFS fast-forward binding");
+  await safeDir(root);
+  await rejectAlternateStorage2(root, git2);
+  await assertVisibleFastForwardIndex(root, git2);
+  const metadata2 = await captureMetadata(root, git2);
+  const gitDir = path22.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-dir"], root));
+  const common = path22.resolve(await git2(["rev-parse", "--path-format=absolute", "--git-common-dir"], root));
+  await safeDir(gitDir);
+  await safeDir(common);
+  if (await git2(["rev-parse", "--verify", "HEAD^{commit}"], root) !== oldHead || await git2(["symbolic-ref", "--quiet", "--short", "HEAD"], root) !== branch) throw new Error("Git LFS fast-forward target changed before preparation");
+  await git2(["merge-base", "--is-ancestor", oldHead, newHead], root);
+  const rootInfo = await lstat13(root, { bigint: true }), gitInfo = await lstat13(gitDir, { bigint: true });
+  const rootId = await directoryIdentity(root), gitDirId = await directoryIdentity(gitDir), commonDirId = await directoryIdentity(common);
+  if (rootInfo.dev !== gitInfo.dev || !gitInfo.ino) throw new Error("Git LFS fast-forward requires a same-volume Git directory and stable file IDs");
+  const oldIndex = await fingerprint(path22.join(gitDir, "index"));
+  if (!oldIndex || oldIndex.size > maxIndexBytes) throw new Error("Git LFS fast-forward index is missing or exceeds the supported limit");
+  return withShadowGit(root, git2, async (shadow) => {
+    const indexTree = (await shadow.run(["write-tree"])).toString("ascii").trim();
+    const oldTree = (await shadow.run(["rev-parse", `${oldHead}^{tree}`])).toString("ascii").trim();
+    if (indexTree !== oldTree) throw new Error("Git LFS fast-forward index differs from the old tree; preserve staged input");
+    const changed2 = parsePaths(await shadow.run(["diff", "--no-renames", "--name-only", "--no-ext-diff", "--no-textconv", "-z", oldHead, newHead, "--"])).map(safeRelative).sort();
+    if (new Set(changed2.map((value) => process.platform === "win32" ? value.toLowerCase() : value)).size !== changed2.length) throw new Error("case-colliding changed paths in Git LFS fast-forward");
+    const posixDirectories = await capturePosixDirectories(root, changed2);
+    const rejectLockable = async () => {
+      for (const item of await shadow.checkAttributes(changed2, ["lockable"], true)) {
+        const value = item.attributes.lockable;
+        if (value !== "unset" && value !== "unspecified") throw new Error(`Git LFS fast-forward does not yet support lockable paths: ${item.path}`);
+      }
+    };
+    await rejectLockable();
+    const previous = tree(await shadow.run(["ls-tree", "-r", "-z", "--full-tree", oldHead]));
+    const oldLfs = new Map((await listShadowIndexedLfs(shadow)).map((item) => [item.path, item]));
+    const oldFiles = /* @__PURE__ */ new Map();
+    for (const name of changed2) {
+      const original = path22.join(root, ...name.split("/")), before = await fingerprint(original), oldEntry = previous.get(name);
+      if (!regular(oldEntry)) throw new Error(`Git LFS fast-forward refuses symlink, submodule, or type change: ${name}`);
+      if (oldEntry && !before) throw new Error(`Git LFS fast-forward target file is missing: ${name}`);
+      if (!oldEntry && before) throw new Error(`Git LFS fast-forward would overwrite an existing or ignored file: ${name}`);
+      if (oldEntry && before) {
+        const previousLfs = oldLfs.get(name);
+        if (previousLfs) {
+          if (previousLfs.indexOid !== oldEntry.oid || before.sha256 !== previousLfs.oid || before.size !== previousLfs.size) throw new Error(`Git LFS fast-forward target differs from the old indexed LFS object: ${name}`);
+        } else {
+          const actual = (await shadow.run(["hash-object", `--path=${name}`, "--", original])).toString("ascii").trim();
+          if (actual !== oldEntry.oid) throw new Error(`Git LFS fast-forward target differs from the old Git object: ${name}`);
+        }
+        if (process.platform !== "win32" && before.executable !== (oldEntry.mode === "100755")) throw new Error(`Git LFS fast-forward target executable mode differs: ${name}`);
+      }
+      oldFiles.set(name, before);
+    }
+    await shadow.run(["read-tree", newHead]);
+    await rejectLockable();
+    const next = indexed(await shadow.run(["ls-files", "--stage", "-z"]));
+    for (const name of changed2) if (!regular(previous.get(name)) || !regular(next.get(name))) throw new Error(`Git LFS fast-forward refuses symlink, submodule, or type change: ${name}`);
+    const txn = await mkdtemp4(path22.join(gitDir, "captain-lfs-ff-")), txnInfo = await lstat13(txn, { bigint: true });
+    if (!txnInfo.ino || txnInfo.dev !== gitInfo.dev) throw new Error("Git LFS fast-forward transaction has no stable identity");
+    const staging = path22.join(txn, "materialized"), prepared = path22.join(txn, "prepared"), backups = path22.join(txn, "backups");
+    await mkdir6(staging);
+    await mkdir6(prepared);
+    await mkdir6(backups);
+    const directories = await prepareWindowsDirectories(root, txn, changed2, next), inheritedFileAcls = /* @__PURE__ */ new Map();
+    const lfs = await listShadowIndexedLfs(shadow), lfsByPath = new Map(lfs.map((item) => [item.path, item]));
+    const attrs = [...next.values()].filter((item) => path22.posix.basename(item.path).toLowerCase() === ".gitattributes").map((item) => item.path).sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
+    if (attrs.some((name) => lfsByPath.has(name) || !regular(next.get(name)))) throw new Error("Git LFS attributes must be regular files and cannot track themselves");
+    const checkout = async (names) => {
+      if (names.length) await shadow.run([`--work-tree=${staging}`, "checkout-index", "--force", "-z", "--stdin"], Buffer.from(names.join("\0") + "\0"));
+    };
+    await checkout(attrs);
+    const ordinary = changed2.filter((name) => next.has(name) && !lfsByPath.has(name));
+    await checkout(ordinary);
+    const objects = path22.join(common, "lfs", "objects");
+    for (const name of changed2.filter((name2) => lfsByPath.has(name2))) {
+      const item = lfsByPath.get(name), file = path22.join(staging, ...name.split("/"));
+      await safeDir(path22.dirname(file), true);
+      await writeFile8(file, item.pointer, { flag: "wx" });
+      if (item.pointer.length) {
+        const pointer = parseLfsPointer(item.pointer);
+        if (!pointer || pointer.oid !== item.oid || pointer.size !== item.size) throw new Error("Git LFS pointer diverged during fast-forward preparation");
+        await verifyLfsObject(objects, pointer);
+        await hydrateLfsObject(objects, pointer, file);
+      }
+      if (process.platform !== "win32") await chmod(file, next.get(name).mode === "100755" ? 493 : 420);
+    }
+    const changes = [];
+    for (const name of changed2) {
+      const original = path22.join(root, ...name.split("/")), before = oldFiles.get(name), oldEntry = previous.get(name), nextEntry = next.get(name);
+      if (!matches(before, await fingerprint(original))) throw new Error(`Git LFS fast-forward target changed while preparing: ${name}`);
+      if (!oldEntry && !nextEntry) throw new Error("Git LFS fast-forward change is not bound to a tree");
+      const key3 = hashText(name), backup = before ? path22.join(backups, key3) : void 0;
+      let after, staged;
+      if (nextEntry) {
+        const materialized = path22.join(staging, ...name.split("/"));
+        staged = path22.join(prepared, key3);
+        await rename4(materialized, staged);
+        after = await fingerprint(staged);
+        if (!after) throw new Error(`Git LFS fast-forward did not prepare target file: ${name}`);
+      }
+      let windows_acl;
+      if (process.platform === "win32") {
+        const destinationParent = path22.dirname(original);
+        const stagedParent = directories.byPath.get(path22.posix.dirname(name).toLowerCase())?.staged;
+        const aclParent = stagedParent ?? destinationParent;
+        try {
+          await safeDir(aclParent);
+        } catch (error2) {
+          throw new Error(`Windows ACL for a new destination directory cannot be verified: ${name}`, { cause: error2 });
+        }
+        const parent = await windowsAcl(aclParent), beforeAcl = before ? await windowsAcl(original) : void 0, afterAcl = staged ? await windowsAcl(staged) : void 0;
+        if (beforeAcl && afterAcl && beforeAcl !== afterAcl) throw new Error(`Windows ACL would change during Git LFS fast-forward: ${name}`);
+        if (!before && staged) {
+          const probeParent = stagedParent ?? path22.dirname(staged);
+          if (!stagedParent && parent !== await windowsAcl(probeParent)) throw new Error(`Windows ACL inheritance differs at the destination: ${name}`);
+          let expected = inheritedFileAcls.get(probeParent);
+          if (!expected) {
+            expected = await inheritedWindowsFileAcl(probeParent);
+            inheritedFileAcls.set(probeParent, expected);
+          }
+          if (afterAcl !== expected) throw new Error(`Windows inherited file ACL differs at the destination: ${name}`);
+        }
+        windows_acl = { parent, ...beforeAcl ? { before: beforeAcl } : {}, ...afterAcl ? { after: afterAcl } : {} };
+      }
+      changes.push({ path: name, ...before ? { before, backup } : {}, ...after ? { after, staged } : {}, ...windows_acl ? { windows_acl } : {} });
+    }
+    await shadow.run(["update-index", "--no-split-index"]);
+    const bytes = await readFile12(shadow.indexFile);
+    if (bytes.length > maxIndexBytes) throw new Error("Git LFS prepared index exceeds the supported limit");
+    const preparedIndex = path22.join(txn, "index.prepared");
+    await writeDurable(preparedIndex, bytes);
+    const newIndex = await fingerprint(preparedIndex);
+    if (!newIndex || !matches(await fingerprint(path22.join(gitDir, "index")), oldIndex)) throw new Error("Git index changed during LFS fast-forward preparation");
+    await assertVisibleFastForwardIndex(root, git2);
+    if (!sameMetadata(metadata2, await captureMetadata(root, git2))) throw new Error("Git metadata changed during LFS fast-forward preparation");
+    const plan = {
+      schema_version: 1,
+      root,
+      git_dir: gitDir,
+      common_git_dir: common,
+      root_id: rootId,
+      git_dir_id: gitDirId,
+      common_git_dir_id: commonDirId,
+      branch,
+      old_head: oldHead,
+      new_head: newHead,
+      transaction_dir: txn,
+      transaction_id: { dev: txnInfo.dev.toString(), ino: txnInfo.ino.toString() },
+      old_index: oldIndex,
+      new_index: newIndex,
+      prepared_index: preparedIndex,
+      metadata: metadata2,
+      changes,
+      ...directories.roots.length ? { windows_directories: directories.roots } : {},
+      ...posixDirectories ? { posix_directories: posixDirectories } : {}
+    };
+    await verifyWindowsDirectories(plan);
+    const posixLookup = posixDirectoryLookup(plan);
+    for (const change of changes) await verifyPosixChangeParents(plan, change.path, posixLookup);
+    return plan;
+  });
+}
+function inside(parent, candidate) {
+  const part = path22.relative(path22.resolve(parent), path22.resolve(candidate));
+  return Boolean(part) && part !== ".." && !part.startsWith(`..${path22.sep}`) && !path22.isAbsolute(part);
+}
+async function verifyPlan(plan, git2) {
+  if (plan.schema_version !== 1 || !samePath11(path22.dirname(plan.transaction_dir), plan.git_dir) || !path22.basename(plan.transaction_dir).startsWith("captain-lfs-ff-") || !inside(plan.transaction_dir, plan.prepared_index)) throw new Error("invalid signed Git LFS fast-forward plan");
+  await safeDir(plan.root);
+  await safeDir(plan.git_dir);
+  await safeDir(plan.common_git_dir);
+  await safeDir(plan.transaction_dir);
+  if (!plan.root_id || !plan.git_dir_id || !plan.common_git_dir_id || !sameDirectoryIdentity(plan.root_id, await directoryIdentity(plan.root)) || !sameDirectoryIdentity(plan.git_dir_id, await directoryIdentity(plan.git_dir)) || !sameDirectoryIdentity(plan.common_git_dir_id, await directoryIdentity(plan.common_git_dir))) throw new Error("signed Git LFS worktree or Git directory identity changed");
+  await rejectAlternateStorage2(plan.root, git2);
+  if (!plan.metadata || !sameMetadata(plan.metadata, await captureMetadata(plan.root, git2))) throw new Error("Git config or info metadata changed during LFS fast-forward");
+  const info = await lstat13(plan.transaction_dir, { bigint: true });
+  if (info.dev.toString() !== plan.transaction_id.dev || info.ino.toString() !== plan.transaction_id.ino || !samePath11(await realpath7(plan.transaction_dir), plan.transaction_dir)) throw new Error("signed Git LFS transaction directory changed");
+  if (!samePath11(await git2(["rev-parse", "--path-format=absolute", "--git-dir"], plan.root), plan.git_dir) || !samePath11(await git2(["rev-parse", "--path-format=absolute", "--git-common-dir"], plan.root), plan.common_git_dir) || await git2(["symbolic-ref", "--quiet", "--short", "HEAD"], plan.root) !== plan.branch) throw new Error("signed Git LFS fast-forward worktree binding diverged");
+  const head = await git2(["rev-parse", "--verify", "HEAD^{commit}"], plan.root);
+  if (head !== plan.old_head && head !== plan.new_head) throw new Error("signed Git LFS fast-forward HEAD diverged");
+  for (const change of plan.changes) {
+    safeRelative(change.path);
+    if (process.platform === "win32" && !change.windows_acl) throw new Error("signed Git LFS plan lacks Windows ACL evidence");
+    if (change.staged && !inside(plan.transaction_dir, change.staged) || change.backup && !inside(plan.transaction_dir, change.backup)) throw new Error("signed Git LFS transaction path escapes its directory");
+  }
+}
+async function validateChange(plan, item, posixDirectories) {
+  await verifyPosixChangeParents(plan, item.path, posixDirectories);
+  const target = path22.join(plan.root, ...item.path.split("/")), current = await fingerprint(target);
+  const backup = item.backup ? await fingerprint(item.backup) : void 0, staged = item.staged ? await fingerprint(item.staged) : void 0;
+  if (item.before && !matches(backup, item.before) && !(matches(current, item.before) && !backup)) throw new Error(`Git LFS fast-forward target or backup changed: ${item.path}`);
+  if (!item.before && backup) throw new Error(`unexpected Git LFS fast-forward backup: ${item.path}`);
+  if (item.after && !matches(staged, item.after) && !matches(current, item.after)) throw new Error(`Git LFS fast-forward staged file changed: ${item.path}`);
+  if (current && !matches(current, item.before) && !matches(current, item.after)) throw new Error(`Git LFS fast-forward target conflicts with user data: ${item.path}`);
+  if (!item.after && current && !matches(current, item.before)) throw new Error(`Git LFS fast-forward deletion conflicts: ${item.path}`);
+  if (process.platform === "win32") {
+    const acl = item.windows_acl;
+    if (!acl || await windowsAcl(await windowsChangeParent(plan, item.path)) !== acl.parent) throw new Error(`Windows destination ACL changed: ${item.path}`);
+    if (item.before && (matches(current, item.before) ? await windowsAcl(target) : await windowsAcl(item.backup)) !== acl.before) throw new Error(`Windows source ACL changed: ${item.path}`);
+    if (item.after && (matches(current, item.after) ? await windowsAcl(target) : await windowsAcl(item.staged)) !== acl.after) throw new Error(`Windows staged ACL changed: ${item.path}`);
+  }
+}
+async function applyLfsTransition(plan, git2, authorize, checkpoint, advanceRef, validateInputs) {
+  if (plan.input_manifest !== void 0 && (!/^[a-f0-9]{64}$/.test(plan.input_manifest) || !validateInputs)) throw new Error("signed LFS transition requires input validation");
+  await verifyPlan(plan, git2);
+  await authorize();
+  await verifyWindowsDirectories(plan);
+  const posixDirectories = posixDirectoryLookup(plan);
+  if (validateInputs) await validateInputs();
+  let head = await git2(["rev-parse", "--verify", "HEAD^{commit}"], plan.root);
+  if (!advanceRef && head !== plan.old_head) throw new Error("Git LFS merge source HEAD diverged");
+  if (head !== plan.old_head && head !== plan.new_head) throw new Error("Git LFS fast-forward target HEAD diverged");
+  const index = path22.join(plan.git_dir, "index"), lock = `${index}.lock`;
+  const currentIndex = await fingerprint(index);
+  if (!matches(currentIndex, plan.old_index) && !matches(currentIndex, plan.new_index)) throw new Error("Git LFS fast-forward index diverged from its signed state");
+  if (head === plan.new_head && !matches(currentIndex, plan.new_index)) throw new Error("Git LFS fast-forward ref advanced with an unexpected index");
+  if (!matches(await fingerprint(plan.prepared_index), plan.new_index)) throw new Error("signed Git LFS prepared index changed");
+  for (const change of plan.changes) await validateChange(plan, change, posixDirectories);
+  if (head === plan.new_head) for (const change of plan.changes) {
+    const current = await fingerprint(path22.join(plan.root, ...change.path.split("/")));
+    if (!matches(current, change.after)) throw new Error("Git LFS fast-forward ref advanced before all target files were published");
+  }
+  for (const directory of plan.windows_directories ?? []) {
+    await authorize();
+    await verifyPlan(plan, git2);
+    await verifyWindowsDirectories(plan);
+    if (await optionalDirectory(directory.staged)) {
+      const target = path22.join(plan.root, ...directory.path.split("/"));
+      await moveWindowsDirectoryNoReplace(directory.staged, target);
+      await checkpoint("directory-moved");
+      await verifyWindowsDirectories(plan);
+      await checkpoint("directory");
+    }
+  }
+  for (const change of plan.changes) {
+    await authorize();
+    await verifyPlan(plan, git2);
+    await verifyWindowsDirectories(plan);
+    await validateChange(plan, change, posixDirectories);
+    const target = path22.join(plan.root, ...change.path.split("/"));
+    if (change.after) await safeDir(path22.dirname(target));
+    let current = await fingerprint(target);
+    if (change.before && matches(current, change.before) && !await fingerprint(change.backup)) {
+      await rename4(target, change.backup);
+      if (!matches(await fingerprint(change.backup), change.before)) throw new Error(`Git LFS fast-forward backup changed: ${change.path}`);
+      current = void 0;
+      await checkpoint("backup");
+    }
+    if (change.after && !matches(current, change.after)) {
+      if (current) throw new Error(`Git LFS fast-forward target already exists: ${change.path}`);
+      try {
+        await link3(change.staged, target);
+      } catch (error2) {
+        if (error2.code === "EEXIST") throw new Error(`Git LFS fast-forward target conflicts with user data: ${change.path}`);
+        throw error2;
+      }
+      if (!matches(await fingerprint(target), change.after)) throw new Error(`Git LFS fast-forward target changed after publication: ${change.path}`);
+    }
+    await checkpoint("file");
+  }
+  await verifyWindowsDirectories(plan);
+  for (const change of plan.changes) await validateChange(plan, change, posixDirectories);
+  if (!matches(await fingerprint(index), plan.new_index)) {
+    await authorize();
+    await verifyPlan(plan, git2);
+    if (validateInputs) await validateInputs();
+    const existingLock = await fingerprint(lock);
+    if (existingLock && !matches(existingLock, plan.new_index)) throw new Error("Git LFS fast-forward found a foreign index lock");
+    if (!existingLock) await link3(plan.prepared_index, lock);
+    if (!matches(await fingerprint(lock), plan.new_index) || !matches(await fingerprint(index), plan.old_index)) throw new Error("Git LFS fast-forward index lock or original index changed");
+    await checkpoint("index-lock");
+    await rename4(lock, index);
+    if (!matches(await fingerprint(index), plan.new_index)) throw new Error("Git LFS fast-forward index publication diverged");
+  }
+  await checkpoint("index");
+  await authorize();
+  await verifyPlan(plan, git2);
+  if (validateInputs) await validateInputs();
+  await verifyWindowsDirectories(plan);
+  for (const change of plan.changes) {
+    await validateChange(plan, change, posixDirectories);
+    const current = await fingerprint(path22.join(plan.root, ...change.path.split("/")));
+    if (!matches(current, change.after)) throw new Error(`Git LFS fast-forward file changed before ref publication: ${change.path}`);
+  }
+  head = await git2(["rev-parse", "--verify", "HEAD^{commit}"], plan.root);
+  if (!advanceRef) {
+    if (head !== plan.old_head) throw new Error("Git LFS merge source HEAD changed during publication");
+    return;
+  }
+  if (head === plan.old_head) await git2(["update-ref", "-m", "Captain LFS fast-forward", `refs/heads/${plan.branch}`, plan.new_head, plan.old_head], plan.root);
+  else if (head !== plan.new_head) throw new Error("Git LFS fast-forward target HEAD changed before ref update");
+  await checkpoint("ref");
+  if (await git2(["rev-parse", "--verify", "HEAD^{commit}"], plan.root) !== plan.new_head) throw new Error("Git LFS fast-forward ref publication diverged");
+}
+async function applyLfsFastForward(plan, git2, authorize, checkpoint, validateInputs) {
+  return applyLfsTransition(plan, git2, authorize, checkpoint, true, validateInputs);
+}
+async function applyLfsMergeTransition(plan, git2, authorize, checkpoint) {
+  return applyLfsTransition(plan, git2, authorize, checkpoint, false);
+}
+
+// src/git-lfs-merge.ts
+import { link as link4, readFile as readFile13 } from "node:fs/promises";
+import { randomUUID as randomUUID6 } from "node:crypto";
+import path23 from "node:path";
+init_git_safe_status();
+async function assertJournalTrackedStatus(root, git2, allowed, policy) {
+  const normalize = (value) => process.platform === "win32" ? value.toLowerCase() : value;
+  const permitted = new Set(allowed.map((value) => normalize(safeRelative(value))));
+  const generated3 = (name) => {
+    const lower = name.toLowerCase(), roots = [...policy.sourceManifestExcludes ?? [], ...Object.values(policy.outputRetention?.roots ?? {}).flat()].map((value) => value.toLowerCase());
+    return roots.some((value) => lower === value || lower.startsWith(`${value}/`)) || lower.startsWith(".captain-sdlc/trace/") || !lower.includes("/") && (policy.sourceManifestRootFileExcludes ?? []).some((value) => value.startsWith("*.") ? lower.endsWith(value.slice(1).toLowerCase()) : lower === value.toLowerCase());
+  };
+  const data = await safeGitJournalStatusRaw(root, git2);
+  let text2;
+  try {
+    text2 = new TextDecoder("utf-8", { fatal: true }).decode(data);
+  } catch {
+    throw new Error("tracked status returned invalid path encoding");
+  }
+  if (text2 && !text2.endsWith("\0")) throw new Error("truncated tracked status");
+  for (const field of text2.split("\0").filter(Boolean)) {
+    if (field.length < 4 || field[2] !== " ") throw new Error("invalid tracked status entry");
+    const name = safeRelative(field.slice(3));
+    if (field.slice(0, 2) === "??" && generated3(name)) continue;
+    if (!permitted.has(normalize(name))) throw new Error(`tracked input changed outside the LFS transaction: ${name}`);
+  }
+}
+function parseMerge(output, status, oidLength) {
+  let text2;
+  try {
+    text2 = new TextDecoder("utf-8", { fatal: true }).decode(output);
+  } catch {
+    throw new Error("isolated merge-tree returned invalid path encoding");
+  }
+  const fields2 = text2.split("\0"), tree2 = fields2.shift() ?? "";
+  if (!new RegExp(`^[a-f0-9]{${oidLength}}$`).test(tree2)) throw new Error("isolated merge-tree returned an invalid tree");
+  const stages = [], seen = /* @__PURE__ */ new Set(), folded = /* @__PURE__ */ new Map();
+  while (fields2.length && fields2[0]) {
+    const field = fields2.shift(), match = /^(100644|100755) ([a-f0-9]+) ([123])\t([\s\S]+)$/.exec(field);
+    if (!match || match[2].length !== oidLength) throw new Error("unsupported merge conflict entry");
+    const name = safeRelative(match[4]);
+    if (path23.posix.basename(name).toLowerCase() === ".gitattributes") throw new Error("conflicting Git attributes require manual recovery before LFS merge");
+    const key3 = process.platform === "win32" ? name.toLowerCase() : name;
+    if (folded.has(key3) && folded.get(key3) !== name || seen.has(`${key3}\0${match[3]}`)) throw new Error("case-colliding or duplicate LFS merge conflict entries");
+    folded.set(key3, name);
+    seen.add(`${key3}\0${match[3]}`);
+    stages.push({ path: name, mode: match[1], oid: match[2], stage: match[3] });
+  }
+  if (status === "clean" && stages.length || status === "conflicts" && !stages.length) throw new Error("isolated merge-tree status disagrees with conflict entries");
+  return { tree: tree2, stages };
+}
+async function prepareLfsMerge(root, branch, ours, theirs, git2, validateCommit) {
+  const computed = await withShadowGit(root, git2, async (shadow) => {
+    const result = await shadow.mergeTree(ours, theirs), parsed = parseMerge(result.output, result.status, ours.length);
+    if (result.status === "conflicts") {
+      const bases = (await shadow.run(["merge-base", "--all", ours, theirs])).toString("ascii").trim().split(/\r?\n/).filter(Boolean);
+      if (bases.length !== 1) throw new Error("conflicting LFS merges with multiple merge bases are not yet supported safely");
+    }
+    return { ...parsed, commit: await shadow.writeMergeCommit(parsed.tree, ours, theirs), fileMode: shadow.fileMode };
+  });
+  const objectPin = `refs/captain-sdlc/lfs-merges/${randomUUID6()}`;
+  await git2(["update-ref", "-m", "Captain LFS merge object retention", objectPin, computed.commit, "0".repeat(ours.length)], root);
+  if (await git2(["rev-parse", "--verify", `${objectPin}^{commit}`], root) !== computed.commit) throw new Error("LFS merge object retention ref diverged");
+  await git2(["fsck", "--connectivity-only", "--no-reflogs", "--no-dangling", objectPin], root);
+  await validateCommit(computed.commit);
+  const transition = await prepareLfsFastForward(root, branch, ours, computed.commit, git2);
+  if (computed.stages.length) {
+    const indexBytes = await withShadowGit(root, git2, async (shadow) => {
+      await shadow.run(["read-tree", computed.commit]);
+      const names = [...new Set(computed.stages.map((item) => item.path))];
+      const zero = "0".repeat(ours.length), records2 = [];
+      for (const name of names) {
+        records2.push(`0 ${zero}	${name}\0`);
+        for (const entry of computed.stages.filter((item) => item.path === name)) records2.push(`${entry.mode} ${entry.oid} ${entry.stage}	${entry.path}\0`);
+      }
+      await shadow.run(["update-index", "-z", "--index-info"], Buffer.from(records2.join("")));
+      await shadow.run(["update-index", "--no-split-index"]);
+      const bytes = await readFile13(shadow.indexFile);
+      if (bytes.length > 32 * 1024 * 1024) throw new Error("LFS merge index exceeds its bounded limit");
+      return bytes;
+    });
+    const prepared = path23.join(transition.transaction_dir, "index.merge");
+    await writeDurable(prepared, indexBytes);
+    const index = await fingerprint(prepared);
+    if (!index) throw new Error("LFS merge index was not prepared");
+    transition.prepared_index = prepared;
+    transition.new_index = index;
+  }
+  const mergeHeadFile = path23.join(transition.transaction_dir, "MERGE_HEAD.prepared");
+  await writeDurable(mergeHeadFile, Buffer.from(`${theirs}
+`));
+  const mergeHead = await fingerprint(mergeHeadFile);
+  if (!mergeHead) throw new Error("LFS merge head was not prepared");
+  const conflicts = [...new Set(computed.stages.map((item) => item.path))].sort();
+  const changed2 = new Set(transition.changes.map((item) => process.platform === "win32" ? item.path.toLowerCase() : item.path));
+  const witnesses = [];
+  for (const name of conflicts) {
+    if (changed2.has(process.platform === "win32" ? name.toLowerCase() : name)) continue;
+    const before = await fingerprint(path23.join(transition.root, ...name.split("/")));
+    witnesses.push({ path: name, ...before ? { before } : {} });
+  }
+  return { schema_version: 1, transition, target_head: theirs, merge_head_file: mergeHeadFile, merge_head: mergeHead, conflicts, input_manifest: "", object_pin: objectPin, file_mode: computed.fileMode, conflict_witnesses: witnesses };
+}
+async function applyLfsMerge(plan, git2, authorize, checkpoint, validateInputs) {
+  const transition = plan.transition;
+  if (plan.schema_version !== 1 || !/^[a-f0-9]{64}$/.test(plan.input_manifest) || !/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(plan.target_head) || !/^refs\/captain-sdlc\/lfs-merges\/[a-f0-9-]{36}$/.test(plan.object_pin) || typeof plan.file_mode !== "boolean" || !Array.isArray(plan.conflict_witnesses) || path23.resolve(plan.merge_head_file) !== path23.join(transition.transaction_dir, "MERGE_HEAD.prepared")) throw new Error("invalid signed LFS merge plan");
+  const dest = path23.join(transition.git_dir, "MERGE_HEAD");
+  const validateHead = async () => {
+    if (await git2(["rev-parse", "--verify", `${plan.object_pin}^{commit}`], transition.root) !== transition.new_head) throw new Error("signed LFS merge object retention ref changed");
+    if (!matches(await fingerprint(plan.merge_head_file), plan.merge_head)) throw new Error("signed LFS merge head changed");
+    const current = await fingerprint(dest);
+    if (current && !matches(current, plan.merge_head)) throw new Error("LFS merge found a foreign MERGE_HEAD");
+  };
+  const validateWitnesses = async () => {
+    for (const witness of plan.conflict_witnesses) {
+      const name = safeRelative(witness.path), current = await fingerprint(path23.join(transition.root, ...name.split("/")));
+      const actual = !plan.file_mode && current && witness.before ? { ...current, executable: witness.before.executable } : current;
+      if (!plan.conflicts.includes(name) || !matches(actual, witness.before)) throw new Error(`LFS merge conflict input changed: ${name}`);
+    }
+  };
+  await authorize();
+  await validateInputs();
+  await validateWitnesses();
+  await validateHead();
+  await applyLfsMergeTransition(transition, git2, async () => {
+    await authorize();
+    await validateHead();
+  }, checkpoint);
+  await authorize();
+  await validateInputs();
+  await validateWitnesses();
+  await validateHead();
+  if (!await fingerprint(dest)) {
+    try {
+      await link4(plan.merge_head_file, dest);
+    } catch (error2) {
+      if (error2.code === "EEXIST") throw new Error("LFS merge found a foreign MERGE_HEAD");
+      throw error2;
+    }
+  }
+  await validateHead();
+  await checkpoint("merge-head");
+}
+
+// src/merge-workflow.ts
+init_git_safe_status();
+init_lfs();
 var MergeWorkflowError = class extends Error {
   constructor(merge_id, cause) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
@@ -26964,36 +29076,40 @@ var MergeWorkflowError = class extends Error {
     this.name = "MergeWorkflowError";
   }
 };
-var hash6 = (text2) => createHash14("sha256").update(text2).digest("hex");
+var hash6 = (text2) => createHash18("sha256").update(text2).digest("hex");
 var digest9 = (value) => hash6(JSON.stringify(value));
-var samePath8 = (left, right) => process.platform === "win32" ? path17.resolve(left).toLowerCase() === path17.resolve(right).toLowerCase() : path17.resolve(left) === path17.resolve(right);
+var samePath12 = (left, right) => process.platform === "win32" ? path24.resolve(left).toLowerCase() === path24.resolve(right).toLowerCase() : path24.resolve(left) === path24.resolve(right);
 var safeId3 = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe merge id");
   return id;
 };
 var relativePath = (value) => {
-  if (!value || value.includes("\0") || path17.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
+  if (!value || value.includes("\0") || path24.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
   return value.replaceAll("\\", "/");
 };
-var resourceId = (common, branch) => hash6(`${path17.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var resourceId = (common, branch) => hash6(`${path24.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
 var MergeWorkflowStore = class {
   constructor(dataRoot, runner = gateRunner) {
     this.dataRoot = dataRoot;
     this.runner = runner;
   }
   activeOperations = /* @__PURE__ */ new Set();
+  async fastForwardCheckpoint(_phase) {
+  }
+  async lfsMergeCheckpoint(_phase) {
+  }
   async diagnose(args) {
     this.session(args.session_id);
     const source = await readOnlyBinding(args.source_worktree), target = await readOnlyBinding(args.target_worktree, args.target_branch, source.commonGitDir);
-    if (samePath8(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
-    const revisions = await directoryNames2(path17.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path17.join(this.dataRoot, "merge-watermarks"));
+    if (samePath12(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
+    const revisions = await directoryNames2(path24.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path24.join(this.dataRoot, "merge-watermarks"));
     const ids = [...new Set([...revisions, ...watermarks].map((name) => /^([A-Za-z0-9_-]+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))].sort();
     const operations = [];
     for (const id of ids) {
       const record3 = await this.readForDiagnosis(id, revisions, watermarks);
-      if (record3.session_id !== args.session_id || !samePath8(record3.source_worktree, source.topLevel) || !samePath8(record3.target_worktree, target.topLevel) || record3.target_branch !== args.target_branch) continue;
+      if (record3.session_id !== args.session_id || !samePath12(record3.source_worktree, source.topLevel) || !samePath12(record3.target_worktree, target.topLevel) || record3.target_branch !== args.target_branch) continue;
       for (const [stored, actual] of [[record3.source_binding, source], [record3.target_binding, target]]) {
-        if (!stored || stored.branch !== actual.branch || !samePath8(stored.topLevel, actual.topLevel) || !samePath8(stored.commonGitDir, actual.commonGitDir) || !samePath8(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
+        if (!stored || stored.branch !== actual.branch || !samePath12(stored.topLevel, actual.topLevel) || !samePath12(stored.commonGitDir, actual.commonGitDir) || !samePath12(stored.gitDir, actual.gitDir) || !/^[0-9a-f]{40,64}$/i.test(stored.head)) throw new Error("signed merge Git/worktree binding diverged");
         if (await git(["--no-optional-locks", "rev-parse", "--verify", `${stored.head}^{commit}`], actual.topLevel) !== stored.head) throw new Error("signed merge commit binding diverged");
       }
       operations.push({ merge_id: record3.merge_id, revision: record3.revision, state: record3.state, source_worktree: record3.source_worktree, target_worktree: record3.target_worktree, target_branch: record3.target_branch, source_head: record3.source_binding.head, target_head: record3.target_binding.head });
@@ -27008,7 +29124,7 @@ var MergeWorkflowStore = class {
   }
   async prep(args) {
     this.session(args.session_id);
-    const mergeId = safeId3(args.merge_id ?? `merge-${randomUUID4()}`);
+    const mergeId = safeId3(args.merge_id ?? `merge-${randomUUID7()}`);
     let durableMergeId;
     try {
       return await this.lock(mergeId, args.session_id, async (assertOperation) => {
@@ -27017,8 +29133,8 @@ var MergeWorkflowStore = class {
           record3 = await this.read(mergeId);
           this.match(record3, args);
         } else {
-          const sourceRoot = path17.resolve(args.source_worktree), targetRoot = path17.resolve(args.target_worktree);
-          if (samePath8(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
+          const sourceRoot = path24.resolve(args.source_worktree), targetRoot = path24.resolve(args.target_worktree);
+          if (samePath12(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
           const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, !args.finalization?.source), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, !args.finalization?.target);
           if (source.branch === target.branch) throw new Error("source and target branches must differ");
           await assertNoOperation2(sourceRoot);
@@ -27042,6 +29158,8 @@ var MergeWorkflowStore = class {
           record3 = await this.advanceBookkeepingTarget(record3);
           await this.bindings(record3, false);
           await assertNoOperation2(record3.target_worktree);
+          await this.assertTargetLfsCompatibility(record3);
+          if (record3.lfs_merge) return this.output(await this.resumeLfsMerge(record3, assertAuthority));
           let recoveredCommit = false;
           if (record3.prepared_commit) {
             if (args.commit && digest9(args.commit) !== digest9(record3.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
@@ -27110,6 +29228,28 @@ var MergeWorkflowStore = class {
           await this.reconcileOwnedImplementation(record3, assertAuthority);
           if (!await ancestor(record3.target_binding.head, await git(["rev-parse", "HEAD"], record3.source_worktree), record3.source_worktree)) {
             const currentHead = await git(["rev-parse", "HEAD"], record3.source_worktree);
+            const sourceLfs = await assertSafeGitAttributesAtCommit(record3.source_worktree, currentHead);
+            const targetLfs = await assertSafeGitAttributesAtCommit(record3.target_worktree, record3.target_binding.head);
+            if (sourceLfs || targetLfs) {
+              await assertSafeGitAttributesInWorktree(record3.source_worktree, [".gitattributes"]);
+              await assertSafeGitAttributesInWorktree(record3.target_worktree, [".gitattributes"]);
+              const before = await sourceManifestExcludingJournal(record3.source_worktree, record3.captured_policy, []);
+              const plan = await prepareLfsMerge(record3.source_worktree, record3.source_binding.branch, currentHead, record3.target_binding.head, git, (candidate) => assertSafeGitAttributesAtCommit(record3.source_worktree, candidate));
+              await assertSafeGitAttributesInWorktree(record3.source_worktree, [".gitattributes"]);
+              await assertSafeGitAttributesInWorktree(record3.target_worktree, [".gitattributes"]);
+              plan.input_manifest = await sourceManifestExcludingJournal(record3.source_worktree, record3.captured_policy, plan.transition.changes.map((change) => change.path));
+              if (before !== await sourceManifestExcludingJournal(record3.source_worktree, record3.captured_policy, [])) throw new Error("source inputs changed during LFS merge planning");
+              await assertAuthority();
+              await this.bindings(record3, false);
+              await assertNoOperation2(record3.source_worktree);
+              await assertWorktreeBinding(record3.source_worktree, record3.source_binding.branch, record3.source_binding.commonGitDir, currentHead, true, record3.source_binding.gitDir);
+              const id = `lfs-merge-${randomUUID7()}`;
+              await putAuthorizedOnceExact(this.dataRoot, "lfs-merge-plans", id, plan);
+              const prepared = { preMergeHead: currentHead, targetOid: record3.target_binding.head, strategy: "ort", operationToken: mergeId };
+              record3 = await this.update({ ...record3, state: "preparing", prepared_merge: prepared, lfs_merge: { id, sha256: digest9(plan) }, ...record3.ready_inputs ? {} : { ready_inputs: void 0, integration_inputs: void 0, gates: [] } });
+              await this.lfsMergeCheckpoint("prepared");
+              return this.output(await this.resumeLfsMerge(record3, assertAuthority));
+            }
             const result = await prepareMerge(
               record3.source_worktree,
               record3.target_binding.head,
@@ -27136,7 +29276,7 @@ var MergeWorkflowStore = class {
             record3 = await this.update({ ...record3, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
             return this.output(record3);
           }
-          const inputs = await captureInputs(record3.source_worktree, record3.captured_policy);
+          const inputs = await captureInputs(record3.source_worktree, record3.captured_policy, record3.target_binding.head);
           if (record3.ready_inputs) {
             const retained = await this.associateBookkeepingInputs(record3, inputs);
             if (retained) {
@@ -27200,7 +29340,7 @@ var MergeWorkflowStore = class {
   }
   async reconcileOwnedImplementation(record3, assertAuthority, intentId) {
     const lifecycle = new LifecycleStore(this.dataRoot, this.runner, sourceState);
-    const owners = (await lifecycle.doctor()).activeRuns.filter((owner2) => samePath8(owner2.worktreePath, record3.source_worktree));
+    const owners = (await lifecycle.doctor()).activeRuns.filter((owner2) => samePath12(owner2.worktreePath, record3.source_worktree));
     if (owners.length > 1 || owners.some((owner2) => owner2.sessionId !== record3.session_id)) throw new Error("source implementation session owner mismatch");
     const owner = owners[0];
     if (!owner || intentId && owner.intentId !== intentId) {
@@ -27246,14 +29386,62 @@ var MergeWorkflowStore = class {
         await assertOperation();
         await assertResources();
         if (record3.state !== "merged") {
-          const inputs = await captureInputs(record3.source_worktree, record3.captured_policy);
+          const inputs = await captureInputs(record3.source_worktree, record3.captured_policy, record3.target_binding.head);
           const retained = await this.associateBookkeepingInputs(record3, inputs);
           if (!retained) throw new Error("merge prep product or dependency inputs changed; readiness is stale; continue the same Merge Prep");
           if (digest9(retained) !== digest9(record3)) record3 = await this.update(retained);
         }
         const targetHead = await git(["rev-parse", "HEAD"], record3.target_worktree), sourceHead = this.deliveryInputs(record3).source.head;
+        if (record3.lfs_fast_forward) {
+          if (record3.state !== "integrating") throw new Error("signed Git LFS fast-forward has an invalid merge state");
+          if (!record3.ready_inputs || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
+          await assertWorktreeBinding(record3.source_worktree, record3.source_binding.branch, record3.source_binding.commonGitDir, void 0, false, record3.source_binding.gitDir);
+          const plan = await readAuthorized(this.dataRoot, "lfs-fastforward-plans", record3.lfs_fast_forward.id);
+          if (digest9(plan) !== record3.lfs_fast_forward.sha256 || !samePath12(plan.root, record3.target_worktree) || !samePath12(plan.git_dir, record3.target_binding.gitDir) || !samePath12(plan.common_git_dir, record3.target_binding.commonGitDir) || plan.branch !== record3.target_branch || plan.old_head !== record3.target_binding.head || plan.new_head !== sourceHead) throw new Error("signed Git LFS fast-forward plan binding diverged");
+          const planReference = digest9(record3.lfs_fast_forward);
+          const authorize = async () => {
+            await assertOperation();
+            await assertResources();
+            const current = await this.read(record3.merge_id);
+            if (current.state !== "integrating" || digest9(current.lfs_fast_forward) !== planReference) throw new Error("signed Git LFS fast-forward authority changed");
+          };
+          const validateInputs = async () => this.validateLfsFastForwardInputs(record3, plan);
+          await applyLfsFastForward(plan, git, authorize, (phase) => this.fastForwardCheckpoint(phase), validateInputs);
+          await this.assertReady(record3, true);
+          return this.update({ ...record3, state: "merged", integrated_head: sourceHead });
+        }
         await this.assertReady(record3, targetHead === sourceHead);
         if (targetHead === sourceHead) return this.update({ ...record3, state: "merged", integrated_head: sourceHead });
+        const hasLfs = await assertSafeGitAttributesAtCommit(record3.target_worktree, record3.target_binding.head) || await assertSafeGitAttributesAtCommit(record3.source_worktree, sourceHead);
+        if (hasLfs) {
+          await assertOperation();
+          await assertResources();
+          await this.assertReady(record3);
+          const targetBefore = await sourceManifestExcludingJournal(record3.target_worktree, record3.captured_policy, []);
+          const plan = await prepareLfsFastForward(record3.target_worktree, record3.target_branch, record3.target_binding.head, sourceHead, git);
+          await this.fastForwardCheckpoint("planned");
+          plan.input_manifest = await sourceManifestExcludingJournal(record3.target_worktree, record3.captured_policy, plan.changes.map((change) => change.path));
+          if (targetBefore !== await sourceManifestExcludingJournal(record3.target_worktree, record3.captured_policy, [])) throw new Error("target inputs changed during Git LFS fast-forward planning");
+          await assertOperation();
+          await assertResources();
+          await this.assertReady(record3);
+          await assertVisibleFastForwardIndex(record3.target_worktree, git);
+          const id = `lfs-ff-${randomUUID7()}`;
+          await putAuthorizedOnceExact(this.dataRoot, "lfs-fastforward-plans", id, plan);
+          record3 = await this.update({ ...record3, state: "integrating", lfs_fast_forward: { id, sha256: digest9(plan) } });
+          await this.fastForwardCheckpoint("prepared");
+          const planReference = digest9(record3.lfs_fast_forward);
+          const authorize = async () => {
+            await assertOperation();
+            await assertResources();
+            const current = await this.read(record3.merge_id);
+            if (current.state !== "integrating" || digest9(current.lfs_fast_forward) !== planReference) throw new Error("signed Git LFS fast-forward authority changed");
+          };
+          const validateInputs = async () => this.validateLfsFastForwardInputs(record3, plan);
+          await applyLfsFastForward(plan, git, authorize, (phase) => this.fastForwardCheckpoint(phase), validateInputs);
+          await this.assertReady(record3, true);
+          return this.update({ ...record3, state: "merged", integrated_head: sourceHead });
+        }
         record3 = await this.update({ ...record3, state: "integrating" });
         await assertOperation();
         await assertResources();
@@ -27299,19 +29487,19 @@ var MergeWorkflowStore = class {
     for (const root of record3.cleanup?.removed_worktrees ?? []) {
       const registration = await readWorktreeRegistration(this.dataRoot, record3.target_binding.commonGitDir, root);
       if (!registration) throw new Error("removed worktree creation record is missing");
-      const completionHead = record3.cleanup?.removed_heads?.[root] ?? (samePath8(root, record3.source_worktree) ? source.head : await this.cleanedHead(record3, root));
+      const completionHead = record3.cleanup?.removed_heads?.[root] ?? (samePath12(root, record3.source_worktree) ? source.head : await this.cleanedHead(record3, root));
       if (!completionHead || !await readWorktreeCleanupCompletion(this.dataRoot, registration, completionHead)) throw new Error("removed worktree has no authenticated proof retention receipt");
     }
   }
   async historicalRepository(record3) {
     try {
-      await lstat8(record3.target_worktree);
+      await lstat14(record3.target_worktree);
       await assertWorktreeBinding(record3.target_worktree, record3.target_branch, record3.target_binding.commonGitDir, void 0, false, record3.target_binding.gitDir);
       return record3.target_worktree;
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
       const registration = await readWorktreeRegistration(this.dataRoot, record3.target_binding.commonGitDir, record3.target_worktree);
-      if (!registration || registration.branch !== record3.target_branch || !samePath8(registration.git_dir, record3.target_binding.gitDir)) throw new Error("historical merge target is missing without its registered identity");
+      if (!registration || registration.branch !== record3.target_branch || !samePath12(registration.git_dir, record3.target_binding.gitDir)) throw new Error("historical merge target is missing without its registered identity");
       const retained = await retainedWorktreeHead(this.dataRoot, registration);
       if (!retained) throw new Error("historical merge target has no authenticated cleanup receipt");
       const primary = await primaryRepositoryRoot(registration.project_root, registration.common_git_dir);
@@ -27322,7 +29510,7 @@ var MergeWorkflowStore = class {
   }
   async cleanedHead(record3, root) {
     const candidates = await this.cleanupCandidates(record3);
-    return candidates.find((candidate) => samePath8(candidate.registration.worktree_path, root))?.head;
+    return candidates.find((candidate) => samePath12(candidate.registration.worktree_path, root))?.head;
   }
   async compactEvidence(record3) {
     const selected = [];
@@ -27335,7 +29523,7 @@ var MergeWorkflowStore = class {
       if (required2) selected.push(relative);
       else {
         try {
-          await lstat8(path17.join(record3.source_worktree, relative));
+          await lstat14(path24.join(record3.source_worktree, relative));
           selected.push(relative);
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
@@ -27350,17 +29538,17 @@ var MergeWorkflowStore = class {
       const registration = await readWorktreeRegistration(this.dataRoot, common, root);
       if (!registration) return;
       const key3 = storageRegistrationId(common, root), existing = candidates.get(key3);
-      if (existing && existing.head !== head && !samePath8(root, record3.source_worktree)) existing.retentionReason = "predecessor has conflicting completed heads; preserve its ambiguous checkout";
+      if (existing && existing.head !== head && !samePath12(root, record3.source_worktree)) existing.retentionReason = "predecessor has conflicting completed heads; preserve its ambiguous checkout";
       if (!existing) candidates.set(key3, { registration, head, evidencePaths, outputRoots });
     };
     await add(record3.source_worktree, this.deliveryInputs(record3).source.head, await this.compactEvidence(record3), Object.values(record3.captured_policy.outputRetention?.roots ?? {}).flat());
     if (!candidates.size) return [];
-    const names = await directoryNames2(path17.join(this.dataRoot, "merge-revisions"));
+    const names = await directoryNames2(path24.join(this.dataRoot, "merge-revisions"));
     const ids = [...new Set(names.map((name) => /^(.*)-0\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))];
     const merged = [];
     for (const id of ids) {
       const previous = await this.read(id);
-      if (previous.state === "merged" && samePath8(previous.source_binding.commonGitDir, common)) merged.push(previous);
+      if (previous.state === "merged" && samePath12(previous.source_binding.commonGitDir, common)) merged.push(previous);
     }
     const lookup = await this.historicalRepository(record3);
     for (let index = 0; index < candidates.size; index++) {
@@ -27368,10 +29556,10 @@ var MergeWorkflowStore = class {
       const candidate = [...candidates.values()][index], parent = candidate.registration.parent_worktree;
       if (parent) {
         const registration = await readWorktreeRegistration(this.dataRoot, common, parent.worktree_path);
-        if (!registration || storageRegistrationId(common, parent.worktree_path) !== parent.registration_id || registration.branch !== parent.branch || !samePath8(registration.git_dir, parent.git_dir)) throw new Error("worktree predecessor registration diverged");
+        if (!registration || storageRegistrationId(common, parent.worktree_path) !== parent.registration_id || registration.branch !== parent.branch || !samePath12(registration.git_dir, parent.git_dir)) throw new Error("worktree predecessor registration diverged");
         await add(parent.worktree_path, parent.head);
       }
-      for (const previous of merged) if (samePath8(previous.target_worktree, candidate.registration.worktree_path)) {
+      for (const previous of merged) if (samePath12(previous.target_worktree, candidate.registration.worktree_path)) {
         const previousHead = previous.integrated_head;
         if (previousHead && await ancestor(previousHead, candidate.head, lookup)) await add(previous.source_worktree, previousHead, await this.compactEvidence(previous), Object.values(previous.captured_policy.outputRetention?.roots ?? {}).flat());
       }
@@ -27428,12 +29616,12 @@ var MergeWorkflowStore = class {
     this.assertLeaseOwnerStopped(lease, args.confirm_owner_stopped);
     const resources = [];
     const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
-    if (active.some((owner) => samePath8(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; stale merge resources cannot be recovered");
-    const sourceOwners = active.filter((owner) => samePath8(owner.worktreePath, record3.source_worktree));
+    if (active.some((owner) => samePath12(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; stale merge resources cannot be recovered");
+    const sourceOwners = active.filter((owner) => samePath12(owner.worktreePath, record3.source_worktree));
     if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record3.session_id || owner.branch !== record3.source_binding.branch)) throw new Error("source Captain owner differs from the signed merge identity");
     for (const owner of sourceOwners) {
       const current = await lifecycle.status(owner.intentId);
-      if (current.status !== "paused" || current.branch !== record3.source_binding.branch || !samePath8(current.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(current.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
+      if (current.status !== "paused" || current.branch !== record3.source_binding.branch || !samePath12(current.commonGitDir, record3.source_binding.commonGitDir) || !samePath12(current.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
       const id = hash6(`worktree-mutation\0${current.runId}`), fence = await this.readHeldLease(id);
       if (fence) {
         this.assertMergeLease(fence, args.merge_id, args.session_id, "integration-worktree");
@@ -27446,14 +29634,14 @@ var MergeWorkflowStore = class {
       if (!existing) continue;
       if (existing.intentId === args.merge_id) {
         this.assertMergeLease(existing, args.merge_id, args.session_id, "integration-branch");
-        if (!samePath8(existing.commonGitDir, binding.commonGitDir) || existing.targetBranch !== binding.branch || existing.targetOid !== binding.head) throw new Error("stale integration branch lease differs from the pinned merge binding");
+        if (!samePath12(existing.commonGitDir, binding.commonGitDir) || existing.targetBranch !== binding.branch || existing.targetOid !== binding.head) throw new Error("stale integration branch lease differs from the pinned merge binding");
         this.assertLeaseOwnerStopped(existing, args.confirm_owner_stopped);
         resources.push({ id, payload: existing });
       } else {
         const owner = sourceOwners.find((candidate) => candidate.intentId === existing.intentId);
         if (binding !== record3.source_binding || !owner) throw new Error("a branch lease is owned by another Captain operation; preserve it");
         const fullOwner = await lifecycle.status(owner.intentId);
-        if (fullOwner.sessionId !== args.session_id || !samePath8(fullOwner.worktreePath, record3.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
+        if (fullOwner.sessionId !== args.session_id || !samePath12(fullOwner.worktreePath, record3.source_worktree) || fullOwner.branch !== binding.branch || fullOwner.leaseId !== id || fullOwner.leaseToken !== existing.leaseToken) throw new Error("a branch lease is owned by another Captain operation; preserve it");
       }
     }
     const targetIntegrated = !!record3.ready_inputs && await git(["rev-parse", "HEAD"], record3.target_worktree) === record3.ready_inputs.source.head;
@@ -27474,17 +29662,17 @@ var MergeWorkflowStore = class {
     throw new Error(reason);
   }
   leaseOwnerStatus(lease) {
-    const metadata = { ...typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}, ...typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {} };
+    const metadata2 = { ...typeof lease.ownerPid === "number" ? { pid: lease.ownerPid } : {}, ...typeof lease.ownerHost === "string" ? { host: lease.ownerHost } : {} };
     if (lease.ownerPid === void 0 && lease.ownerHost === void 0) return { owner: { state: "legacy" }, reason: "legacy merge lease has no process metadata; independently verify and confirm that its owner is stopped" };
-    if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
-    if (lease.ownerHost.toLowerCase() !== os4.hostname().toLowerCase()) return { owner: { ...metadata, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
+    if (!Number.isSafeInteger(lease.ownerPid) || lease.ownerPid <= 0 || typeof lease.ownerHost !== "string" || !lease.ownerHost.trim()) return { owner: { ...metadata2, state: "unknown" }, reason: "merge lease owner process metadata is invalid; recovery refused" };
+    if (lease.ownerHost.toLowerCase() !== os4.hostname().toLowerCase()) return { owner: { ...metadata2, state: "foreign_host" }, reason: "merge lease owner is on another host and cannot be verified locally" };
     try {
       process.kill(lease.ownerPid, 0);
     } catch (error2) {
-      if (error2.code === "ESRCH") return { owner: { ...metadata, state: "stopped" }, reason: "merge lease owner process is stopped; owner verification permits recovery, which must still validate current worktree and resource bindings" };
-      return { owner: { ...metadata, state: "unknown" }, reason: "merge lease owner process state is unknown; recovery refused" };
+      if (error2.code === "ESRCH") return { owner: { ...metadata2, state: "stopped" }, reason: "merge lease owner process is stopped; owner verification permits recovery, which must still validate current worktree and resource bindings" };
+      return { owner: { ...metadata2, state: "unknown" }, reason: "merge lease owner process state is unknown; recovery refused" };
     }
-    return { owner: { ...metadata, state: "live" }, reason: "merge lease owner process is still active; recovery refused" };
+    return { owner: { ...metadata2, state: "live" }, reason: "merge lease owner process is still active; recovery refused" };
   }
   async readHeldLease(id) {
     try {
@@ -27499,7 +29687,7 @@ var MergeWorkflowStore = class {
   }
   match(record3, args) {
     if (record3.session_id !== args.session_id) throw new Error("signed merge session ownership mismatch");
-    if (args.source_worktree && !samePath8(record3.source_worktree, args.source_worktree) || args.target_worktree && !samePath8(record3.target_worktree, args.target_worktree) || args.target_branch && record3.target_branch !== args.target_branch) throw new Error("signed merge source/target identity does not match this request");
+    if (args.source_worktree && !samePath12(record3.source_worktree, args.source_worktree) || args.target_worktree && !samePath12(record3.target_worktree, args.target_worktree) || args.target_branch && record3.target_branch !== args.target_branch) throw new Error("signed merge source/target identity does not match this request");
   }
   output(record3, receipt_valid) {
     return { ...record3, ...receipt_valid === void 0 ? {} : { receipt_valid }, captain_green: false };
@@ -27508,8 +29696,53 @@ var MergeWorkflowStore = class {
     await assertWorktreeBinding(record3.source_worktree, record3.source_binding.branch, record3.source_binding.commonGitDir, void 0, false, record3.source_binding.gitDir);
     await assertWorktreeBinding(record3.target_worktree, record3.target_branch, record3.target_binding.commonGitDir, targetIntegrated ? this.deliveryInputs(record3)?.source.head : record3.target_binding.head, true, record3.target_binding.gitDir);
   }
+  async validateLfsFastForwardInputs(record3, plan) {
+    await assertJournalTrackedStatus(record3.target_worktree, git, plan.changes.map((change) => change.path), record3.captured_policy);
+    const target = await captureJournalInputManifest(record3.target_worktree, record3.captured_policy, plan.changes.map((change) => change.path));
+    if (target.manifest !== plan.input_manifest) throw new Error("target inputs changed during Git LFS fast-forward");
+    const source = await captureJournalInputManifest(record3.source_worktree, record3.captured_policy, []);
+    await this.assertInputs(record3, this.deliveryInputs(record3));
+    await source.revalidate();
+    await target.revalidate();
+  }
+  async resumeLfsMerge(record3, assertAuthority) {
+    if (!record3.lfs_merge || !record3.prepared_merge) throw new Error("signed LFS merge has no prepared operation");
+    const plan = await readAuthorized(this.dataRoot, "lfs-merge-plans", record3.lfs_merge.id), transition = plan.transition;
+    if (digest9(plan) !== record3.lfs_merge.sha256 || !samePath12(transition.root, record3.source_worktree) || !samePath12(transition.git_dir, record3.source_binding.gitDir) || !samePath12(transition.common_git_dir, record3.source_binding.commonGitDir) || transition.branch !== record3.source_binding.branch || transition.old_head !== record3.prepared_merge.preMergeHead || plan.target_head !== record3.target_binding.head || plan.target_head !== record3.prepared_merge.targetOid || record3.prepared_merge.operationToken !== record3.merge_id) throw new Error("signed LFS merge plan binding diverged");
+    const reference = digest9(record3.lfs_merge), prepared = digest9(record3.prepared_merge);
+    const authorize = async () => {
+      await assertAuthority();
+      await this.bindings(record3, false);
+      await assertNoOperation2(record3.target_worktree);
+      await assertNoOperation2(record3.source_worktree, true);
+      const latest = await this.read(record3.merge_id);
+      if (latest.state !== "preparing" || digest9(latest.lfs_merge) !== reference || digest9(latest.prepared_merge) !== prepared) throw new Error("signed LFS merge authority changed");
+    };
+    const validateInputs = async () => {
+      await assertJournalTrackedStatus(record3.source_worktree, git, [...transition.changes.map((change) => change.path), ...plan.conflicts], record3.captured_policy);
+      const input = await captureJournalInputManifest(record3.source_worktree, record3.captured_policy, transition.changes.map((change) => change.path));
+      if (input.manifest !== plan.input_manifest) throw new Error("source inputs changed during LFS merge recovery");
+      await input.revalidate();
+    };
+    await applyLfsMerge(plan, git, authorize, (phase) => this.lfsMergeCheckpoint(phase), validateInputs);
+    await authorize();
+    return this.update({ ...record3, lfs_merge: void 0, state: plan.conflicts.length ? "needs_resolution" : "needs_commit", conflicts: plan.conflicts });
+  }
+  async assertTargetLfsCompatibility(record3) {
+    const sourceHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], record3.source_worktree);
+    const hasLfs = await assertSafeGitAttributesAtCommit(record3.source_worktree, sourceHead) || await assertSafeGitAttributesAtCommit(record3.target_worktree, record3.target_binding.head);
+    if (!hasLfs) return;
+    try {
+      await git(["config", "--get-all", "lfs.storage"], record3.target_worktree);
+    } catch (error2) {
+      if (error2.code === 1) return;
+      throw error2;
+    }
+    throw new Error("explicit target lfs.storage is not supported by signed LFS readiness");
+  }
   async assertInputs(record3, expected) {
-    if (digest9(await captureInputs(record3.source_worktree, record3.captured_policy)) !== digest9(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
+    await this.assertTargetLfsCompatibility(record3);
+    if (digest9(await captureInputs(record3.source_worktree, record3.captured_policy, record3.target_binding.head)) !== digest9(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
   }
   async assertReady(record3, targetIntegrated = false) {
     if (!record3.ready_inputs || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
@@ -27529,7 +29762,7 @@ var MergeWorkflowStore = class {
     const current = this.deliveryInputs(record3);
     if (digest9(inputs) === digest9(current)) return record3;
     const policy = record3.captured_policy.commit;
-    if (!policy?.bookkeeping || !tested.source.productManifest || !inputs.source.productManifest || tested.source.productManifest !== inputs.source.productManifest || tested.metadata !== inputs.metadata || digest9(tested.dependencies) !== digest9(inputs.dependencies) || inputs.source.status || digest9([tested.source.branch, tested.source.commonGitDir, tested.source.gitDir, tested.source.topLevel]) !== digest9([inputs.source.branch, inputs.source.commonGitDir, inputs.source.gitDir, inputs.source.topLevel]) || !await bookkeepingHistoryValid(record3.source_worktree, tested.source.head, inputs.source.head, policy)) return void 0;
+    if (!policy?.bookkeeping || !tested.source.productManifest || !inputs.source.productManifest || tested.source.productManifest !== inputs.source.productManifest || tested.metadata !== inputs.metadata || digest9(tested.dependencies) !== digest9(inputs.dependencies) || JSON.stringify(tested.lfs_objects) !== JSON.stringify(inputs.lfs_objects) || inputs.source.status || digest9([tested.source.branch, tested.source.commonGitDir, tested.source.gitDir, tested.source.topLevel]) !== digest9([inputs.source.branch, inputs.source.commonGitDir, inputs.source.gitDir, inputs.source.topLevel]) || !await bookkeepingHistoryValid(record3.source_worktree, tested.source.head, inputs.source.head, policy)) return void 0;
     return { ...record3, integration_inputs: inputs, bookkeeping_extensions: [
       ...record3.bookkeeping_extensions ?? [],
       { kind: "source", from_head: current.source.head, to_head: inputs.source.head }
@@ -27622,7 +29855,7 @@ var MergeWorkflowStore = class {
     return this.update({ ...record3, finalization_requests: Object.keys(requests).length ? requests : void 0 });
   }
   assertRecordContinuity(current, previous) {
-    const identity = (r) => [
+    const identity2 = (r) => [
       r.session_id,
       r.source_worktree,
       r.target_worktree,
@@ -27634,7 +29867,7 @@ var MergeWorkflowStore = class {
       r.strictness,
       r.scopes
     ];
-    if (digest9(identity(current)) !== digest9(identity(previous))) throw new Error("signed merge identity or policy changed between revisions");
+    if (digest9(identity2(current)) !== digest9(identity2(previous))) throw new Error("signed merge identity or policy changed between revisions");
     if (current.target_binding.head !== previous.target_binding.head) {
       const oldExtensions = previous.bookkeeping_extensions ?? [], newExtensions = current.bookkeeping_extensions ?? [];
       const extension = newExtensions.at(-1);
@@ -27643,7 +29876,7 @@ var MergeWorkflowStore = class {
     }
   }
   async lock(id, session, action2) {
-    const leaseId = hash6(`merge-operation\0${id}`), leaseToken = randomUUID4(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os4.hostname() };
+    const leaseId = hash6(`merge-operation\0${id}`), leaseToken = randomUUID7(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os4.hostname() };
     if (this.activeOperations.has(leaseId)) throw new Error("merge operation is already active in this process");
     this.activeOperations.add(leaseId);
     try {
@@ -27663,21 +29896,21 @@ var MergeWorkflowStore = class {
     const held = [];
     try {
       const lifecycle = new LifecycleStore(this.dataRoot, this.runner), active = (await lifecycle.doctor()).activeRuns;
-      if (active.some((owner) => samePath8(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; preserve that task before integrating");
-      const sourceOwners = active.filter((owner) => samePath8(owner.worktreePath, record3.source_worktree));
+      if (active.some((owner) => samePath12(owner.worktreePath, record3.target_worktree))) throw new Error("target worktree has an unfinished Captain owner; preserve that task before integrating");
+      const sourceOwners = active.filter((owner) => samePath12(owner.worktreePath, record3.source_worktree));
       if (sourceOwners.length > 1 || sourceOwners.some((owner) => owner.sessionId !== record3.session_id)) throw new Error("source worktree belongs to another active Captain session owner");
       const reserveFence = async (owner) => {
         if (owner.sessionId !== record3.session_id) throw new Error("source Captain session ownership changed before its mutation fence");
-        if (owner.branch !== record3.source_binding.branch || !samePath8(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
+        if (owner.branch !== record3.source_binding.branch || !samePath12(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath12(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
         const fenceId = hash6(`worktree-mutation\0${owner.runId}`);
         if (held.some((lease) => lease.id === fenceId)) return;
-        const fence = { intentId: record3.merge_id, leaseToken: randomUUID4(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os4.hostname() };
+        const fence = { intentId: record3.merge_id, leaseToken: randomUUID7(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os4.hostname() };
         await acquireAuthorizedLease(this.dataRoot, fenceId, fence);
         held.push({ id: fenceId, payload: fence, borrowed: false });
       };
       for (const owner of sourceOwners) await reserveFence(await lifecycle.status(owner.intentId));
       for (const binding of [record3.source_binding, record3.target_binding].sort((a, b) => resourceId(a.commonGitDir, a.branch).localeCompare(resourceId(b.commonGitDir, b.branch)))) {
-        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID4(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os4.hostname() };
+        const id = resourceId(binding.commonGitDir, binding.branch), payload = { intentId: record3.merge_id, leaseToken: randomUUID7(), sessionId: record3.session_id, operation: "integration-branch", commonGitDir: binding.commonGitDir, targetBranch: binding.branch, targetOid: binding.head, ownerPid: process.pid, ownerHost: os4.hostname() };
         let existing;
         try {
           existing = await readAuthorizedLease(this.dataRoot, id);
@@ -27687,7 +29920,7 @@ var MergeWorkflowStore = class {
         if (existing) {
           if (binding.branch !== record3.source_binding.branch) throw new Error("target branch is already leased by another Captain operation");
           const owner = await lifecycle.status(existing.intentId);
-          if (owner.sessionId !== record3.session_id || !samePath8(owner.worktreePath, record3.source_worktree) || owner.branch !== binding.branch || owner.leaseId !== id || owner.leaseToken !== existing.leaseToken) throw new Error("source branch lease belongs to another session or worktree owner");
+          if (owner.sessionId !== record3.session_id || !samePath12(owner.worktreePath, record3.source_worktree) || owner.branch !== binding.branch || owner.leaseId !== id || owner.leaseToken !== existing.leaseToken) throw new Error("source branch lease belongs to another session or worktree owner");
           held.push({ id, payload: existing, borrowed: true });
           await reserveFence(owner);
         } else {
@@ -27747,7 +29980,7 @@ var MergeWorkflowStore = class {
   }
   async read(id) {
     safeId3(id);
-    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir10(path17.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir14(path24.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) throw new Error("signed merge workflow was not found");
     let previous;
     for (let index = 0; index < revisions.length; index++) {
@@ -27758,7 +29991,7 @@ var MergeWorkflowStore = class {
       await this.watermark(current);
       previous = current;
     }
-    const watermarkNames = await readdir10(path17.join(this.dataRoot, "merge-watermarks"));
+    const watermarkNames = await readdir14(path24.join(this.dataRoot, "merge-watermarks"));
     if (watermarkNames.some((name) => {
       const match = expression.exec(name);
       return match && Number(match[1]) > previous.revision;
@@ -27769,22 +30002,22 @@ var MergeWorkflowStore = class {
 var lines = (value) => value.split(/\r?\n/).filter(Boolean);
 async function directoryNames2(directory) {
   try {
-    return await readdir10(directory);
+    return await readdir14(directory);
   } catch (error2) {
     if (error2.code === "ENOENT") return [];
     throw error2;
   }
 }
 async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
-  const owned = path17.resolve(worktree), real = await realpath6(owned);
-  if (!samePath8(real, owned)) throw new Error("worktree path resolves through a reparse point");
+  const owned = path24.resolve(worktree), real = await realpath8(owned);
+  if (!samePath12(real, owned)) throw new Error("worktree path resolves through a reparse point");
   const readGit2 = (args) => git(["--no-optional-locks", ...args], owned);
-  const topLevel = path17.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
-  if (!samePath8(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
+  const topLevel = path24.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
+  if (!samePath12(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
   const branch = await readGit2(["symbolic-ref", "--quiet", "--short", "HEAD"]);
   if (!branch || expectedBranch !== void 0 && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path17.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path17.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
-  if (expectedCommonGitDir && !samePath8(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
+  const commonGitDir = path24.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path24.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  if (expectedCommonGitDir && !samePath12(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
   const head = await readGit2(["rev-parse", "--verify", "HEAD^{commit}"]);
   if (head !== await readGit2(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
   return { branch, commonGitDir, gitDir, topLevel, head };
@@ -27810,7 +30043,7 @@ async function assertNoOperation2(cwd, allowMerge = false) {
     if (name === "MERGE_HEAD" && allowMerge) continue;
     const file = await git(["rev-parse", "--path-format=absolute", "--git-path", name], cwd);
     try {
-      await lstat8(file);
+      await lstat14(file);
       throw new Error(`preexisting Git operation ${name} must be resolved by its owner`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -27830,11 +30063,11 @@ function excluded(relative, policy) {
   return (policy.sourceManifestExcludes ?? []).some((item) => lower === item.toLowerCase() || lower.startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && (policy.sourceManifestRootFileExcludes ?? []).some((item) => item.startsWith("*.") ? lower.endsWith(item.slice(1).toLowerCase()) : lower === item.toLowerCase());
 }
 async function metadataInputs(cwd, policy, volatilePaths) {
-  const files = (await git(["ls-files", "--others", "-z"], cwd)).split("\0").filter((relative) => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values = [];
+  const files = (await git(["ls-files", "--others", "-z", "--", ":(icase,glob)**/*.meta"], cwd)).split("\0").filter((relative) => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values = [];
   for (const relative of files) {
-    const info = await lstat8(path17.join(cwd, relative));
+    const info = await lstat14(path24.join(cwd, relative));
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
-    values.push(`${relative}:${hash6(await readFile9(path17.join(cwd, relative)))}`);
+    values.push(`${relative}:${hash6(await readFile14(path24.join(cwd, relative)))}`);
   }
   return digest9(values);
 }
@@ -27842,30 +30075,30 @@ async function contentDigest(root, volatile = [], sharedPackage = false) {
   const values = [];
   const generated3 = /* @__PURE__ */ new Set(["library", "temp", "logs", "artifacts", "obj", "bin", "node_modules"]);
   async function walk(full, relative) {
-    const info = await lstat8(full);
+    const info = await lstat14(full);
     if (info.isSymbolicLink()) throw new Error(`dependency input crosses a reparse point: ${full}`);
     if (volatile.includes(relative)) return;
     if (info.isDirectory()) {
-      for (const entry of (await readdir10(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      for (const entry of (await readdir14(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
         if (entry.name === ".git" || sharedPackage && !relative && generated3.has(entry.name.toLowerCase())) continue;
-        await walk(path17.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
+        await walk(path24.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
       }
-    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile9(full))}`);
+    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile14(full))}`);
     else throw new Error(`dependency input is not a regular file or directory: ${full}`);
   }
   await walk(root, "");
   return { sha256: digest9(values), file_count: values.length };
 }
-async function captureInputs(cwd, policy) {
+async function captureInputs(cwd, policy, targetHead) {
   const source = await sourceState(cwd, policy);
   if (source.status) throw new Error("merge prep source must be clean before verifying inputs");
   const dependencies = [], volatilePaths = /* @__PURE__ */ new Set(), lockText = await committedFile(cwd, source.head, ".captain-sdlc/dependency-lock.json"), lock = lockText ? JSON.parse(lockText) : void 0;
   if (lock?.inputs !== void 0 && !Array.isArray(lock.inputs)) throw new Error("dependency lock inputs must be an array");
   for (const input of lock?.inputs ?? []) {
-    const relative = relativePath(input.path), full = path17.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
+    const relative = relativePath(input.path), full = path24.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
     for (const item of volatile) volatilePaths.add(`${relative}/${item}`.toLowerCase());
-    if (!samePath8(full, path17.join(cwd, relative)) || path17.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
-    if (!samePath8(full, await realpath6(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
+    if (!samePath12(full, path24.join(cwd, relative)) || path24.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
+    if (!samePath12(full, await realpath8(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
     dependencies.push({ kind: "locked-input", path: relative, ...await contentDigest(full, volatile) });
   }
   const manifestText = await committedFile(cwd, source.head, "Packages/manifest.json");
@@ -27875,23 +30108,23 @@ async function captureInputs(cwd, policy) {
       if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
       const supplied = spec.slice(5);
       if (!supplied || supplied.includes("\0")) throw new Error(`local dependency path is invalid: ${name}`);
-      const full = path17.resolve(path17.join(cwd, "Packages"), supplied), canonical = await realpath6(full);
-      if (!samePath8(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
-      const info = await lstat8(full);
+      const full = path24.resolve(path24.join(cwd, "Packages"), supplied), canonical = await realpath8(full);
+      if (!samePath12(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
+      const info = await lstat14(full);
       let gitState;
       const normalize = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
       const expected = (lock?.local_packages ?? []).find((entry) => normalize(name).endsWith(normalize(entry.name)));
       let ownGit = false;
       if (info.isDirectory()) {
         try {
-          await lstat8(path17.join(full, ".git"));
+          await lstat14(path24.join(full, ".git"));
           ownGit = true;
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
       }
       if (ownGit) {
-        if (!samePath8(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
+        if (!samePath12(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
         const head = await git(["rev-parse", "HEAD"], full);
         gitState = { head, tree: await git(["rev-parse", "HEAD^{tree}"], full), status: await git(["status", "--porcelain"], full), indexSha256: hash6(await git(["ls-files", "--stage", "-z"], full)) };
         if (expected && expected.source_commit !== head) throw new Error(`Pinned shared local-package revision diverged: ${name}`);
@@ -27899,7 +30132,28 @@ async function captureInputs(cwd, policy) {
       dependencies.push({ kind: info.isDirectory() ? "local-package" : "local-archive", name, path: full, ...gitState ? { git: gitState } : {}, ...await contentDigest(full, [], info.isDirectory()) });
     }
   }
-  const result = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies };
+  let lfsObjects = [];
+  if (targetHead && await assertSafeGitAttributesAtCommit(cwd, source.head)) {
+    try {
+      await git(["config", "--get-all", "lfs.storage"], cwd);
+      throw new Error("explicit lfs.storage is not supported by signed LFS evidence");
+    } catch (error2) {
+      if (error2.code !== 1) throw error2;
+    }
+    const changed2 = new Set((await git(["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z", targetHead, source.head, "--"], cwd)).split("\0").filter(Boolean));
+    const attrsChanged = [...changed2].some((name) => path24.posix.basename(name).toLowerCase() === ".gitattributes");
+    const selected = (await listIndexedLfs(cwd, git)).filter((item) => item.size > 0 && (attrsChanged || changed2.has(item.path)));
+    const unique = /* @__PURE__ */ new Map();
+    for (const item of selected) {
+      const existing = unique.get(item.oid);
+      if (existing && existing.size !== item.size) throw new Error("Git LFS object has inconsistent signed sizes");
+      unique.set(item.oid, { oid: item.oid, size: item.size });
+    }
+    lfsObjects = [...unique.values()].sort((a, b) => a.oid.localeCompare(b.oid));
+    const root = path24.join(source.commonGitDir, "lfs", "objects");
+    for (let i = 0; i < lfsObjects.length; i += 4) await Promise.all(lfsObjects.slice(i, i + 4).map((item) => verifyLfsObject(root, item)));
+  }
+  const result = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies, ...lfsObjects.length ? { lfs_objects: lfsObjects } : {} };
   const after = await sourceState(cwd, policy);
   if (digest9(after) !== digest9(source)) throw new Error("source changed during merge input capture");
   return result;
@@ -27938,10 +30192,10 @@ init_authority();
 init_workspace();
 init_lifecycle();
 init_run_validation();
-import { createHash as createHash15, randomUUID as randomUUID5 } from "node:crypto";
-import { lstat as lstat9, readdir as readdir11, realpath as realpath7 } from "node:fs/promises";
+import { createHash as createHash19, randomUUID as randomUUID8 } from "node:crypto";
+import { lstat as lstat15, readdir as readdir15, realpath as realpath9 } from "node:fs/promises";
 import os5 from "node:os";
-import path18 from "node:path";
+import path25 from "node:path";
 init_begin_diagnostic_adapter();
 var FailedBeginVerificationError = class extends Error {
   constructor(details) {
@@ -27949,14 +30203,14 @@ var FailedBeginVerificationError = class extends Error {
     this.details = details;
   }
 };
-var hash7 = (value) => createHash15("sha256").update(value).digest("hex");
+var hash7 = (value) => createHash19("sha256").update(value).digest("hex");
 var digest10 = (value) => hash7(JSON.stringify(value));
-var samePath9 = (a, b) => path18.resolve(a).toLowerCase() === path18.resolve(b).toLowerCase();
+var samePath13 = (a, b) => path25.resolve(a).toLowerCase() === path25.resolve(b).toLowerCase();
 var safeId4 = (id) => {
   if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("unsafe lease recovery id");
   return id;
 };
-var resourceId2 = (binding) => hash7(`${path18.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
+var resourceId2 = (binding) => hash7(`${path25.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
 var generation2 = (id, revision, payload) => digest10({ leaseId: id, revision, state: "held", payload });
 var gateId = (intent) => `begin-attempt-${hash7(intent)}`;
 var signedBuckets = [
@@ -28006,7 +30260,7 @@ var BranchLeaseRecoveryStore = class {
     const summary = lease ? { state: lease.state, intent_id: safeId4(lease.payload.intentId), revision: lease.revision, legacy_storage: lease.legacy } : { state: "absent" };
     if (!lease || lease.legacy || lease.revision === null) return { read_only: true, eligible: false, reason: "no_revisioned_begin_reservation", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const journal = await this.failedJournal(lease.payload.intentId);
-    if (journal && (journal.session_id !== args.session_id || !samePath9(journal.project_root, args.project_root) || !samePath9(journal.target_worktree, args.target_worktree) || journal.target_branch !== args.target_branch)) return { read_only: true, eligible: false, reason: "operator_selection_owned_elsewhere", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
+    if (journal && (journal.session_id !== args.session_id || !samePath13(journal.project_root, args.project_root) || !samePath13(journal.target_worktree, args.target_worktree) || journal.target_branch !== args.target_branch)) return { read_only: true, eligible: false, reason: "operator_selection_owned_elsewhere", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const selection = journal ? request(journal) : { ...args, old_intent_id: lease.payload.intentId, expected_lease_revision: lease.revision, resource_generation: generation2(id, lease.revision, lease.payload), expected_head: binding.head };
     if (!selectionMatches(binding, id, lease, selection, Boolean(journal))) return { read_only: true, eligible: false, reason: "generation_changed", verified_pre_workspace: false, original_session_match: "unknown", lease: summary };
     const completed = await optionalRead(this.dataRoot, "failed-begin-operator-results", lease.payload.intentId);
@@ -28094,7 +30348,7 @@ var BranchLeaseRecoveryStore = class {
     try {
       evidence = await lifecycle.readBeginCancellationEvidence(selection.old_intent_id);
     } catch (error2) {
-      const bucket3 = typeof error2.path === "string" ? path18.basename(path18.dirname(error2.path)) : void 0;
+      const bucket3 = typeof error2.path === "string" ? path25.basename(path25.dirname(error2.path)) : void 0;
       throw new FailedBeginVerificationError({ refusal_code: "original_checkpoint_read_failed", error_class: error2.code === "ENOENT" ? "missing_checkpoint" : "untrusted_checkpoint", ...bucket3 && signedBuckets.includes(bucket3) ? { checkpoint_bucket: bucket3 } : {} });
     }
     const intent = evidence.intent, operation = evidence.operation;
@@ -28112,7 +30366,7 @@ var BranchLeaseRecoveryStore = class {
       original_oid_matches_current_head: operation.targetOid === binding.head,
       original_pin_exists: originalPinExists,
       original_signed_pin_matches: typeof operation.targetOid === "string" && [intent.targetOid, evidence.repository.baseHead, evidence.lease.targetOid, lease.payload.targetOid].every((value) => value === operation.targetOid),
-      original_common_git_matches: samePath9(evidence.repository.commonGitDir, binding.commonGitDir),
+      original_common_git_matches: samePath13(evidence.repository.commonGitDir, binding.commonGitDir),
       original_lease_id_matches: evidence.lease.leaseId === id,
       original_lease_token_matches: evidence.lease.leaseToken === lease.payload.leaseToken
     };
@@ -28145,11 +30399,11 @@ var BranchLeaseRecoveryStore = class {
       later_state: later ? { workspace: later.workspace, run: later.run, active: later.active, activated: later.activated, permit: later.permit, canonical_path_exists: later.canonical_path_exists, canonical_worktree_registered: later.canonical_worktree_registered, pending_git_operation: later.pending_git_operation } : { unknown: true }
     };
     if (diagnosis.diagnosis !== "inspected" || diagnosis.session_match !== "same" || diagnosis.project_root_matches !== true || diagnosis.target_branch_matches !== true || diagnosis.issuance !== "verified" || diagnosis.reservation !== "verified" || diagnosis.repository_checkpoint !== "verified" || diagnosis.lease_checkpoint !== "verified" || diagnosis.stage !== "lease_checkpointed" || diagnosis.target_lease?.bindings_match !== true || diagnosis.target_lease?.generation_revisioned !== true || !["legacy", "stopped"].includes(diagnosis.target_lease?.owner) || !later || later.workspace !== false || later.run !== false || later.activated !== false || later.permit !== false || later.canonical_path_exists !== false || later.canonical_worktree_registered !== false || later.pending_git_operation !== false || later.active !== false && !evidence.completedSessionTombstone && !evidence.completedSessionOwner && !unrelatedPausedSession) throw new FailedBeginVerificationError({ ...publicState, refusal_code: diagnosis.stage !== "lease_checkpointed" ? "original_stage_not_terminal_pre_workspace" : "original_graph_or_later_state_refused" });
-    const entries2 = await inventory(this.dataRoot);
+    const entries3 = await inventory(this.dataRoot);
     const leases = await leaseInventory(this.dataRoot);
-    const lifecycleCandidates = entries2.filter((entry) => ownerApplies(entry, binding) && isActive(entry));
+    const lifecycleCandidates = entries3.filter((entry) => ownerApplies(entry, binding) && isActive(entry));
     const candidates = await Promise.all(lifecycleCandidates.map(async (entry) => {
-      const candidate = { ...targetOwnerDiagnostic(entry, entries2, binding, evidence), ...entry.bucket === "merge-revisions" ? { merge: await this.mergeOwnerDiagnostic(entry, entries2, binding, evidence, leases) } : {} };
+      const candidate = { ...targetOwnerDiagnostic(entry, entries3, binding, evidence), ...entry.bucket === "merge-revisions" ? { merge: await this.mergeOwnerDiagnostic(entry, entries3, binding, evidence, leases) } : {} };
       return { ...candidate, exclusive_target_owner: !idleFailedMerge(candidate) && !idleSupersededMerge(candidate) };
     }));
     const activeCandidates = candidates.filter((candidate) => candidate.exclusive_target_owner);
@@ -28177,8 +30431,8 @@ var BranchLeaseRecoveryStore = class {
     const projection = await optionalRead(this.dataRoot, "active", original.sessionId);
     const sessionId = hash7(`session-active\0${original.sessionId}`), sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionId);
     const owner = sessionLease?.payload;
-    const entries2 = await inventory(this.dataRoot);
-    const run = owner && typeof owner.runId === "string" ? entries2.find((entry) => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : void 0;
+    const entries3 = await inventory(this.dataRoot);
+    const run = owner && typeof owner.runId === "string" ? entries3.find((entry) => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : void 0;
     const r = run?.value, activation = r?.activationToken ?? r?.operationToken;
     const verified = Boolean(r && isSupportedRunSchema(r) && sessionLease && !sessionLease.legacy && Number.isSafeInteger(sessionLease.revision) && typeof activation === "string" && activation && r.sessionId === original.sessionId && owner?.sessionId === original.sessionId && owner?.operation === "session-active" && owner?.operationToken === activation && owner?.leaseToken === activation && typeof r.phase === "string" && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(r.phase) && ["running", "paused", "green", "red"].includes(r.status));
     const terminalShape = Boolean(projection && digest10(Object.keys(projection).sort()) === digest10(["complete", "intentId", "operationToken"]) && projection.intentId === "none" && projection.complete === true && typeof projection.operationToken === "string");
@@ -28204,7 +30458,7 @@ var BranchLeaseRecoveryStore = class {
       projection_matches_correlated_run: Boolean(verified && projection?.operationToken === activation && (terminalShape || ownerShape && projection.intentId === r.intentId && projection.runId === r.runId && projection.sessionId === original.sessionId && projection.leaseId === sessionId && projection.leaseToken === activation))
     };
   }
-  async mergeOwnerDiagnostic(entry, entries2, binding, evidence, leases) {
+  async mergeOwnerDiagnostic(entry, entries3, binding, evidence, leases) {
     const v = entry.value, states = ["preparing", "needs_resolution", "needs_commit", "verifying", "failed", "ready", "integrating", "merged"];
     const shape = v.schema_version === 1 && typeof v.merge_id === "string" && /^[A-Za-z0-9_-]+$/.test(v.merge_id) && typeof v.session_id === "string" && states.includes(v.state);
     const leaseSummary = async (id, operation, expected) => {
@@ -28215,12 +30469,12 @@ var BranchLeaseRecoveryStore = class {
       } catch {
         return { state: "unknown", read_verified: false, revisioned: false, record_owner_matches: false, merge_owner_reference: false, original_begin_owner_matches: false, held_by_this_merge: false, held_by_original_begin: false, held_integration_resource: false, distinct_nonintegration_legacy_owner: false, owner_state: "unknown" };
       }
-      const p = lease?.payload, matches = Boolean(shape && p?.intentId === v.merge_id && p?.sessionId === v.session_id && p?.operation === operation);
+      const p = lease?.payload, matches2 = Boolean(shape && p?.intentId === v.merge_id && p?.sessionId === v.session_id && p?.operation === operation);
       let owner = "unknown";
       if (p) owner = p.ownerPid === void 0 && p.ownerHost === void 0 ? "legacy" : typeof p.ownerHost !== "string" || !Number.isSafeInteger(p.ownerPid) || p.ownerPid <= 0 ? "unknown" : p.ownerHost.toLowerCase() !== os5.hostname().toLowerCase() ? "foreign_host" : stopped(p.ownerPid) ? "stopped" : "live";
       const mergeOwner = p?.intentId === v.merge_id, originalOwner = p?.intentId === evidence.intent.intentId, integration = ["integration", "integration-branch", "integration-worktree"].includes(String(p?.operation));
       const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key3) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key3)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
-      let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath9(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
+      let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath13(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
       if (legacyBinding) {
         try {
           legacyBinding = await readGit(binding.topLevel, ["rev-parse", "--verify", `${p.targetOid}^{commit}`]) === p.targetOid;
@@ -28232,7 +30486,7 @@ var BranchLeaseRecoveryStore = class {
         state: lease?.state ?? "absent",
         read_verified: true,
         revisioned: Boolean(lease && !lease.legacy && Number.isSafeInteger(lease.revision)),
-        record_owner_matches: matches,
+        record_owner_matches: matches2,
         merge_owner_reference: mergeOwner,
         original_begin_owner_matches: originalOwner,
         held_by_this_merge: lease?.state === "held" && mergeOwner,
@@ -28244,7 +30498,7 @@ var BranchLeaseRecoveryStore = class {
         owner_state: owner
       };
     };
-    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path18.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
+    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path25.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
     const [sourceBinding2, targetBinding, operationLease, sourceResource, targetResource] = await Promise.all([
       savedMergeBindingDiagnostic(v.source_worktree, v.source_binding, binding),
       savedMergeBindingDiagnostic(v.target_worktree, v.target_binding, binding),
@@ -28252,9 +30506,9 @@ var BranchLeaseRecoveryStore = class {
       leaseSummary(resource(v.source_binding), "integration-branch", v.source_binding),
       leaseSummary(resource(v.target_binding), "integration-branch", v.target_binding)
     ]);
-    const sourceOwners = entries2.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath9(candidate.value.worktreePath, v.source_worktree));
+    const sourceOwners = entries3.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath13(candidate.value.worktreePath, v.source_worktree));
     const worktreeResources = await Promise.all(sourceOwners.map((owner) => leaseSummary(hash7(`worktree-mutation\0${owner.value.runId}`), "integration-worktree")));
-    let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath9(v.source_binding.topLevel, v.source_worktree) && samePath9(v.target_binding.topLevel, v.target_worktree) && !samePath9(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath9(v.source_binding.commonGitDir, binding.commonGitDir) && samePath9(v.target_binding.commonGitDir, binding.commonGitDir));
+    let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath13(v.source_binding.topLevel, v.source_worktree) && samePath13(v.target_binding.topLevel, v.target_worktree) && !samePath13(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath13(v.source_binding.commonGitDir, binding.commonGitDir) && samePath13(v.target_binding.commonGitDir, binding.commonGitDir));
     if (staticBindings) {
       try {
         staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async (oid) => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid}^{commit}`]) === oid))).every(Boolean);
@@ -28298,22 +30552,22 @@ var BranchLeaseRecoveryStore = class {
     const embedded = v.finalizations === void 0 ? [] : v.finalizations;
     if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some((side) => !["source", "target"].includes(side))) return refused;
     const receipts = /* @__PURE__ */ new Map(), worktreeIds = /* @__PURE__ */ new Set();
-    const request2 = (value) => ({ worktree: path18.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
+    const request2 = (value) => ({ worktree: path25.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
     try {
       for (const item of embedded) {
         if (!item || typeof item.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(item.finalization_id) || receipts.has(item.finalization_id) || typeof item.worktree !== "string") return refused;
-        const sides = ["source", "target"].filter((side) => typeof v[side + "_worktree"] === "string" && samePath9(item.worktree, v[side + "_worktree"]));
+        const sides = ["source", "target"].filter((side) => typeof v[side + "_worktree"] === "string" && samePath13(item.worktree, v[side + "_worktree"]));
         if (sides.length !== 1) return refused;
         const saved = v[sides[0] + "_binding"];
         const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
-        if (digest10(item) !== digest10(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest10(request2(receipt)) || receipt.policy_sha256 !== digest10(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key3) => samePath9(receipt.before[key3], saved[key3])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
+        if (digest10(item) !== digest10(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest10(request2(receipt)) || receipt.policy_sha256 !== digest10(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key3) => samePath13(receipt.before[key3], saved[key3])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
         receipts.set(receipt.finalization_id, receipt);
-        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path18.resolve(saved.commonGitDir) + "\0" + path18.resolve(saved.gitDir)).toLowerCase()));
+        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path25.resolve(saved.commonGitDir) + "\0" + path25.resolve(saved.gitDir)).toLowerCase()));
       }
       const currentIds = /* @__PURE__ */ new Set();
       for (const [side, pending] of Object.entries(requests)) {
         const selection = pending?.selection, receipt = receipts.get(selection?.finalization_id), worktree = v[side + "_worktree"];
-        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !samePath9(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest10(request2({ ...selection, worktree, session_id: v.session_id }))) return refused;
+        if (!selection || !receipt || currentIds.has(selection.finalization_id) || !Array.isArray(selection.paths) || !selection.paths.length || selection.paths.some((p) => typeof p !== "string") || !samePath13(receipt.worktree, worktree) || receipt.before.head !== pending.expected_head || receipt.request_sha256 !== digest10(request2({ ...selection, worktree, session_id: v.session_id }))) return refused;
         currentIds.add(selection.finalization_id);
       }
       const ids = [...receipts.keys()];
@@ -28336,7 +30590,7 @@ var BranchLeaseRecoveryStore = class {
     };
     const marker = await this.marker(lease.payload.intentId);
     const pending = marker ?? await this.journal(lease.payload.intentId);
-    if (pending && (!samePath9(pending.project_root, args.project_root) || !samePath9(pending.target_worktree, args.target_worktree) || pending.target_branch !== args.target_branch || pending.session_id !== args.session_id)) {
+    if (pending && (!samePath13(pending.project_root, args.project_root) || !samePath13(pending.target_worktree, args.target_worktree) || pending.target_branch !== args.target_branch || pending.session_id !== args.session_id)) {
       return { read_only: true, captain_green: false, eligible: false, reason: "repossession_owned_by_other_selection", lease: summary };
     }
     if (pending && (digest10(pending.binding) !== digest10(binding) || !selectionMatches(binding, id, lease, pending, Boolean(marker)))) return { read_only: true, captain_green: false, eligible: false, reason: "generation_changed", lease: summary };
@@ -28416,10 +30670,10 @@ var BranchLeaseRecoveryStore = class {
     }
   }
   async provenance(args, binding, lease) {
-    const entries2 = await inventory(this.dataRoot), owner = lease.payload;
+    const entries3 = await inventory(this.dataRoot), owner = lease.payload;
     const intentMatches = (entry) => entry.id === owner.intentId || contains2(entry.value, owner.intentId);
     const operationMatches = (entry) => typeof owner.operationToken === "string" && (entry.id === owner.operationToken || contains2(entry.value, owner.operationToken));
-    const matching = entries2.filter((entry) => intentMatches(entry) || operationMatches(entry));
+    const matching = entries3.filter((entry) => intentMatches(entry) || operationMatches(entry));
     const intent = matching.find((entry) => entry.bucket === "intents" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
     const operation = matching.find((entry) => entry.bucket === "begin-operations" && entry.id === owner.intentId && entry.value.intentId === owner.intentId)?.value;
     const session = typeof intent?.sessionId === "string" ? intent.sessionId : typeof operation?.sessionId === "string" ? operation.sessionId : void 0;
@@ -28427,18 +30681,18 @@ var BranchLeaseRecoveryStore = class {
     let recordedRootMatches = false;
     if (typeof intent?.projectRoot === "string") {
       try {
-        recordedRootMatches = samePath9(await realpath7(intent.projectRoot), intent.projectRoot) && samePath9(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
+        recordedRootMatches = samePath13(await realpath9(intent.projectRoot), intent.projectRoot) && samePath13(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
       } catch {
       }
     }
-    const exactCaller = intent && operation && sessionMatch === "same" && operation.sessionId === args.session_id && operation.schemaVersion === 1 && typeof operation.operationToken === "string" && (owner.operationToken === void 0 || owner.operationToken === operation.operationToken) && typeof operation.projectRoot === "string" && samePath9(operation.projectRoot, intent.projectRoot) && operation.targetBranch === binding.branch && intent.targetBranch === binding.branch && recordedRootMatches;
+    const exactCaller = intent && operation && sessionMatch === "same" && operation.sessionId === args.session_id && operation.schemaVersion === 1 && typeof operation.operationToken === "string" && (owner.operationToken === void 0 || owner.operationToken === operation.operationToken) && typeof operation.projectRoot === "string" && samePath13(operation.projectRoot, intent.projectRoot) && operation.targetBranch === binding.branch && intent.targetBranch === binding.branch && recordedRootMatches;
     return {
       matched_buckets: [...new Set(matching.map((entry) => entry.bucket))].sort(),
       intent_reference: matching.some(intentMatches),
       operation_reference: matching.some(operationMatches),
       session_match: sessionMatch,
       recorded_root_matches_repository: recordedRootMatches,
-      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path18.resolve(intent.projectRoot), target_worktree: path18.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
+      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path25.resolve(intent.projectRoot), target_worktree: path25.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
     };
   }
   async marker(intent) {
@@ -28459,7 +30713,7 @@ var BranchLeaseRecoveryStore = class {
     if (typeof owner.leaseToken !== "string" || !owner.leaseToken) throw new Error("signed branch lease token is invalid");
     if (owner.operationToken !== void 0 && (typeof owner.operationToken !== "string" || owner.operationToken.length > 256 || !/^[A-Za-z0-9_-]+$/.test(owner.operationToken))) return "lease_binding_mismatch";
     if (lease.legacy && (typeof owner.commonGitDir !== "string" || typeof owner.targetBranch !== "string" || typeof owner.targetOid !== "string")) return "unbound_legacy_storage";
-    if (owner.commonGitDir !== void 0 && (typeof owner.commonGitDir !== "string" || !samePath9(owner.commonGitDir, binding.commonGitDir))) return "lease_binding_mismatch";
+    if (owner.commonGitDir !== void 0 && (typeof owner.commonGitDir !== "string" || !samePath13(owner.commonGitDir, binding.commonGitDir))) return "lease_binding_mismatch";
     if (owner.targetBranch !== void 0 && owner.targetBranch !== binding.branch) return "lease_binding_mismatch";
     if (owner.targetOid !== void 0) {
       if (typeof owner.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(owner.targetOid)) return "lease_binding_mismatch";
@@ -28469,13 +30723,13 @@ var BranchLeaseRecoveryStore = class {
         return "lease_binding_mismatch";
       }
     }
-    const entries2 = await inventory(this.dataRoot);
+    const entries3 = await inventory(this.dataRoot);
     const selectors = [owner.intentId, ...typeof owner.operationToken === "string" ? [owner.operationToken] : []];
-    if (entries2.some((entry) => selectors.some((selector) => entry.id === selector || contains2(entry.value, selector)))) return "surviving_authority";
-    if (entries2.some((entry) => ownerApplies(entry, binding) && isActive(entry))) return "active_worktree_owner";
-    const names = [...await directoryNames3(path18.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path18.join(this.dataRoot, "lease-watermarks"))];
+    if (entries3.some((entry) => selectors.some((selector) => entry.id === selector || contains2(entry.value, selector)))) return "surviving_authority";
+    if (entries3.some((entry) => ownerApplies(entry, binding) && isActive(entry))) return "active_worktree_owner";
+    const names = [...await directoryNames3(path25.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path25.join(this.dataRoot, "lease-watermarks"))];
     const ids = new Set(names.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
-    for (const name of await directoryNames3(path18.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
+    for (const name of await directoryNames3(path25.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
     for (const id of ids) {
       if (id === selectedId) continue;
       const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, safeId4(id));
@@ -28500,11 +30754,11 @@ var BranchLeaseRecoveryStore = class {
       if (!marker || marker.recovery_id !== recoveryId || !this.recoverableGuard(previous, marker) || previous.revision === null) throw new Error("lease repossession Begin attempt owner is active or ambiguous");
       await releaseAuthorizedLeaseAtGeneration(this.dataRoot, id, args.old_intent_id, previous.payload.leaseToken, previous.revision, generation2(id, previous.revision, previous.payload));
     }
-    const payload = { intentId: args.old_intent_id, leaseToken: randomUUID5(), operation: selected ? "failed-begin-repossession-attempt" : "branch-repossession-attempt", sessionId: args.session_id, recoveryId, resourceGeneration: args.resource_generation, ownerHost: os5.hostname(), ownerPid: process.pid };
+    const payload = { intentId: args.old_intent_id, leaseToken: randomUUID8(), operation: selected ? "failed-begin-repossession-attempt" : "branch-repossession-attempt", sessionId: args.session_id, recoveryId, resourceGeneration: args.resource_generation, ownerHost: os5.hostname(), ownerPid: process.pid };
     await acquireAuthorizedLease(this.dataRoot, id, payload);
-    const snapshot = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
-    if (!snapshot || snapshot.state !== "held" || snapshot.revision === null || digest10(snapshot.payload) !== digest10(payload)) throw new Error("lease repossession Begin attempt generation changed");
-    const guard = { id, payload, revision: snapshot.revision, generation: generation2(id, snapshot.revision, payload) };
+    const snapshot2 = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
+    if (!snapshot2 || snapshot2.state !== "held" || snapshot2.revision === null || digest10(snapshot2.payload) !== digest10(payload)) throw new Error("lease repossession Begin attempt generation changed");
+    const guard = { id, payload, revision: snapshot2.revision, generation: generation2(id, snapshot2.revision, payload) };
     try {
       return await action2(guard);
     } finally {
@@ -28521,7 +30775,7 @@ function request(args) {
 }
 function normalizeDiagnostic(args) {
   for (const [name, value] of Object.entries(args)) if (typeof value !== "string" || !value.trim() || value.length > 4096) throw new Error(`lease recovery ${name} is invalid`);
-  return { project_root: path18.resolve(args.project_root), target_worktree: path18.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
+  return { project_root: path25.resolve(args.project_root), target_worktree: path25.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
 }
 function normalizeRequest(args) {
   const base = normalizeDiagnostic({ project_root: args.project_root, target_worktree: args.target_worktree, target_branch: args.target_branch, session_id: args.session_id });
@@ -28538,27 +30792,27 @@ function selectionMatches(binding, id, lease, args, allowReleased) {
 }
 var readGit = (cwd, args) => git(["--no-optional-locks", ...args], cwd);
 async function readBinding(args) {
-  const root = path18.resolve(args.project_root), target = path18.resolve(args.target_worktree);
-  for (const location of [root, target]) if (!samePath9(await realpath7(location), location) || !samePath9(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
-  const commonGitDir = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
-  if (!samePath9(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
-  if (!samePath9(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
+  const root = path25.resolve(args.project_root), target = path25.resolve(args.target_worktree);
+  for (const location of [root, target]) if (!samePath13(await realpath9(location), location) || !samePath13(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
+  const commonGitDir = path25.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  if (!samePath13(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
+  if (!samePath13(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
   const branch = await readGit(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(target, ["rev-parse", "--verify", "HEAD^{commit}"]);
   if (branch !== args.target_branch || head !== await readGit(target, ["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("lease recovery target branch HEAD binding changed");
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
     const file = await readGit(target, ["rev-parse", "--path-format=absolute", "--git-path", name]);
     try {
-      await lstat9(file);
+      await lstat15(file);
       throw new Error(`lease recovery refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
-  return { projectRoot: root, branch, head, commonGitDir, gitDir: path18.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
+  return { projectRoot: root, branch, head, commonGitDir, gitDir: path25.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
 }
 async function directoryNames3(directory) {
   try {
-    return await readdir11(directory);
+    return await readdir15(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -28568,9 +30822,9 @@ async function hasTaskWorkspaceFootprint(binding, intentId) {
   const refs = (await readGit(binding.topLevel, ["for-each-ref", "--format=%(refname)"])).split(/\r?\n/);
   if (refs.includes(`refs/heads/captain/${safeId4(intentId)}`)) return true;
   const worktrees = await readGit(binding.topLevel, ["worktree", "list", "--porcelain"]);
-  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path18.basename(line.slice(9)) === intentId)) return true;
+  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path25.basename(line.slice(9)) === intentId)) return true;
   try {
-    await lstat9(path18.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
+    await lstat15(path25.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
     return true;
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -28590,8 +30844,8 @@ function contains2(value, selector) {
   return Boolean(value && typeof value === "object" && Object.values(value).some((child) => contains2(child, selector)));
 }
 function applies(value, binding) {
-  if ([value.worktree, value.worktreePath, value.source_worktree, value.target_worktree, value.topLevel].some((location) => typeof location === "string" && samePath9(location, binding.topLevel))) return true;
-  if ([value.branch, value.targetBranch, value.target_branch].includes(binding.branch) && typeof value.commonGitDir === "string" && samePath9(value.commonGitDir, binding.commonGitDir)) return true;
+  if ([value.worktree, value.worktreePath, value.source_worktree, value.target_worktree, value.topLevel].some((location) => typeof location === "string" && samePath13(location, binding.topLevel))) return true;
+  if ([value.branch, value.targetBranch, value.target_branch].includes(binding.branch) && typeof value.commonGitDir === "string" && samePath13(value.commonGitDir, binding.commonGitDir)) return true;
   return [value.before, value.source_binding, value.target_binding].some((child) => child && typeof child === "object" && applies(child, binding));
 }
 function ownerApplies(entry, binding) {
@@ -28601,18 +30855,18 @@ function ownerApplies(entry, binding) {
   }
   return applies(entry.value, binding);
 }
-function targetOwnerDiagnostic(entry, entries2, binding, evidence) {
+function targetOwnerDiagnostic(entry, entries3, binding, evidence) {
   const v = entry.value;
   const references = ["intentId", "runId", "operationToken"];
   const supplied = references.filter((key3) => typeof v[key3] === "string");
-  const correlated = entries2.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && isSupportedRunSchema(candidate.value) && supplied.length && supplied.every((key3) => key3 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key3]) : candidate.value[key3] === v[key3]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
+  const correlated = entries3.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && isSupportedRunSchema(candidate.value) && supplied.length && supplied.every((key3) => key3 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key3]) : candidate.value[key3] === v[key3]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
   const run = correlated.length === 1 ? correlated[0] : void 0;
   const verified = Boolean(run && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(run.value.phase) && ["running", "paused", "green", "red"].includes(run.value.status));
-  const commonMatches = typeof v.commonGitDir === "string" && samePath9(v.commonGitDir, binding.commonGitDir);
+  const commonMatches = typeof v.commonGitDir === "string" && samePath13(v.commonGitDir, binding.commonGitDir);
   return {
     bucket: entry.bucket,
     schema_recognized: ["runs", "run-revisions"].includes(entry.bucket) ? isSupportedRunSchema(v) : v.schemaVersion === 1 || v.schema_version === 1,
-    actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some((location) => typeof location === "string" && samePath9(location, binding.topLevel)),
+    actual_worktree_matches: [v.worktree, v.worktreePath, v.source_worktree, v.target_worktree, v.topLevel].some((location) => typeof location === "string" && samePath13(location, binding.topLevel)),
     actual_branch_matches: v.branch === binding.branch && commonMatches,
     common_git_matches: commonMatches,
     planned_target_branch_matches: [v.targetBranch, v.target_branch].includes(binding.branch),
@@ -28635,19 +30889,19 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
     saved_head_matches_current: false,
     saved_commit_exists: false,
     pending_git_operation: "unknown",
-    matches_selected_target: Boolean(shape && saved.branch === selected.branch && samePath9(saved.commonGitDir, selected.commonGitDir)),
+    matches_selected_target: Boolean(shape && saved.branch === selected.branch && samePath13(saved.commonGitDir, selected.commonGitDir)),
     saved_head_matches_selected_target: Boolean(shape && saved.head === selected.head)
   };
   if (!shape) return basic;
   try {
-    const root = await realpath7(location), top = path18.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
+    const root = await realpath9(location), top = path25.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path25.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path25.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
     const branch = await readGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]);
     const exists3 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
     let pending = false;
     for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
       const file = await readGit(root, ["rev-parse", "--path-format=absolute", "--git-path", name]);
       try {
-        await lstat9(file);
+        await lstat15(file);
         pending = true;
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -28656,7 +30910,7 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
     return {
       ...basic,
       read_verified: true,
-      saved_binding_matches_current: samePath9(root, top) && samePath9(saved.topLevel, top) && samePath9(saved.commonGitDir, common) && samePath9(saved.gitDir, gitDir) && saved.branch === branch,
+      saved_binding_matches_current: samePath13(root, top) && samePath13(saved.topLevel, top) && samePath13(saved.commonGitDir, common) && samePath13(saved.gitDir, gitDir) && saved.branch === branch,
       saved_head_matches_current: saved.head === head,
       saved_commit_exists: exists3,
       pending_git_operation: pending
@@ -28696,23 +30950,23 @@ function stopped(pid) {
   }
 }
 async function leaseInventory(root) {
-  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path18.join(root, bucket3))));
+  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path25.join(root, bucket3))));
   const ids = new Set([...revisions, ...watermarks].map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
   for (const name of projections) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
   const snapshots = await Promise.all([...ids].map(async (id) => ({ id: safeId4(id), snapshot: await readAuthorizedLeaseSnapshotReadOnly(root, safeId4(id)) })));
   return snapshots.filter((entry) => Boolean(entry.snapshot));
 }
 async function inventory(root) {
-  const entries2 = [], byBucket = /* @__PURE__ */ new Map();
+  const entries3 = [], byBucket = /* @__PURE__ */ new Map();
   for (const bucket3 of signedBuckets) {
     const map = /* @__PURE__ */ new Map();
     byBucket.set(bucket3, map);
-    for (const name of await directoryNames3(path18.join(root, bucket3))) {
+    for (const name of await directoryNames3(path25.join(root, bucket3))) {
       if (!name.endsWith(".json")) continue;
       const id = safeId4(name.slice(0, -5)), value = await readAuthorizedReadOnly(root, bucket3, id);
       if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("signed lease recovery authority record is invalid");
       const entry = { bucket: bucket3, id, value };
-      entries2.push(entry);
+      entries3.push(entry);
       map.set(id, entry);
     }
   }
@@ -28741,15 +30995,15 @@ async function inventory(root) {
       }
     }
   }
-  const latestRuns = entries2.filter((entry) => !obsolete.has(entry) && ["runs", "run-revisions"].includes(entry.bucket));
+  const latestRuns = entries3.filter((entry) => !obsolete.has(entry) && ["runs", "run-revisions"].includes(entry.bucket));
   for (const entry of latestRuns) if (entry.bucket === "runs" && (entry.value.schemaVersion === 2 || entry.value.documentationScope)) throw new Error("documentation ownership requires its audited run revision chain");
-  for (const entry of entries2) {
+  for (const entry of entries3) {
     if (!["begin-workspaces", "begin-active", "begin-activated", "permits", "resume-operations"].includes(entry.bucket)) continue;
     const v = entry.value;
     const completed = latestRuns.find((run) => !isActive(run) && (typeof v.intentId === "string" && v.intentId === run.value.intentId || typeof v.runId === "string" && v.runId === run.value.runId || typeof v.operationToken === "string" && [run.value.operationToken, run.value.activationToken].includes(v.operationToken)));
     if (completed) obsolete.add(entry);
   }
-  return entries2.map((entry) => obsolete.has(entry) ? { ...entry, historical: true } : entry);
+  return entries3.map((entry) => obsolete.has(entry) ? { ...entry, historical: true } : entry);
 }
 
 // src/server.ts
@@ -28815,16 +31069,16 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   if (action2 === "start" && resume_of) throw new Error("start action conflicts with resume selector");
   const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action: action2, requestKind: request_kind, sourceRequestId: source_request_id, ...source ? { adapterPrompt } : {} }, async () => {
     if (!resume_of && task_id && action2 !== "start") {
-      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path19.resolve(run.projectRoot) === path19.resolve(project_root));
+      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path26.resolve(run.projectRoot) === path26.resolve(project_root));
       const candidates = await Promise.all(selected.map((run) => store.status(run.intentId)));
-      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path19.resolve(run.projectRoot) === path19.resolve(project_root));
+      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path26.resolve(run.projectRoot) === path26.resolve(project_root));
       if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
       resume_of = matching[0]?.intentId;
     }
     if (action2 === "resume" && !resume_of) throw new Error("no unfinished run found; supply task_id or resume_of");
     if (resume_of) {
       const run = await store.status(resume_of);
-      if (run.status === "green" && !isPendingPlanReview(run) || path19.resolve(run.projectRoot) !== path19.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
+      if (run.status === "green" && !isPendingPlanReview(run) || path26.resolve(run.projectRoot) !== path26.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
       if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
       if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
       if (run.status !== "paused" && run.status !== "green" && run.sessionId !== session_id) {
@@ -28842,8 +31096,8 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
       targetOid = await git(["rev-parse", "--verify", `refs/heads/${target_branch}^{commit}`], project_root);
       await repositoryIdentity(project_root, target_branch, targetOid);
     }
-    const intentId2 = `intent-${randomUUID6()}`;
-    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path19.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
+    const intentId2 = `intent-${randomUUID9()}`;
+    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path26.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
   });
   const intentId = issued.intentId;
   resume_of = issued.resumeOf;
@@ -28959,12 +31213,12 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   return discarded;
 }
 async function startCaptainMcp() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path19.join(process.env.CODEX_HOME || path19.join(os6.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path26.join(process.env.CODEX_HOME || path26.join(os6.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.10.7" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.11.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -29198,7 +31452,7 @@ async function startCaptainMcp() {
   }));
   await server.connect(new StdioServerTransport());
 }
-if (process.argv[1] && path19.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
+if (process.argv[1] && path26.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
 export {
   captainAbortMerge,
   captainBegin,

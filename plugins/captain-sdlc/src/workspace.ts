@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, lstat, mkdtemp, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { constants, createReadStream, type BigIntStats } from "node:fs";
+import { cp, lstat, mkdtemp, open, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -9,6 +10,10 @@ import type { CommitPolicy, GateRunner, ProjectPolicy, HitlCheck } from "./lifec
 import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
 import { bookkeepingCaptured, bookkeepingPathAllowedCore, bookkeepingSubjectAllowed, bookkeepingTextAllowed, validateBookkeepingPolicy } from "./bookkeeping.js";
 import { captureOutputRetention, outputPathExcluded } from "./output-retention.js";
+import { isApprovedUnrealGeneratedPath, assertNoTrackedExcludedPaths, assertUnrealExclusionRootsSafe } from "./unreal-outputs.js";
+import { safeGitStatus, safeGitDiffNames, safeGitDiffRaw, safeGitDiffHeadRaw, safeGitUnmergedNames } from "./git-safe-status.js";
+import { populateLfsWorktree } from "./git-lfs-checkout.js";
+import { stageLfsSelection } from "./git-lfs-stage.js";
 import { completeWorktreeCreation, readWorktreeCreation, readWorktreeRegistration, reserveWorktreeCreation, storageRegistrationId, type WorktreeCreation } from "./worktree-storage.js";
 
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
@@ -31,13 +36,32 @@ let isolatedGitControlRoot: Promise<string> | undefined;
 export type PreparedMerge = { preMergeHead: string; targetOid: string; strategy: "ort" | "ours"; operationToken?: string };
 export type PreparedCommitCore = { preCommitHead: string; candidate: string; tree: string; mergeHead?: string };
 
-function scrubbedEnvironment(): NodeJS.ProcessEnv { const env: NodeJS.ProcessEnv = { ...process.env }; for (const name of Object.keys(env)) if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA") delete env[name]; return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" }; }
+function scrubbedEnvironment(): NodeJS.ProcessEnv { const env: NodeJS.ProcessEnv = { ...process.env }; for (const name of Object.keys(env)) if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS|(?:LITERAL|GLOB|NOGLOB|ICASE)_PATHSPECS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA") delete env[name]; return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" }; }
 async function gitControls() { isolatedGitControlRoot ??= (async () => { const root = await mkdtemp(path.join(tmpdir(), "captain-git-controls-")); await writeFile(path.join(root, "attributes"), ""); return root; })(); return isolatedGitControlRoot; }
 async function gitInvocation(args: string[], cwd: string) { const controls = await gitControls(); return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); }
-export const gateRunner: GateRunner = async (command, cwd) => { try { const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); return { exitCode: 0, stdout: result.stdout, stderr: result.stderr }; } catch (error: any) { return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message }; } };
-export async function git(args: string[], cwd: string): Promise<string> { return (await gitInvocation(args, cwd)).stdout.trim(); }
+export const gateRunner: GateRunner = async (command, cwd) => { try { const result = await exec(process.platform === "win32" ? "cmd.exe" : "/bin/sh", process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); return { exitCode: 0, stdout: result.stdout, stderr: result.stderr }; } catch (error: any) { let stderr = error.stderr ?? ""; if (typeof error.code === "string" && !/^\d+$/.test(error.code) && error.message && !stderr.includes(error.message)) stderr = `${stderr}\n${error.message}`; return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr }; } };
+export async function git(args: string[], cwd: string): Promise<string> {
+  if (args.length === 2 && args[0] === "status" && args[1] === "--porcelain") return safeGitStatus(cwd, git);
+  if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only"].join("\0")) return safeGitDiffNames(cwd, git);
+  if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD"].join("\0")) return (await safeGitDiffHeadRaw(cwd, git)).toString("utf8");
+  if (args.join("\0") === ["diff", "--name-only", "--diff-filter=U"].join("\0") ||
+      args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"].join("\0"))
+    return safeGitUnmergedNames(cwd, git);
+  if (args.length === 3 && args[0] === "merge" && args[1] === "--ff-only") {
+    const current = await git(["rev-parse", "--verify", "HEAD^{commit}"], cwd);
+    const incoming = await git(["rev-parse", "--verify", `${args[2]}^{commit}`], cwd);
+    if (await assertSafeGitAttributesAtCommit(cwd, current) || await assertSafeGitAttributesAtCommit(cwd, incoming))
+      throw new Error("Git LFS fast-forward requires a safe checkout implementation");
+  }
+  return (await gitInvocation(args, cwd)).stdout.trim();
+}
 /** Preserve exact path bytes for NUL-delimited Git output. */
-export async function gitRaw(args: string[], cwd: string): Promise<string> { return (await gitInvocation(args, cwd)).stdout; }
+export async function gitRaw(args: string[], cwd: string): Promise<string> {
+  const prefix = ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z"];
+  if (args.length === 8 && args.slice(0, 6).join("\0") === prefix.join("\0") && args[7] === "--")
+    return (await safeGitDiffRaw(cwd, git, args[6])).toString("utf8");
+  return (await gitInvocation(args, cwd)).stdout;
+}
 
 export async function loadPolicy(projectRoot: string, baseHead: string, planPaths?: string[], hitlChecks?: HitlCheck[]): Promise<ProjectPolicy> {
   const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
@@ -92,7 +116,7 @@ export async function loadPolicy(projectRoot: string, baseHead: string, planPath
   const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
   if (raw.sourceManifestExcludes !== undefined && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
   parsed.sourceManifestExcludes = [];
-  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) { if (typeof value !== "string") throw new Error("source manifest exclusion must be a string"); const relative = safeRepositoryPath(value, "source manifest exclusion"); if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`); if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`); parsed.sourceManifestExcludes.push(relative); }
+  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) { if (typeof value !== "string") throw new Error("source manifest exclusion must be a string"); const relative = safeRepositoryPath(value, "source manifest exclusion"); if (!approvedGeneratedPaths.has(relative.toLowerCase()) && !(await isApprovedUnrealGeneratedPath(projectRoot, relative, trackedBasePaths))) throw new Error(`${relative} is not an approved generated-output path`); if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`); parsed.sourceManifestExcludes.push(relative); }
   if (raw.sourceManifestRootFileExcludes !== undefined && !Array.isArray(raw.sourceManifestRootFileExcludes)) throw new Error("source manifest root-file exclusions must be an array");
   parsed.sourceManifestRootFileExcludes = [];
   const trackedRootFiles = trackedBasePaths.filter(value => !value.includes("/"));
@@ -150,7 +174,7 @@ export async function ensureWorktree(projectRoot: string, baseHead: string, inte
   const invocationRoot = path.resolve(projectRoot), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
   const safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path.join(root, ".captain-sdlc", "worktrees"), proposedPath = path.join(container, safe);
   if (!safe || storageDataRoot && safe !== intentId) throw new Error("intent id must produce an exact safe worktree name");
-  await assertSafeGitAttributesAtCommit(invocationRoot, baseHead); await assertSafeGitMetadataAttributes(root); await rejectReparseAncestors(root, container);
+  const hasLfs = await assertSafeGitAttributesAtCommit(invocationRoot, baseHead); await assertSafeGitMetadataAttributes(root); await rejectReparseAncestors(root, container);
   if (targetBranch) { await validateTargetBranch(root, targetBranch); if (await git(["rev-parse", "--verify", `refs/heads/${targetBranch}^{commit}`], root) !== baseHead) throw new Error("target branch moved after its base was captured"); }
   const branch = targetBranch ?? `captain/${safe}`, branchRef = `refs/heads/${branch}`, entries = await worktreeEntries(root);
   const existing = entries.find(value => targetBranch ? value.branch === branchRef : pathKey(value.worktree) === pathKey(proposedPath));
@@ -186,7 +210,8 @@ export async function ensureWorktree(projectRoot: string, baseHead: string, inte
         reserved = await reserveWorktreeCreation(storageDataRoot, expected);
       }
     }
-    await git(targetBranch ? ["worktree", "add", worktreePath, targetBranch] : ["worktree", "add", worktreePath, "-b", branch, baseHead], root);
+    await git(targetBranch ? ["worktree", "add", ...(hasLfs ? ["--no-checkout"] : []), worktreePath, targetBranch] : ["worktree", "add", ...(hasLfs ? ["--no-checkout"] : []), worktreePath, "-b", branch, baseHead], root);
+    if (hasLfs) await populateLfsWorktree(root, worktreePath, baseHead, git);
   }
   await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
   const binding = await assertWorktreeBinding(worktreePath, branch, commonGitDir, baseHead, true);
@@ -221,7 +246,7 @@ export async function commitAtomic(worktree: string, paths: string[], subject: s
   const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : undefined; if ((taskOutcome && !taskId) || (!taskOutcome && taskId && commitPolicy.require_task_trailer) || (taskTrailer && !hasTaskTrailer(taskTrailer, taskId)) || (commitPolicy.require_task_trailer && !taskTrailer)) throw new Error("commit must include the governed run task trailer");
   const binding = await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
   await assertSafeGitAttributesInWorktree(worktree, safePaths);
-  await git(["add", "--", ...safePaths], worktree);
+  await stageLfsSelection(worktree, safePaths, git);
   const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree)); if (!staged.length || staged.some(changed => !safePaths.some(selected => changed === selected || changed.startsWith(`${selected}/`)))) throw new Error("commit preflight found staged paths outside the explicit selection");
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, binding.head, false, binding.gitDir);
   const head = binding.head, mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
@@ -231,7 +256,7 @@ export async function commitAtomic(worktree: string, paths: string[], subject: s
   if (authorize) await authorize(prepared);
   try {
     if (await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== head || await git(["write-tree"], worktree) !== tree || (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree)) !== mergeHead) throw new Error("commit preflight state changed before commit"); await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, head, false, binding.gitDir); if (validateAuthority) await validateAuthority(prepared);
-    await git(["update-ref", "-m", subject, `refs/heads/${binding.branch}`, candidate, head], worktree); if (afterRefUpdate) await afterRefUpdate(); if (mergeHead) await git(["reset", "--mixed", candidate], worktree);
+    await git(["update-ref", "-m", subject, `refs/heads/${binding.branch}`, candidate, head], worktree); if (afterRefUpdate) await afterRefUpdate(); if (mergeHead) await git(["reset", "--mixed", "--no-refresh", candidate], worktree);
     const actual = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), actualValid = await candidateCommitValid(worktree, actual, head, commitPolicy, taskId, preparedMerges), actualTree = await git(["rev-parse", `${actual}^{tree}`], worktree), actualStatus = await git(["status", "--porcelain"], worktree); if (actual !== candidate || !actualValid || actualTree !== tree || actualStatus) throw new Error(`created commit diverged from validated preflight evidence (head=${actual === candidate}, semantic=${actualValid}, tree=${actualTree === tree}, clean=${!actualStatus})`); await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, candidate, true, binding.gitDir);
     return prepared;
   } catch (error) {
@@ -244,7 +269,7 @@ export async function commitAtomic(worktree: string, paths: string[], subject: s
 export async function reconcilePreparedCommit(worktree: string, prepared: PreparedCommitCore, expectedBranch: string, expectedCommonGitDir: string, expectedGitDir: string) {
   await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, prepared.candidate, false, expectedGitDir);
   const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree);
-  if (prepared.mergeHead) { if (mergeHead && mergeHead.toLowerCase() !== prepared.mergeHead.toLowerCase()) throw new Error("prepared commit recovery found an unexpected MERGE_HEAD"); if (mergeHead) await git(["reset", "--mixed", prepared.candidate], worktree); }
+  if (prepared.mergeHead) { if (mergeHead && mergeHead.toLowerCase() !== prepared.mergeHead.toLowerCase()) throw new Error("prepared commit recovery found an unexpected MERGE_HEAD"); if (mergeHead) await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree); }
   else if (mergeHead) throw new Error("non-merge prepared commit recovery found MERGE_HEAD");
   const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), tree = await git(["rev-parse", `${head}^{tree}`], worktree), status = await git(["status", "--porcelain"], worktree);
   if (head !== prepared.candidate || tree !== prepared.tree || status) throw new Error("prepared commit recovery does not match the signed clean candidate tree");
@@ -260,14 +285,14 @@ export async function applyPreparedCommit(worktree: string, prepared: PreparedCo
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, prepared.preCommitHead, false, binding.gitDir);
   await validateAuthority(prepared);
   await git(["update-ref", "-m", "Captain signed prepared commit recovery", `refs/heads/${binding.branch}`, prepared.candidate, prepared.preCommitHead], worktree);
-  if (prepared.mergeHead) await git(["reset", "--mixed", prepared.candidate], worktree);
+  if (prepared.mergeHead) await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree);
   await reconcilePreparedCommit(worktree, prepared, expectedBranch, expectedCommonGitDir, expectedGitDir);
 }
 
 export async function prepareMerge(worktree: string, commitOid: string, strategy: "ort" | "ours" = "ort", authorize?: (prepared: PreparedMerge) => Promise<void>, revoke?: (prepared: PreparedMerge) => Promise<void>, expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, afterMerge?: () => Promise<void>, operationToken?: string, validateAuthority?: (prepared: PreparedMerge) => Promise<void>) {
   await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
   if (!/^[0-9a-f]{40,64}$/i.test(commitOid)) throw new Error("merge target must be a full commit object id"); if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree)) throw new Error("merge preparation refuses a preexisting merge state");
-  const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree); if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit") throw new Error("merge target is not the pinned commit object"); await assertSafeGitAttributesAtCommit(worktree, preMergeHead); await assertSafeGitAttributesAtCommit(worktree, resolved); const mergePaths = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", preMergeHead, resolved], worktree)); await assertSafeGitAttributesInWorktree(worktree, mergePaths); if (await git(["status", "--porcelain"], worktree)) throw new Error("merge preparation requires a clean worktree"); const prepared = { preMergeHead, targetOid: resolved, strategy, ...(operationToken ? { operationToken } : {}) } satisfies PreparedMerge; if (authorize) await authorize(prepared);
+  const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree); if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit") throw new Error("merge target is not the pinned commit object"); const existingLfs = await assertSafeGitAttributesAtCommit(worktree, preMergeHead); const incomingLfs = await assertSafeGitAttributesAtCommit(worktree, resolved); if (existingLfs || incomingLfs) throw new Error("Git LFS merge requires a safe merge implementation"); const mergePaths = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", preMergeHead, resolved], worktree)); await assertSafeGitAttributesInWorktree(worktree, mergePaths); if (await git(["status", "--porcelain"], worktree)) throw new Error("merge preparation requires a clean worktree"); const prepared = { preMergeHead, targetOid: resolved, strategy, ...(operationToken ? { operationToken } : {}) } satisfies PreparedMerge; if (authorize) await authorize(prepared);
   try {
     try { await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, preMergeHead, true, expectedGitDir); if (validateAuthority) await validateAuthority(prepared); await gitInvocation(["merge", "--no-ff", "--no-commit", ...(strategy === "ours" ? ["-s", "ours"] : []), resolved], worktree); if (afterMerge) await afterMerge(); }
     catch (error) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), conflicts = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"], worktree)); if (mergeHead?.toLowerCase() === resolved.toLowerCase() && currentHead === preMergeHead && conflicts.length) return { commitOid: resolved, preMergeHead, strategy, status: "conflicts" as const, conflicts }; throw error; }
@@ -285,7 +310,7 @@ export async function prepareMerge(worktree: string, commitOid: string, strategy
     throw error;
   }
 }
-export async function abortMerge(worktree: string, prepared: PreparedMerge, validateAuthority?: (prepared: PreparedMerge) => Promise<void>) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead) throw new Error("current merge state does not match the pinned prepared merge"); if (validateAuthority) await validateAuthority(prepared); await gitInvocation(["merge", "--abort"], worktree); if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("audited merge abort did not restore the clean pre-merge state"); }
+export async function abortMerge(worktree: string, prepared: PreparedMerge, validateAuthority?: (prepared: PreparedMerge) => Promise<void>) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead) throw new Error("current merge state does not match the pinned prepared merge"); if (await assertSafeGitAttributesAtCommit(worktree, currentHead) || await assertSafeGitAttributesAtCommit(worktree, prepared.targetOid)) throw new Error("Git LFS merge abort requires a safe recovery implementation"); if (validateAuthority) await validateAuthority(prepared); await gitInvocation(["merge", "--abort"], worktree); if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("audited merge abort did not restore the clean pre-merge state"); }
 export async function preparedMergeState(worktree: string, prepared: PreparedMerge): Promise<"clean" | "pinned" | "diverged"> { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await optionalGit(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (currentHead !== prepared.preMergeHead) return "diverged"; if (mergeHead?.toLowerCase() === prepared.targetOid.toLowerCase()) return "pinned"; if (mergeHead) return "diverged"; return await git(["status", "--porcelain"], worktree) ? "diverged" : "clean"; }
 export async function reconcilePreparedMerge(worktree: string, prepared: PreparedMerge) { if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state"); }
 const normalizeSourceStatus = (status: string) => status.split(/\r?\n/).filter(line => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
@@ -304,11 +329,12 @@ async function worktreeEntries(root: string) { const fields = (await git(["workt
 function isPathInside(parent: string, candidate: string) { const relative = path.relative(path.resolve(parent), path.resolve(candidate)); return relative !== "" && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative); }
 async function assertMissingWorktreePath(worktreePath: string) { try { await lstat(worktreePath); throw new Error(`canonical worktree path already exists: ${worktreePath}`); } catch (error: any) { if (error.code !== "ENOENT") throw error; } }
 async function boundedGitShow(cwd: string, object: string, label: string) { const value = await git(["show", object], cwd); if (Buffer.byteLength(value) > maxPolicyInput) throw new Error(`${label} exceeds the bounded input limit`); return value; }
-async function assertSafeGitAttributesAtCommit(cwd: string, commit: string) { for (const file of splitLines(await git(["ls-tree", "-r", "--name-only", commit], cwd)).filter(value => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) { const content = await boundedGitShow(cwd, `${commit}:${file}`, "Git attributes"); if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`); } }
+export async function assertSafeGitAttributesAtCommit(cwd: string, commit: string): Promise<boolean> { let hasLfs = false; for (const file of (await gitRaw(["ls-tree", "-r", "-z", "--name-only", commit], cwd)).split("\0").filter(value => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) { const content = await boundedGitShow(cwd, `${commit}:${file}`, "Git attributes"); if (hasExecutableGitAttributes(content, true)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`); hasLfs ||= hasLfsGitAttributes(content); } return hasLfs; }
 async function assertSafeGitMetadataAttributes(cwd: string) { const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path.resolve(cwd, raw); try { const info = await lstat(file); if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file"); const content = await readFile(file, "utf8"); if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers"); } catch (error: any) { if (error.code !== "ENOENT") throw error; } }
-async function trackedWorktreePaths(cwd: string) { return splitLines(await git(["ls-files"], cwd)); }
-export async function assertSafeGitAttributesInWorktree(cwd: string, selectedPaths: string[]) { await assertSafeGitMetadataAttributes(cwd); const files = new Set<string>(); const collect = async (target: string): Promise<void> => { let info; try { info = await lstat(target); } catch (error: any) { if (error.code === "ENOENT") return; throw error; } if (info.isSymbolicLink()) return; if (info.isFile()) { if (path.basename(target).toLowerCase() === ".gitattributes") files.add(target); return; } if (!info.isDirectory()) return; for (const entry of await readdir(target, { withFileTypes: true })) { if (entry.name.toLowerCase() === ".git") continue; const child = path.join(target, entry.name); if (entry.name.toLowerCase() === ".gitattributes") files.add(child); else if (entry.isDirectory()) await collect(child); } }; for (const selected of selectedPaths.length ? selectedPaths : ["."]) { const segments = selected.replaceAll("\\", "/").split("/").filter(value => value && value !== "."); files.add(path.join(cwd, ".gitattributes")); for (let index = 1; index < segments.length; index++) files.add(path.join(cwd, ...segments.slice(0, index), ".gitattributes")); const target = path.resolve(cwd, selected); try { if ((await lstat(target)).isDirectory()) await collect(target); } catch (error: any) { if (error.code !== "ENOENT") throw error; } } for (const file of files) { try { const info = await lstat(file); if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path.relative(cwd, file)}`); const content = await readFile(file, "utf8"); if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path.relative(cwd, file)}`); if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path.relative(cwd, file)}`); } catch (error: any) { if (error.code !== "ENOENT") throw error; } } }
-function hasExecutableGitAttributes(content: string) { return content.split(/\r?\n/).some(line => { const value = line.replace(/\s+#.*$/, "").trim(); return value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value); }); }
+async function trackedWorktreePaths(cwd: string) { return (await gitRaw(["ls-files", "-z"], cwd)).split("\0").filter(Boolean); }
+export async function assertSafeGitAttributesInWorktree(cwd: string, selectedPaths: string[]) { await assertSafeGitMetadataAttributes(cwd); const files = new Set<string>(); const collect = async (target: string): Promise<void> => { let info; try { info = await lstat(target); } catch (error: any) { if (error.code === "ENOENT") return; throw error; } if (info.isSymbolicLink()) return; if (info.isFile()) { if (path.basename(target).toLowerCase() === ".gitattributes") files.add(target); return; } if (!info.isDirectory()) return; for (const entry of await readdir(target, { withFileTypes: true })) { if (entry.name.toLowerCase() === ".git") continue; const child = path.join(target, entry.name); if (entry.name.toLowerCase() === ".gitattributes") files.add(child); else if (entry.isDirectory()) await collect(child); } }; for (const selected of selectedPaths.length ? selectedPaths : ["."]) { const segments = selected.replaceAll("\\", "/").split("/").filter(value => value && value !== "."); files.add(path.join(cwd, ".gitattributes")); for (let index = 1; index < segments.length; index++) files.add(path.join(cwd, ...segments.slice(0, index), ".gitattributes")); const target = path.resolve(cwd, selected); try { if ((await lstat(target)).isDirectory()) await collect(target); } catch (error: any) { if (error.code !== "ENOENT") throw error; } } for (const file of files) { try { const info = await lstat(file); if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path.relative(cwd, file)}`); const content = await readFile(file, "utf8"); if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path.relative(cwd, file)}`); if (hasExecutableGitAttributes(content, true)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path.relative(cwd, file)}`); } catch (error: any) { if (error.code !== "ENOENT") throw error; } } }
+function hasLfsGitAttributes(content: string) { return content.split(/\r?\n/).some(line => /(?:^|\s)(?:filter|merge)=lfs(?=\s|$)/.test(line.replace(/\s+#.*$/, "").trim())); }
+function hasExecutableGitAttributes(content: string, allowLfs = false) { return content.split(/\r?\n/).some(line => { let value = line.replace(/\s+#.*$/, "").trim(); if (allowLfs) value = value.replace(/(^|\s)(?:filter|merge)=lfs(?=\s|$)/g, "$1"); return Boolean(value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value)); }); }
 async function rejectReparseAncestors(root: string, target: string) { for (let cursor = path.resolve(target); cursor.startsWith(path.resolve(root)); cursor = path.dirname(cursor)) { try { if ((await lstat(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`); } catch (error: any) { if (error.code !== "ENOENT") throw error; } if (cursor === path.resolve(root)) break; } }
 function safeRepositoryPath(value: string, label: string) { const normalized = value.replaceAll("\\", "/"), segments = normalized.split("/"); if (path.isAbsolute(value) || segments.some(segment => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`); return normalized; }
 function objectValue(value: unknown, label: string): Record<string, any> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`); return value as Record<string, any>; }
@@ -408,26 +434,89 @@ async function versionTransitionValid(worktree: string, parent: string, hash: st
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }
 async function changelogAddsVersion(worktree: string, parent: string, hash: string, subject: string, policy: CommitPolicy) { if (!(policy.require_version_suffix ?? true)) return true; const version = subjectVersion(subject); if (!version) return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
-async function sourceManifest(root: string, configuredExcludes: string[], rootFileExcludes: string[], bookkeepingPolicy?: CommitPolicy, policy?: ProjectPolicy): Promise<{ manifest: string; productManifest?: string }> {
+async function sourceManifest(root: string, configuredExcludes: string[], rootFileExcludes: string[], bookkeepingPolicy?: CommitPolicy, policy?: ProjectPolicy, journalPaths: ReadonlySet<string> = new Set(), includeModes = false): Promise<{ manifest: string; productManifest?: string; revalidate?: () => Promise<void> }> {
   const lines: string[] = [], productLines: string[] = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/")));
+  const witnesses: Array<{ path: string; info: BigIntStats }> = [];
+  const sameWitness = (a: BigIntStats, b: BigIntStats) =>
+    a.isFile() === b.isFile() && a.isDirectory() === b.isDirectory() && !b.isSymbolicLink() &&
+    a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mode === b.mode && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
+  assertNoTrackedExcludedPaths(excludes, tracked);
+  await assertUnrealExclusionRootsSafe(root, excludes);
   async function walk(dir: string) {
+    if (includeModes) {
+      const info = await lstat(dir, { bigint: true });
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("journal input snapshot directory changed");
+      witnesses.push({ path: dir, info });
+    }
     for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a,b) => a.name.localeCompare(b.name))) {
       const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
       if (policy && outputPathExcluded(relative, policy, tracked)) continue;
       if (excludes.some(item => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && rootFileExcludes.some(pattern => rootFilePatternMatches(relative, pattern))) || (relative.toLowerCase().endsWith(".meta") && !tracked.has(relative)) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
       const full = path.join(dir, entry.name), info = await lstat(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
+      if (journalPaths.has(process.platform === "win32" ? relative.toLowerCase() : relative)) {
+        if (!info.isFile()) throw new Error(`journal input exclusion must be a regular file: ${relative}`);
+        continue;
+      }
       if (info.isDirectory()) await walk(full);
       else if (info.isFile()) {
-        const content = await readFile(full), value = `${relative}:${createHash("sha256").update(content).digest("hex")}`;
+        const hash = createHash("sha256");
+        let modeBits = info.mode;
+        if (includeModes) {
+          const before = await lstat(full, { bigint: true });
+          if (!before.isFile() || before.isSymbolicLink()) throw new Error("journal input snapshot file changed");
+          modeBits = Number(before.mode);
+          const handle = await open(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+          try {
+            if (!sameWitness(before, await handle.stat({ bigint: true }))) throw new Error("journal input snapshot changed before hashing");
+            for await (const chunk of createReadStream(full, { fd: handle.fd, autoClose: false })) hash.update(chunk as Buffer);
+            if (!sameWitness(before, await handle.stat({ bigint: true })) || !sameWitness(before, await lstat(full, { bigint: true }))) throw new Error("journal input snapshot changed while hashing");
+            witnesses.push({ path: full, info: before });
+          } finally { await handle.close(); }
+        } else {
+          for await (const chunk of createReadStream(full)) hash.update(chunk as Buffer);
+        }
+        const mode = includeModes && process.platform !== "win32" ? `:${modeBits & 0o777}` : "";
+        const value = `${relative}${mode}:${hash.digest("hex")}`;
         lines.push(value);
-        if (bookkeepingPolicy && (info.mode & 0o111) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
+        if (bookkeepingPolicy && info.size <= maxPolicyInput && (info.mode & 0o111) === 0 && bookkeepingTextAllowed(await readFile(full)) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
         productLines.push(value);
       }
     }
   }
   await walk(root);
-  return { manifest: digest(lines.join("\n")), ...(bookkeepingPolicy ? { productManifest: digest(productLines.join("\n")) } : {}) };
+  const revalidate = async () => {
+    for (let offset = 0; offset < witnesses.length; offset += 64) {
+      await Promise.all(witnesses.slice(offset, offset + 64).map(async witness => {
+        let current: BigIntStats;
+        try { current = await lstat(witness.path, { bigint: true }); }
+        catch { throw new Error("journal input snapshot changed during the walk"); }
+        if (!sameWitness(witness.info, current)) throw new Error("journal input snapshot changed during the walk");
+      }));
+    }
+  };
+  if (includeModes) await revalidate();
+  return { manifest: digest(lines.join("\n")), ...(bookkeepingPolicy ? { productManifest: digest(productLines.join("\n")) } : {}), ...(includeModes ? { revalidate } : {}) };
+}
+/** Bind normal inputs, then permit a final recheck after another worktree is scanned. */
+export async function captureJournalInputManifest(root: string, policy: ProjectPolicy, exactJournalPaths: string[]): Promise<{ manifest: string; revalidate: () => Promise<void> }> {
+  if (!Array.isArray(exactJournalPaths) || exactJournalPaths.length > 200000) throw new Error("journal input paths must be a bounded array");
+  const paths = new Set<string>();
+  for (const value of exactJournalPaths) {
+    if (typeof value !== "string" || !value || value.includes("\\") || /[\x00-\x1f\x7f]/.test(value) || path.posix.isAbsolute(value) ||
+        value.split("/").some(part => !part || part === "." || part === ".." || part.toLowerCase() === ".git"))
+      throw new Error("journal input path must be a safe repository-relative file");
+    const key = process.platform === "win32" ? value.toLowerCase() : value;
+    if (paths.has(key)) throw new Error("journal input paths must be unique");
+    paths.add(key);
+  }
+  const captured = await sourceManifest(path.resolve(root), policy.sourceManifestExcludes ?? [], policy.sourceManifestRootFileExcludes ?? [], undefined, policy, paths, true);
+  if (!captured.revalidate) throw new Error("journal input snapshot lacks witnesses");
+  return { manifest: captured.manifest, revalidate: captured.revalidate };
+}
+/** Bind every normal source input except the exact regular files owned by a signed transaction. */
+export async function sourceManifestExcludingJournal(root: string, policy: ProjectPolicy, exactJournalPaths: string[]): Promise<string> {
+  return (await captureJournalInputManifest(root, policy, exactJournalPaths)).manifest;
 }
 function rootFilePatternMatches(file: string, pattern: string) { const lower = file.toLowerCase(), expected = pattern.toLowerCase(); return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected; }
 const digest = (text: string) => createHash("sha256").update(text).digest("hex"), splitLines = (value: string) => value.split(/\r?\n/).filter(Boolean);

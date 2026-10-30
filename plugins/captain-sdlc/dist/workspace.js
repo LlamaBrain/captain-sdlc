@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, lstat, mkdtemp, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { constants, createReadStream } from "node:fs";
+import { cp, lstat, mkdtemp, open, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -8,6 +9,10 @@ import { approvedPlanDigest } from "./lifecycle.js";
 import { compileSafeRegex, parseStrictSemVer, subjectVersion } from "./validation.js";
 import { bookkeepingCaptured, bookkeepingPathAllowedCore, bookkeepingSubjectAllowed, bookkeepingTextAllowed, validateBookkeepingPolicy } from "./bookkeeping.js";
 import { captureOutputRetention, outputPathExcluded } from "./output-retention.js";
+import { isApprovedUnrealGeneratedPath, assertNoTrackedExcludedPaths, assertUnrealExclusionRootsSafe } from "./unreal-outputs.js";
+import { safeGitStatus, safeGitDiffNames, safeGitDiffRaw, safeGitDiffHeadRaw, safeGitUnmergedNames } from "./git-safe-status.js";
+import { populateLfsWorktree } from "./git-lfs-checkout.js";
+import { stageLfsSelection } from "./git-lfs-stage.js";
 import { completeWorktreeCreation, readWorktreeCreation, readWorktreeRegistration, reserveWorktreeCreation, storageRegistrationId } from "./worktree-storage.js";
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
@@ -27,7 +32,7 @@ const approvedGeneratedPaths = new Set([
 const approvedGeneratedRootFilePatterns = new Set(["*.csproj", "*.unityproj", "*.sln", "*.suo", "*.tmp", "*.user", "*.userprefs", "*.pidb", "*.booproj", "*.svd", "*.pdb", "*.mdb", "*.opendb", "*.vc.db", "*.dotsettings", "*.dotsettings.user", "sysinfo.txt", "crashlytics-build.properties", "doxygen_warnings.log"]);
 let isolatedGitControlRoot;
 function scrubbedEnvironment() { const env = { ...process.env }; for (const name of Object.keys(env))
-    if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA")
+    if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS|(?:LITERAL|GLOB|NOGLOB|ICASE)_PATHSPECS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA")
         delete env[name]; return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_PAGER: "cat", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null", GIT_ATTR_NOSYSTEM: "1" }; }
 async function gitControls() { isolatedGitControlRoot ??= (async () => { const root = await mkdtemp(path.join(tmpdir(), "captain-git-controls-")); await writeFile(path.join(root, "attributes"), ""); return root; })(); return isolatedGitControlRoot; }
 async function gitInvocation(args, cwd) { const controls = await gitControls(); return exec("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer }); }
@@ -36,11 +41,36 @@ export const gateRunner = async (command, cwd) => { try {
     return { exitCode: 0, stdout: result.stdout, stderr: result.stderr };
 }
 catch (error) {
-    return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr: error.stderr ?? error.message };
+    let stderr = error.stderr ?? "";
+    if (typeof error.code === "string" && !/^\d+$/.test(error.code) && error.message && !stderr.includes(error.message))
+        stderr = `${stderr}\n${error.message}`;
+    return { exitCode: Number(error.code) || 1, stdout: error.stdout ?? "", stderr };
 } };
-export async function git(args, cwd) { return (await gitInvocation(args, cwd)).stdout.trim(); }
+export async function git(args, cwd) {
+    if (args.length === 2 && args[0] === "status" && args[1] === "--porcelain")
+        return safeGitStatus(cwd, git);
+    if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only"].join("\0"))
+        return safeGitDiffNames(cwd, git);
+    if (args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "HEAD"].join("\0"))
+        return (await safeGitDiffHeadRaw(cwd, git)).toString("utf8");
+    if (args.join("\0") === ["diff", "--name-only", "--diff-filter=U"].join("\0") ||
+        args.join("\0") === ["diff", "--no-ext-diff", "--no-textconv", "--name-only", "--diff-filter=U"].join("\0"))
+        return safeGitUnmergedNames(cwd, git);
+    if (args.length === 3 && args[0] === "merge" && args[1] === "--ff-only") {
+        const current = await git(["rev-parse", "--verify", "HEAD^{commit}"], cwd);
+        const incoming = await git(["rev-parse", "--verify", `${args[2]}^{commit}`], cwd);
+        if (await assertSafeGitAttributesAtCommit(cwd, current) || await assertSafeGitAttributesAtCommit(cwd, incoming))
+            throw new Error("Git LFS fast-forward requires a safe checkout implementation");
+    }
+    return (await gitInvocation(args, cwd)).stdout.trim();
+}
 /** Preserve exact path bytes for NUL-delimited Git output. */
-export async function gitRaw(args, cwd) { return (await gitInvocation(args, cwd)).stdout; }
+export async function gitRaw(args, cwd) {
+    const prefix = ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z"];
+    if (args.length === 8 && args.slice(0, 6).join("\0") === prefix.join("\0") && args[7] === "--")
+        return (await safeGitDiffRaw(cwd, git, args[6])).toString("utf8");
+    return (await gitInvocation(args, cwd)).stdout;
+}
 export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     const text = await boundedGitShow(projectRoot, `${baseHead}:.captain-sdlc/codex-policy.json`, "trusted Codex policy"), raw = parseObject(text, "trusted Codex policy"), profile = raw.profile;
     if (profile !== "low" && profile !== "feature" && profile !== "pre-release")
@@ -138,7 +168,7 @@ export async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
         if (typeof value !== "string")
             throw new Error("source manifest exclusion must be a string");
         const relative = safeRepositoryPath(value, "source manifest exclusion");
-        if (!approvedGeneratedPaths.has(relative.toLowerCase()))
+        if (!approvedGeneratedPaths.has(relative.toLowerCase()) && !(await isApprovedUnrealGeneratedPath(projectRoot, relative, trackedBasePaths)))
             throw new Error(`${relative} is not an approved generated-output path`);
         if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`)))
             throw new Error(`${relative} contains tracked base files and cannot be excluded`);
@@ -227,7 +257,7 @@ export async function ensureWorktree(projectRoot, baseHead, intentId, targetBran
     const safe = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path.join(root, ".captain-sdlc", "worktrees"), proposedPath = path.join(container, safe);
     if (!safe || storageDataRoot && safe !== intentId)
         throw new Error("intent id must produce an exact safe worktree name");
-    await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
+    const hasLfs = await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
     await assertSafeGitMetadataAttributes(root);
     await rejectReparseAncestors(root, container);
     if (targetBranch) {
@@ -279,7 +309,9 @@ export async function ensureWorktree(projectRoot, baseHead, intentId, targetBran
                 reserved = await reserveWorktreeCreation(storageDataRoot, expected);
             }
         }
-        await git(targetBranch ? ["worktree", "add", worktreePath, targetBranch] : ["worktree", "add", worktreePath, "-b", branch, baseHead], root);
+        await git(targetBranch ? ["worktree", "add", ...(hasLfs ? ["--no-checkout"] : []), worktreePath, targetBranch] : ["worktree", "add", ...(hasLfs ? ["--no-checkout"] : []), worktreePath, "-b", branch, baseHead], root);
+        if (hasLfs)
+            await populateLfsWorktree(root, worktreePath, baseHead, git);
     }
     await assertSafeGitAttributesInWorktree(worktreePath, await trackedWorktreePaths(worktreePath));
     const binding = await assertWorktreeBinding(worktreePath, branch, commonGitDir, baseHead, true);
@@ -332,7 +364,7 @@ export async function commitAtomic(worktree, paths, subject, taskOutcome, taskId
         throw new Error("commit must include the governed run task trailer");
     const binding = await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
     await assertSafeGitAttributesInWorktree(worktree, safePaths);
-    await git(["add", "--", ...safePaths], worktree);
+    await stageLfsSelection(worktree, safePaths, git);
     const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree));
     if (!staged.length || staged.some(changed => !safePaths.some(selected => changed === selected || changed.startsWith(`${selected}/`))))
         throw new Error("commit preflight found staged paths outside the explicit selection");
@@ -363,7 +395,7 @@ export async function commitAtomic(worktree, paths, subject, taskOutcome, taskId
         if (afterRefUpdate)
             await afterRefUpdate();
         if (mergeHead)
-            await git(["reset", "--mixed", candidate], worktree);
+            await git(["reset", "--mixed", "--no-refresh", candidate], worktree);
         const actual = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), actualValid = await candidateCommitValid(worktree, actual, head, commitPolicy, taskId, preparedMerges), actualTree = await git(["rev-parse", `${actual}^{tree}`], worktree), actualStatus = await git(["status", "--porcelain"], worktree);
         if (actual !== candidate || !actualValid || actualTree !== tree || actualStatus)
             throw new Error(`created commit diverged from validated preflight evidence (head=${actual === candidate}, semantic=${actualValid}, tree=${actualTree === tree}, clean=${!actualStatus})`);
@@ -384,7 +416,7 @@ export async function reconcilePreparedCommit(worktree, prepared, expectedBranch
         if (mergeHead && mergeHead.toLowerCase() !== prepared.mergeHead.toLowerCase())
             throw new Error("prepared commit recovery found an unexpected MERGE_HEAD");
         if (mergeHead)
-            await git(["reset", "--mixed", prepared.candidate], worktree);
+            await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree);
     }
     else if (mergeHead)
         throw new Error("non-merge prepared commit recovery found MERGE_HEAD");
@@ -405,7 +437,7 @@ export async function applyPreparedCommit(worktree, prepared, expectedBranch, ex
     await validateAuthority(prepared);
     await git(["update-ref", "-m", "Captain signed prepared commit recovery", `refs/heads/${binding.branch}`, prepared.candidate, prepared.preCommitHead], worktree);
     if (prepared.mergeHead)
-        await git(["reset", "--mixed", prepared.candidate], worktree);
+        await git(["reset", "--mixed", "--no-refresh", prepared.candidate], worktree);
     await reconcilePreparedCommit(worktree, prepared, expectedBranch, expectedCommonGitDir, expectedGitDir);
 }
 export async function prepareMerge(worktree, commitOid, strategy = "ort", authorize, revoke, expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, afterMerge, operationToken, validateAuthority) {
@@ -417,8 +449,10 @@ export async function prepareMerge(worktree, commitOid, strategy = "ort", author
     const preMergeHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), resolved = await git(["rev-parse", "--verify", `${commitOid}^{commit}`], worktree);
     if (resolved.toLowerCase() !== commitOid.toLowerCase() || await git(["cat-file", "-t", commitOid], worktree) !== "commit")
         throw new Error("merge target is not the pinned commit object");
-    await assertSafeGitAttributesAtCommit(worktree, preMergeHead);
-    await assertSafeGitAttributesAtCommit(worktree, resolved);
+    const existingLfs = await assertSafeGitAttributesAtCommit(worktree, preMergeHead);
+    const incomingLfs = await assertSafeGitAttributesAtCommit(worktree, resolved);
+    if (existingLfs || incomingLfs)
+        throw new Error("Git LFS merge requires a safe merge implementation");
     const mergePaths = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", preMergeHead, resolved], worktree));
     await assertSafeGitAttributesInWorktree(worktree, mergePaths);
     if (await git(["status", "--porcelain"], worktree))
@@ -470,7 +504,8 @@ export async function prepareMerge(worktree, commitOid, strategy = "ort", author
     }
 }
 export async function abortMerge(worktree, prepared, validateAuthority) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (mergeHead?.toLowerCase() !== prepared.targetOid.toLowerCase() || currentHead !== prepared.preMergeHead)
-    throw new Error("current merge state does not match the pinned prepared merge"); if (validateAuthority)
+    throw new Error("current merge state does not match the pinned prepared merge"); if (await assertSafeGitAttributesAtCommit(worktree, currentHead) || await assertSafeGitAttributesAtCommit(worktree, prepared.targetOid))
+    throw new Error("Git LFS merge abort requires a safe recovery implementation"); if (validateAuthority)
     await validateAuthority(prepared); await gitInvocation(["merge", "--abort"], worktree); if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree))
     throw new Error("audited merge abort did not restore the clean pre-merge state"); }
 export async function preparedMergeState(worktree, prepared) { const mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), currentHead = await optionalGit(["rev-parse", "--verify", "HEAD^{commit}"], worktree); if (currentHead !== prepared.preMergeHead)
@@ -528,11 +563,12 @@ catch (error) {
 } }
 async function boundedGitShow(cwd, object, label) { const value = await git(["show", object], cwd); if (Buffer.byteLength(value) > maxPolicyInput)
     throw new Error(`${label} exceeds the bounded input limit`); return value; }
-async function assertSafeGitAttributesAtCommit(cwd, commit) { for (const file of splitLines(await git(["ls-tree", "-r", "--name-only", commit], cwd)).filter(value => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
+export async function assertSafeGitAttributesAtCommit(cwd, commit) { let hasLfs = false; for (const file of (await gitRaw(["ls-tree", "-r", "-z", "--name-only", commit], cwd)).split("\0").filter(value => value.toLowerCase() === ".gitattributes" || value.toLowerCase().endsWith("/.gitattributes"))) {
     const content = await boundedGitShow(cwd, `${commit}:${file}`, "Git attributes");
-    if (hasExecutableGitAttributes(content))
+    if (hasExecutableGitAttributes(content, true))
         throw new Error(`Git attributes may not configure clean filters or merge drivers: ${file}`);
-} }
+    hasLfs ||= hasLfsGitAttributes(content);
+} return hasLfs; }
 async function assertSafeGitMetadataAttributes(cwd) { const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path.resolve(cwd, raw); try {
     const info = await lstat(file);
     if (info.isSymbolicLink() || !info.isFile())
@@ -545,7 +581,7 @@ catch (error) {
     if (error.code !== "ENOENT")
         throw error;
 } }
-async function trackedWorktreePaths(cwd) { return splitLines(await git(["ls-files"], cwd)); }
+async function trackedWorktreePaths(cwd) { return (await gitRaw(["ls-files", "-z"], cwd)).split("\0").filter(Boolean); }
 export async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) { await assertSafeGitMetadataAttributes(cwd); const files = new Set(); const collect = async (target) => { let info; try {
     info = await lstat(target);
 }
@@ -589,7 +625,7 @@ catch (error) {
         const content = await readFile(file, "utf8");
         if (Buffer.byteLength(content) > maxPolicyInput)
             throw new Error(`Git attributes exceeds the bounded input limit: ${path.relative(cwd, file)}`);
-        if (hasExecutableGitAttributes(content))
+        if (hasExecutableGitAttributes(content, true))
             throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path.relative(cwd, file)}`);
     }
     catch (error) {
@@ -597,7 +633,9 @@ catch (error) {
             throw error;
     }
 } }
-function hasExecutableGitAttributes(content) { return content.split(/\r?\n/).some(line => { const value = line.replace(/\s+#.*$/, "").trim(); return value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value); }); }
+function hasLfsGitAttributes(content) { return content.split(/\r?\n/).some(line => /(?:^|\s)(?:filter|merge)=lfs(?=\s|$)/.test(line.replace(/\s+#.*$/, "").trim())); }
+function hasExecutableGitAttributes(content, allowLfs = false) { return content.split(/\r?\n/).some(line => { let value = line.replace(/\s+#.*$/, "").trim(); if (allowLfs)
+    value = value.replace(/(^|\s)(?:filter|merge)=lfs(?=\s|$)/g, "$1"); return Boolean(value && /(?:^|\s)(?:filter|merge)(?:\s|=|$)/i.test(value)); }); }
 async function rejectReparseAncestors(root, target) { for (let cursor = path.resolve(target); cursor.startsWith(path.resolve(root)); cursor = path.dirname(cursor)) {
     try {
         if ((await lstat(cursor)).isSymbolicLink())
@@ -779,9 +817,20 @@ async function versionTransitionValid(worktree, parent, hash, subject, policy, i
 async function changelogAddsVersion(worktree, parent, hash, subject, policy) { if (!(policy.require_version_suffix ?? true))
     return true; const version = subjectVersion(subject); if (!version)
     return false; const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i"); return diff.split(/\r?\n/).some(line => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1))); }
-async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy) {
+async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy, journalPaths = new Set(), includeModes = false) {
     const lines = [], productLines = [], excludes = configuredExcludes.map(item => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map(item => item.replaceAll("\\", "/")));
+    const witnesses = [];
+    const sameWitness = (a, b) => a.isFile() === b.isFile() && a.isDirectory() === b.isDirectory() && !b.isSymbolicLink() &&
+        a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mode === b.mode && a.mtimeNs === b.mtimeNs && a.ctimeNs === b.ctimeNs;
+    assertNoTrackedExcludedPaths(excludes, tracked);
+    await assertUnrealExclusionRootsSafe(root, excludes);
     async function walk(dir) {
+        if (includeModes) {
+            const info = await lstat(dir, { bigint: true });
+            if (!info.isDirectory() || info.isSymbolicLink())
+                throw new Error("journal input snapshot directory changed");
+            witnesses.push({ path: dir, info });
+        }
         for (const entry of (await readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
             const relative = path.relative(root, path.join(dir, entry.name)).replaceAll("\\", "/");
             if (policy && outputPathExcluded(relative, policy, tracked))
@@ -791,19 +840,90 @@ async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookke
             const full = path.join(dir, entry.name), info = await lstat(full);
             if (info.isSymbolicLink())
                 throw new Error(`source manifest crosses reparse point: ${relative}`);
+            if (journalPaths.has(process.platform === "win32" ? relative.toLowerCase() : relative)) {
+                if (!info.isFile())
+                    throw new Error(`journal input exclusion must be a regular file: ${relative}`);
+                continue;
+            }
             if (info.isDirectory())
                 await walk(full);
             else if (info.isFile()) {
-                const content = await readFile(full), value = `${relative}:${createHash("sha256").update(content).digest("hex")}`;
+                const hash = createHash("sha256");
+                let modeBits = info.mode;
+                if (includeModes) {
+                    const before = await lstat(full, { bigint: true });
+                    if (!before.isFile() || before.isSymbolicLink())
+                        throw new Error("journal input snapshot file changed");
+                    modeBits = Number(before.mode);
+                    const handle = await open(full, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+                    try {
+                        if (!sameWitness(before, await handle.stat({ bigint: true })))
+                            throw new Error("journal input snapshot changed before hashing");
+                        for await (const chunk of createReadStream(full, { fd: handle.fd, autoClose: false }))
+                            hash.update(chunk);
+                        if (!sameWitness(before, await handle.stat({ bigint: true })) || !sameWitness(before, await lstat(full, { bigint: true })))
+                            throw new Error("journal input snapshot changed while hashing");
+                        witnesses.push({ path: full, info: before });
+                    }
+                    finally {
+                        await handle.close();
+                    }
+                }
+                else {
+                    for await (const chunk of createReadStream(full))
+                        hash.update(chunk);
+                }
+                const mode = includeModes && process.platform !== "win32" ? `:${modeBits & 0o777}` : "";
+                const value = `${relative}${mode}:${hash.digest("hex")}`;
                 lines.push(value);
-                if (bookkeepingPolicy && (info.mode & 0o111) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy))
+                if (bookkeepingPolicy && info.size <= maxPolicyInput && (info.mode & 0o111) === 0 && bookkeepingTextAllowed(await readFile(full)) && await bookkeepingPathAllowed(relative, bookkeepingPolicy))
                     continue;
                 productLines.push(value);
             }
         }
     }
     await walk(root);
-    return { manifest: digest(lines.join("\n")), ...(bookkeepingPolicy ? { productManifest: digest(productLines.join("\n")) } : {}) };
+    const revalidate = async () => {
+        for (let offset = 0; offset < witnesses.length; offset += 64) {
+            await Promise.all(witnesses.slice(offset, offset + 64).map(async (witness) => {
+                let current;
+                try {
+                    current = await lstat(witness.path, { bigint: true });
+                }
+                catch {
+                    throw new Error("journal input snapshot changed during the walk");
+                }
+                if (!sameWitness(witness.info, current))
+                    throw new Error("journal input snapshot changed during the walk");
+            }));
+        }
+    };
+    if (includeModes)
+        await revalidate();
+    return { manifest: digest(lines.join("\n")), ...(bookkeepingPolicy ? { productManifest: digest(productLines.join("\n")) } : {}), ...(includeModes ? { revalidate } : {}) };
+}
+/** Bind normal inputs, then permit a final recheck after another worktree is scanned. */
+export async function captureJournalInputManifest(root, policy, exactJournalPaths) {
+    if (!Array.isArray(exactJournalPaths) || exactJournalPaths.length > 200000)
+        throw new Error("journal input paths must be a bounded array");
+    const paths = new Set();
+    for (const value of exactJournalPaths) {
+        if (typeof value !== "string" || !value || value.includes("\\") || /[\x00-\x1f\x7f]/.test(value) || path.posix.isAbsolute(value) ||
+            value.split("/").some(part => !part || part === "." || part === ".." || part.toLowerCase() === ".git"))
+            throw new Error("journal input path must be a safe repository-relative file");
+        const key = process.platform === "win32" ? value.toLowerCase() : value;
+        if (paths.has(key))
+            throw new Error("journal input paths must be unique");
+        paths.add(key);
+    }
+    const captured = await sourceManifest(path.resolve(root), policy.sourceManifestExcludes ?? [], policy.sourceManifestRootFileExcludes ?? [], undefined, policy, paths, true);
+    if (!captured.revalidate)
+        throw new Error("journal input snapshot lacks witnesses");
+    return { manifest: captured.manifest, revalidate: captured.revalidate };
+}
+/** Bind every normal source input except the exact regular files owned by a signed transaction. */
+export async function sourceManifestExcludingJournal(root, policy, exactJournalPaths) {
+    return (await captureJournalInputManifest(root, policy, exactJournalPaths)).manifest;
 }
 function rootFilePatternMatches(file, pattern) { const lower = file.toLowerCase(), expected = pattern.toLowerCase(); return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected; }
 const digest = (text) => createHash("sha256").update(text).digest("hex"), splitLines = (value) => value.split(/\r?\n/).filter(Boolean);

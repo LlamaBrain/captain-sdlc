@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-29
+
+### Added
+
+- Inspect, stage, hydrate, and verify standard Git LFS assets with isolated Git controls and signed input checks; retain authenticated recovery for LFS fast-forwards and divergent merges (v0.11.0).
+- Allow explicitly selected Unreal generated-output roots while retaining project, plugin, and asset inputs in signed manifests (v0.11.0).
+- Publish new Windows directories during LFS merge transactions with signed recovery, inherited ACL checks and collision protection (v0.11.0).
+
+### Fixed
+
+- Prevent repository-defined clean, process, and merge drivers from running during protected worktree status, staging, and LFS checkout operations (v0.11.0).
+- Reject known infrastructure failures as behavioral red-test evidence (v0.11.0).
+- Avoid overflowing merge metadata scans on large excluded generated-output trees while retaining ignored Unity metadata checks, regardless of inherited Git pathspec settings (v0.11.0).
+- Preserve foreign temporary files on LFS creation collisions and tolerate verified concurrent publication of the same object (v0.11.0).
+- Recheck rapidly rewritten files during private-index staging instead of trusting timestamps copied from the original index (v0.11.0).
+- Bind existing POSIX destination directories during LFS transactions and refuse unjournaled directory creation (v0.11.0).
+
 ## [0.10.7] - 2026-10-29
 
 ### Changed

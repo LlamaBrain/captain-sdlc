@@ -5,11 +5,15 @@ import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedReadOnly, readAuthorizedLease, readAuthorizedLeaseState, readAuthorizedLeaseStateReadOnly, releaseAuthorizedLease } from "./authority.js";
 import { BookkeepingFinalizationStore, type FinalizationArgs, type FinalizationReceipt } from "./bookkeeping-finalization.js";
 import { LifecycleStore, type GateRunner, type ProjectPolicy, type Run } from "./lifecycle.js";
-import { applyPreparedCommit, assertWorktreeBinding, bookkeepingHistoryValid, commitAtomic, gateRunner, git, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
+import { applyPreparedCommit, assertSafeGitAttributesAtCommit, assertSafeGitAttributesInWorktree, assertWorktreeBinding, bookkeepingHistoryValid, captureJournalInputManifest, commitAtomic, gateRunner, git, loadPolicy, prepareMerge, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState, sourceManifestExcludingJournal, type PreparedCommitCore, type PreparedMerge } from "./workspace.js";
 import { cleanupRegisteredWorktrees, readWorktreeCleanupCompletion, retainedWorktreeHead, type CleanupCandidate, type WorktreeCleanupResult } from "./worktree-cleanup.js";
 import { readWorktreeRegistration, storageRegistrationId } from "./worktree-storage.js";
 import { prepareScopeOutputs } from "./output-retention.js";
 import { primaryRepositoryRoot } from "./workspace.js";
+import { applyLfsFastForward, assertVisibleFastForwardIndex, prepareLfsFastForward, type LfsFastForwardPlan } from "./git-lfs-fastforward.js";
+import { applyLfsMerge, assertJournalTrackedStatus, prepareLfsMerge, type LfsMergePlan } from "./git-lfs-merge.js";
+import { listIndexedLfs } from "./git-safe-status.js";
+import { verifyLfsObject } from "./lfs.js";
 
 export type MergeCommitInput = { paths: string[]; subject: string; task_outcome?: "Implements" | "Completes" | "Needs-QA"; task_id?: string };
 export type MergeFinalizationSelection = Omit<FinalizationArgs, "worktree" | "session_id">;
@@ -19,7 +23,7 @@ export type MergeBackArgs = { merge_id: string; session_id: string; source_workt
 export type MergeLeaseRecoveryArgs = MergeBackArgs & { source_worktree: string; target_worktree: string; target_branch: string; expected_revision: number; expected_lease_token: string; confirm_owner_stopped?: boolean };
 export type MergeState = "preparing" | "needs_resolution" | "needs_commit" | "verifying" | "failed" | "ready" | "integrating" | "merged";
 type Binding = Awaited<ReturnType<typeof assertWorktreeBinding>>;
-type Inputs = { source: Awaited<ReturnType<typeof sourceState>>; metadata: string; dependencies: Array<Record<string, unknown>> };
+type Inputs = { source: Awaited<ReturnType<typeof sourceState>>; metadata: string; dependencies: Array<Record<string, unknown>>; lfs_objects?: Array<{ oid: string; size: number }> };
 type GateEvidence = { scope: string; commandSha256: string; exitCode: number; stdoutSha256: string; stderrSha256: string };
 export type MergeRecord = {
   schema_version: 1; merge_id: string; revision: number; previous_sha256?: string; session_id: string; state: MergeState;
@@ -31,6 +35,8 @@ export type MergeRecord = {
   bookkeeping_extensions?: Array<{ kind: "source" | "target"; from_head: string; to_head: string }>;
   integration_inputs?: Inputs;
   attempted_inputs?: Inputs; ready_inputs?: Inputs; failure?: string; integrated_head?: string;
+  lfs_fast_forward?: { id: string; sha256: string };
+  lfs_merge?: { id: string; sha256: string };
   cleanup?: WorktreeCleanupResult;
 };
 export type MergeLeaseOwner = { pid?: number; host?: string; state: "stopped" | "live" | "foreign_host" | "unknown" | "legacy" };
@@ -66,6 +72,8 @@ const resourceId = (common: string, branch: string) => hash(`${path.resolve(comm
 export class MergeWorkflowStore {
   private readonly activeOperations = new Set<string>();
   constructor(private readonly dataRoot: string, private readonly runner: GateRunner = gateRunner) {}
+  private async fastForwardCheckpoint(_phase: string): Promise<void> { /* Fault-injection seam; durable state precedes each checkpoint. */ }
+  private async lfsMergeCheckpoint(_phase: string): Promise<void> { /* Fault-injection seam; durable state precedes publication. */ }
 
   async diagnose(args: MergeDiagnosticArgs): Promise<MergeDiagnostic> {
     this.session(args.session_id);
@@ -116,7 +124,8 @@ export class MergeWorkflowStore {
       return this.resources(record, async assertResources => {
         const assertAuthority = async () => { await assertOperation(); await assertResources(); };
         record = await this.advanceBookkeepingTarget(record);
-        await this.bindings(record, false); await assertNoOperation(record.target_worktree);
+        await this.bindings(record, false); await assertNoOperation(record.target_worktree); await this.assertTargetLfsCompatibility(record);
+        if (record.lfs_merge) return this.output(await this.resumeLfsMerge(record, assertAuthority));
         let recoveredCommit = false;
         if (record.prepared_commit) {
           if (args.commit && digest(args.commit) !== digest(record.prepared_commit_request)) throw new Error("prepared integration commit recovery must use the same signed commit request");
@@ -156,6 +165,26 @@ export class MergeWorkflowStore {
         await this.reconcileOwnedImplementation(record, assertAuthority);
         if (!await ancestor(record.target_binding.head, await git(["rev-parse", "HEAD"], record.source_worktree), record.source_worktree)) {
           const currentHead = await git(["rev-parse", "HEAD"], record.source_worktree);
+          const sourceLfs = await assertSafeGitAttributesAtCommit(record.source_worktree, currentHead);
+          const targetLfs = await assertSafeGitAttributesAtCommit(record.target_worktree, record.target_binding.head);
+          if (sourceLfs || targetLfs) {
+            await assertSafeGitAttributesInWorktree(record.source_worktree, [".gitattributes"]);
+            await assertSafeGitAttributesInWorktree(record.target_worktree, [".gitattributes"]);
+            const before = await sourceManifestExcludingJournal(record.source_worktree, record.captured_policy, []);
+            const plan = await prepareLfsMerge(record.source_worktree, record.source_binding.branch, currentHead, record.target_binding.head, git, candidate => assertSafeGitAttributesAtCommit(record.source_worktree, candidate));
+            await assertSafeGitAttributesInWorktree(record.source_worktree, [".gitattributes"]);
+            await assertSafeGitAttributesInWorktree(record.target_worktree, [".gitattributes"]);
+            plan.input_manifest = await sourceManifestExcludingJournal(record.source_worktree, record.captured_policy, plan.transition.changes.map(change => change.path));
+            if (before !== await sourceManifestExcludingJournal(record.source_worktree, record.captured_policy, [])) throw new Error("source inputs changed during LFS merge planning");
+            await assertAuthority(); await this.bindings(record, false); await assertNoOperation(record.source_worktree);
+            await assertWorktreeBinding(record.source_worktree, record.source_binding.branch, record.source_binding.commonGitDir, currentHead, true, record.source_binding.gitDir);
+            const id = `lfs-merge-${randomUUID()}`;
+            await putAuthorizedOnceExact(this.dataRoot, "lfs-merge-plans", id, plan);
+            const prepared: PreparedMerge = { preMergeHead: currentHead, targetOid: record.target_binding.head, strategy: "ort", operationToken: mergeId };
+            record = await this.update({ ...record, state: "preparing", prepared_merge: prepared, lfs_merge: { id, sha256: digest(plan) }, ...(record.ready_inputs ? {} : { ready_inputs: undefined, integration_inputs: undefined, gates: [] }) });
+            await this.lfsMergeCheckpoint("prepared");
+            return this.output(await this.resumeLfsMerge(record, assertAuthority));
+          }
           const result = await prepareMerge(record.source_worktree, record.target_binding.head, "ort",
             async prepared => { record = await this.update({ ...record, state: "preparing", prepared_merge: prepared, ...(record.ready_inputs ? {} : { ready_inputs: undefined, integration_inputs: undefined, gates: [] }) }); },
             async () => { record = await this.update({ ...record, prepared_merge: undefined, state: "failed", failure: "target merge preparation was rejected" }); },
@@ -164,7 +193,7 @@ export class MergeWorkflowStore {
           record = await this.update({ ...record, state: result.status === "conflicts" ? "needs_resolution" : "needs_commit", conflicts: result.conflicts });
           return this.output(record);
         }
-        const inputs = await captureInputs(record.source_worktree, record.captured_policy);
+        const inputs = await captureInputs(record.source_worktree, record.captured_policy, record.target_binding.head);
         if (record.ready_inputs) {
           const retained = await this.associateBookkeepingInputs(record, inputs);
           if (retained) {
@@ -262,14 +291,48 @@ export class MergeWorkflowStore {
       record = await this.resources(record, async assertResources => {
         await assertOperation(); await assertResources();
         if (record.state !== "merged") {
-          const inputs = await captureInputs(record.source_worktree, record.captured_policy);
+          const inputs = await captureInputs(record.source_worktree, record.captured_policy, record.target_binding.head);
           const retained = await this.associateBookkeepingInputs(record, inputs);
           if (!retained) throw new Error("merge prep product or dependency inputs changed; readiness is stale; continue the same Merge Prep");
           if (digest(retained) !== digest(record)) record = await this.update(retained);
         }
         const targetHead = await git(["rev-parse", "HEAD"], record.target_worktree), sourceHead = this.deliveryInputs(record)!.source.head;
+        if (record.lfs_fast_forward) {
+          if (record.state !== "integrating") throw new Error("signed Git LFS fast-forward has an invalid merge state");
+          if (!record.ready_inputs || record.gates.length !== record.scopes.length || record.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record.scopes[index] || gate.commandSha256 !== hash(record.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
+          await assertWorktreeBinding(record.source_worktree, record.source_binding.branch, record.source_binding.commonGitDir, undefined, false, record.source_binding.gitDir);
+          const plan = await readAuthorized<LfsFastForwardPlan>(this.dataRoot, "lfs-fastforward-plans", record.lfs_fast_forward.id);
+          if (digest(plan) !== record.lfs_fast_forward.sha256 || !samePath(plan.root, record.target_worktree) || !samePath(plan.git_dir, record.target_binding.gitDir) || !samePath(plan.common_git_dir, record.target_binding.commonGitDir) || plan.branch !== record.target_branch || plan.old_head !== record.target_binding.head || plan.new_head !== sourceHead) throw new Error("signed Git LFS fast-forward plan binding diverged");
+          const planReference = digest(record.lfs_fast_forward);
+          const authorize = async () => { await assertOperation(); await assertResources(); const current = await this.read(record.merge_id); if (current.state !== "integrating" || digest(current.lfs_fast_forward) !== planReference) throw new Error("signed Git LFS fast-forward authority changed"); };
+          const validateInputs = async () => this.validateLfsFastForwardInputs(record, plan);
+          await applyLfsFastForward(plan, git, authorize, phase => this.fastForwardCheckpoint(phase), validateInputs);
+          await this.assertReady(record, true);
+          return this.update({ ...record, state: "merged", integrated_head: sourceHead });
+        }
         await this.assertReady(record, targetHead === sourceHead);
         if (targetHead === sourceHead) return this.update({ ...record, state: "merged", integrated_head: sourceHead });
+        const hasLfs = await assertSafeGitAttributesAtCommit(record.target_worktree, record.target_binding.head) || await assertSafeGitAttributesAtCommit(record.source_worktree, sourceHead);
+        if (hasLfs) {
+          await assertOperation(); await assertResources(); await this.assertReady(record);
+          const targetBefore = await sourceManifestExcludingJournal(record.target_worktree, record.captured_policy, []);
+          const plan = await prepareLfsFastForward(record.target_worktree, record.target_branch, record.target_binding.head, sourceHead, git);
+          await this.fastForwardCheckpoint("planned");
+          plan.input_manifest = await sourceManifestExcludingJournal(record.target_worktree, record.captured_policy, plan.changes.map(change => change.path));
+          if (targetBefore !== await sourceManifestExcludingJournal(record.target_worktree, record.captured_policy, [])) throw new Error("target inputs changed during Git LFS fast-forward planning");
+          await assertOperation(); await assertResources(); await this.assertReady(record);
+          await assertVisibleFastForwardIndex(record.target_worktree, git);
+          const id = `lfs-ff-${randomUUID()}`;
+          await putAuthorizedOnceExact(this.dataRoot, "lfs-fastforward-plans", id, plan);
+          record = await this.update({ ...record, state: "integrating", lfs_fast_forward: { id, sha256: digest(plan) } });
+          await this.fastForwardCheckpoint("prepared");
+          const planReference = digest(record.lfs_fast_forward);
+          const authorize = async () => { await assertOperation(); await assertResources(); const current = await this.read(record.merge_id); if (current.state !== "integrating" || digest(current.lfs_fast_forward) !== planReference) throw new Error("signed Git LFS fast-forward authority changed"); };
+          const validateInputs = async () => this.validateLfsFastForwardInputs(record, plan);
+          await applyLfsFastForward(plan, git, authorize, phase => this.fastForwardCheckpoint(phase), validateInputs);
+          await this.assertReady(record, true);
+          return this.update({ ...record, state: "merged", integrated_head: sourceHead });
+        }
         record = await this.update({ ...record, state: "integrating" });
         await assertOperation(); await assertResources(); await this.assertReady(record);
         // git() isolates hooks, external configuration, filters and ambient Git redirection.
@@ -503,7 +566,38 @@ export class MergeWorkflowStore {
     await assertWorktreeBinding(record.source_worktree, record.source_binding.branch, record.source_binding.commonGitDir, undefined, false, record.source_binding.gitDir);
     await assertWorktreeBinding(record.target_worktree, record.target_branch, record.target_binding.commonGitDir, targetIntegrated ? this.deliveryInputs(record)?.source.head : record.target_binding.head, true, record.target_binding.gitDir);
   }
-  private async assertInputs(record: MergeRecord, expected: Inputs) { if (digest(await captureInputs(record.source_worktree, record.captured_policy)) !== digest(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale"); }
+  private async validateLfsFastForwardInputs(record: MergeRecord, plan: LfsFastForwardPlan): Promise<void> {
+    await assertJournalTrackedStatus(record.target_worktree, git, plan.changes.map(change => change.path), record.captured_policy);
+    const target = await captureJournalInputManifest(record.target_worktree, record.captured_policy, plan.changes.map(change => change.path));
+    if (target.manifest !== plan.input_manifest) throw new Error("target inputs changed during Git LFS fast-forward");
+    const source = await captureJournalInputManifest(record.source_worktree, record.captured_policy, []);
+    await this.assertInputs(record, this.deliveryInputs(record)!);
+    await source.revalidate(); await target.revalidate();
+  }
+  private async resumeLfsMerge(record: MergeRecord, assertAuthority: () => Promise<void>): Promise<MergeRecord> {
+    if (!record.lfs_merge || !record.prepared_merge) throw new Error("signed LFS merge has no prepared operation");
+    const plan = await readAuthorized<LfsMergePlan>(this.dataRoot, "lfs-merge-plans", record.lfs_merge.id), transition = plan.transition;
+    if (digest(plan) !== record.lfs_merge.sha256 || !samePath(transition.root, record.source_worktree) || !samePath(transition.git_dir, record.source_binding.gitDir) || !samePath(transition.common_git_dir, record.source_binding.commonGitDir) || transition.branch !== record.source_binding.branch || transition.old_head !== record.prepared_merge.preMergeHead || plan.target_head !== record.target_binding.head || plan.target_head !== record.prepared_merge.targetOid || record.prepared_merge.operationToken !== record.merge_id) throw new Error("signed LFS merge plan binding diverged");
+    const reference = digest(record.lfs_merge), prepared = digest(record.prepared_merge);
+    const authorize = async () => {
+      await assertAuthority(); await this.bindings(record, false); await assertNoOperation(record.target_worktree); await assertNoOperation(record.source_worktree, true);
+      const latest = await this.read(record.merge_id);
+      if (latest.state !== "preparing" || digest(latest.lfs_merge) !== reference || digest(latest.prepared_merge) !== prepared) throw new Error("signed LFS merge authority changed");
+    };
+    const validateInputs = async () => { await assertJournalTrackedStatus(record.source_worktree, git, [...transition.changes.map(change => change.path), ...plan.conflicts], record.captured_policy); const input = await captureJournalInputManifest(record.source_worktree, record.captured_policy, transition.changes.map(change => change.path)); if (input.manifest !== plan.input_manifest) throw new Error("source inputs changed during LFS merge recovery"); await input.revalidate(); };
+    await applyLfsMerge(plan, git, authorize, phase => this.lfsMergeCheckpoint(phase), validateInputs);
+    await authorize();
+    return this.update({ ...record, lfs_merge: undefined, state: plan.conflicts.length ? "needs_resolution" : "needs_commit", conflicts: plan.conflicts });
+  }
+  private async assertTargetLfsCompatibility(record: MergeRecord) {
+    const sourceHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], record.source_worktree);
+    const hasLfs = await assertSafeGitAttributesAtCommit(record.source_worktree, sourceHead) || await assertSafeGitAttributesAtCommit(record.target_worktree, record.target_binding.head);
+    if (!hasLfs) return;
+    try { await git(["config", "--get-all", "lfs.storage"], record.target_worktree); }
+    catch (error: any) { if (error.code === 1) return; throw error; }
+    throw new Error("explicit target lfs.storage is not supported by signed LFS readiness");
+  }
+  private async assertInputs(record: MergeRecord, expected: Inputs) { await this.assertTargetLfsCompatibility(record); if (digest(await captureInputs(record.source_worktree, record.captured_policy, record.target_binding.head)) !== digest(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale"); }
   private async assertReady(record: MergeRecord, targetIntegrated = false) {
     if (!record.ready_inputs || record.gates.length !== record.scopes.length || record.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record.scopes[index] || gate.commandSha256 !== hash(record.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
     await this.bindings(record, targetIntegrated); await assertNoOperation(record.source_worktree); await assertNoOperation(record.target_worktree); await this.assertInputs(record, this.deliveryInputs(record)!);
@@ -520,7 +614,7 @@ export class MergeWorkflowStore {
     const policy = record.captured_policy.commit;
     if (!policy?.bookkeeping || !tested.source.productManifest || !inputs.source.productManifest ||
         tested.source.productManifest !== inputs.source.productManifest || tested.metadata !== inputs.metadata ||
-        digest(tested.dependencies) !== digest(inputs.dependencies) || inputs.source.status ||
+        digest(tested.dependencies) !== digest(inputs.dependencies) || JSON.stringify(tested.lfs_objects) !== JSON.stringify(inputs.lfs_objects) || inputs.source.status ||
         digest([tested.source.branch, tested.source.commonGitDir, tested.source.gitDir, tested.source.topLevel]) !==
         digest([inputs.source.branch, inputs.source.commonGitDir, inputs.source.gitDir, inputs.source.topLevel]) ||
         !await bookkeepingHistoryValid(record.source_worktree, tested.source.head, inputs.source.head, policy)) return undefined;
@@ -731,7 +825,7 @@ function excluded(relative: string, policy: ProjectPolicy) {
   return (policy.sourceManifestExcludes ?? []).some(item => lower === item.toLowerCase() || lower.startsWith(`${item.toLowerCase()}/`)) || (!relative.includes("/") && (policy.sourceManifestRootFileExcludes ?? []).some(item => item.startsWith("*.") ? lower.endsWith(item.slice(1).toLowerCase()) : lower === item.toLowerCase()));
 }
 async function metadataInputs(cwd: string, policy: ProjectPolicy, volatilePaths: Set<string>) {
-  const files = (await git(["ls-files", "--others", "-z"], cwd)).split("\0").filter(relative => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values: string[] = [];
+  const files = (await git(["ls-files", "--others", "-z", "--", ":(icase,glob)**/*.meta"], cwd)).split("\0").filter(relative => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values: string[] = [];
   for (const relative of files) { const info = await lstat(path.join(cwd, relative)); if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`); values.push(`${relative}:${hash(await readFile(path.join(cwd, relative)))}`); }
   return digest(values);
 }
@@ -745,7 +839,7 @@ async function contentDigest(root: string, volatile: string[] = [], sharedPackag
   }
   await walk(root, ""); return { sha256: digest(values), file_count: values.length };
 }
-async function captureInputs(cwd: string, policy: ProjectPolicy): Promise<Inputs> {
+async function captureInputs(cwd: string, policy: ProjectPolicy, targetHead?: string): Promise<Inputs> {
   const source = await sourceState(cwd, policy); if (source.status) throw new Error("merge prep source must be clean before verifying inputs");
   const dependencies: Array<Record<string, unknown>> = [], volatilePaths = new Set<string>(), lockText = await committedFile(cwd, source.head, ".captain-sdlc/dependency-lock.json"), lock = lockText ? JSON.parse(lockText) : undefined;
   if (lock?.inputs !== undefined && !Array.isArray(lock.inputs)) throw new Error("dependency lock inputs must be an array");
@@ -777,7 +871,24 @@ async function captureInputs(cwd: string, policy: ProjectPolicy): Promise<Inputs
       dependencies.push({ kind: info.isDirectory() ? "local-package" : "local-archive", name, path: full, ...(gitState ? { git: gitState } : {}), ...await contentDigest(full, [], info.isDirectory()) });
     }
   }
-  const result = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies };
+  let lfsObjects: Array<{ oid: string; size: number }> = [];
+  if (targetHead && await assertSafeGitAttributesAtCommit(cwd, source.head)) {
+    try { await git(["config", "--get-all", "lfs.storage"], cwd); throw new Error("explicit lfs.storage is not supported by signed LFS evidence"); }
+    catch (error: any) { if (error.code !== 1) throw error; }
+    const changed = new Set((await git(["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z", targetHead, source.head, "--"], cwd)).split("\0").filter(Boolean));
+    const attrsChanged = [...changed].some(name => path.posix.basename(name).toLowerCase() === ".gitattributes");
+    const selected = (await listIndexedLfs(cwd, git)).filter(item => item.size > 0 && (attrsChanged || changed.has(item.path)));
+    const unique = new Map<string, { oid: string; size: number }>();
+    for (const item of selected) {
+      const existing = unique.get(item.oid);
+      if (existing && existing.size !== item.size) throw new Error("Git LFS object has inconsistent signed sizes");
+      unique.set(item.oid, { oid: item.oid, size: item.size });
+    }
+    lfsObjects = [...unique.values()].sort((a, b) => a.oid.localeCompare(b.oid));
+    const root = path.join(source.commonGitDir, "lfs", "objects");
+    for (let i = 0; i < lfsObjects.length; i += 4) await Promise.all(lfsObjects.slice(i, i + 4).map(item => verifyLfsObject(root, item)));
+  }
+  const result: Inputs = { source, metadata: await metadataInputs(cwd, policy, volatilePaths), dependencies, ...(lfsObjects.length ? { lfs_objects: lfsObjects } : {}) };
   const after = await sourceState(cwd, policy); if (digest(after) !== digest(source)) throw new Error("source changed during merge input capture");
   return result;
 }
