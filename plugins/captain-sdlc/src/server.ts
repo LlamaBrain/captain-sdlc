@@ -184,7 +184,7 @@ const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessi
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
 const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
 const finalizations = new BookkeepingFinalizationStore(dataRoot);
-const server = new McpServer({ name: "captain-sdlc", version: "0.11.0" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.11.1" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedFinalization = <T>(operation: () => Promise<T>, args: { finalization_id?: string; session_id: string; worktree: string }) => operation().then(reply).catch((error: Error) => {

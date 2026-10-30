@@ -10341,13 +10341,15 @@ ${result.stderr}`) }] });
           return current;
         }
         if (current.phase === "complete" && current.status === "green") return this.finalizeCompletion(intentId);
+        if (current.phase === "prove" && current.status !== "running" && current.status !== "red")
+          throw new Error("proof requires an active running or red run");
         const repairFence = current.phase === "prove" ? await this.proofSourceRepairFence(current) : void 0;
         try {
           return await this.proveAttempt(intentId, repairFence);
         } catch (error2) {
           if (error2 instanceof ProofSourceDivergenceError) {
             const latest2 = await this.run(intentId), expected = error2.fence;
-            if (latest2.phase !== "prove" || latest2.status !== "running" || latest2.runId !== expected.runId || latest2.revision !== expected.runRevision || digest5(JSON.stringify(latest2.committedState)) !== expected.committedStateSha256 || (latest2.activationToken ?? latest2.operationToken) !== expected.activationToken)
+            if (latest2.phase !== "prove" || latest2.status !== current.status || latest2.runId !== expected.runId || latest2.revision !== expected.runRevision || digest5(JSON.stringify(latest2.committedState)) !== expected.committedStateSha256 || (latest2.activationToken ?? latest2.operationToken) !== expected.activationToken)
               throw new Error("Captain run changed concurrently; source repair was not authorized", { cause: error2 });
             const actual = await this.proofSourceRepairFence(latest2);
             if (JSON.stringify(actual) !== JSON.stringify(expected))
@@ -10359,7 +10361,7 @@ ${result.stderr}`) }] });
             throw new Error(`${error2.message}; run returned to implement for repair`, { cause: error2 });
           }
           const latest = await this.run(intentId);
-          if (latest.phase === "prove") await this.update({ ...latest, evidence: [
+          if (latest.phase === "prove" && latest.runId === current.runId && latest.revision === current.revision && latest.status === current.status) await this.update({ ...latest, evidence: [
             ...latest.evidence,
             { kind: "proof_error", messageSha256: digest5(String(error2.message)) }
           ] });
@@ -31218,7 +31220,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.11.0" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.11.1" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
