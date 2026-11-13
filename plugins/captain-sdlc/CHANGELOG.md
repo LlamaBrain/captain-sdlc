@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Restore historical changelog sections and retain development release notes only in Unreleased (v0.12.2).
+
 - Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
 
 - Verify a deterministic absent PID in the synthetic Windows stopped-owner recovery fixture while preserving live and foreign-owner rejection checks (v0.11.3).
@@ -58,8 +60,6 @@
 
 ### Fixed
 
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
-
 - Allow active red proof runs to return to implementation for source repair while preserving revision, activation, and lease fences; retain concurrent pause or resume state on generic proof errors (v0.10.8).
 
 ## [0.10.7] - 2026-10-29
@@ -84,8 +84,6 @@
 
 ### Fixed
 
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
-
 - Bound independent test-file workers to four and retain the complete native TAP report under ignored automation scratch while preserving console output, every test and the test runner's failure exit code (v0.10.4).
 
 ## [0.10.3] - 2026-10-28
@@ -97,8 +95,6 @@
 ## [0.10.2] - 2026-10-28
 
 ### Fixed
-
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
 
 - Share Core's signed run revision validation with actual hook readers, Begin diagnostics, commit finalization and branch lease recovery. Accept audited documentation schema transitions while rejecting unaudited migrations, scope mutations and schema rollback; preserve ordinary schema-1 workflows (v0.10.2).
 
@@ -136,23 +132,17 @@
 
 ### Fixed
 
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
-
 - Authenticate an unrelated released paused session owner before cancelling an exact terminal pre-workspace Begin, preserving actual target ownership, live/progressed refusals, fresh gate checks and generation CAS (v0.9.4).
 
 ## [0.9.3] - 2026-10-23
 
 ### Fixed
 
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
-
 - Configure canonical CI temporary roots in a runtime step, where runner variables are available (v0.9.3).
 
 ## [0.9.2] - 2026-10-23
 
 ### Fixed
-
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
 
 - Use native absolute mutation-boundary test paths and canonical runner temporary directories for Windows and Linux CI (v0.9.2).
 - Preserve historical machine-local evidence paths as text instead of broken published documentation links (v0.9.2).
@@ -173,8 +163,6 @@
 
 ### Fixed
 
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
-
 - Resolve the worktree container through the primary Git repository when starting from a linked checkout, preventing nested worktrees (v0.9.0).
 - Keep signed run and merge status readable after registered chain checkouts have been removed (v0.9.0).
 
@@ -187,8 +175,6 @@
 ## [0.8.1] - 2026-10-19
 
 ### Fixed
-
-- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
 
 - Synchronize the tracked bundled Captain server version with source/package metadata so the development Build preserves the committed tree and final proof can proceed (v0.8.1).
 
