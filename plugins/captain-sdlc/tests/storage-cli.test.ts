@@ -228,3 +228,28 @@ test("enrolled preview refuses undeclared locally broadened and tracked output b
   await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",head]),/tracked|source/i);
   assert.equal(await readFile(path.join(active,"authored.cpp"),"utf8"),"int authored = 1;\n");
 });
+
+test("detached output reads identity without executing LFS attributes or weakening SDK guards", async t => {
+  const f = await fixture(t), { runStorageCommand } = await api();
+  const { repositoryIdentity, assertSafeGitAttributesInWorktree } = await import("../src/workspace.js");
+  await writeFile(path.join(f.root, ".gitattributes"), "*.uasset filter=lfs diff=lfs merge=lfs -text\n");
+  await writeFile(path.join(f.root, "content.uasset"), "synthetic asset\n");
+  await git(f.root, "add", ".gitattributes", "content.uasset"); await git(f.root, "commit", "-m", "chore: retain LFS policy");
+  const head = await git(f.root, "rev-parse", "HEAD"), preview = path.join(f.root, ".captain-sdlc", "worktrees", "lfs-preview");
+  await git(f.root, "worktree", "add", "--detach", preview, head);
+  const marker = path.join(path.dirname(f.root), "filter-ran.txt"), driver = path.join(path.dirname(f.root), "filter.cjs");
+  await writeFile(driver, `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed"); process.stdin.pipe(process.stdout);\n`);
+  const command = `"${process.execPath.replaceAll("\\", "/")}" "${driver.replaceAll("\\", "/")}"`;
+  await git(f.root, "config", "filter.lfs.clean", command); await git(f.root, "config", "filter.lfs.smudge", command); await git(f.root, "config", "merge.lfs.driver", command);
+  await assert.rejects(repositoryIdentity(f.root), /clean filters|merge drivers/i);
+  await assert.rejects(runStorageCommand(["create", "--project", f.root, "--task", "refused"]), /clean filters|merge drivers/i);
+  await assert.rejects(assertSafeGitAttributesInWorktree(f.root, ["content.uasset"]), /clean filters|merge drivers/i);
+  const active = path.join(preview, "artifacts", "active"), sentinel = path.join(active, "old.bin");
+  await mkdir(active, { recursive: true }); await writeFile(sentinel, "old output");
+  const args = ["prepare-output", "--worktree", preview, "--root", "artifacts/active", "--detached-head", head];
+  const result = await runStorageCommand(args); assert.equal(result.detached_head, head); await assert.rejects(stat(sentinel), { code: "ENOENT" });
+  await writeFile(sentinel, "next output"); await runStorageCommand(args); await assert.rejects(stat(sentinel), { code: "ENOENT" });
+  await assert.rejects(stat(marker), { code: "ENOENT" });
+  await writeFile(sentinel, "retain output"); await assert.rejects(runStorageCommand([...args.slice(0, -1), "f".repeat(40)]), /head|pin|revision/i);
+  assert.equal(await readFile(sentinel, "utf8"), "retain output");
+});

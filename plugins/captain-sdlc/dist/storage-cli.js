@@ -52,8 +52,9 @@ async function pinnedDetachedBinding(invocation, expectedHead, expected) {
     const topLevel = path.resolve(invocation);
     if (!samePath(topLevel, await realpath(topLevel)))
         throw new Error("Detached output worktree crosses a reparse point");
-    const identity = await repositoryIdentity(topLevel);
-    if (!samePath(topLevel, identity.projectRoot))
+    // Output preparation uses read-only Git identity; SDK enrollment keeps its attribute guard.
+    const gitTopLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], topLevel)), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], topLevel)), initialHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], topLevel);
+    if (!samePath(topLevel, gitTopLevel))
         throw new Error("Detached output Git top-level differs from the requested worktree");
     let branch;
     try {
@@ -65,11 +66,11 @@ async function pinnedDetachedBinding(invocation, expectedHead, expected) {
     }
     if (branch)
         throw new Error("--detached-head is valid only for an actual detached worktree");
-    const commonGitDir = identity.commonGitDir, gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], topLevel));
+    const gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], topLevel));
     if (!samePath(gitDir, await realpath(gitDir)) || !samePath(commonGitDir, await realpath(commonGitDir)))
         throw new Error("Detached output Git directories must be canonical");
     const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], topLevel);
-    if (head.toLowerCase() !== expectedHead.toLowerCase() || identity.baseHead.toLowerCase() !== expectedHead.toLowerCase())
+    if (head.toLowerCase() !== expectedHead.toLowerCase() || initialHead.toLowerCase() !== expectedHead.toLowerCase())
         throw new Error("Detached output HEAD diverged from its exact revision pin");
     if (expected && (!samePath(topLevel, expected.topLevel) || !samePath(commonGitDir, expected.commonGitDir) || !samePath(gitDir, expected.gitDir)))
         throw new Error("Detached output worktree identity changed during preparation");
