@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Retain consumer policy proposals in their owning private repository or local review artifacts (v0.11.2).
+
 - Normalize migration sources and patch context formatting so hardened Git merge verification passes consistently across platforms (v0.11.1).
 
 ### Added
