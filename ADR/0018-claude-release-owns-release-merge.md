@@ -1,5 +1,7 @@
 # ADR-0018: claude-release owns the release-merge; CICD stays deferred
 
+> Supersession: [ADR-0025](0025-branch-driven-release-manufacturing.md) replaces universal human release confirmation and per-implementation release metadata mutation for adopted branch-driven policies. Preserve existing protected-branch, review, release-permission and exact-commit gates. The historical design below remains for provenance.
+
 **Date:** 2026-06-14
 
 ## Problem

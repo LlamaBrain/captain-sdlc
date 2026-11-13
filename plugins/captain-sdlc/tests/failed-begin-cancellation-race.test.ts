@@ -519,3 +519,154 @@ test("queued retries after cancellation re-read the terminal marker", { timeout:
     await dispose(f);
   }
 });
+
+// Pausing retains the authenticated task-owner projection but releases its session lease.
+// It must not turn an unrelated terminal pre-workspace Begin into a progressed task.
+test("an unrelated authenticated paused task permits exact failed Begin cancellation and retry", { timeout: 45000 }, async () => {
+  const f = await fixture();
+  try {
+    const priorIntent = await issue(f, { target_branch: undefined });
+    const started = await serverApi.captainBegin(f.store, beginArgs(f, priorIntent), beginDependencies);
+    await writeFile(path.join(started.worktreePath, "README.md"), "unrelated staged source\n");
+    await git(started.worktreePath, "add", "README.md");
+    await writeFile(path.join(started.worktreePath, "README.md"), "unrelated loose source\n");
+    await writeFile(path.join(started.worktreePath, "paused-note.md"), "keep paused task and evidence\n");
+    await f.store.pause(priorIntent, { summary: "Retain unrelated work", nextSteps: ["Resume only this prior task when requested"] });
+    const projection = await authority.readAuthorizedReadOnly(f.dataRoot, "active", f.sessionId);
+    assert.equal(projection.intentId, priorIntent);
+    const intentId = await issue(f); await failedBegin(f, intentId);
+    const { args, diagnosis } = await inspect(f, intentId);
+    assert.equal(diagnosis.stage, "lease_checkpointed");
+    assert.equal(diagnosis.later_state.active, true, "legacy projection presence is not original Begin progress");
+    const beforeSource = await snapshotTree(started.worktreePath);
+    const beforeGit = await snapshotTree(path.join(f.projectRoot, ".git"));
+    const beforeAuthority = await snapshotTree(f.dataRoot);
+    const checkpoint = await checkpointState(f, intentId);
+    assert.equal((await cancellation()(f.store, args)).cancelled, true);
+    assert.equal((await cancellation()(f.store, args)).cancelled, true, "exact same-generation retry remains idempotent");
+    assert.equal((await authority.readAuthorizedLeaseSnapshotReadOnly(f.dataRoot, checkpoint.checkpoint.leaseId)).state, "released");
+    assert.deepEqual(await authority.readAuthorizedReadOnly(f.dataRoot, "active", f.sessionId), projection);
+    assert.equal((await f.store.run(priorIntent)).status, "paused");
+    assert.deepEqual(await snapshotTree(started.worktreePath), beforeSource);
+    assert.deepEqual(await snapshotTree(path.join(f.projectRoot, ".git")), beforeGit);
+    const afterAuthority = new Map((await snapshotTree(f.dataRoot)).map(row => [row[0], row]));
+    for (const row of beforeAuthority) {
+      if (!row[0].includes(checkpoint.checkpoint.leaseId) && !gateFiles(row[0])) {
+        assert.deepEqual(afterAuthority.get(row[0]), row, `preserve original and paused authority ${row[0]}`);
+      }
+    }
+    await assertNoRun(f, intentId);
+    await assert.rejects(serverApi.captainBegin(f.store, beginArgs(f, intentId), beginDependencies), /cancelled|retired/i);
+  } finally { await dispose(f); }
+});
+
+async function legacyPausedCancellationFixture(variant = "paused") {
+  const f = await fixture(), intentId = await issue(f);
+  await failedBegin(f, intentId);
+  const evidence = await f.store.readBeginCancellationEvidence(intentId);
+  const source = path.join(f.fixtureRoot, "paused-unrelated-source");
+  await git(f.projectRoot, "worktree", "add", "-b", "paused-other", source);
+  const priorIntent = `prior-${randomUUID()}`, priorRun = `run-${randomUUID()}`;
+  const operation = variant === "original-operation" ? evidence.operation.operationToken : `operation-${randomUUID()}`;
+  const runId = variant === "original-run" ? evidence.operation.runId : priorRun;
+  const initialOperation = variant === "resumed" ? `original-${randomUUID()}` : operation;
+  const leaseId = createHash("sha256").update(`session-active\0${f.sessionId}`).digest("hex");
+  await authority.putAuthorizedOnceExact(f.dataRoot, "begin-operations", priorIntent, {
+    schemaVersion: 1, intentId: priorIntent, sessionId: variant === "resumed" ? "prior-client-session" : f.sessionId, operationToken: initialOperation, runId,
+  });
+  await authority.putAuthorizedOnceExact(f.dataRoot, "runs", priorIntent, {
+    schemaVersion: 1, intentId: priorIntent, sessionId: variant === "wrong-session" ? "foreign-session" : f.sessionId, operationToken: initialOperation, runId,
+    ...(variant === "resumed" ? { activationToken: operation } : {}),
+    phase: "tdd_red", status: variant === "running" ? "running" : "paused", projectRoot: f.projectRoot,
+    worktreePath: ["target-owner", "target-path-only"].includes(variant) ? f.projectRoot : source,
+    branch: ["target-owner", "target-branch-only"].includes(variant) ? f.targetBranch : "paused-other", targetBranch: f.targetBranch,
+    commonGitDir: evidence.repository.commonGitDir,
+  });
+  const projection = { schemaVersion: 1, intentId: priorIntent, operationToken: operation,
+    runId: variant === "uncorrelated" ? "unmatched-run" : runId, sessionId: f.sessionId, leaseId, leaseToken: operation };
+  await authority.putAuthorizedOnceExact(f.dataRoot, "active", f.sessionId,
+    variant === "malformed" ? { ...projection, ambiguous: true } : projection);
+  await authority.acquireAuthorizedLease(f.dataRoot, leaseId, {
+    intentId: priorIntent, operationToken: operation, runId, sessionId: f.sessionId, leaseToken: operation, operation: "session-active",
+  });
+  if (variant !== "held-session") await authority.releaseAuthorizedLease(f.dataRoot, leaseId, priorIntent, operation);
+  await writeFile(path.join(source, "README.md"), "unrelated staged legacy source\n");
+  await git(source, "add", "README.md");
+  await writeFile(path.join(source, "README.md"), "unrelated loose legacy source\n");
+  await writeFile(path.join(source, "paused-note.md"), "preserve legacy paused task\n");
+  return { ...f, intentId, source, projection };
+}
+
+test("an authenticated legacy paused projection permits cancellation without a completed-owner claim", { timeout: 45000 }, async () => {
+  const f = await legacyPausedCancellationFixture();
+  try {
+    const { args, diagnosis } = await inspect(f, f.intentId);
+    assert.equal(diagnosis.later_state.active, true);
+    const evidence = await f.store.readBeginCancellationEvidence(f.intentId);
+    assert.equal(evidence.completedSessionTombstone, false);
+    assert.equal(evidence.completedSessionOwner, false);
+    const beforeSource = await snapshotTree(f.source), beforeGit = await snapshotTree(path.join(f.projectRoot, ".git"));
+    const checkpoint = await checkpointState(f, f.intentId);
+    const beforeAuthority = await snapshotTree(f.dataRoot);
+    assert.equal((await cancellation()(f.store, args)).cancelled, true);
+    assert.deepEqual(await snapshotTree(f.source), beforeSource);
+    assert.deepEqual(await snapshotTree(path.join(f.projectRoot, ".git")), beforeGit);
+    const after = new Map((await snapshotTree(f.dataRoot)).map(row => [row[0], row]));
+    for (const row of beforeAuthority) if (!row[0].includes(checkpoint.checkpoint.leaseId) && !gateFiles(row[0])) assert.deepEqual(after.get(row[0]), row);
+    assert.deepEqual(await authority.readAuthorizedReadOnly(f.dataRoot, "active", f.sessionId), f.projection);
+    await assertNoRun(f, f.intentId);
+  } finally { await dispose(f); }
+});
+
+for (const variant of ["running", "held-session", "target-owner", "target-path-only", "target-branch-only", "uncorrelated", "malformed", "wrong-session", "original-operation", "original-run"]) {
+  test(`failed Begin cancellation refuses unsafe paused-owner variant ${variant} without mutation`, { timeout: 45000 }, async () => {
+    const f = await legacyPausedCancellationFixture(variant);
+    try {
+      const { args } = await inspect(f, f.intentId);
+      const beforeAuthority = await snapshotTree(f.dataRoot), beforeSource = await snapshotTree(f.source);
+      const beforeGit = await snapshotTree(path.join(f.projectRoot, ".git"));
+      await assert.rejects(cancellation()(f.store, args), /progressed|ambiguous|eligibility|binding|invalid|correlat/i);
+      assert.deepEqual(await snapshotTree(f.dataRoot), beforeAuthority);
+      assert.deepEqual(await snapshotTree(f.source), beforeSource);
+      assert.deepEqual(await snapshotTree(path.join(f.projectRoot, ".git")), beforeGit);
+      await assertNoRun(f, f.intentId);
+    } finally { await dispose(f); }
+  });
+}
+
+test("a resumed paused owner correlates by its activation without reusing the original Begin session", { timeout: 45000 }, async () => {
+  const f = await legacyPausedCancellationFixture("resumed");
+  try {
+    const { args } = await inspect(f, f.intentId);
+    const before = await snapshotTree(f.source);
+    assert.equal((await cancellation()(f.store, args)).cancelled, true);
+    assert.deepEqual(await authority.readAuthorizedReadOnly(f.dataRoot, "active", f.sessionId), f.projection);
+    assert.deepEqual(await snapshotTree(f.source), before);
+    await assertNoRun(f, f.intentId);
+  } finally { await dispose(f); }
+});
+
+test("the cancellation guard rereads a paused owner reacquiring its session inside the attempt gate", { timeout: 45000 }, async () => {
+  const f = await legacyPausedCancellationFixture();
+  try {
+    const { args } = await inspect(f, f.intentId), checkpoint = await checkpointState(f, f.intentId);
+    const beforeSource = await snapshotTree(f.source), beforeGit = await snapshotTree(path.join(f.projectRoot, ".git"));
+    const session = await authority.readAuthorizedLeaseSnapshotReadOnly(f.dataRoot, f.projection.leaseId);
+    const gate = f.store.withBeginAttemptGate.bind(f.store);
+    let entered = false, resumedAuthority;
+    f.store.withBeginAttemptGate = (intentId, action) => gate(intentId, async () => {
+      assert.equal(intentId, f.intentId);
+      entered = true;
+      await authority.acquireAuthorizedLease(f.dataRoot, f.projection.leaseId, session.payload);
+      resumedAuthority = await snapshotTree(f.dataRoot, gateFiles);
+      return action();
+    });
+    await assert.rejects(cancellation()(f.store, args), /progressed|ambiguous|eligibility|binding/i);
+    assert.equal(entered, true, "the initial paused evidence must pass so the fresh guard observes the resume");
+    assert.deepEqual(await snapshotTree(f.dataRoot, gateFiles), resumedAuthority, "refusal preserves the resumed owner and never writes a cancellation marker");
+    assert.deepEqual(await authority.readAuthorizedLeaseSnapshotReadOnly(f.dataRoot, checkpoint.checkpoint.leaseId), checkpoint.lease);
+    assert.deepEqual(await snapshotTree(f.source), beforeSource);
+    assert.deepEqual(await snapshotTree(path.join(f.projectRoot, ".git")), beforeGit);
+    await assertNoRun(f, f.intentId);
+  } finally { await dispose(f); }
+});

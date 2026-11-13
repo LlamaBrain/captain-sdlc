@@ -1,7 +1,7 @@
 import path from "node:path";
 const readTools = /^(view_image|update_plan|request_user_input|list_mcp_|read_mcp_|(?:mcp__|tools\.)?captain[-_]sdlc__captain_(?:status|user_authorization_status|user_request_status|merge_status|doctor))$/i;
 const entryTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(issue_intent|begin_implementation|resume_implementation|merge_prep|merge_back|merge_begin|merge_finish|recover_merge_lease)$/i;
-const governedTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(record_red|run_check|prepare_merge|abort_merge|commit|record_commit|prove|migrate_plan_state|record_plan_review|record_hitl_feedback|pause_implementation)$/i;
+const governedTools = /^(?:mcp__|tools\.)?captain[-_]sdlc__captain_(prepare_documentation|record_red|run_check|prepare_merge|abort_merge|commit|record_commit|prove|migrate_plan_state|record_plan_review|record_hitl_feedback|pause_implementation)$/i;
 export function mutationDecision(input) {
     const frozenReason = frozenPlanMutationReason(input);
     if (frozenReason)
@@ -20,9 +20,11 @@ export function mutationDecision(input) {
     if (governed) {
         if (!input.intentId || input.intentId !== input.permit.intentId)
             return deny("governed tool intent does not match the active permit");
-        const operation = governed[1].toLowerCase(), expected = { record_red: "tdd_red", run_check: "implement", prepare_merge: "implement", abort_merge: "implement", commit: "implement", record_commit: "implement", prove: "prove", migrate_plan_state: "implement", record_plan_review: "hitl" };
+        const operation = governed[1].toLowerCase(), expected = { prepare_documentation: "tdd_red", record_red: "tdd_red", run_check: "implement", prepare_merge: "implement", abort_merge: "implement", commit: "implement", record_commit: "implement", prove: "prove", migrate_plan_state: "implement", record_plan_review: "hitl" };
         if (operation === "pause_implementation" || operation === "record_hitl_feedback")
             return ["tdd_red", "implement", "prove", "hitl"].includes(input.permit.phase) ? { allow: true } : deny(`${operation} is closed during ${input.permit.phase}`);
+        if (operation === "prepare_documentation" && input.permit.phase === "implement")
+            return { allow: true };
         if (operation === "commit" && input.permit.phase === "prove")
             return { allow: true };
         return input.permit.phase === expected[operation] ? { allow: true } : deny(`${governed[1]} is closed during ${input.permit.phase}`);

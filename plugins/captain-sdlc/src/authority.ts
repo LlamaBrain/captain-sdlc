@@ -1,3 +1,4 @@
+import { runNativeReleaseIntentChecker, type NativeReleaseIntentChecker, type NativeReleaseIntentContext } from "./release-intent.js";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { link, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -299,4 +300,9 @@ export async function assertIntentNotRepossessed(root: string, intentId: string)
   if (watermark && (watermark.schema_version !== 1 || watermark.old_intent_id !== intentId || watermark.recovery_id !== marker.recovery_id || watermark.marker_sha256 !== digest(marker))) throw new Error("signed repossessed intent watermark is invalid");
   if (result && (result.schema_version !== 1 || result.old_intent_id !== intentId || result.recovery_id !== marker.recovery_id || result.state !== "released")) throw new Error("signed repossessed intent result is invalid");
   throw new Error("implementation intent was repossessed and revoked; retain the existing task checkout and use its normal operation");
+}
+
+/** Keep the existing SDK authority inside the trusted native invocation. */
+export async function runAuthorizedNativeReleaseIntentChecker(root: string, checker: NativeReleaseIntentChecker, cwd: string, forbiddenRoots: string[], context: NativeReleaseIntentContext) {
+  return runNativeReleaseIntentChecker(checker, cwd, forbiddenRoots, context, () => key(root));
 }

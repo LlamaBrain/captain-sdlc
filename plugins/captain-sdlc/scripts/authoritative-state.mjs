@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { readAuthorized, readAuthorizedLease } from "../dist/authority.js";
+import { assertRunRevisionTransition } from "../dist/run-validation.js";
 
 const sha256 = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-const stable = run => ({ schemaVersion: run.schemaVersion, runId: run.runId, operationToken: run.operationToken, intentId: run.intentId, taskId: run.taskId, objective: run.objective, projectRoot: path.resolve(run.projectRoot), worktreePath: path.resolve(run.worktreePath), baseHead: run.baseHead, branch: run.branch, targetBranch: run.targetBranch, commonGitDir: path.resolve(run.commonGitDir), gitDir: path.resolve(run.gitDir), profile: run.profile, visualRequired: run.visualRequired, startedAt: run.startedAt, policy: run.policy });
 
 export async function latestRun(data, intentId) {
   const prefix = `${intentId}-`, names = await readdir(path.join(data, "run-revisions")), expression = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([0-9]+)\\.json$`), revisions = names.map(name => expression.exec(name)).filter(Boolean).map(match => Number(match[1])).sort((a, b) => a - b);
@@ -12,7 +12,8 @@ export async function latestRun(data, intentId) {
   let previous, latest;
   for (const revision of revisions) {
     latest = await readAuthorized(data, "run-revisions", `${intentId}-${revision}`);
-    if (latest.intentId !== intentId || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== undefined : latest.previousRevisionSha256 !== sha256(previous)) || (previous && JSON.stringify(stable(previous)) !== JSON.stringify(stable(latest)))) throw new Error("Captain signed run revision binding is invalid");
+    if (latest.intentId !== intentId || latest.revision !== revision || (revision === 0 ? latest.previousRevisionSha256 !== undefined : latest.previousRevisionSha256 !== sha256(previous))) throw new Error("Captain signed run revision binding is invalid");
+    assertRunRevisionTransition(previous, latest);
     const watermark = await readAuthorized(data, "run-watermarks", `${intentId}-${revision}`); if (watermark.intentId !== intentId || watermark.runId !== latest.runId || watermark.revision !== revision || watermark.runSha256 !== sha256(latest) || watermark.previousRevisionSha256 !== latest.previousRevisionSha256) throw new Error("Captain signed run watermark is invalid");
     previous = latest;
   }

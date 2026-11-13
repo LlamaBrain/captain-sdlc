@@ -90,13 +90,13 @@ export declare function diagnoseBeginTargetLease(args: BeginDiagnosticArgs, deps
     target_worktree_matches: boolean;
     target_ref_matches: boolean;
     issuance: "verified" | "missing_or_mismatched";
-    reservation: "verified" | "mismatched" | "absent";
-    repository_checkpoint: "verified" | "mismatched" | "absent";
-    lease_checkpoint: "verified" | "mismatched" | "absent";
+    reservation: "absent" | "verified" | "mismatched";
+    repository_checkpoint: "absent" | "verified" | "mismatched";
+    lease_checkpoint: "absent" | "verified" | "mismatched";
     stage: string;
     target_lease: {
         state: "held" | "released" | "absent";
-        owner: "legacy" | "unknown" | "live" | "stopped" | "foreign_host" | "other";
+        owner: "legacy" | "live" | "stopped" | "foreign_host" | "unknown" | "other";
         bindings_match: boolean;
         generation_revisioned: boolean;
         revision: number | null;

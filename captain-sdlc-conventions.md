@@ -280,3 +280,37 @@ Pending HITL retains the active run and worktree, including across pause/resume.
 Rejection repairs original criteria in that same run and requires fresh proof before review.
 Acceptance completes the run; new requirements remain separately authorized follow-ups.
 Identical same-turn intent requests reuse their signed receipt rather than minting new work.
+
+## Independent pre-merge review records
+
+CIR adds versioned PR review policy and local review records under .captain-sdlc/ in the owning implementation. Keep operational reviews, captured source/diffs, provider output and evidence ignored; commit trusted policy/configuration deliberately. Every new structured record carries schema_version and provenance. PR records are separate from run terminal state and bind exact revisions, diff, policy, evidence and provider/scanner configuration. Reviewed failure, exception, stale evaluation and final human readiness remain distinguishable. The executable contract is owned by Captain.Core in captain-orchestrator; [CIR](captain-independent-review.md) defines the cross-tool boundary. Exact filenames and verified operator commands are recorded by that implementation before release.
+
+### CIR version-1 locations and authority
+
+The documented record declaration is [schemas/premerge-review-v1.schema.json](schemas/premerge-review-v1.schema.json); [schema notes](schemas/README.md) distinguish shape checks from Core's semantic validation. The implementation uses snake_case JSON and schema version 1 for snapshots, policy, findings, evidence, analyses, exceptions, PR records and trusted SARIF envelopes. Nested history entries inherit the enclosing record version. Findings inherit repository/PR/task/run/reviewer context from their containing review record rather than duplicating it per finding.
+
+`PremergeReviewStore` accepts an operator-owned state root outside implementation/reviewer writable workspaces. Under that root it stores `premerge/<sha256-of-owner-slash-repository>/<pr-number>/record.json`, a lock file, and completed `cir-<id>.json` review artifacts. Use `.captain-sdlc/` as the state container and keep `premerge/` ignored when it is in a checkout. Records are atomically replaced and HMAC authenticated with `CAPTAIN_REVIEW_AUTH_KEY` (at least 32 decoded bytes). The authority key is not project policy and must never be committed or passed to review/code-execution contexts.
+
+`ReviewPolicy` records required evidence kinds, trusted evidence provenance prefixes, reviewer/scanner configuration identities, moderate severity behavior and allowed scoped-exception identities. A trusted provenance string is an operator-configured collection boundary, not an independent cryptographic proof of scanner quality. GitHub status publication must remain privileged outside reviewer and candidate-code execution.
+
+The review fingerprint also includes Core's `captain-premerge-policy/2` engine identity, independently of `ReviewPolicy.Version`. Older cached decisions and exceptions become inapplicable when engine behavior changes even if the operator policy remains version `1`. CIR wire schema version 1 and the Captain plugin's documentation-run schema 2 describe different contracts; neither is an operator policy version.
+
+Snapshot fields `test_merge_sha`, `open_head_pr_numbers` and `status_scope_provenance` retain actual merge-test and commit-status scope. Evidence fields `scope` and `tested_sha` preserve what the producer executed: head-only observations have no base claim and cannot satisfy mandatory current-base verification. The current open-PR set must be complete; unknown scope is an error and multiple same-head PRs require human review before one shared required status can authorize readiness.
+
+The signed PR review record may include `finding_lifecycle` entries with explicit version/provenance and confirmation/resolution receipts. Keep this ledger inside the authenticated record. A moved line, optional scanner outage, suppression or absent finding is not a resolution. An explicit trusted receipt must match the confirming producer, version, configuration and applicable scope; an allowed exact-fingerprint human exception remains separately visible. Collector trust includes the external tool's real scope and baseline, rather than merely the CIR adapter configuration hash.
+
+Optional snapshot/evidence/ledger fields omit null to preserve legacy signed serialization. Fingerprint changes still require reconciliation; compatibility is not permission to reuse obsolete successful review. Do not rewrite historical signed artifacts merely to add defaults or relabel prior verification as proof for a newer revision.
+
+`SarifReviewEnvelope` binds SARIF 2.1.0 content to full head/base SHAs and the captured diff digest. The adapter checks tool name/version, diagnostic locations, configured severity and reasoned suppressions; missing/unreadable mandatory output cannot pass. Do not consume a candidate-controlled file as a trusted collector result simply because it is valid JSON.
+
+### CIR operator inputs and optional remediation reports
+
+The pre-merge CLI requires explicitly selected operator configuration outside the candidate repository. Configuration, review state, SARIF envelope files and an optional assigned task file must remain outside that repository and cannot traverse symlinks/junctions/reparse points. These checks reduce path confusion; operating-system permissions and credential isolation remain the operator's responsibility.
+
+When a human-assigned task file is supplied, the CLI reads its task JSON and appends its serialized content to `canonical_requirements` for the independent acceptance stage. This preserves assigned task identity and acceptance context alongside explicitly supplied requirements. Without task metadata, an ordinary PR remains reviewable, but absent acceptance information is reported rather than invented.
+
+The optional library remediation coordinator writes structured worker handoff tasks under `.captain-sdlc/remediation/<run-id>/`, retains adapter evidence through the existing run evidence store, and returns versioned attempt/result reports described in the shared review schema. These reports record correction attempts and fresh independent assessment; they do not grant readiness or merge authority. Caller-selected remaining attempts, wall-clock and publication bounds apply. The CLI does not automatically start this correction loop.
+
+### CIR publication transition
+
+CIR-enabled publication writes an informational `.captain-sdlc/pr-publications/<run-id>.json` `PrPublicationRecord`, declared in the shared review schema. It carries explicit schema version/provenance, task/run identity, branch, PR URL, full head SHA and time, with `state: draft_pr_opened` and `authorizes_merge: false`. Keep this operational directory ignored. The record makes draft publication discoverable separately from implementation run terminals; it does not replace the signed pre-merge record, issue a passing status, or grant merge authority.

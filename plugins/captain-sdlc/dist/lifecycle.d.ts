@@ -1,3 +1,4 @@
+import { type ReleaseIntentChecker } from "./release-intent.js";
 import { type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
@@ -6,6 +7,7 @@ import { recordUserAuthorizations, type AuthorizationQuery } from "./user-author
 import { type UserRequestInput, type UserRequestQuery, type UserRequestStatus } from "./user-request.js";
 import { type UserRequestSourceQuery } from "./user-request-source.js";
 import { type OutputRetention } from "./output-retention.js";
+import { type DocumentationScope } from "./documentation-scope.js";
 export type Profile = "low" | "feature" | "pre-release";
 export type GateResult = {
     exitCode: number;
@@ -27,6 +29,8 @@ export type SourceState = {
 };
 export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
 export type CommitPolicy = {
+    mode?: "per_commit" | "branch_driven";
+    type_impacts?: Record<string, "none" | "patch" | "minor">;
     conventional?: boolean;
     require_version_suffix?: boolean;
     require_task_trailer?: boolean;
@@ -34,6 +38,7 @@ export type CommitPolicy = {
     version_surfaces?: Array<{
         path: string;
         pattern: string;
+        json_pointers?: string[];
     }>;
     changelog_files: string[];
     bookkeeping?: BookkeepingPolicy;
@@ -45,6 +50,16 @@ export type HitlCheck = {
     action: string;
     expected: string;
     evidence: string;
+};
+export type CompatibilityFeedbackInput = {
+    choice: "confirm-major" | "reject-major" | "revise";
+    actor: string;
+    humanFeedback: string;
+    allFindings: boolean;
+    reportDigest: string;
+    findingDigest: string;
+    reviewedRevision: string;
+    compatibilityBase: string;
 };
 export type HitlFeedbackInput = {
     decision: "accept" | "needs_changes";
@@ -59,6 +74,7 @@ export type HitlFeedback = HitlFeedbackInput & {
     recordedSource: SourceState;
 };
 export type ProjectPolicy = {
+    releaseIntentChecker?: ReleaseIntentChecker;
     hitlChecks?: HitlCheck[];
     approvedPlans?: Array<{
         path: string;
@@ -204,6 +220,7 @@ export type CommitOperationRequest = {
     subject: string;
     taskOutcome?: "Implements" | "Completes" | "Needs-QA";
     final: boolean;
+    breakingDescription?: string;
 };
 export type CommitOperation = {
     leaseId: string;
@@ -224,6 +241,7 @@ export type PreparedCommit = PreparedCommitCore & {
     subject: string;
     taskOutcome?: "Implements" | "Completes" | "Needs-QA";
     final: boolean;
+    breakingDescription?: string;
 };
 export type TerminalCommit = {
     requestSha256: string;
@@ -243,7 +261,7 @@ export type TaskTicket = {
 };
 export type Run = {
     user_request?: UserRequestStatus;
-    schemaVersion: 1;
+    schemaVersion: 1 | 2;
     revision: number;
     previousRevisionSha256?: string;
     runId: string;
@@ -271,6 +289,7 @@ export type Run = {
     phase: "tdd_red" | "implement" | "prove" | "hitl" | "complete";
     status: "running" | "paused" | "green" | "red";
     policy: ProjectPolicy;
+    documentationScope?: DocumentationScope;
     taskTicket?: TaskTicket;
     preparedMerges?: PreparedMerge[];
     mutationOperation?: WorktreeMutationOperation;
@@ -281,7 +300,7 @@ export type Run = {
     continuityState?: SourceState;
     evidence: Array<Record<string, unknown>>;
 };
-export type BeginInput = Omit<Run, "user_request" | "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
+export type BeginInput = Omit<Run, "documentationScope" | "user_request" | "schemaVersion" | "revision" | "runId" | "operationToken" | "sessionId" | "turnId" | "sessionLeaseId" | "sessionLeaseToken" | "startedAt" | "phase" | "status" | "committedState" | "continuityState" | "mutationOperation" | "commitOperation" | "taskTicket" | "evidence" | "profile" | "visualRequired">;
 export type CommitEvidence = {
     head: string;
     tree?: string;
@@ -329,10 +348,21 @@ export type LifecycleHooks = {
     afterRunRevision?: (run: Run) => Promise<void>;
 };
 export declare function approvedPlanDigest(content: string): string;
-export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired">): string[];
-export declare function executionHead(run: Run): string;
+export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired"> & {
+    policy?: ProjectPolicy;
+}): string[];
+export { executionHead } from "./run-validation.js";
 export declare function isPendingPlanReview(run: Run): boolean;
 export declare function effectiveGateDisclosure(run: Run): {
+    taskTicket: TaskTicket | null;
+    ticketCommand: string;
+    gates: {
+        scope: string;
+        command: string;
+        artifactPath: string | null;
+    }[];
+    workKind?: string | undefined;
+    documentationScope?: DocumentationScope | undefined;
     hitlChecks: HitlCheck[];
     planReview: Record<string, unknown> | null;
     humanReview: HitlFeedback | null;
@@ -356,13 +386,6 @@ export declare function effectiveGateDisclosure(run: Run): {
         status: string;
     };
     phaseAcceptance: string;
-    taskTicket: TaskTicket | null;
-    ticketCommand: string;
-    gates: {
-        scope: string;
-        command: string;
-        artifactPath: string | null;
-    }[];
 };
 export declare class LifecycleStore {
     private readonly dataRoot;
@@ -447,13 +470,13 @@ export declare class LifecycleStore {
         target_worktree_matches: boolean;
         target_ref_matches: boolean;
         issuance: "verified" | "missing_or_mismatched";
-        reservation: "verified" | "mismatched" | "absent";
-        repository_checkpoint: "verified" | "mismatched" | "absent";
-        lease_checkpoint: "verified" | "mismatched" | "absent";
+        reservation: "absent" | "verified" | "mismatched";
+        repository_checkpoint: "absent" | "verified" | "mismatched";
+        lease_checkpoint: "absent" | "verified" | "mismatched";
         stage: string;
         target_lease: {
             state: "held" | "released" | "absent";
-            owner: "legacy" | "unknown" | "live" | "stopped" | "foreign_host" | "other";
+            owner: "legacy" | "live" | "stopped" | "foreign_host" | "unknown" | "other";
             bindings_match: boolean;
             generation_revisioned: boolean;
             revision: number | null;
@@ -487,6 +510,7 @@ export declare class LifecycleStore {
         };
         completedSessionTombstone: boolean;
         completedSessionOwner: boolean;
+        pausedSessionOwner: Pick<Run, "commonGitDir" | "branch" | "worktreePath"> | undefined;
     }>;
     recordBeginCancellation(marker: BeginCancellationMarker): Promise<BeginCancellationMarker>;
     releaseBeginTargetLeaseAtGeneration(leaseId: string, intentId: string, leaseToken: string, expectedRevision: number, resourceGeneration: string): Promise<void>;
@@ -612,6 +636,7 @@ export declare class LifecycleStore {
         activeRuns: Array<Pick<Run, "intentId" | "sessionId" | "turnId" | "status" | "phase" | "worktreePath" | "branch" | "projectRoot" | "taskId">>;
     }>;
     migratePlanState(intentId: string, planPaths: string[]): Promise<string[]>;
+    prepareDocumentation(intentId: string, paths: string[], reason: string, expectedHead: string): Promise<Run>;
     recordRed(intentId: string, command?: string, ticketFilter?: string): Promise<Run>;
     recordPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
     discardPreparedMerge(intentId: string, prepared: PreparedMerge): Promise<Run>;
@@ -642,6 +667,8 @@ export declare class LifecycleStore {
     runCheck(intentId: string, scope: string, ticketFilter?: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
     private proveAttempt;
+    private nativeReleaseIntent;
+    adjudicateCompatibility(intentId: string, input: CompatibilityFeedbackInput): Promise<Run>;
     private isFrozenPlan;
     assertFrozenScope(intentId: string): Promise<void>;
     recordPlanReview(intentId: string, input: {

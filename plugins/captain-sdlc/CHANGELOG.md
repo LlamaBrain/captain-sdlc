@@ -2,6 +2,138 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore historical changelog sections and retain development release notes only in Unreleased (v0.12.2).
+
+- Prepare pinned detached build output in repositories with Git LFS using read-only Git identity checks while retaining SDK enrollment and commit attribute guards (v0.12.1).
+
+- Verify a deterministic absent PID in the synthetic Windows stopped-owner recovery fixture while preserving live and foreign-owner rejection checks (v0.11.3).
+
+- Retain consumer policy proposals in their owning private repository or local review artifacts (v0.11.2).
+
+- Normalize migration sources and patch context formatting so hardened Git merge verification passes consistently across platforms (v0.11.1).
+
+### Added
+
+- Connect hash-pinned native release-intent hosts to captured base/head/tree evidence and private authority transport; retain exact contract coverage and human compatibility decisions through the public MCP lifecycle (v0.12.0).
+
+- Add opt-in branch-driven implementation commits, pinned external release-intent proof, signed breaking descriptions, JSON version-mirror preservation and content-derived task trailers; adopt release boundaries through an explicit successor contract (v0.11.0).
+
+## [0.10.13] - 2026-10-29
+
+### Changed
+
+- Retain the CIR Codex documentation integration fragment at its recorded source revision (v0.10.13).
+
+## [0.10.12] - 2026-10-29
+
+### Changed
+
+- Reconcile the signed CIR documentation and proof source-repair histories during integration (v0.10.12).
+
+## [0.10.11] - 2026-10-29
+
+### Changed
+
+- Normalize proof source-repair files to the repository line endings for merge validation (v0.10.11).
+
+## [0.10.10] - 2026-10-29
+
+### Changed
+
+- Record remediation ledger safeguards, verification evidence and execution limits (v0.10.10).
+- Retain the developer changelog fragment for the proof source-repair commits at their tested source revision (v0.10.10).
+
+## [0.10.9] - 2026-10-29
+
+### Changed
+
+- Record the exact Orchestrator adapter revisions and verification scope (v0.10.9).
+- Regenerate the tracked distribution for the proof source-repair fix and its version metadata (v0.10.9).
+
+## [0.10.8] - 2026-10-29
+
+### Changed
+
+- Record the routed Codex reviewer, bounded synthetic benchmark and remaining isolation and GitHub enforcement limits (v0.10.8).
+
+### Fixed
+
+- Allow active red proof runs to return to implementation for source repair while preserving revision, activation, and lease fences; retain concurrent pause or resume state on generic proof errors (v0.10.8).
+
+## [0.10.7] - 2026-10-29
+
+### Changed
+
+- Normalize the independent-review documentation for the signed target-relative merge check (v0.10.7).
+
+## [0.10.6] - 2026-10-29
+
+### Changed
+
+- Integrate the independently verified review architecture and pre-merge governance documentation with the audited documentation lifecycle (v0.10.6).
+
+## [0.10.5] - 2026-10-28
+
+### Changed
+
+- Retain the bounded proof diagnostic fragment at its actual source revision and preserve the earlier failed proof independently (v0.10.5).
+
+## [0.10.4] - 2026-10-28
+
+### Fixed
+
+- Bound independent test-file workers to four and retain the complete native TAP report under ignored automation scratch while preserving console output, every test and the test runner's failure exit code (v0.10.4).
+
+## [0.10.3] - 2026-10-28
+
+### Changed
+
+- Retain the developer fragment for the independently verified hook compatibility repair at its actual source revision (v0.10.3).
+
+## [0.10.2] - 2026-10-28
+
+### Fixed
+
+- Share Core's signed run revision validation with actual hook readers, Begin diagnostics, commit finalization and branch lease recovery. Accept audited documentation schema transitions while rejecting unaudited migrations, scope mutations and schema rollback; preserve ordinary schema-1 workflows (v0.10.2).
+
+## [0.10.1] - 2026-10-28
+
+### Changed
+
+- Retain the audited documentation lifecycle developer fragment at its actual implementation revision and pinned target; record focused compatibility and negative-test results separately from pending signed proof (v0.10.1).
+
+## [0.10.0] - 2026-10-28
+
+### Added
+
+- Add an audited documentation-only transition for existing owned runs, retaining captured policy and proof gates without fabricating a failing code test. Bind planned/retained file scopes, exact version metadata, commit candidates, recovery and proof; reject executable/control changes and unsafe links or modes (v0.10.0).
+
+## [0.9.7] - 2026-10-28
+
+### Changed
+
+- Retain the original independent-review documentation fragment with its actual source/base revisions, separate from workflow repair proof and outstanding live acceptance (v0.9.7).
+
+## [0.9.6] - 2026-10-28
+
+### Changed
+
+- Document independent review authority, revision-bound PR lifecycle, shared review schemas, operator enforcement boundaries and evidence-backed M41-M44 implementation status (v0.9.6).
+
+## [0.9.5] - 2026-10-24
+
+### Changed
+
+- Retain the paused-owner cancellation developer fragment with its committed repair revision and pinned dev target, and normalize task-owned version/incident metadata to LF before signed integration (v0.9.5).
+
+## [0.9.4] - 2026-10-24
+
+### Fixed
+
+- Authenticate an unrelated released paused session owner before cancelling an exact terminal pre-workspace Begin, preserving actual target ownership, live/progressed refusals, fresh gate checks and generation CAS (v0.9.4).
+
 ## [0.9.3] - 2026-10-23
 
 ### Fixed

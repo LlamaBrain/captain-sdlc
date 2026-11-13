@@ -1,18 +1,18 @@
-import { lstat } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { putAuthorizedOnceExact, readAuthorized, writeAuthorized } from "./authority.js";
-import { prepareScopeOutputs, validateScopeOutputs } from "./output-retention.js";
+import { captureOutputRetention, prepareScopeOutputs, validateScopeOutputs } from "./output-retention.js";
 import { finishOrdinaryActivity, markOrdinaryActive, readOrdinaryActivity } from "./storage-activity.js";
 import { cleanupRegisteredWorktrees } from "./worktree-cleanup.js";
 import { readWorktreeRegistration, storageRegistrationId } from "./worktree-storage.js";
 import { assertWorktreeBinding, ensureWorktree, git, primaryRepositoryRoot, repositoryIdentity } from "./workspace.js";
 const samePath = (a, b) => process.platform === "win32" ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
-const usage = "worktree-storage create --project <checkout> --task <id> [--base <commit>] | resume --worktree <registered-checkout> | prepare-output --worktree <checkout> [--root artifacts/active] | cleanup --source <completed-worktree> --target <retained-checkout> [--evidence <relative-report>]";
+const usage = "worktree-storage create --project <checkout> --task <id> [--base <commit>] | resume --worktree <registered-checkout> | prepare-output --worktree <checkout> [--root artifacts/active] [--detached-head <full-oid>] | cleanup --source <completed-worktree> --target <retained-checkout> [--evidence <relative-report>]";
 function parse(argv) {
     const command = argv[0];
     if (command !== "create" && command !== "resume" && command !== "prepare-output" && command !== "cleanup")
         throw new Error(usage);
-    const allowed = command === "create" ? new Set(["project", "task", "base"]) : command === "resume" ? new Set(["worktree"]) : command === "prepare-output" ? new Set(["worktree", "root"]) : new Set(["source", "target", "evidence"]);
+    const allowed = command === "create" ? new Set(["project", "task", "base"]) : command === "resume" ? new Set(["worktree"]) : command === "prepare-output" ? new Set(["worktree", "root", "detached-head"]) : new Set(["source", "target", "evidence"]);
     const values = {}, evidence = [];
     for (let index = 1; index < argv.length; index += 2) {
         const key = argv[index].startsWith("--") ? argv[index].slice(2) : "", value = argv[index + 1];
@@ -45,11 +45,62 @@ async function ignored(cwd, relative) {
         throw new Error(`Captain local storage must be Git-ignored: /${relative}`);
     }
 }
-async function context(invocation) {
-    const binding = await assertWorktreeBinding(path.resolve(invocation)), primary = await primaryRepositoryRoot(binding.topLevel, binding.commonGitDir);
+/** Detached release previews receive output ownership only, never task/cleanup registration. */
+async function pinnedDetachedBinding(invocation, expectedHead, expected) {
+    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(expectedHead))
+        throw new Error("Detached output preparation requires an exact full HEAD OID pin");
+    const topLevel = path.resolve(invocation);
+    if (!samePath(topLevel, await realpath(topLevel)))
+        throw new Error("Detached output worktree crosses a reparse point");
+    // Output preparation uses read-only Git identity; SDK enrollment keeps its attribute guard.
+    const gitTopLevel = path.resolve(await git(["rev-parse", "--show-toplevel"], topLevel)), commonGitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], topLevel)), initialHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], topLevel);
+    if (!samePath(topLevel, gitTopLevel))
+        throw new Error("Detached output Git top-level differs from the requested worktree");
+    let branch;
+    try {
+        branch = await git(["symbolic-ref", "--quiet", "--short", "HEAD"], topLevel);
+    }
+    catch (error) {
+        if (error.code !== 1)
+            throw error;
+    }
+    if (branch)
+        throw new Error("--detached-head is valid only for an actual detached worktree");
+    const gitDir = path.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], topLevel));
+    if (!samePath(gitDir, await realpath(gitDir)) || !samePath(commonGitDir, await realpath(commonGitDir)))
+        throw new Error("Detached output Git directories must be canonical");
+    const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], topLevel);
+    if (head.toLowerCase() !== expectedHead.toLowerCase() || initialHead.toLowerCase() !== expectedHead.toLowerCase())
+        throw new Error("Detached output HEAD diverged from its exact revision pin");
+    if (expected && (!samePath(topLevel, expected.topLevel) || !samePath(commonGitDir, expected.commonGitDir) || !samePath(gitDir, expected.gitDir)))
+        throw new Error("Detached output worktree identity changed during preparation");
+    return { topLevel, commonGitDir, gitDir, head, branch: "" };
+}
+async function context(invocation, detachedHead, requestedOutput) {
+    const binding = detachedHead ? await pinnedDetachedBinding(invocation, detachedHead) : await assertWorktreeBinding(path.resolve(invocation)), primary = await primaryRepositoryRoot(binding.topLevel, binding.commonGitDir);
+    let enrolled = false;
     for (const checkout of new Set([binding.topLevel, primary])) {
         if (await git(["ls-tree", "HEAD", "--", ".captain-sdlc/codex-policy.json"], checkout))
+            enrolled = true;
+    }
+    if (enrolled) {
+        if (!detachedHead || !requestedOutput)
             throw new Error("This repository is enrolled in Captain; use its MCP Begin/Prep/Back workflow and captured storage policy");
+        if (!await git(["ls-tree", binding.head, "--", ".captain-sdlc/codex-policy.json"], binding.topLevel))
+            throw new Error("Enrolled detached preview must declare its captured build output root");
+        const text = await git(["show", `${binding.head}:.captain-sdlc/codex-policy.json`], binding.topLevel);
+        if (Buffer.byteLength(text, "utf8") > 1024 * 1024)
+            throw new Error("Committed preview output policy is too large");
+        let raw;
+        try {
+            raw = JSON.parse(text);
+        }
+        catch {
+            throw new Error("Committed preview output policy is invalid JSON");
+        }
+        const retention = await captureOutputRetention(binding.topLevel, binding.head, raw?.outputRetention);
+        if (!(retention.roots.build ?? []).some(root => samePath(path.resolve(binding.topLevel, root), path.resolve(binding.topLevel, requestedOutput))))
+            throw new Error("Enrolled detached output root must be declared in committed outputRetention.roots.build");
     }
     const dataRoot = path.join(primary, ".captain-sdlc", "storage-authority");
     for (const relative of [".captain-sdlc", ".captain-sdlc/storage-authority"]) {
@@ -122,21 +173,35 @@ export async function runStorageCommand(argv) {
         return { schema_version: 1, command: "resume", worktree_path: current.binding.topLevel, activity: "active" };
     }
     if (args.command === "prepare-output") {
-        const current = await context(values.worktree), relative = values.root ?? "artifacts/active";
+        const detachedHead = values["detached-head"], relative = values.root ?? "artifacts/active", current = await context(values.worktree, detachedHead, relative);
         await ignored(current.binding.topLevel, relative.replaceAll("\\", "/").replace(/\/$/, "") + "/");
         const id = storageRegistrationId(current.binding.commonGitDir, current.binding.topLevel);
-        const slot = { schema_version: 1, worktree_path: current.binding.topLevel, roots: { build: [relative] } };
+        const slot = { schema_version: 1, worktree_path: current.binding.topLevel, roots: { build: [relative] },
+            ...(detachedHead ? { detached: true, common_git_dir: current.binding.commonGitDir, git_dir: current.binding.gitDir } : {}) };
         const policy = { outputRetention: { schema_version: 1, roots: { build: [relative] } } };
         await validateScopeOutputs(current.binding.topLevel, policy, "build");
         const registration = await readWorktreeRegistration(current.dataRoot, current.binding.commonGitDir, current.binding.topLevel);
-        if (registration) {
+        if (detachedHead) {
+            if (registration)
+                throw new Error("Detached output preparation cannot adopt a registered task; resume its original workflow");
+            const normalized = relative.replaceAll("\\", "/").replace(/\/$/, "");
+            const tracked = (await git(["ls-files", "-z"], current.binding.topLevel)).split("\0").filter(Boolean);
+            if (tracked.some(file => file === normalized || file.startsWith(normalized + "/") || normalized.startsWith(file + "/")))
+                throw new Error("Detached output root overlaps tracked source");
+            await pinnedDetachedBinding(current.binding.topLevel, detachedHead, current.binding);
+        }
+        else if (registration) {
             await assertWorktreeBinding(current.binding.topLevel, registration.branch, registration.common_git_dir, undefined, false, registration.git_dir);
             await markOrdinaryActive(current.dataRoot, registration);
         }
         // A worktree retains one chosen slot. A later attempt cannot quietly allocate a new folder.
         await putAuthorizedOnceExact(current.dataRoot, "ordinary-output-slots", id, slot);
+        if (detachedHead)
+            await pinnedDetachedBinding(current.binding.topLevel, detachedHead, current.binding);
         await prepareScopeOutputs(current.binding.topLevel, policy, "build");
-        return { schema_version: 1, command: "prepare-output", worktree_path: current.binding.topLevel, build_output_path: path.resolve(current.binding.topLevel, relative) };
+        if (detachedHead)
+            await pinnedDetachedBinding(current.binding.topLevel, detachedHead, current.binding);
+        return { schema_version: 1, command: "prepare-output", worktree_path: current.binding.topLevel, build_output_path: path.resolve(current.binding.topLevel, relative), ...(detachedHead ? { detached_head: current.binding.head } : {}) };
     }
     const target = await context(values.target), source = path.resolve(values.source);
     if (samePath(source, target.binding.topLevel) || samePath(source, target.primary))

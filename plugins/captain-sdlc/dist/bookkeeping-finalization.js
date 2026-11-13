@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLeaseAtGeneration } from "./authority.js";
 import { bookkeepingCaptured, bookkeepingPathAllowed, bookkeepingSubjectAllowed, bookkeepingTextAllowed } from "./bookkeeping.js";
+import { assertRunRevisionTransition } from "./run-validation.js";
 import { applyPreparedCommit, assertSafeGitAttributesInWorktree, assertWorktreeBinding, bookkeepingBlobAllowed, bookkeepingCommitValid, commitAtomic, git, loadPolicy, reconcilePreparedCommit, repositoryIdentity } from "./workspace.js";
 export class BookkeepingFinalizationError extends Error {
     finalization_id;
@@ -443,7 +444,10 @@ async function signedRunsReadOnly(dataRoot) {
         if (!revisions.length) {
             if (marks.some(name => expression.test(name)))
                 throw new Error("lifecycle ownership revision tail regressed behind watermark");
-            runs.push(await readAuthorizedReadOnly(dataRoot, "runs", id));
+            const legacyRun = await readAuthorizedReadOnly(dataRoot, "runs", id);
+            if (legacyRun.schemaVersion === 2 || legacyRun.documentationScope)
+                throw new Error("documentation ownership requires its audited run revision chain");
+            runs.push(legacyRun);
             continue;
         }
         let previous;
@@ -453,6 +457,7 @@ async function signedRunsReadOnly(dataRoot) {
             const current = await readAuthorizedReadOnly(dataRoot, "run-revisions", `${id}-${n}`), mark = await readAuthorizedReadOnly(dataRoot, "run-watermarks", `${id}-${n}`);
             if (current.intentId !== id || current.revision !== n || current.previousRevisionSha256 !== (previous ? digest(previous) : undefined) || mark.intentId !== id || mark.runId !== current.runId || mark.revision !== n || mark.runSha256 !== digest(current))
                 throw new Error("lifecycle signed ownership evidence is invalid");
+            assertRunRevisionTransition(previous, current);
             previous = current;
         }
         if (marks.some(name => { const match = expression.exec(name); return match && Number(match[1]) >= revisions.length; }))

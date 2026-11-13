@@ -5,6 +5,7 @@ import path from "node:path";
 import { acquireAuthorizedLease, putAuthorizedOnceExact, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLeaseAtGeneration } from "./authority.js";
 import { bookkeepingCaptured, bookkeepingPathAllowed, bookkeepingSubjectAllowed, bookkeepingTextAllowed } from "./bookkeeping.js";
 import type { ProjectPolicy, Run } from "./lifecycle.js";
+import { assertRunRevisionTransition } from "./run-validation.js";
 import { applyPreparedCommit, assertSafeGitAttributesInWorktree, assertWorktreeBinding, bookkeepingBlobAllowed, bookkeepingCommitValid, commitAtomic, git, loadPolicy, reconcilePreparedCommit, repositoryIdentity, type PreparedCommitCore } from "./workspace.js";
 
 export type FinalizationArgs = { worktree: string; session_id: string; task_id: string; paths: string[]; subject: string; disposition: "commit" | "stash"; finalization_id?: string };
@@ -288,12 +289,18 @@ async function signedRunsReadOnly(dataRoot: string): Promise<Run[]> {
   const ids = [...new Set([...names.map(name => /^(.*)-[0-9]+\.json$/.exec(name)?.[1]), ...legacy.map(name => /^(.*)\.json$/.exec(name)?.[1]), ...marks.map(name => /^(.*)-[0-9]+\.json$/.exec(name)?.[1])].filter((id): id is string => Boolean(id)))], runs: Run[] = [];
   for (const id of ids) {
     idValue(id); const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), revisions = names.map(name => expression.exec(name)).filter(Boolean).map(match => Number(match![1])).sort((a, b) => a - b);
-    if (!revisions.length) { if (marks.some(name => expression.test(name))) throw new Error("lifecycle ownership revision tail regressed behind watermark"); runs.push(await readAuthorizedReadOnly<Run>(dataRoot, "runs", id)); continue; }
+    if (!revisions.length) {
+      if (marks.some(name => expression.test(name))) throw new Error("lifecycle ownership revision tail regressed behind watermark");
+      const legacyRun = await readAuthorizedReadOnly<Run>(dataRoot, "runs", id);
+      if (legacyRun.schemaVersion === 2 || legacyRun.documentationScope) throw new Error("documentation ownership requires its audited run revision chain");
+      runs.push(legacyRun); continue;
+    }
     let previous: Run | undefined;
     for (let n = 0; n < revisions.length; n++) {
       if (revisions[n] !== n) throw new Error("lifecycle ownership revision chain is not contiguous");
       const current = await readAuthorizedReadOnly<Run>(dataRoot, "run-revisions", `${id}-${n}`), mark = await readAuthorizedReadOnly<{ intentId: string; runId: string; revision: number; runSha256: string }>(dataRoot, "run-watermarks", `${id}-${n}`);
-      if (current.intentId !== id || current.revision !== n || current.previousRevisionSha256 !== (previous ? digest(previous) : undefined) || mark.intentId !== id || mark.runId !== current.runId || mark.revision !== n || mark.runSha256 !== digest(current)) throw new Error("lifecycle signed ownership evidence is invalid"); previous = current;
+      if (current.intentId !== id || current.revision !== n || current.previousRevisionSha256 !== (previous ? digest(previous) : undefined) || mark.intentId !== id || mark.runId !== current.runId || mark.revision !== n || mark.runSha256 !== digest(current)) throw new Error("lifecycle signed ownership evidence is invalid");
+      assertRunRevisionTransition(previous, current); previous = current;
     }
     if (marks.some(name => { const match = expression.exec(name); return match && Number(match[1]) >= revisions.length; })) throw new Error("lifecycle ownership revision tail regressed behind watermark"); runs.push(previous!);
   }

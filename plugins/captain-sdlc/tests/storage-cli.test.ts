@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -135,4 +135,121 @@ test("ordinary active branch reservations independently prevent direct shared cl
   const cleaned = await cleanupRegisteredWorktrees(created.storage_authority, f.root, [{ registration: registration!, head: f.head }]);
   assert.deepEqual(cleaned.removed_worktrees, []); assert.match(cleaned.retained_worktrees[0].reason, /active|leased|reserved/i);
   assert.ok((await stat(created.worktree_path)).isDirectory());
+});
+
+async function detachedPreview(t:TestContext) {
+  const f=await fixture(t), preview=path.join(f.root,".captain-sdlc","worktrees","landing-preview");
+  await git(f.root,"worktree","add","--detach",preview,f.head);
+  return {...f,preview};
+}
+
+test("pinned detached landing preview replaces one ignored output slot without adopting task cleanup",async t=>{
+  const f=await detachedPreview(t),{runStorageCommand}=await api(),active=path.join(f.preview,"artifacts","active");
+  await mkdir(active,{recursive:true});await writeFile(path.join(active,"old.bin"),"previous build");
+  const result=await runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",f.head]);
+  assert.equal(result.build_output_path,active);assert.equal(result.detached_head,f.head);
+  await assert.rejects(stat(path.join(active,"old.bin")),{code:"ENOENT"});
+  await writeFile(path.join(active,"new.bin"),"next build");
+  await runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",f.head]);
+  await assert.rejects(stat(path.join(active,"new.bin")),{code:"ENOENT"});
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/another","--detached-head",f.head]),/fixed|slot|root|checkpoint/i);
+  const {readWorktreeRegistration}=await import("../src/worktree-storage.js"),common=await git(f.root,"rev-parse","--path-format=absolute","--git-common-dir");
+  assert.equal(await readWorktreeRegistration(path.join(f.root,".captain-sdlc","storage-authority"),common,f.preview),undefined);
+  await assert.rejects(runStorageCommand(["cleanup","--source",f.preview,"--target",f.root]),/registration|registered|legacy/i);
+  assert.ok((await stat(f.preview)).isDirectory());
+});
+
+test("detached output preparation rejects missing, abbreviated, wrong and moved HEAD pins before deletion",async t=>{
+  const f=await detachedPreview(t),{runStorageCommand}=await api(),active=path.join(f.preview,"artifacts","active"),sentinel=path.join(active,"keep.bin");
+  await mkdir(active,{recursive:true});await writeFile(sentinel,"retain stale output");
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active"]),/branch|detached/i);
+  for(const head of [f.head.slice(0,7),"f".repeat(40)])await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",head]),/head|pin|revision|OID/i);
+  await writeFile(path.join(f.root,"new.txt"),"next revision");await git(f.root,"add","new.txt");await git(f.root,"commit","-m","chore: advance target");
+  const next=await git(f.root,"rev-parse","HEAD");await git(f.preview,"checkout","--detach",next);
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",f.head]),/head|pin|revision|OID/i);
+  assert.equal(await readFile(sentinel,"utf8"),"retain stale output");
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.root,"--root","artifacts/active","--detached-head",next]),/detached|branch/i);
+});
+
+test("detached output preparation preserves tracked source and refuses unsafe or linked output roots",async t=>{
+  const f=await detachedPreview(t),{runStorageCommand}=await api();
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","../outside","--detached-head",f.head]),/safe|escape|relative|ignored|outside/i);
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","src","--detached-head",f.head]),/generated|source|ignored/i);
+  const tracked=path.join(f.preview,"artifacts","tracked.txt");await mkdir(path.dirname(tracked),{recursive:true});await writeFile(tracked,"authored source");
+  await git(f.preview,"add","-f","artifacts/tracked.txt");await git(f.preview,"commit","-m","chore: retain tracked surface");const head=await git(f.preview,"rev-parse","HEAD");
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts","--detached-head",head]),/tracked|source/i);
+  assert.equal(await readFile(tracked,"utf8"),"authored source");
+  const outside=path.join(path.dirname(f.root),"outside"),linked=path.join(f.preview,"target");await mkdir(outside);await writeFile(path.join(outside,"keep.bin"),"outside data");
+  await symlink(outside,linked,process.platform==="win32"?"junction":"dir");
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","target","--detached-head",head]),/reparse|symlink|link/i);
+  assert.equal(await readFile(path.join(outside,"keep.bin"),"utf8"),"outside data");
+});
+
+test("detached output flag cannot adopt a registered task or enable another storage command",async t=>{
+  const f=await fixture(t),{runStorageCommand}=await api(),created=await runStorageCommand(["create","--project",f.root,"--task","owned"]);
+  await git(created.worktree_path,"checkout","--detach",f.head);
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",created.worktree_path,"--root","artifacts/active","--detached-head",f.head]),/registered task|original workflow/i);
+  await assert.rejects(runStorageCommand(["resume","--worktree",created.worktree_path,"--detached-head",f.head]),/argument|option/i);
+  await assert.rejects(runStorageCommand(["cleanup","--source",created.worktree_path,"--target",f.root,"--detached-head",f.head]),/argument|option/i);
+});
+
+
+async function enrolledDetachedPreview(t:TestContext) {
+  const f=await fixture(t);
+  await mkdir(path.join(f.root,".captain-sdlc"),{recursive:true});
+  await writeFile(path.join(f.root,".captain-sdlc","codex-policy.json"),JSON.stringify({outputRetention:{schema_version:1,roots:{build:["artifacts/active"]}}}));
+  await git(f.root,"add",".captain-sdlc/codex-policy.json");await git(f.root,"commit","-m","chore: declare enrolled output");
+  const head=await git(f.root,"rev-parse","HEAD"),preview=path.join(f.root,".captain-sdlc","worktrees","enrolled-preview");
+  await git(f.root,"worktree","add","--detach",preview,head);
+  return {...f,head,preview};
+}
+
+test("enrolled detached previews prepare committed declared output without acquiring task ownership",async t=>{
+  const f=await enrolledDetachedPreview(t),{runStorageCommand}=await api(),active=path.join(f.preview,"artifacts","active");
+  await mkdir(active,{recursive:true});await writeFile(path.join(active,"old.bin"),"old output");
+  const result=await runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",f.head]);
+  assert.equal(result.detached_head,f.head);await assert.rejects(stat(path.join(active,"old.bin")),{code:"ENOENT"});
+  const {readWorktreeRegistration}=await import("../src/worktree-storage.js"),common=await git(f.root,"rev-parse","--path-format=absolute","--git-common-dir");
+  assert.equal(await readWorktreeRegistration(path.join(f.root,".captain-sdlc","storage-authority"),common,f.preview),undefined);
+  for(const command of [["prepare-output","--worktree",f.root,"--root","artifacts/active"],["resume","--worktree",f.preview],["cleanup","--source",f.preview,"--target",f.root]])
+    await assert.rejects(runStorageCommand(command),/enrolled|symbolic|branch/i);
+});
+
+test("enrolled preview refuses undeclared locally broadened and tracked output before deletion",async t=>{
+  const f=await enrolledDetachedPreview(t),{runStorageCommand}=await api(),other=path.join(f.preview,"artifacts","other");
+  await mkdir(other,{recursive:true});await writeFile(path.join(other,"keep.bin"),"retain output");
+  const args=["prepare-output","--worktree",f.preview,"--root","artifacts/other","--detached-head",f.head];
+  await assert.rejects(runStorageCommand(args),/declared|captured|enrolled/i);
+  await writeFile(path.join(f.preview,".captain-sdlc","codex-policy.json"),JSON.stringify({outputRetention:{schema_version:1,roots:{build:["artifacts/other"]}}}));
+  await assert.rejects(runStorageCommand(args),/declared|captured|enrolled/i);assert.equal(await readFile(path.join(other,"keep.bin"),"utf8"),"retain output");
+  await git(f.preview,"checkout","--",".captain-sdlc/codex-policy.json");
+  const active=path.join(f.preview,"artifacts","active");await mkdir(active,{recursive:true});await writeFile(path.join(active,"authored.cpp"),"int authored = 1;\n");
+  await git(f.preview,"add","-f","artifacts/active/authored.cpp");await git(f.preview,"commit","-m","chore: retain authored fixture");const head=await git(f.preview,"rev-parse","HEAD");
+  await assert.rejects(runStorageCommand(["prepare-output","--worktree",f.preview,"--root","artifacts/active","--detached-head",head]),/tracked|source/i);
+  assert.equal(await readFile(path.join(active,"authored.cpp"),"utf8"),"int authored = 1;\n");
+});
+
+test("detached output reads identity without executing LFS attributes or weakening SDK guards", async t => {
+  const f = await fixture(t), { runStorageCommand } = await api();
+  const { repositoryIdentity, assertSafeGitAttributesInWorktree } = await import("../src/workspace.js");
+  await writeFile(path.join(f.root, ".gitattributes"), "*.uasset filter=lfs diff=lfs merge=lfs -text\n");
+  await writeFile(path.join(f.root, "content.uasset"), "synthetic asset\n");
+  await git(f.root, "add", ".gitattributes", "content.uasset"); await git(f.root, "commit", "-m", "chore: retain LFS policy");
+  const head = await git(f.root, "rev-parse", "HEAD"), preview = path.join(f.root, ".captain-sdlc", "worktrees", "lfs-preview");
+  await git(f.root, "worktree", "add", "--detach", preview, head);
+  const marker = path.join(path.dirname(f.root), "filter-ran.txt"), driver = path.join(path.dirname(f.root), "filter.cjs");
+  await writeFile(driver, `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed"); process.stdin.pipe(process.stdout);\n`);
+  const command = `"${process.execPath.replaceAll("\\", "/")}" "${driver.replaceAll("\\", "/")}"`;
+  await git(f.root, "config", "filter.lfs.clean", command); await git(f.root, "config", "filter.lfs.smudge", command); await git(f.root, "config", "merge.lfs.driver", command);
+  await assert.rejects(repositoryIdentity(f.root), /clean filters|merge drivers/i);
+  await assert.rejects(runStorageCommand(["create", "--project", f.root, "--task", "refused"]), /clean filters|merge drivers/i);
+  await assert.rejects(assertSafeGitAttributesInWorktree(f.root, ["content.uasset"]), /clean filters|merge drivers/i);
+  const active = path.join(preview, "artifacts", "active"), sentinel = path.join(active, "old.bin");
+  await mkdir(active, { recursive: true }); await writeFile(sentinel, "old output");
+  const args = ["prepare-output", "--worktree", preview, "--root", "artifacts/active", "--detached-head", head];
+  const result = await runStorageCommand(args); assert.equal(result.detached_head, head); await assert.rejects(stat(sentinel), { code: "ENOENT" });
+  await writeFile(sentinel, "next output"); await runStorageCommand(args); await assert.rejects(stat(sentinel), { code: "ENOENT" });
+  await assert.rejects(stat(marker), { code: "ENOENT" });
+  await writeFile(sentinel, "retain output"); await assert.rejects(runStorageCommand([...args.slice(0, -1), "f".repeat(40)]), /head|pin|revision/i);
+  assert.equal(await readFile(sentinel, "utf8"), "retain output");
 });

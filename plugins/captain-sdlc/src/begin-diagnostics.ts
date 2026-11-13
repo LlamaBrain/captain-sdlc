@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import type { Run } from "./lifecycle.js";
+import { assertRunRevisionTransition, isSupportedRunSchema } from "./run-validation.js";
 
 type AnyRecord = Record<string, unknown>;
 type Presence = { present: false } | { present: true; value: AnyRecord };
@@ -145,7 +147,7 @@ async function inspectRunHistory(
   const watermarks = exactRevisions(watermarkNames, intentId, "run-watermark");
   if (revisions.length === 0 && watermarks.length === 0) {
     if (legacy.present) {
-      if (!runMatches(legacy.value, intentId, operation, intent, canonicalWorktreePath)) {
+      if (legacy.value.schemaVersion !== 1 || legacy.value.documentationScope || !runMatches(legacy.value, intentId, operation, intent, canonicalWorktreePath)) {
         throw new Error("legacy_run_binding_invalid");
       }
       return { present: true, integrity: "verified" as const, revisionCount: 0 };
@@ -160,7 +162,6 @@ async function inspectRunHistory(
     const current = await maybeRead(deps, "run-revisions", intentId + "-" + revision);
     if (!current.present) throw new Error("run_revision_missing");
     if (
-      current.value.schemaVersion !== 1 ||
       current.value.intentId !== intentId ||
       current.value.revision !== revision ||
       !runMatches(current.value, intentId, operation, intent, canonicalWorktreePath) ||
@@ -180,6 +181,7 @@ async function inspectRunHistory(
     if (!watermark.present || JSON.stringify(watermark.value) !== JSON.stringify(expected)) {
       throw new Error("run_watermark_invalid");
     }
+    assertRunRevisionTransition(previous as Run | undefined, current.value as Run);
     previous = current.value;
   }
   if (watermarks.some(value => value > revisions.length - 1)) {
@@ -199,7 +201,7 @@ function runMatches(
   intent: AnyRecord,
   canonicalWorktreePath: string,
 ) {
-  return run.schemaVersion === 1 &&
+  return isSupportedRunSchema(run) &&
     run.intentId === intentId &&
     run.runId === operation.runId &&
     run.operationToken === operation.operationToken &&

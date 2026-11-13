@@ -1,3 +1,4 @@
+import { assertReleaseIntentChecker, releaseIntentCommand } from "./release-intent.js";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, lstat, mkdtemp, readFile, readdir, realpath, writeFile } from "node:fs/promises";
@@ -13,7 +14,9 @@ import { completeWorktreeCreation, readWorktreeCreation, readWorktreeRegistratio
 
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy: CommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
+const ignoredNativeGeneratedPaths = new Set(["saved", "binaries", "intermediate", "deriveddatacache", "scripts/__pycache__", "scripts/tests/__pycache__"]);
 const approvedGeneratedPaths = new Set([
+  ...ignoredNativeGeneratedPaths,
   "library", "temp", "logs", "artifacts", "build", "builds", "obj", "bin", "dist", "coverage", "generated", ".captain-proof",
   "usersettings", ".vs", ".idea", ".gradle", "exportedobj", ".consulo", "profilercaptures", "dirigibles",
   "assets/packages-merged-link", "assets/packages-merged-link.meta", "assets/_dirigible/temp", "assets/_dirigible/temp.meta",
@@ -89,10 +92,32 @@ export async function loadPolicy(projectRoot: string, baseHead: string, planPath
     if (!bookkeepingTextAllowed(patterns)) throw new Error("bookkeeping rule file must be bounded text");
     parsed.commit.bookkeeping = { path_file: relative, patterns, sha256: digest(patterns) };
   }
+  if (parsed.commit?.mode === "branch_driven") {
+    if (!raw.releaseIntentChecker) throw new Error("branch-driven policy requires a trusted release-intent checker");
+    const checker = objectValue(raw.releaseIntentChecker, "release-intent checker");
+    parsed.releaseIntentChecker = checker.kind === "native"
+      ? { kind: "native", path: checker.path, sha256: checker.sha256, executable: checker.executable, executableSha256: checker.executableSha256, dependencies: checker.dependencies, args: checker.args }
+      : { ...(checker.kind !== undefined ? { kind: checker.kind } : {}), path: checker.path, sha256: checker.sha256, ...(checker.args !== undefined ? { args: checker.args } : {}) };
+    await assertReleaseIntentChecker(parsed.releaseIntentChecker, [projectRoot, await primaryRepositoryRoot(projectRoot)]);
+    const command = releaseIntentCommand(parsed.releaseIntentChecker);
+    if (parsed.commands["release-intent"] && parsed.commands["release-intent"] !== command) throw new Error("release-intent command must use the pinned installed checker");
+    parsed.commands["release-intent"] = command;
+  }
   const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
   if (raw.sourceManifestExcludes !== undefined && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
   parsed.sourceManifestExcludes = [];
-  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) { if (typeof value !== "string") throw new Error("source manifest exclusion must be a string"); const relative = safeRepositoryPath(value, "source manifest exclusion"); if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`); if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`); parsed.sourceManifestExcludes.push(relative); }
+  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) {
+    if (typeof value !== "string") throw new Error("source manifest exclusion must be a string");
+    const relative = safeRepositoryPath(value, "source manifest exclusion");
+    if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`);
+    if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`)))
+      throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+    if (ignoredNativeGeneratedPaths.has(relative.toLowerCase())) {
+      try { await git(["check-ignore", "--no-index", "--quiet", "--", relative + "/"], projectRoot); }
+      catch (error: any) { if (error.code !== 1) throw error; throw new Error(`${relative} must be Git-ignored before generated-output exclusion`); }
+    }
+    parsed.sourceManifestExcludes.push(relative);
+  }
   if (raw.sourceManifestRootFileExcludes !== undefined && !Array.isArray(raw.sourceManifestRootFileExcludes)) throw new Error("source manifest root-file exclusions must be an array");
   parsed.sourceManifestRootFileExcludes = [];
   const trackedRootFiles = trackedBasePaths.filter(value => !value.includes("/"));
@@ -204,7 +229,7 @@ export async function commitEvidence(worktree: string, baseHead: string, policy?
     const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree));
     if (parents.length > 2) { const index = preparedMerges.findIndex((prepared, candidate) => !matchedPrepared.has(candidate) && prepared.preMergeHead === parent && prepared.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : undefined, bookkeeping = new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map(surface => surface.path)]); if (!prepared || parents.length !== 3 || (prepared.strategy === "ours" && phaseChanged.some(changedPath => !bookkeeping.has(changedPath)))) preparedMergesValid = false; else matchedPrepared.add(index); }
     const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || (!bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some(value => phaseChanged.includes(value)) || !(await versionSurfacesMatch(worktree, hash, phaseSubject, commitPolicy)) || !(await versionTransitionValid(worktree, parent, hash, phaseSubject, commitPolicy, parents.length === 3 ? parents[2] : undefined)) || !(await changelogAddsVersion(worktree, parent, hash, phaseSubject, commitPolicy))))) phaseCommitsValid = false;
+    if (parent !== expectedParent || (commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId)) || (!bookkeeping && (!(await implementationCommitValid(worktree, parent, hash, phaseSubject, phaseChanged, commitPolicy, parents.length === 3 ? parents[2] : undefined))))) phaseCommitsValid = false;
     expectedParent = hash;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false; phaseCommitsValid &&= preparedMergesValid;
@@ -212,11 +237,13 @@ export async function commitEvidence(worktree: string, baseHead: string, policy?
   const previousPhaseRetained = !previousPhaseHead || hashes.includes(previousPhaseHead);
   const headParent = splitLines(await git(["rev-list", "--parents", "-n", "1", head], worktree))[0]?.split(" ")[1], bookkeepingOnly = Boolean(headParent && await bookkeepingCommitValid(worktree, headParent, head, subject, commitPolicy));
   const taskTrailerPresent = hasTaskTrailer(trailers, taskId);
-  return { head, tree, firstParent: headParent, changedPaths: changed, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...(commitPolicy.bookkeeping ? { bookkeepingOnly } : {}), preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
+  return { head, tree, firstParent: headParent, changedPaths: changed, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || (commitPolicy.mode === "branch_driven" ? phaseCommitsValid : await versionSurfacesMatch(worktree, head, subject, commitPolicy)), ...(commitPolicy.bookkeeping ? { bookkeepingOnly } : {}), preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
 
-export async function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy: CommitPolicy = defaultCommitPolicy, preparedMerges: PreparedMerge[] = [], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>) {
+export async function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy: CommitPolicy = defaultCommitPolicy, preparedMerges: PreparedMerge[] = [], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>, breakingDescription?: string, captainRunId?: string) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths"); if (/\r|\n/.test(subject)) throw new Error("commit subject must be a single line");
+  if (breakingDescription !== undefined && (typeof breakingDescription !== "string" || !breakingDescription.trim() || breakingDescription !== breakingDescription.trim() || breakingDescription.length > 2000 || /[\r\n\x00-\x1f\x7f]/.test(breakingDescription))) throw new Error("breaking description must be a nonempty single line of at most 2000 characters");
+  if (captainRunId !== undefined && (typeof captainRunId !== "string" || !/^[A-Za-z0-9._-]{1,200}$/.test(captainRunId))) throw new Error("Captain run trailer must be one trusted run identifier");
   const safePaths = paths.map(value => safeRepositoryPath(value, "commit")); if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/"))) throw new Error("commit paths must be canonical safe repository-relative paths"); if (!validSubject(subject, commitPolicy) && !(bookkeepingCaptured(commitPolicy) && bookkeepingSubjectAllowed(subject))) throw new Error("commit subject does not satisfy repository policy");
   const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : undefined; if ((taskOutcome && !taskId) || (!taskOutcome && taskId && commitPolicy.require_task_trailer) || (taskTrailer && !hasTaskTrailer(taskTrailer, taskId)) || (commitPolicy.require_task_trailer && !taskTrailer)) throw new Error("commit must include the governed run task trailer");
   const binding = await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
@@ -225,7 +252,7 @@ export async function commitAtomic(worktree: string, paths: string[], subject: s
   const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree)); if (!staged.length || staged.some(changed => !safePaths.some(selected => changed === selected || changed.startsWith(`${selected}/`)))) throw new Error("commit preflight found staged paths outside the explicit selection");
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, binding.head, false, binding.gitDir);
   const head = binding.head, mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
-  if (mergeHead) { if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state"); candidateArgs.push("-p", mergeHead); } candidateArgs.push("-m", subject); if (taskTrailer) candidateArgs.push("-m", taskTrailer);
+  if (mergeHead) { if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state"); candidateArgs.push("-p", mergeHead); } candidateArgs.push("-m", subject); if (breakingDescription !== undefined) candidateArgs.push("-m", `BREAKING CHANGE: ${breakingDescription}`); const trailers = [taskTrailer, ...(captainRunId ? [`Captain-Run: ${captainRunId}`] : [])].filter(Boolean).join("\n"); if (trailers) candidateArgs.push("-m", trailers);
   const candidate = await git(candidateArgs, worktree); await assertSafeGitAttributesAtCommit(worktree, candidate); if (!(await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges))) throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
   const prepared = { preCommitHead: head, candidate, tree, ...(mergeHead ? { mergeHead } : {}) } satisfies PreparedCommitCore;
   if (authorize) await authorize(prepared);
@@ -314,10 +341,56 @@ function safeRepositoryPath(value: string, label: string) { const normalized = v
 function objectValue(value: unknown, label: string): Record<string, any> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`); return value as Record<string, any>; }
 function parseObject(text: string, label: string) { try { return objectValue(JSON.parse(text), label); } catch (error) { if ((error as Error).message.includes(label)) throw error; throw new Error(`${label} is not valid JSON`); } }
 function stringRecord(value: unknown, label: string) { const record = objectValue(value, label), result: Record<string, string> = {}; for (const [key, item] of Object.entries(record)) { if (typeof item !== "string" || !item.trim()) throw new Error(`${label} must contain nonempty strings`); result[key] = item; } return result; }
-function validateCommitPolicy(input: unknown): CommitPolicy { const value = objectValue(input, "trusted repository commit policy"); for (const key of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key] !== undefined && typeof value[key] !== "boolean") throw new Error(`${key} must be boolean`); const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? true; if (!conventional && requireVersionSuffix) throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types"); if (typeof value.version_file !== "string") throw new Error("trusted repository commit policy must configure version_file"); const versionFile = safeRepositoryPath(value.version_file, "version file"); if (!Array.isArray(value.changelog_files) || value.changelog_files.length === 0 || value.changelog_files.some((item: unknown) => typeof item !== "string")) throw new Error("trusted repository commit policy must configure changelog files"); const changelogFiles = value.changelog_files.map((item: string) => safeRepositoryPath(item, "changelog")); if (new Set(changelogFiles).size !== changelogFiles.length) throw new Error("trusted changelog paths must be unique"); if (!Array.isArray(value.version_surfaces) || (requireVersionSuffix && value.version_surfaces.length === 0) || (!requireVersionSuffix && value.version_surfaces.length > 0)) throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required"); const versionSurfaces = value.version_surfaces.map((inputSurface: unknown) => { const surface = objectValue(inputSurface, "version surface"); if (typeof surface.path !== "string" || typeof surface.pattern !== "string") throw new Error("version surface path and pattern are required"); const surfacePath = safeRepositoryPath(surface.path, "version surface"); compilePattern(surface.pattern); if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, ""))) throw new Error("version surface pattern must capture the version"); return { path: surfacePath, pattern: surface.pattern }; }); if (new Set(versionSurfaces.map((surface: { path: string }) => surface.path)).size !== versionSurfaces.length) throw new Error("version surface paths must be unique"); if (requireVersionSuffix && !versionSurfaces.some((surface: { path: string }) => surface.path === versionFile)) throw new Error("version surfaces must include version_file"); return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles, ...(value.bookkeeping !== undefined ? { bookkeeping: validateBookkeepingPolicy(value.bookkeeping) } : {}) }; }
-function validSubject(subject: string, policy: CommitPolicy) { const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null; return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned); }
-function hasTaskTrailer(message: string, taskId?: string) { if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId)) return false; const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map(match => match[1].trim()); return matches.length === 1 && matches[0] === taskId; }
-async function candidateCommitValid(worktree: string, hash: string, expectedParent: string, policy: CommitPolicy, taskId: string | undefined, preparedMerges: PreparedMerge[]) { const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree)); let mergeValid = parents.length === 2; if (parents.length === 3) { const prepared = preparedMerges.find(value => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map(surface => surface.path)]); mergeValid = Boolean(prepared) && (prepared!.strategy !== "ours" || changed.every(changedPath => bookkeeping.has(changedPath))); } return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash, subject, policy) || (validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy, parents.length === 3 ? parents[2] : undefined) && await changelogAddsVersion(worktree, parent, hash, subject, policy))); }
+function validateCommitPolicy(input: unknown): CommitPolicy { const value = objectValue(input, "trusted repository commit policy"); for (const key of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key] !== undefined && typeof value[key] !== "boolean") throw new Error(`${key} must be boolean`); const mode = value.mode ?? "per_commit"; if (!["per_commit", "branch_driven"].includes(mode)) throw new Error("unsupported commit policy mode"); const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? (mode !== "branch_driven"); if (mode === "branch_driven" && (!conventional || requireVersionSuffix)) throw new Error("branch-driven policy requires Conventional Commits without version suffixes"); if (!conventional && requireVersionSuffix) throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types"); if (typeof value.version_file !== "string") throw new Error("trusted repository commit policy must configure version_file"); const versionFile = safeRepositoryPath(value.version_file, "version file"); if (!Array.isArray(value.changelog_files) || value.changelog_files.length === 0 || value.changelog_files.some((item: unknown) => typeof item !== "string")) throw new Error("trusted repository commit policy must configure changelog files"); const changelogFiles = value.changelog_files.map((item: string) => safeRepositoryPath(item, "changelog")); if (new Set(changelogFiles).size !== changelogFiles.length) throw new Error("trusted changelog paths must be unique"); if (!Array.isArray(value.version_surfaces) || ((requireVersionSuffix || mode === "branch_driven") && value.version_surfaces.length === 0) || (!requireVersionSuffix && mode !== "branch_driven" && value.version_surfaces.length > 0)) throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required"); const versionSurfaces = value.version_surfaces.map((inputSurface: unknown) => { const surface = objectValue(inputSurface, "version surface"); if (typeof surface.path !== "string" || typeof surface.pattern !== "string") throw new Error("version surface path and pattern are required"); const surfacePath = safeRepositoryPath(surface.path, "version surface"); compilePattern(surface.pattern); if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, ""))) throw new Error("version surface pattern must capture the version"); if (surface.json_pointers !== undefined && (mode !== "branch_driven" || !Array.isArray(surface.json_pointers) || !surface.json_pointers.length || surface.json_pointers.some((pointer: unknown) => typeof pointer !== "string" || !pointer.startsWith("/") || pointer.length > 512 || /~(?![01])/.test(pointer)))) throw new Error("invalid branch version JSON pointers"); return { path: surfacePath, pattern: surface.pattern, ...(surface.json_pointers !== undefined ? { json_pointers: [...surface.json_pointers] } : {}) }; }); if (new Set(versionSurfaces.map((surface: { path: string }) => surface.path)).size !== versionSurfaces.length) throw new Error("version surface paths must be unique"); if ((requireVersionSuffix || mode === "branch_driven") && !versionSurfaces.some((surface: { path: string }) => surface.path === versionFile)) throw new Error("version surfaces must include version_file"); let typeImpacts: Record<string, "none" | "patch" | "minor"> | undefined; if (value.type_impacts !== undefined) { const impacts = objectValue(value.type_impacts, "commit type impacts"); typeImpacts = {}; for (const [name, impact] of Object.entries(impacts)) { if (!/^[a-z][a-z0-9-]*$/.test(name) || !["none", "patch", "minor"].includes(String(impact))) throw new Error("invalid nonbreaking commit type impact"); typeImpacts[name] = impact; } } return { ...(value.mode !== undefined ? { mode } : {}), ...(typeImpacts ? { type_impacts: typeImpacts } : {}), conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles, ...(value.bookkeeping !== undefined ? { bookkeeping: validateBookkeepingPolicy(value.bookkeeping) } : {}) }; }
+function validSubject(subject: string, policy: CommitPolicy) { if (policy.mode === "branch_driven") { const match = /^([a-z][a-z0-9-]*)(?:\([A-Za-z0-9][A-Za-z0-9._/-]*\))?!?: \S[^\r\n]*$/.exec(subject); return Boolean(match && (["feat", "fix", "perf", "docs", "refactor", "test", "chore", "ci", "build"].includes(match[1]) || Object.hasOwn(policy.type_impacts ?? {}, match[1]))); } const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null; return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned); }
+
+async function implementationCommitValid(worktree: string, parent: string, hash: string, subject: string, changed: string[], policy: CommitPolicy, incomingParent?: string) {
+  if (policy.mode !== "branch_driven") return validSubject(subject, policy) && changed.includes(policy.version_file) && policy.changelog_files.some(value => changed.includes(value)) && await versionSurfacesMatch(worktree, hash, subject, policy) && await versionTransitionValid(worktree, parent, hash, subject, policy, incomingParent) && await changelogAddsVersion(worktree, parent, hash, subject, policy);
+  if (!validSubject(subject, policy)) return false;
+  // Import protected changelogs only from the authenticated incoming parent.
+  if (incomingParent) {
+    for (const file of policy.changelog_files) {
+      try { await git(["diff", "--no-ext-diff", "--no-textconv", "--quiet", incomingParent, hash, "--", file], worktree); } catch { return false; }
+    }
+  } else if (policy.changelog_files.some(value => changed.includes(value))) return false;
+  const message = await git(["show", "-s", "--format=%B", hash], worktree);
+  // Captain requires a compatibility description even when CC's ! shorthand is used.
+  if ((/^[^:\n]*!:/.test(subject) || /^BREAKING(?: CHANGE|-CHANGE):/m.test(message)) &&
+      !/^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(message)) return false;
+  if (!policy.version_surfaces?.length) return false;
+  for (const surface of policy.version_surfaces) {
+    try {
+      const capture = (text: string) => {
+        const pattern = compilePattern(surface.pattern);
+        const matches = [...text.matchAll(new RegExp(pattern.source, pattern.flags + "g"))];
+        return matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : undefined;
+      };
+      const beforeText = await boundedGitShow(worktree, parent + ":" + surface.path, "version surface");
+      const afterText = await boundedGitShow(worktree, hash + ":" + surface.path, "version surface");
+      const incomingText = incomingParent ? await boundedGitShow(worktree, incomingParent + ":" + surface.path, "incoming version surface") : undefined;
+      const before = capture(beforeText), after = capture(afterText), incoming = incomingText === undefined ? undefined : capture(incomingText);
+      if (!before || !after || (incomingParent ? after !== incoming : before !== after)) return false;
+      if (surface.json_pointers) {
+        const pointerValue = (content: string, pointer: string): unknown => {
+          let node: any = JSON.parse(content);
+          for (const token of pointer.slice(1).split("/").map(value => value.replaceAll("~1", "/").replaceAll("~0", "~"))) {
+            if (!node || typeof node !== "object" || !Object.hasOwn(node, token)) return undefined;
+            node = node[token];
+          }
+          return node;
+        };
+        for (const pointer of surface.json_pointers) {
+          const oldValue = pointerValue(beforeText, pointer), newValue = pointerValue(afterText, pointer), incomingValue = incomingText === undefined ? undefined : pointerValue(incomingText, pointer);
+          if (typeof oldValue !== "string" || typeof newValue !== "string" || (incomingParent ? newValue !== incomingValue : oldValue !== newValue)) return false;
+        }
+      }
+    } catch { return false; }
+  }
+  return true;
+}
+
+function hasTaskTrailer(message: string, taskId?: string) { if (!taskId || !/^[A-Za-z0-9._#-]+$/.test(taskId)) return false; const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map(match => match[1].trim()); return matches.length === 1 && matches[0] === taskId; }
+async function candidateCommitValid(worktree: string, hash: string, expectedParent: string, policy: CommitPolicy, taskId: string | undefined, preparedMerges: PreparedMerge[]) { const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree), changed = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash], worktree)); let mergeValid = parents.length === 2; if (parents.length === 3) { const prepared = preparedMerges.find(value => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map(surface => surface.path)]); mergeValid = Boolean(prepared) && (prepared!.strategy !== "ours" || changed.every(changedPath => bookkeeping.has(changedPath))); } return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash, subject, policy) || (await implementationCommitValid(worktree, parent, hash, subject, changed, policy, parents.length === 3 ? parents[2] : undefined))); }
 export async function bookkeepingPathAllowed(relative: string, policy: CommitPolicy): Promise<boolean> { return bookkeepingPathAllowedCore(relative, policy, git); }
 
 /** Blob validation preserves raw bytes at whitespace/control boundaries. */
@@ -355,7 +428,7 @@ export async function bookkeepingHistoryValid(worktree: string, base: string, he
     if (!await bookkeepingCommitValid(worktree, parent, hash, subject, policy)) return false;
     if (policy.require_task_trailer) {
       const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash], worktree);
-      const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
+      const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._#-]+)(?:\r?\n|$)/g)];
       if (matches.length !== 1) return false;
     }
     parent = hash;
@@ -403,7 +476,8 @@ async function versionTransitionValid(worktree: string, parent: string, hash: st
           (incoming.minor > before.minor || (incoming.minor === before.minor && incoming.patch > before.patch)))) before = incoming;
     }
   }
-  if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
+  const breakingFooter = /^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(await git(["show", "-s", "--format=%B", hash], worktree));
+  if (parsedSubject[2] || breakingFooter) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }

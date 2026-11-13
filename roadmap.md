@@ -186,3 +186,16 @@ Parallel track, keyed to MRC release milestones (not their own versions). None c
 
 - 0.1.1 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
 - 0.1.0 (2026-04-08): Metadata, linkage, or narrow doc maintenance update.
+
+## CIR implementation increments (2026-10-28)
+
+Collision check: M40 was already allocated; M41-M44 were unused. These are implementation increments, not evidence of release.
+
+| Milestone | Name | Status | Anchor |
+|---|---|---|---|
+| M41 | CIR_FUNCTIONAL_PREMERGE_GATE | In progress | captain-independent-review.md |
+| M42 | CIR_ADVERSARIAL_MECHANICAL_REVIEW | In progress | captain-independent-review.md |
+| M43 | CIR_CONTEXT_IMPACT_ANALYSIS | Planned | captain-independent-review.md |
+| M44 | CIR_REVIEW_QUALITY_EVALUATION | Planned | captain-independent-review.md |
+
+Dependency chain: M39 -> M41 -> M42 -> M43 -> M44. M3/M11/M12 remain unshipped; bounded CIR git/source context does not close their shared code-reading, constitution or drift criteria.
