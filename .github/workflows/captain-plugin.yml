@@ -37,6 +37,9 @@ jobs:
       # Hosted Windows TEMP can be an 8.3 alias. Fixtures require canonical roots.
       - name: Use canonical temporary roots
         run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_ENV, ['TMPDIR', 'TMP', 'TEMP'].map(key => key + '=' + process.env.RUNNER_TEMP).join('\n') + '\n')"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

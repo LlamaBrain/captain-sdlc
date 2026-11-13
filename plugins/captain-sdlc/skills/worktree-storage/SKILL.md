@@ -38,6 +38,20 @@ rule is also supported when that belongs to the authorized task.
 
    Send the producer's output to the returned `build_output_path`. For example, pass that path to `dotnet publish --output`. The helper binds this root as the checkout's fixed slot and clears its prior ignored generated contents before rebuilding. A later attempt cannot allocate another task or timestamp directory by changing `--root`. Tracked source, worktree stores, repository metadata, reparse targets, and nested repositories are protected. The same command supports the primary checkout without registering it for removal. Keep compiler dependency caches in their normal stable directories; do not copy them into retained artifact snapshots.
 
+For a release coordinator's **unregistered detached preview only**, pin the exact full commit when preparing its fixed output slot:
+
+   ```text
+   node <plugin>/scripts/worktree-storage.mjs prepare-output --worktree <preview> --root artifacts/active --detached-head <full-commit-oid>
+   ```
+
+   The helper requires detached HEAD at that exact revision, checks the canonical worktree and Git identities before and after preparation, and retains every ignored-output, tracked-source and link guard. An absent, abbreviated, stale or moved pin is refused. This operation registers only its fixed output slot; it creates no task registration or cleanup eligibility. The release coordinator remains responsible for the preview lifecycle and exact-commit verification. Attached task worktrees continue using the ordinary command above.
+
+   Enrolled detached previews may use this output-only operation when the exact
+   requested root is declared by their committed `codex-policy.json` under
+   `outputRetention.roots.build`. Local policy edits grant no output authority.
+   Attached enrolled tasks retain captured MCP output preparation. This narrow
+   preview operation creates no task registration or cleanup eligibility.
+
 3. Keep test result files, build reports, source OIDs and hashes as compact proof. Full development binaries and copied worktrees are disposable. Preserve a full release artifact only when the project's release policy requires it, in the release destination selected by that policy.
 
 4. After the task and all originally required checks/HITL are complete, perform its authorized ordinary merge. A Prep-only request stops at readiness. Once the merge has landed, change the command's working directory to the retained target and run:

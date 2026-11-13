@@ -242,3 +242,41 @@ operator selectors. It preserves the ORIGINAL signed root/session graph, publish
 the standard cancellation fence, records operator revocation without claiming the
 old client stopped, and retains the same worktrees. Any progressed task or active
 attempt remains refused; never supply a false confirm_owner_stopped value.
+
+
+## Branch-driven compatibility evidence
+
+Use the installed native release-intent adapter required by the trusted consumer
+policy (Captain 0.12.0 or later). Preserve its complete managed-host, executable and
+dependency pins. Captain supplies the captured base/head/tree and authority privately
+to the host; keep release arithmetic and artifact generation in claude-release.
+Inspect the signed proof's classification, report digest and explicit unavailable
+contract coverage. Missing analysis is not evidence of compatibility.
+
+For a current `needs_human` finding, present its concise compatibility report once.
+Record the human's actual confirm-major, reject-major-with-justification or revise
+response through `captain_adjudicate_compatibility`, using its exact existing intent,
+report/finding digests, compatibility base and reviewed revision. Never invent human
+acceptance from a
+successful test or an agent classification. Reuse unchanged authenticated feedback;
+reject stale source or target evidence. Routine PATCH, MINOR and NONE use automated
+checks without an additional classification approval. Preserve repository protections
+and separate merge/release authorization.
+
+
+## Orchestrator governance without SDK enrollment
+
+A repository can adopt `.captain-sdlc/project-policy.json` branch-driven governance
+through Captain Orchestrator while retaining its existing Git tooling. When committed
+HEAD lacks `codex-policy.json`, inspect that project policy and the repository's agent
+instructions before selecting the ordinary workflow. A configured Orchestrator lifecycle
+owns its task worktree, verification, release-intent check, review package, promotion and
+signed evidence. Follow that workflow; SDK enrollment and release-policy adoption are
+separate choices. Use the ordinary storage helper for agent-owned checkouts outside an
+Orchestrator-owned run, without nesting a second implementation worktree.
+
+Preserve existing Git LFS and other repository tooling. An SDK attribute guard rejection
+is a concrete enrollment incompatibility; do not disable the guard or claim SDK
+activation from policy documentation. Keep the repository's working Orchestrator path
+and deterministic CI checks authoritative until a separately verified SDK integration
+supports that tooling. Routine PATCH, MINOR and NONE retain automated processing.

@@ -14,7 +14,9 @@ import { completeWorktreeCreation, readWorktreeCreation, readWorktreeRegistratio
 
 const exec = promisify(execFile), maxGitBuffer = 10 * 1024 * 1024, maxPolicyInput = 1024 * 1024;
 const defaultCommitPolicy: CommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
+const ignoredNativeGeneratedPaths = new Set(["saved", "binaries", "intermediate", "deriveddatacache", "scripts/__pycache__", "scripts/tests/__pycache__"]);
 const approvedGeneratedPaths = new Set([
+  ...ignoredNativeGeneratedPaths,
   "library", "temp", "logs", "artifacts", "build", "builds", "obj", "bin", "dist", "coverage", "generated", ".captain-proof",
   "usersettings", ".vs", ".idea", ".gradle", "exportedobj", ".consulo", "profilercaptures", "dirigibles",
   "assets/packages-merged-link", "assets/packages-merged-link.meta", "assets/_dirigible/temp", "assets/_dirigible/temp.meta",
@@ -93,7 +95,9 @@ export async function loadPolicy(projectRoot: string, baseHead: string, planPath
   if (parsed.commit?.mode === "branch_driven") {
     if (!raw.releaseIntentChecker) throw new Error("branch-driven policy requires a trusted release-intent checker");
     const checker = objectValue(raw.releaseIntentChecker, "release-intent checker");
-    parsed.releaseIntentChecker = { path: checker.path, sha256: checker.sha256, ...(checker.args !== undefined ? { args: checker.args } : {}) };
+    parsed.releaseIntentChecker = checker.kind === "native"
+      ? { kind: "native", path: checker.path, sha256: checker.sha256, executable: checker.executable, executableSha256: checker.executableSha256, dependencies: checker.dependencies, args: checker.args }
+      : { ...(checker.kind !== undefined ? { kind: checker.kind } : {}), path: checker.path, sha256: checker.sha256, ...(checker.args !== undefined ? { args: checker.args } : {}) };
     await assertReleaseIntentChecker(parsed.releaseIntentChecker, [projectRoot, await primaryRepositoryRoot(projectRoot)]);
     const command = releaseIntentCommand(parsed.releaseIntentChecker);
     if (parsed.commands["release-intent"] && parsed.commands["release-intent"] !== command) throw new Error("release-intent command must use the pinned installed checker");
@@ -102,7 +106,18 @@ export async function loadPolicy(projectRoot: string, baseHead: string, planPath
   const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
   if (raw.sourceManifestExcludes !== undefined && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
   parsed.sourceManifestExcludes = [];
-  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) { if (typeof value !== "string") throw new Error("source manifest exclusion must be a string"); const relative = safeRepositoryPath(value, "source manifest exclusion"); if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`); if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`); parsed.sourceManifestExcludes.push(relative); }
+  for (const value of (raw.sourceManifestExcludes ?? []) as unknown[]) {
+    if (typeof value !== "string") throw new Error("source manifest exclusion must be a string");
+    const relative = safeRepositoryPath(value, "source manifest exclusion");
+    if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`);
+    if (trackedBasePaths.some(candidate => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`)))
+      throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+    if (ignoredNativeGeneratedPaths.has(relative.toLowerCase())) {
+      try { await git(["check-ignore", "--no-index", "--quiet", "--", relative + "/"], projectRoot); }
+      catch (error: any) { if (error.code !== 1) throw error; throw new Error(`${relative} must be Git-ignored before generated-output exclusion`); }
+    }
+    parsed.sourceManifestExcludes.push(relative);
+  }
   if (raw.sourceManifestRootFileExcludes !== undefined && !Array.isArray(raw.sourceManifestRootFileExcludes)) throw new Error("source manifest root-file exclusions must be an array");
   parsed.sourceManifestRootFileExcludes = [];
   const trackedRootFiles = trackedBasePaths.filter(value => !value.includes("/"));
@@ -225,9 +240,10 @@ export async function commitEvidence(worktree: string, baseHead: string, policy?
   return { head, tree, firstParent: headParent, changedPaths: changed, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some(value => changed.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || (commitPolicy.mode === "branch_driven" ? phaseCommitsValid : await versionSurfacesMatch(worktree, head, subject, commitPolicy)), ...(commitPolicy.bookkeeping ? { bookkeepingOnly } : {}), preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
 
-export async function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy: CommitPolicy = defaultCommitPolicy, preparedMerges: PreparedMerge[] = [], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>, breakingDescription?: string) {
+export async function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy: CommitPolicy = defaultCommitPolicy, preparedMerges: PreparedMerge[] = [], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>, breakingDescription?: string, captainRunId?: string) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths"); if (/\r|\n/.test(subject)) throw new Error("commit subject must be a single line");
   if (breakingDescription !== undefined && (typeof breakingDescription !== "string" || !breakingDescription.trim() || breakingDescription !== breakingDescription.trim() || breakingDescription.length > 2000 || /[\r\n\x00-\x1f\x7f]/.test(breakingDescription))) throw new Error("breaking description must be a nonempty single line of at most 2000 characters");
+  if (captainRunId !== undefined && (typeof captainRunId !== "string" || !/^[A-Za-z0-9._-]{1,200}$/.test(captainRunId))) throw new Error("Captain run trailer must be one trusted run identifier");
   const safePaths = paths.map(value => safeRepositoryPath(value, "commit")); if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/"))) throw new Error("commit paths must be canonical safe repository-relative paths"); if (!validSubject(subject, commitPolicy) && !(bookkeepingCaptured(commitPolicy) && bookkeepingSubjectAllowed(subject))) throw new Error("commit subject does not satisfy repository policy");
   const taskTrailer = taskOutcome && taskId ? `${taskOutcome}: ${taskId}` : undefined; if ((taskOutcome && !taskId) || (!taskOutcome && taskId && commitPolicy.require_task_trailer) || (taskTrailer && !hasTaskTrailer(taskTrailer, taskId)) || (commitPolicy.require_task_trailer && !taskTrailer)) throw new Error("commit must include the governed run task trailer");
   const binding = await assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, false, expectedGitDir);
@@ -236,7 +252,7 @@ export async function commitAtomic(worktree: string, paths: string[], subject: s
   const staged = splitLines(await git(["diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only"], worktree)); if (!staged.length || staged.some(changed => !safePaths.some(selected => changed === selected || changed.startsWith(`${selected}/`)))) throw new Error("commit preflight found staged paths outside the explicit selection");
   await assertWorktreeBinding(worktree, binding.branch, binding.commonGitDir, binding.head, false, binding.gitDir);
   const head = binding.head, mergeHead = await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree), tree = await git(["write-tree"], worktree), candidateArgs = ["commit-tree", tree, "-p", head];
-  if (mergeHead) { if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state"); candidateArgs.push("-p", mergeHead); } candidateArgs.push("-m", subject); if (breakingDescription !== undefined) candidateArgs.push("-m", `BREAKING CHANGE: ${breakingDescription}`); if (taskTrailer) candidateArgs.push("-m", taskTrailer);
+  if (mergeHead) { if (splitLines(mergeHead).length !== 1) throw new Error("commit preflight rejects octopus merge state"); candidateArgs.push("-p", mergeHead); } candidateArgs.push("-m", subject); if (breakingDescription !== undefined) candidateArgs.push("-m", `BREAKING CHANGE: ${breakingDescription}`); const trailers = [taskTrailer, ...(captainRunId ? [`Captain-Run: ${captainRunId}`] : [])].filter(Boolean).join("\n"); if (trailers) candidateArgs.push("-m", trailers);
   const candidate = await git(candidateArgs, worktree); await assertSafeGitAttributesAtCommit(worktree, candidate); if (!(await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges))) throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
   const prepared = { preCommitHead: head, candidate, tree, ...(mergeHead ? { mergeHead } : {}) } satisfies PreparedCommitCore;
   if (authorize) await authorize(prepared);

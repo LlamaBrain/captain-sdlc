@@ -372,3 +372,56 @@ when retaining a failure. Independent test files use four workers. All test case
 and their explicit competing-actor scenarios still run, and any failure keeps
 the actual nonzero exit code. Captured Captain proof commands remain unchanged.
 This uses Node's [multiple reporters](https://nodejs.org/download/release/v22.17.0/docs/api/test.html#multiple-reporters).
+
+
+## Native release-intent proof and compatibility decisions
+
+Branch-driven consumers can configure a `releaseIntentChecker` of `kind: "native"`.
+Use the Orchestrator installer to produce its descriptor: the absolute managed
+assembly and platform `dotnet` executable each have a SHA-256 pin, and every host
+dependency has a canonical path and digest. Install outside repository worktrees.
+The trusted base captures the complete descriptor. Changed dependencies, additional
+host files, unsafe arguments and stale revision context fail proof.
+
+Captain sends its captured base, committed head and tree with authority over the
+native host's private standard-input pipe. The native host uses the existing
+Orchestrator classification and decision logic and invokes the pinned claude-release
+engine for versions and artifacts. Worker commands and release-engine Node processes
+receive scrubbed environments. Captain retains the native report digest, exact
+revisions and explicit unavailable compatibility coverage in its signed proof evidence.
+
+When the report returns `needs_human`, show its supported contract, concrete diff,
+consumer impact, proposed migration, recommended classification and exact source/base.
+After actual human feedback, call `captain_adjudicate_compatibility` with the existing
+intent, report/finding digests, `compatibility_base` from the report, reviewed
+revision, actor, feedback and one of
+`confirm-major`, `reject-major`, or `revise`. A rejection records a compatibility
+justification. The endpoint verifies the latest finding and current committed source
+before delegating the decision to the same native host. An unchanged repeat retains
+the original feedback. Relevant changed evidence requires fresh adjudication.
+
+PATCH, MINOR and NONE continue through their required automated proof. Compatibility
+adjudication and repository merge/release permissions retain their distinct roles.
+See the Orchestrator documentation for the optional read-only decision import used
+when its release commands have a separate authority domain.
+
+Install Captain 0.12.0 or later before capturing a native consumer policy. Verify the
+installed public MCP version and `captain_adjudicate_compatibility` schema when a
+conversation still exposes an older tool list. Use the existing authority store and
+preserve actual hook trust decisions. Previously captured runs retain their policy;
+a migration's supplemental legacy version/changelog commit precedes the branch-driven
+baseline-pinning phase. Retain historical versions, milestone entries and tags.
+
+
+## Orchestrator-governed repositories
+
+Release-policy adoption and SDK enrollment are separate. A repository may use the
+Orchestrator lifecycle and `.captain-sdlc/project-policy.json` with its existing Git
+configuration, local verification and CI. Its agent instructions must route implementation
+and promotion through that governed lifecycle. The ordinary checkout helper supplies
+storage management for agent-owned tasks outside an Orchestrator run.
+
+SDK enrollment requires compatibility with its existing repository and attribute guards.
+Keep those guards and existing Git LFS tooling intact when the Orchestrator path is the
+supported configuration. A committed project policy and current-run Orchestrator/CI proof
+establish that adoption; they do not claim that the SDK is enrolled.

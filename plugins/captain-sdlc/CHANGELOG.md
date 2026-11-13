@@ -12,6 +12,8 @@
 
 ### Added
 
+- Connect hash-pinned native release-intent hosts to captured base/head/tree evidence and private authority transport; retain exact contract coverage and human compatibility decisions through the public MCP lifecycle (v0.12.0).
+
 - Add opt-in branch-driven implementation commits, pinned external release-intent proof, signed breaking descriptions, JSON version-mirror preservation and content-derived task trailers; adopt release boundaries through an explicit successor contract (v0.11.0).
 
 ## [0.10.13] - 2026-10-29

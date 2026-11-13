@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
@@ -21,9 +21,9 @@ test('governed branch commit retains breaking description and task relationship'
   await git(['add','.'],root); await git(['commit','-m','chore: baseline'],root); const base=await git(['rev-parse','HEAD'],root);
   const policy = {mode:'branch_driven', conventional:true, require_version_suffix:false, require_task_trailer:true, version_file:'VERSION', version_surfaces:[{path:'VERSION',pattern:'^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)$'}], changelog_files:['CHANGELOG.md']} as const;
   await writeFile(path.join(root,'feature.txt'),'new behavior\n');
-  await (commitAtomic as any)(root,['feature.txt'],'feat(api)!: replace interface','Implements',task,policy,[],undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,'Use the new API.');
+  await (commitAtomic as any)(root,['feature.txt'],'feat(api)!: replace interface','Implements',task,policy,[],undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined,'Use the new API.','codex-fixture-run');
   const message=await git(['show','-s','--format=%B','HEAD'],root);
-  assert.match(message,/^BREAKING CHANGE: Use the new API\.$/m); assert.match(message,/^Implements: M05#squads#abc123def456$/m);
+  assert.match(message,/^BREAKING CHANGE: Use the new API\.$/m); assert.match(message,/^Implements: M05#squads#abc123def456$/m); assert.match(message,/^Captain-Run: codex-fixture-run$/m);
   assert.equal((await commitEvidence(root,base,{commit:policy} as any,task)).phaseCommitsValid,true);
   const head = await git(['rev-parse','HEAD'],root);
   await writeFile(path.join(root,'unsafe.txt'),'x');

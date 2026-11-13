@@ -568,3 +568,23 @@ test("trusted LOW profile loads from the committed policy", async () => {
   assert.equal(policy.profile, "low");
   assert.deepEqual(policy.profiles, ["low", "feature", "pre-release"]);
 });
+
+
+test("Unreal and Python generated exclusions require ignored roots and retain tracked contracts",async t=>{
+  const root=await repo();t.after(async()=>{assert.equal(path.dirname(root),path.resolve(tmpdir()));await rm(root,{recursive:true,force:true});});
+  const exclusions=["Saved","Binaries","Intermediate","DerivedDataCache","Scripts/__pycache__","Scripts/Tests/__pycache__"];
+  await writeFile(path.join(root,".gitignore"),exclusions.map(x=>x+"/").join("\n")+"\n");
+  await writeFile(path.join(root,"Contract.h"),"int public_contract();\n");
+  const raw={profile:"low",visualRequired:false,sourceManifestExcludes:exclusions,commands:{build:"build",ticket:"ticket","feature-smoke":"smoke","affected-regression":"regression"}};
+  await writeFile(path.join(root,".captain-sdlc","codex-policy.json"),JSON.stringify(raw));await runGit(root,"add",".");await runGit(root,"commit","-m","chore: configure ignored native output");
+  let head=(await runGit(root,"rev-parse","HEAD")).stdout.trim(),policy=await loadPolicy(root,head),before=await sourceState(root,policy);
+  assert.deepEqual(policy.sourceManifestExcludes,exclusions);
+  for(const relative of exclusions){await mkdir(path.join(root,relative),{recursive:true});await writeFile(path.join(root,relative,"cache.bin"),"generated");}
+  assert.equal((await sourceState(root,policy)).manifest,before.manifest);
+  await writeFile(path.join(root,"Contract.h"),"int changed_contract();\n");assert.notEqual((await sourceState(root,policy)).manifest,before.manifest);
+  await writeFile(path.join(root,"Contract.h"),"int public_contract();\n");
+  await writeFile(path.join(root,".gitignore"),"");await runGit(root,"add",".gitignore");await runGit(root,"commit","-m","chore: remove native output ignores");head=(await runGit(root,"rev-parse","HEAD")).stdout.trim();
+  await assert.rejects(loadPolicy(root,head),/ignored|ignore/i);
+  await writeFile(path.join(root,".gitignore"),exclusions.map(x=>x+"/").join("\n")+"\n");await runGit(root,"add",".gitignore");await runGit(root,"add","-f","Saved/cache.bin");await runGit(root,"commit","-m","chore: retain generated-looking authored input");head=(await runGit(root,"rev-parse","HEAD")).stdout.trim();
+  await assert.rejects(loadPolicy(root,head),/tracked base/i);
+});

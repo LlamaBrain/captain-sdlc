@@ -1,8 +1,8 @@
-import { assertReleaseIntentChecker, runReleaseIntentChecker, type ReleaseIntentChecker } from "./release-intent.js";
+import { assertReleaseIntentChecker, runReleaseIntentChecker, type ReleaseIntentChecker, type NativeCompatibilityDecision } from "./release-intent.js";
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { acquireAuthorizedLease, assertIntentNotRepossessed, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
+import { runAuthorizedNativeReleaseIntentChecker, acquireAuthorizedLease, assertIntentNotRepossessed, ensureAuthorizedLease, putAuthorizedOnceExact, readAuthorized, readAuthorizedLease, readAuthorizedLeaseSnapshotReadOnly, readAuthorizedReadOnly, releaseAuthorizedLease, releaseAuthorizedLeaseAtGeneration, writeAuthorized } from "./authority.js";
 import { createBeginDiagnosticAdapter } from "./begin-diagnostic-adapter.js";
 import { probeSessionOwner, validateSessionOwner, type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
@@ -29,6 +29,7 @@ class ProofSourceDivergenceError extends Error {
 }
 export type CommitPolicy = { mode?: "per_commit" | "branch_driven"; type_impacts?: Record<string, "none" | "patch" | "minor">; conventional?: boolean; require_version_suffix?: boolean; require_task_trailer?: boolean; version_file: string; version_surfaces?: Array<{ path: string; pattern: string; json_pointers?: string[] }>; changelog_files: string[]; bookkeeping?: BookkeepingPolicy };
 export type HitlCheck = { id: string; criterionId: string; setup: string; action: string; expected: string; evidence: string };
+export type CompatibilityFeedbackInput = { choice: "confirm-major" | "reject-major" | "revise"; actor: string; humanFeedback: string; allFindings: boolean; reportDigest: string; findingDigest: string; reviewedRevision: string; compatibilityBase: string };
 export type HitlFeedbackInput = { decision: "accept" | "needs_changes"; humanFeedback: string; checkIds: string[]; evidenceReferences: string[]; reviewedRevision?: string };
 export type HitlFeedback = HitlFeedbackInput & { kind: "hitl_feedback"; recordedAt: string; recordedSource: SourceState };
 export type ProjectPolicy = { releaseIntentChecker?: ReleaseIntentChecker; hitlChecks?: HitlCheck[]; approvedPlans?: Array<{ path: string; sha256: string }>; profile: Profile; profiles?: Profile[]; visualRequired: boolean; commands: Record<string, string>; artifactPaths?: Record<string, string>; outputRetention?: OutputRetention; redGate?: { expectedExitCodes: number[]; outputPattern: string }; commitPolicyPath?: string; commitPolicySha256?: string; commit?: CommitPolicy; sourceManifestExcludes?: string[]; sourceManifestRootFileExcludes?: string[] };
@@ -913,12 +914,67 @@ export class LifecycleStore {
     for (const [scope, role] of Object.entries(bindings)) if (scopes.includes(scope)) { const relative = run.policy.artifactPaths?.[role]; if (!relative) throw new Error(`${role} artifact is required by trusted policy`); before[role] = await optionalHash(run.worktreePath, relative); }
     const proof = [];
     const artifacts: Record<string, unknown> = {};
-    for (const scope of scopes) { const command = run.policy.commands[scope]; await prepareScopeOutputs(run.worktreePath, run.policy, scope); if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker!, [run.worktreePath, run.projectRoot]); const result = scope === "release-intent" ? await runReleaseIntentChecker(run.policy.releaseIntentChecker!, run.worktreePath, [run.worktreePath, run.projectRoot]) : await this.runner(command, run.worktreePath); if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker!, [run.worktreePath, run.projectRoot]); proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode, ...(scope === "release-intent" ? { checkerSha256: run.policy.releaseIntentChecker!.sha256, outputSha256: digest(result.stdout + "\n" + result.stderr) } : {}) }); if (result.exitCode !== 0) { await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] }); throw new Error(`${scope} proof failed; run returned to implement for repair`); } await this.assertCommitted(run, repairFence); const role = bindings[scope]; if (role) { const relative = run.policy.artifactPaths![role]; const absolute = await safeArtifact(run.worktreePath, relative); const after = await hashPath(absolute); if (role === "visual") await assertImage(absolute); artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope }; } }
+    for (const scope of scopes) {
+      const command = run.policy.commands[scope]; await prepareScopeOutputs(run.worktreePath, run.policy, scope);
+      const checker = run.policy.releaseIntentChecker;
+      const result = scope === "release-intent"
+        ? checker?.kind === "native" ? await this.nativeReleaseIntent(run) : await runReleaseIntentChecker(checker!, run.worktreePath, [run.worktreePath, run.projectRoot])
+        : await this.runner(command, run.worktreePath);
+      proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode,
+        ...(scope === "release-intent" ? { checkerSha256: checker!.sha256, outputSha256: digest(result.stdout + "\n" + result.stderr),
+          ...("summary" in result && result.summary ? { releaseIntent: result.summary } : {}) } : {}) });
+      if (result.exitCode !== 0) {
+        await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
+        throw new Error(`${scope} proof failed; run returned to implement for repair`);
+      }
+      await this.assertCommitted(run, repairFence);
+      const role = bindings[scope];
+      if (role) {
+        const relative = run.policy.artifactPaths![role], absolute = await safeArtifact(run.worktreePath, relative), after = await hashPath(absolute);
+        if (role === "visual") await assertImage(absolute);
+        artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope };
+      }
+    }
     for (const [role, item] of Object.entries(artifacts) as Array<[string, any]>) { const finalHash = await hashPath(await safeArtifact(run.worktreePath, item.path)); if (finalHash !== item.sha256) throw new Error(`${role} artifact changed after its producing proof command`); }
     const awaitsReview = Boolean(run.policy.hitlChecks?.length);
     const completed = await this.update({ ...run, phase: awaitsReview ? "hitl" : "complete", status: awaitsReview ? "running" : "green", evidence: [...run.evidence, ...proof, { kind: "artifacts", artifacts }, { kind: "proof_passed", head: run.committedState.head, tree: run.committedState.tree }] });
     if (awaitsReview) return completed;
     await this.hooks?.afterRunCompleted?.(completed); return this.finalizeCompletion(intentId);
+  }
+  private async nativeReleaseIntent(run: Run, decision?: NativeCompatibilityDecision) {
+    const checker = run.policy.releaseIntentChecker;
+    if (checker?.kind !== "native" || !run.committedState?.tree) throw new Error("native release intent requires its exact committed tree and trusted native checker");
+    return runAuthorizedNativeReleaseIntentChecker(this.dataRoot, checker, run.worktreePath, [run.worktreePath, run.projectRoot],
+      { base: run.baseHead, head: run.committedState.head, tree: run.committedState.tree, ...(decision ? { decision } : {}) });
+  }
+  async adjudicateCompatibility(intentId: string, input: CompatibilityFeedbackInput): Promise<Run> {
+    const run = await this.run(intentId);
+    if (run.status === "paused") throw new Error("resume the owned run before recording compatibility feedback");
+    if (!run.committedState || !this.probe || run.policy.releaseIntentChecker?.kind !== "native") throw new Error("compatibility feedback requires an owned native release-intent run");
+    if (!["confirm-major", "reject-major", "revise"].includes(input.choice) || typeof input.actor !== "string" || !input.actor.trim() || input.actor.length > 200
+        || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12000
+        || typeof input.allFindings !== "boolean" || (input.choice === "reject-major" && !input.allFindings)
+        || !/^[0-9a-f]{64}$/i.test(input.reportDigest) || !/^[0-9a-f]{64}$/i.test(input.findingDigest)
+        || input.reviewedRevision !== run.committedState.head || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(input.compatibilityBase)) throw new Error("compatibility adjudication requires actual human feedback for the exact reviewed revision and findings");
+    await this.assertCommitted(run);
+    const normalized = { choice: input.choice, actor: input.actor.trim(), humanFeedback: input.humanFeedback.trim(), allFindings: input.allFindings,
+      reportDigest: input.reportDigest.toLowerCase(), findingDigest: input.findingDigest.toLowerCase(), reviewedRevision: input.reviewedRevision, compatibilityBase: input.compatibilityBase };
+    const previous = run.evidence.filter(item => item.kind === "compatibility_feedback").at(-1);
+    if (previous && JSON.stringify(previous.input) === JSON.stringify(normalized)) return run;
+    if (run.phase === "complete") throw new Error("completed compatibility feedback is immutable");
+    await this.assertSessionLease(run);
+    const latest = run.evidence.filter(item => item.scope === "release-intent").at(-1)?.releaseIntent as any;
+    if (!latest || latest.status !== "needs_human" || latest.bump !== "major" || (latest.policyBase ?? latest.base) !== run.baseHead || latest.base !== normalized.compatibilityBase || latest.head !== run.committedState.head || latest.tree !== run.committedState.tree
+        || latest.reportDigest !== normalized.reportDigest || latest.findingDigest !== normalized.findingDigest)
+      throw new Error("compatibility feedback does not match the latest exact needs_human report");
+    const result = await this.nativeReleaseIntent(run, { report_digest: normalized.reportDigest, finding_digest: normalized.findingDigest,
+      choice: normalized.choice, actor: normalized.actor, reason: normalized.humanFeedback, all_findings: normalized.allFindings });
+    await this.assertCommitted(run);
+    if (!result.summary || !["ready", "needs_revision"].includes(result.summary.status) || result.summary.base !== normalized.compatibilityBase || result.summary.findingDigest !== normalized.findingDigest) throw new Error("native compatibility adjudication did not accept the exact human feedback");
+    const accepted = result.summary.status === "ready";
+    return this.update({ ...run, phase: accepted ? "prove" : "implement", status: accepted ? "running" : "red", evidence: [...run.evidence,
+      { kind: "compatibility_feedback", ...normalized, input: normalized, base: normalized.compatibilityBase, policyBase: run.baseHead, head: run.committedState.head, tree: run.committedState.tree,
+        recordedAt: new Date().toISOString(), source: "captain_adjudicate_compatibility", releaseIntent: result.summary }] });
   }
   private isFrozenPlan(run: Run, relative: string) { return (run.policy.approvedPlans ?? []).some(plan => plan.path.toLowerCase() === relative.replaceAll("\\", "/").toLowerCase()); }
   async assertFrozenScope(intentId: string): Promise<void> {

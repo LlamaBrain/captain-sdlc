@@ -1059,10 +1059,10 @@ var require_util = __commonJS({
     var codegen_1 = require_codegen();
     var code_1 = require_code();
     function toHash(arr) {
-      const hash8 = {};
+      const hash9 = {};
       for (const item of arr)
-        hash8[item] = true;
-      return hash8;
+        hash9[item] = true;
+      return hash9;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it, schema) {
@@ -7185,20 +7185,174 @@ var require_dist = __commonJS({
   }
 });
 
-// src/authority.ts
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { link, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
+// src/release-intent.ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { createHash } from "node:crypto";
+import { lstat, readFile, readdir, realpath } from "node:fs/promises";
 import path2 from "node:path";
+async function pinned(file, forbiddenRoots) {
+  if (!file || typeof file.path !== "string" || !path2.isAbsolute(file.path) || !/^[A-Za-z0-9:/\\._ -]+$/.test(file.path) || !hash(file.sha256))
+    throw new Error("release-intent requires an absolute installed checker path and SHA-256");
+  const absolute2 = path2.resolve(file.path), info = await lstat(absolute2);
+  if (!info.isFile() || info.isSymbolicLink() || key(await realpath(absolute2)) !== key(absolute2)) throw new Error("release-intent checker must be a canonical regular file");
+  if (forbiddenRoots.some((root) => inside(absolute2, root))) throw new Error("release-intent checker must be installed outside the repository");
+  const bytes = await readFile(absolute2);
+  if (sha(bytes) !== file.sha256) throw new Error("release-intent checker digest changed from trusted base");
+  return bytes;
+}
+function managedAssembly(bytes) {
+  if (bytes.length < 64 || bytes.readUInt16LE(0) !== 23117) return false;
+  const pe = bytes.readUInt32LE(60);
+  if (pe > bytes.length - 256 || bytes.toString("ascii", pe, pe + 4) !== "PE\0\0") return false;
+  const header = pe + 24, magic = bytes.readUInt16LE(header), directories = magic === 267 ? header + 96 : magic === 523 ? header + 112 : 0;
+  return directories > 0 && directories + 120 <= bytes.length && bytes.readUInt32LE(directories + 112) !== 0 && bytes.readUInt32LE(directories + 116) >= 72;
+}
+function nativeExecutable(bytes) {
+  return bytes.length >= 4 && (bytes.readUInt16LE(0) === 23117 || [2135247942, 4277009102, 4277009103, 3472551422, 3489328638, 3405691582, 3199925962].includes(bytes.readUInt32BE(0)));
+}
+async function assertReleaseIntentChecker(checker, forbiddenRoots) {
+  const bytes = await pinned(checker, forbiddenRoots);
+  if (checker.kind !== void 0 && checker.kind !== "script" && checker.kind !== "native") throw new Error("unsupported release-intent checker kind");
+  if (checker.args && (!Array.isArray(checker.args) || checker.args.some((arg) => typeof arg !== "string" || !/^[A-Za-z0-9:/\\._ =#-]+$/.test(arg)))) throw new Error("release-intent checker arguments must be literal bounded tokens");
+  if (checker.kind !== "native") return;
+  if (path2.extname(checker.path).toLowerCase() !== ".dll" || !managedAssembly(bytes)) throw new Error("native release-intent checker requires a managed DLL assembly");
+  if (typeof checker.executable !== "string" || !/^dotnet(?:\.exe)?$/i.test(path2.basename(checker.executable))) throw new Error("native release-intent checker requires the installed dotnet executable");
+  const executable = await pinned({ path: checker.executable, sha256: checker.executableSha256 }, forbiddenRoots);
+  if (!nativeExecutable(executable)) throw new Error("native release-intent executable must be a native dotnet binary");
+  if (!Array.isArray(checker.dependencies) || !checker.dependencies.length || checker.dependencies.length > 128) throw new Error("native checker requires complete dependency integrity pins");
+  const directory = path2.dirname(checker.path), names = /* @__PURE__ */ new Set([path2.basename(checker.path)]);
+  for (const dependency of checker.dependencies) {
+    if (!dependency || key(path2.dirname(dependency.path)) !== key(directory) || names.has(path2.basename(dependency.path))) throw new Error("native checker dependencies must be unique installed sibling files");
+    names.add(path2.basename(dependency.path));
+    await pinned(dependency, forbiddenRoots);
+  }
+  if (JSON.stringify((await readdir(directory)).sort()) !== JSON.stringify([...names].sort())) throw new Error("native checker installed dependency file set changed");
+  const stem = path2.basename(checker.path, ".dll");
+  if (!names.has(stem + ".deps.json") || !names.has(stem + ".runtimeconfig.json")) throw new Error("native checker requires pinned runtime configuration dependencies");
+  const args = checker.args;
+  if (!args || args.length !== 6 || args[0] !== "release" || args[1] !== "check" || args[2] !== "--target-branch" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(args[3]) || args[3].includes("..") || args[4] !== "--authority-store" || !path2.isAbsolute(args[5]) || forbiddenRoots.some((root) => inside(args[5], root)))
+    throw new Error("native checker arguments must select one target and external state store; context arguments are parent-owned");
+}
+function releaseIntentCommand(checker) {
+  return [checker.kind === "native" ? checker.executable : process.execPath, checker.path, ...checker.args ?? [], ...checker.kind === "native" ? ["--captain-context-stdin"] : []].map((value) => '"' + value + '"').join(" ");
+}
+function environment(native = false) {
+  const env = { ...process.env };
+  for (const name of Object.keys(env)) if (/^GIT_/i.test(name) || ["CAPTAIN_SEQUENCE_AUTH_KEY", "PLUGIN_DATA", "CAPTAIN_PLUGIN_DATA", "NODE_OPTIONS", "NODE_PATH"].includes(name) || native && (/^(?:CAPTAIN_|NODE_|DOTNET_|CORECLR_|COR_|COMPLUS_|LD_|DYLD_)/i.test(name) || ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"].includes(name))) delete env[name];
+  return { ...env, GIT_TERMINAL_PROMPT: "0", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null" };
+}
+async function runReleaseIntentChecker(checker, cwd, forbiddenRoots) {
+  if (checker.kind === "native") throw new Error("native checker requires the trusted parent authority operation");
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  let result;
+  try {
+    const output = await promisify(execFile)(process.execPath, [checker.path, ...checker.args ?? []], { cwd, windowsHide: true, env: environment(), maxBuffer: 10 * 1024 * 1024 });
+    result = { exitCode: 0, ...output };
+  } catch (error2) {
+    result = { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
+  }
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  return result;
+}
+function validateContext(context) {
+  if (!context || !oid(context.base) || !oid(context.head) || !oid(context.tree)) throw new Error("native checker requires exact parent-owned revision context");
+  const d = context.decision;
+  if (d && (!hash(d.report_digest) || !hash(d.finding_digest) || !["confirm-major", "reject-major", "revise"].includes(d.choice) || typeof d.actor !== "string" || !d.actor.trim() || d.actor.length > 200 || typeof d.reason !== "string" || !d.reason.trim() || d.reason.length > 12e3 || typeof d.all_findings !== "boolean" || d.choice === "reject-major" && !d.all_findings)) throw new Error("compatibility adjudication requires actual human feedback for all reviewed findings");
+}
+async function summaryOf(result, checker, context, forbiddenRoots) {
+  if (result.stdout.length > 1024 * 1024) throw new Error("native checker summary exceeds its bounded response");
+  let value;
+  try {
+    value = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("native checker returned an invalid structured summary");
+  }
+  if (!value || !["ready", "needs_human", "needs_revision", "blocked"].includes(value.Status) || !Array.isArray(value.Errors) || value.Errors.length > 32 || value.Errors.some((e) => typeof e !== "string" || e.length > 2e3)) throw new Error("native checker summary is incomplete");
+  if (value.Status === "ready" !== (result.exitCode === 0)) throw new Error("native checker status contradicts its exit code");
+  if (value.Status !== "blocked" && (!oid(value.Base) || (value.PolicyBase ?? value.Base) !== context.base || value.Head !== context.head || value.Tree !== context.tree || !["none", "patch", "minor", "major"].includes(value.Bump))) throw new Error("native checker revision context differs from the signed run");
+  if (value.Status === "blocked" && value.Coverage == null) value.Coverage = [];
+  if (!Array.isArray(value.Coverage) || value.Coverage.length > 64) throw new Error("native checker coverage summary is invalid");
+  const coverage = value.Coverage.map((gap) => {
+    if (!gap || typeof gap.Name !== "string" || gap.Name.length > 64 || gap.Status !== "unavailable" || typeof gap.Reason !== "string" || !gap.Reason.trim() || gap.Reason.length > 2e3 || typeof gap.Affected !== "boolean" || !["block", "report"].includes(gap.OnUnavailable)) throw new Error("native checker coverage evidence is invalid");
+    return { name: gap.Name, status: gap.Status, reason: gap.Reason, affected: gap.Affected, onUnavailable: gap.OnUnavailable };
+  });
+  const store = checker.args[5];
+  async function report(file, expected) {
+    if (typeof file !== "string" || !path2.isAbsolute(file) || !inside(file, store) || forbiddenRoots.some((root) => inside(file, root))) throw new Error("native checker report must remain in its external state store");
+    const stat3 = await lstat(file);
+    if (!stat3.isFile() || stat3.isSymbolicLink() || stat3.size > 1024 * 1024 || key(await realpath(file)) !== key(file)) throw new Error("native checker report is not a bounded canonical file");
+    const digest11 = sha(await readFile(file));
+    if (expected && digest11 !== expected) throw new Error("native checker report digest does not match its retained evidence");
+    return digest11;
+  }
+  if (value.Status !== "blocked") {
+    if (!hash(value.ReportDigest) || !hash(value.FindingDigest)) throw new Error("native checker report and finding digests are required");
+    await report(value.ReportPath, value.ReportDigest);
+  }
+  if (["needs_human", "needs_revision"].includes(value.Status) && !value.HumanReportPath) throw new Error("native compatibility gate requires its retained human report");
+  const humanReportSha256 = value.HumanReportPath ? await report(value.HumanReportPath, void 0) : void 0;
+  return { status: value.Status, base: value.Base ?? null, policyBase: value.PolicyBase ?? value.Base ?? null, head: value.Head ?? null, tree: value.Tree ?? null, bump: value.Bump ?? null, reportDigest: value.ReportDigest ?? null, findingDigest: value.FindingDigest ?? null, reportPath: value.ReportPath ?? null, humanReportPath: value.HumanReportPath ?? null, ...humanReportSha256 ? { humanReportSha256 } : {}, errors: value.Errors, coverage };
+}
+async function runNativeReleaseIntentChecker(checker, cwd, forbiddenRoots, context, authority) {
+  validateContext(context);
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  const secret = await authority();
+  if (secret.length !== 32) throw new Error("native checker authority is invalid");
+  const encoded = secret.toString("base64");
+  let result;
+  try {
+    const pending = promisify(execFile)(checker.executable, [checker.path, ...checker.args, "--captain-context-stdin", "--project-root", cwd], { cwd, windowsHide: true, env: environment(true), maxBuffer: 10 * 1024 * 1024 });
+    pending.child.stdin.on("error", () => {
+    });
+    pending.child.stdin.end(JSON.stringify({ ...context, authority_key: encoded }) + "\n");
+    const output = await pending;
+    result = { exitCode: 0, ...output };
+  } catch (error2) {
+    result = { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
+  }
+  const containsAuthority = (text2) => {
+    let decoded;
+    try {
+      decoded = JSON.parse(text2);
+    } catch {
+    }
+    return text2.includes(encoded) || text2.replace(/\\u([0-9a-f]{4})/gi, (_, code) => String.fromCharCode(parseInt(code, 16))).includes(encoded) || decoded !== void 0 && JSON.stringify(decoded).includes(encoded);
+  };
+  if (containsAuthority(result.stdout) || containsAuthority(result.stderr)) throw new Error("native checker returned private authority material");
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  result.summary = await summaryOf(result, checker, context, forbiddenRoots);
+  return result;
+}
+var key, sha, oid, hash, inside;
+var init_release_intent = __esm({
+  "src/release-intent.ts"() {
+    "use strict";
+    key = (value) => process.platform === "win32" ? path2.resolve(value).toLowerCase() : path2.resolve(value);
+    sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
+    oid = (value) => typeof value === "string" && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value);
+    hash = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+    inside = (file, root) => {
+      const relative = path2.relative(path2.resolve(root), path2.resolve(file));
+      return !relative || !relative.startsWith(".." + path2.sep) && relative !== ".." && !path2.isAbsolute(relative);
+    };
+  }
+});
+
+// src/authority.ts
+import { createHash as createHash2, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { link, mkdir, readFile as readFile2, readdir as readdir2, rename, unlink, writeFile } from "node:fs/promises";
+import path3 from "node:path";
 function decodeKey(value) {
   const normalized2 = value.trim(), decoded = Buffer.from(normalized2, "base64");
   if (decoded.length !== 32 || decoded.toString("base64") !== normalized2) throw new Error("Captain authority key must decode to exactly 32 bytes");
   return decoded;
 }
-async function key(root) {
+async function key2(root) {
   await mkdir(root, { recursive: true });
-  const file = path2.join(root, "authority.key");
+  const file = path3.join(root, "authority.key");
   try {
-    return decodeKey(await readFile(file, "utf8"));
+    return decodeKey(await readFile2(file, "utf8"));
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     const value = randomBytes(32), temp = `${file}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`;
@@ -7209,7 +7363,7 @@ async function key(root) {
         return value;
       } catch (publish) {
         if (publish.code !== "EEXIST") throw publish;
-        return decodeKey(await readFile(file, "utf8"));
+        return decodeKey(await readFile2(file, "utf8"));
       }
     } finally {
       await unlink(temp).catch((cleanup) => {
@@ -7219,9 +7373,9 @@ async function key(root) {
   }
 }
 async function writeAuthorized(root, bucket3, id, payload) {
-  const dir = path2.join(root, bucket3);
+  const dir = path3.join(root, bucket3);
   await mkdir(dir, { recursive: true });
-  const envelope = { payload, tag: tag(payload, await key(root)) }, target = path2.join(dir, `${safe(id)}.json`), temp = `${target}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`;
+  const envelope = { payload, tag: tag(payload, await key2(root)) }, target = path3.join(dir, `${safe(id)}.json`), temp = `${target}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`;
   try {
     await writeFile(temp, JSON.stringify(envelope, null, 2), { flag: "wx", mode: 384 });
     await rename(temp, target);
@@ -7232,15 +7386,15 @@ async function writeAuthorized(root, bucket3, id, payload) {
   }
 }
 async function readAuthorized(root, bucket3, id) {
-  const envelope = JSON.parse(await readFile(path2.join(root, bucket3, `${safe(id)}.json`), "utf8"));
-  const expected = Buffer.from(tag(envelope.payload, await key(root)), "hex"), actual = Buffer.from(String(envelope.tag ?? ""), "hex");
+  const envelope = JSON.parse(await readFile2(path3.join(root, bucket3, `${safe(id)}.json`), "utf8"));
+  const expected = Buffer.from(tag(envelope.payload, await key2(root)), "hex"), actual = Buffer.from(String(envelope.tag ?? ""), "hex");
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error("Captain authority tag is invalid");
   return envelope.payload;
 }
 async function putAuthorizedOnceExact(root, bucket3, id, payload) {
-  const dir = path2.join(root, bucket3);
+  const dir = path3.join(root, bucket3);
   await mkdir(dir, { recursive: true });
-  const target = path2.join(dir, `${safe(id)}.json`), temp = `${target}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`, envelope = { payload, tag: tag(payload, await key(root)) };
+  const target = path3.join(dir, `${safe(id)}.json`), temp = `${target}.${process.pid}.${randomBytes(16).toString("hex")}.tmp`, envelope = { payload, tag: tag(payload, await key2(root)) };
   try {
     await writeFile(temp, JSON.stringify(envelope, null, 2), { flag: "wx", mode: 384 });
     try {
@@ -7259,15 +7413,15 @@ async function putAuthorizedOnceExact(root, bucket3, id, payload) {
   }
 }
 async function leaseState(root, id) {
-  const leaseId = safe(id), dir = path2.join(root, "lease-revisions"), expression = new RegExp(`^${leaseId}-([0-9]+)\\.json$`);
+  const leaseId = safe(id), dir = path3.join(root, "lease-revisions"), expression = new RegExp(`^${leaseId}-([0-9]+)\\.json$`);
   let names = [], watermarkNames = [];
   try {
-    names = await readdir(dir);
+    names = await readdir2(dir);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
   }
   try {
-    watermarkNames = await readdir(path2.join(root, "lease-watermarks"));
+    watermarkNames = await readdir2(path3.join(root, "lease-watermarks"));
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
   }
@@ -7394,8 +7548,8 @@ async function releaseAuthorizedLeaseAtGeneration(root, id, intentId, leaseToken
   }
 }
 async function readAuthorizedReadOnly(root, bucket3, id) {
-  const secret = decodeKey(await readFile(path2.join(root, "authority.key"), "utf8"));
-  const envelope = JSON.parse(await readFile(path2.join(root, bucket3, `${safe(id)}.json`), "utf8"));
+  const secret = decodeKey(await readFile2(path3.join(root, "authority.key"), "utf8"));
+  const envelope = JSON.parse(await readFile2(path3.join(root, bucket3, `${safe(id)}.json`), "utf8"));
   if (typeof envelope.tag !== "string" || !/^[0-9a-f]{64}$/i.test(envelope.tag)) throw new Error("Captain authority tag is invalid");
   const expected = Buffer.from(tag(envelope.payload, secret), "hex"), actual = Buffer.from(envelope.tag, "hex");
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error("Captain authority tag is invalid");
@@ -7403,11 +7557,11 @@ async function readAuthorizedReadOnly(root, bucket3, id) {
 }
 async function readAuthorizedLeaseSnapshotReadOnly(root, id) {
   const leaseId = safe(id);
-  decodeKey(await readFile(path2.join(root, "authority.key"), "utf8"));
+  decodeKey(await readFile2(path3.join(root, "authority.key"), "utf8"));
   const expression = new RegExp(`^${leaseId}-([0-9]+)\\.json$`);
   const names = async (bucket3) => {
     try {
-      return await readdir(path2.join(root, bucket3));
+      return await readdir2(path3.join(root, bucket3));
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
       return [];
@@ -7458,7 +7612,7 @@ async function releaseAuthorizedLegacyLeaseAtGeneration(root, id, intentId, leas
   }
   if (!current || current.payload.intentId !== intentId || current.payload.leaseToken !== leaseToken) throw new Error("authorized legacy lease generation owner mismatch");
   const payload = current.payload;
-  if (typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash("sha256").update(`${path2.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId) throw new Error("authorized legacy lease resource binding is invalid");
+  if (typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash2("sha256").update(`${path3.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId) throw new Error("authorized legacy lease resource binding is invalid");
   if (!/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("authorized legacy lease generation changed");
   if (!current.legacy && current.revision !== 0 && !(current.revision === 1 && current.state === "released")) throw new Error("authorized legacy lease generation changed");
   if (current.legacy || partial2) {
@@ -7472,10 +7626,10 @@ async function releaseAuthorizedLegacyLeaseAtGeneration(root, id, intentId, leas
 }
 async function readAuthorizedLegacyLeaseMigrationReadOnly(root, id, intentId, resourceGeneration) {
   const leaseId = safe(id), payload = await readAuthorizedReadOnly(root, "leases", leaseId);
-  if (payload.intentId !== intentId || typeof payload.leaseToken !== "string" || !payload.leaseToken || typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash("sha256").update(`${path2.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId || !/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("partial legacy lease migration binding is invalid");
+  if (payload.intentId !== intentId || typeof payload.leaseToken !== "string" || !payload.leaseToken || typeof payload.commonGitDir !== "string" || typeof payload.targetBranch !== "string" || typeof payload.targetOid !== "string" || !/^[0-9a-f]{40,64}$/i.test(payload.targetOid) || createHash2("sha256").update(`${path3.resolve(payload.commonGitDir)}\0refs/heads/${payload.targetBranch}`.toLowerCase()).digest("hex") !== leaseId || !/^[0-9a-f]{64}$/i.test(resourceGeneration) || digest({ leaseId, revision: null, state: "held", payload }) !== resourceGeneration.toLowerCase()) throw new Error("partial legacy lease migration binding is invalid");
   const names = async (bucket3) => {
     try {
-      return await readdir(path2.join(root, bucket3));
+      return await readdir2(path3.join(root, bucket3));
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
       return [];
@@ -7506,63 +7660,20 @@ async function assertIntentNotRepossessed(root, intentId) {
   if (result && (result.schema_version !== 1 || result.old_intent_id !== intentId || result.recovery_id !== marker.recovery_id || result.state !== "released")) throw new Error("signed repossessed intent result is invalid");
   throw new Error("implementation intent was repossessed and revoked; retain the existing task checkout and use its normal operation");
 }
+async function runAuthorizedNativeReleaseIntentChecker(root, checker, cwd, forbiddenRoots, context) {
+  return runNativeReleaseIntentChecker(checker, cwd, forbiddenRoots, context, () => key2(root));
+}
 var tag, digest, safe;
 var init_authority = __esm({
   "src/authority.ts"() {
     "use strict";
+    init_release_intent();
     tag = (payload, secret) => createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
-    digest = (payload) => createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    digest = (payload) => createHash2("sha256").update(JSON.stringify(payload)).digest("hex");
     safe = (id) => {
       if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
       return id;
     };
-  }
-});
-
-// src/release-intent.ts
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { createHash as createHash2 } from "node:crypto";
-import { lstat, readFile as readFile2, realpath } from "node:fs/promises";
-import path3 from "node:path";
-async function assertReleaseIntentChecker(checker, forbiddenRoots) {
-  if (!checker || !path3.isAbsolute(checker.path) || !/^[A-Za-z0-9:/\\._ -]+$/.test(checker.path) || !/^[0-9a-f]{64}$/.test(checker.sha256)) throw new Error("release-intent requires an absolute installed checker path and SHA-256");
-  const absolute2 = path3.resolve(checker.path), info = await lstat(absolute2);
-  if (!info.isFile() || info.isSymbolicLink() || key2(await realpath(absolute2)) !== key2(absolute2))
-    throw new Error("release-intent checker must be a canonical regular file");
-  for (const root of forbiddenRoots) {
-    const relative = path3.relative(path3.resolve(root), absolute2);
-    if (!relative || !relative.startsWith(".." + path3.sep) && relative !== ".." && !path3.isAbsolute(relative))
-      throw new Error("release-intent checker must be installed outside the repository");
-  }
-  if (createHash2("sha256").update(await readFile2(absolute2)).digest("hex") !== checker.sha256)
-    throw new Error("release-intent checker digest changed from trusted base");
-  if (checker.args && (!Array.isArray(checker.args) || checker.args.some((arg) => typeof arg !== "string" || !/^[A-Za-z0-9:/\\._ =#-]+$/.test(arg))))
-    throw new Error("release-intent checker arguments must be literal bounded tokens");
-}
-function releaseIntentCommand(checker) {
-  return [process.execPath, checker.path, ...checker.args ?? []].map((value) => '"' + value + '"').join(" ");
-}
-async function runReleaseIntentChecker(checker, cwd, forbiddenRoots) {
-  await assertReleaseIntentChecker(checker, forbiddenRoots);
-  const environment = { ...process.env };
-  for (const name of Object.keys(environment)) if (/^GIT_/i.test(name) || ["CAPTAIN_SEQUENCE_AUTH_KEY", "PLUGIN_DATA", "CAPTAIN_PLUGIN_DATA", "NODE_OPTIONS", "NODE_PATH"].includes(name)) delete environment[name];
-  Object.assign(environment, { GIT_TERMINAL_PROMPT: "0", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null" });
-  let result;
-  try {
-    const output = await promisify(execFile)(process.execPath, [checker.path, ...checker.args ?? []], { cwd, windowsHide: true, env: environment, maxBuffer: 10 * 1024 * 1024 });
-    result = { exitCode: 0, stdout: output.stdout, stderr: output.stderr };
-  } catch (error2) {
-    result = { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
-  }
-  await assertReleaseIntentChecker(checker, forbiddenRoots);
-  return result;
-}
-var key2;
-var init_release_intent = __esm({
-  "src/release-intent.ts"() {
-    "use strict";
-    key2 = (value) => process.platform === "win32" ? path3.resolve(value).toLowerCase() : path3.resolve(value);
   }
 });
 
@@ -7750,8 +7861,8 @@ async function diagnoseBeginTargetLease(args, deps) {
     const projectRootMatches = samePath2(intent.projectRoot, args.project_root);
     const signedTargetBranch = typeof intent.targetBranch === "string" ? intent.targetBranch : void 0;
     const branchMatches = signedTargetBranch === args.target_branch;
-    const oid = intent.targetOid;
-    if (typeof oid !== "string" || !/^[0-9a-f]{40,64}$/i.test(oid)) {
+    const oid2 = intent.targetOid;
+    if (typeof oid2 !== "string" || !/^[0-9a-f]{40,64}$/i.test(oid2)) {
       return {
         ...base,
         diagnosis: "inspected",
@@ -7791,7 +7902,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       projectRoot: intent.projectRoot,
       targetWorktree: intent.projectRoot,
       targetBranch: signedTargetBranch,
-      targetOid: oid,
+      targetOid: oid2,
       canonicalProposedPath: path5.join(
         path5.resolve(intent.projectRoot),
         ".captain-sdlc",
@@ -7800,7 +7911,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       )
     });
     const targetWorktreeMatches = samePath2(git2.targetWorktree, args.target_worktree);
-    const gitBindingMatches = samePath2(git2.projectRoot, intent.projectRoot) && samePath2(git2.targetWorktree, args.target_worktree) && git2.targetRefOid.toLowerCase() === oid.toLowerCase();
+    const gitBindingMatches = samePath2(git2.projectRoot, intent.projectRoot) && samePath2(git2.targetWorktree, args.target_worktree) && git2.targetRefOid.toLowerCase() === oid2.toLowerCase();
     let repositoryPresent = false, repositoryMatches = false;
     let leaseCheckpointPresent = false, leaseCheckpointMatches = false;
     let workspacePresent = false;
@@ -7822,7 +7933,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       repositoryPresent = repository.present;
       if (repository.present) {
         const repositoryCommonGitDir = repository.value.commonGitDir;
-        repositoryMatches = repository.value.schemaVersion === 1 && repository.value.operationToken === operation.operationToken && samePath2(String(repository.value.projectRoot), intent.projectRoot) && typeof repositoryCommonGitDir === "string" && samePath2(repositoryCommonGitDir, git2.commonGitDir) && repository.value.baseHead === oid && typeof repository.value.policySha256 === "string";
+        repositoryMatches = repository.value.schemaVersion === 1 && repository.value.operationToken === operation.operationToken && samePath2(String(repository.value.projectRoot), intent.projectRoot) && typeof repositoryCommonGitDir === "string" && samePath2(repositoryCommonGitDir, git2.commonGitDir) && repository.value.baseHead === oid2 && typeof repository.value.policySha256 === "string";
         if (!repositoryMatches) throw new Error("repository_checkpoint_invalid");
       }
       const leaseCheckpoint = await maybeRead(deps, "begin-leases", operation.operationToken);
@@ -7908,7 +8019,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       project_root_matches: projectRootMatches,
       target_branch_matches: branchMatches,
       target_worktree_matches: expectedTargetCheckout && samePath2(git2.targetWorktree, args.target_worktree),
-      target_ref_matches: git2.targetRefOid.toLowerCase() === oid.toLowerCase(),
+      target_ref_matches: git2.targetRefOid.toLowerCase() === oid2.toLowerCase(),
       issuance: issuedIntentMatches ? "verified" : "missing_or_mismatched",
       reservation: operationMatches ? "verified" : operation ? "mismatched" : "absent",
       repository_checkpoint: repositoryPresent ? repositoryMatches ? "verified" : "mismatched" : "absent",
@@ -7966,7 +8077,7 @@ var init_begin_diagnostics = __esm({
 
 // src/begin-diagnostic-adapter.ts
 import { execFileSync } from "node:child_process";
-import { access, readdir as readdir2, realpath as realpath2 } from "node:fs/promises";
+import { access, readdir as readdir3, realpath as realpath2 } from "node:fs/promises";
 import path6 from "node:path";
 function gitRead(cwd, ...args) {
   return execFileSync("git", ["--no-optional-locks", "-C", cwd, ...args], {
@@ -8022,7 +8133,7 @@ function createBeginDiagnosticAdapter(dataRoot) {
     },
     async listSigned(bucket3) {
       try {
-        return await readdir2(path6.join(dataRoot, bucket3));
+        return await readdir3(path6.join(dataRoot, bucket3));
       } catch (error2) {
         if (error2.code === "ENOENT") return [];
         throw error2;
@@ -8194,7 +8305,7 @@ var init_validation = __esm({
 
 // src/user-authorization.ts
 import { createHash as createHash5 } from "node:crypto";
-import { readdir as readdir3 } from "node:fs/promises";
+import { readdir as readdir4 } from "node:fs/promises";
 import path7 from "node:path";
 function parseUserAuthorizations(prompt) {
   const result = [];
@@ -8246,7 +8357,7 @@ async function recordUserAuthorizations(data, input) {
   for (const [instructionIndex, event] of events.entries()) {
     if (event.targetBranch) await git(["check-ref-format", "--branch", event.targetBranch], scope.projectRoot);
     const binding = { ...event, ...scope, sessionId: input.sessionId, turnId: input.turnId, instructionIndex, ...input.intentId ? { intentId: input.intentId } : {}, ...input.taskId ? { taskId: input.taskId } : {}, source: input.source };
-    const id = hash(binding);
+    const id = hash2(binding);
     try {
       receipts.push(await readAuthorized(data, "user-authorizations", id));
       continue;
@@ -8259,7 +8370,7 @@ async function recordUserAuthorizations(data, input) {
     } catch (error2) {
       const existing = await readAuthorized(data, "user-authorizations", id);
       const { schemaVersion, id: existingId, recordedAt, ...existingBinding } = existing;
-      if (schemaVersion !== 1 || existingId !== id || hash(existingBinding) !== id) throw error2;
+      if (schemaVersion !== 1 || existingId !== id || hash2(existingBinding) !== id) throw error2;
       receipts.push(existing);
     }
   }
@@ -8269,7 +8380,7 @@ async function userAuthorizationStatus(data, query) {
   if (!query.sessionId && !query.intentId) throw new Error("Select a source session or governed intent for authorization lookup");
   let names;
   try {
-    names = await readdir3(path7.join(data, "user-authorizations"));
+    names = await readdir4(path7.join(data, "user-authorizations"));
   } catch (error2) {
     if (error2.code === "ENOENT") return { receipts: [], guidance };
     throw error2;
@@ -8286,21 +8397,21 @@ async function userAuthorizationStatus(data, query) {
   receipts.sort((a, b) => a.sessionId === b.sessionId && a.turnId === b.turnId ? a.instructionIndex - b.instructionIndex || a.id.localeCompare(b.id) : a.recordedAt.localeCompare(b.recordedAt) || a.id.localeCompare(b.id));
   return { receipts, guidance };
 }
-var guidance, hash, pathKey;
+var guidance, hash2, pathKey;
 var init_user_authorization = __esm({
   "src/user-authorization.ts"() {
     "use strict";
     init_authority();
     init_workspace();
     guidance = "Receipts preserve the user's original authorization for the same task. Honor later revocations and the recorded operation/target; a commit receipt does not authorize push, merge, or disabling controls. Check Git hygiene, then act without asking again. Missing parser receipts do not negate authorization already present in the conversation.";
-    hash = (value) => createHash5("sha256").update(JSON.stringify(value)).digest("hex");
+    hash2 = (value) => createHash5("sha256").update(JSON.stringify(value)).digest("hex");
     pathKey = (value) => process.platform === "win32" ? path7.resolve(value).toLowerCase() : path7.resolve(value);
   }
 });
 
 // src/user-request.ts
 import { createHash as createHash6 } from "node:crypto";
-import { readdir as readdir4 } from "node:fs/promises";
+import { readdir as readdir5 } from "node:fs/promises";
 import path8 from "node:path";
 async function serialized(key4, action2) {
   const previous = queues.get(key4) ?? Promise.resolve();
@@ -8423,14 +8534,14 @@ function effective(receipts) {
 }
 function assertReceipt(receipt, id) {
   const required2 = ["sessionId", "turnId", "sourceIntentId", "intentId", "projectRoot", "commonGitDir", "inputSha256"];
-  if (!receipt || receipt.schemaVersion !== 1 || receipt.id !== id || hash2(sourceIdentity(receipt)) !== id || required2.some((field) => typeof receipt[field] !== "string" || !receipt[field].trim()) || !["UserPromptSubmit", "client-adapter"].includes(receipt.source) || !["expressed", "unclear", "revoked"].includes(receipt.decision) || typeof receipt.originalText !== "string" || !Array.isArray(receipt.objectiveLines) || receipt.objectiveLines.some((line) => typeof line !== "string") || scopeHash(receipt.objectiveLines, receipt.targetBranch) !== receipt.scopeSha256 || !Number.isSafeInteger(receipt.sequence) || receipt.sequence < 0 || typeof receipt.recordedAt !== "string" || !Number.isFinite(Date.parse(receipt.recordedAt)) || receipt.sourceRecordedAt !== void 0 && (typeof receipt.sourceRecordedAt !== "string" || !Number.isFinite(Date.parse(receipt.sourceRecordedAt))) || receipt.requestedLines !== void 0 && (!Array.isArray(receipt.requestedLines) || receipt.requestedLines.some((line) => typeof line !== "string")) || receipt.basis !== void 0 && !["direct_instruction", "continuation", "explicit_approval"].includes(receipt.basis)) {
+  if (!receipt || receipt.schemaVersion !== 1 || receipt.id !== id || hash3(sourceIdentity(receipt)) !== id || required2.some((field) => typeof receipt[field] !== "string" || !receipt[field].trim()) || !["UserPromptSubmit", "client-adapter"].includes(receipt.source) || !["expressed", "unclear", "revoked"].includes(receipt.decision) || typeof receipt.originalText !== "string" || !Array.isArray(receipt.objectiveLines) || receipt.objectiveLines.some((line) => typeof line !== "string") || scopeHash(receipt.objectiveLines, receipt.targetBranch) !== receipt.scopeSha256 || !Number.isSafeInteger(receipt.sequence) || receipt.sequence < 0 || typeof receipt.recordedAt !== "string" || !Number.isFinite(Date.parse(receipt.recordedAt)) || receipt.sourceRecordedAt !== void 0 && (typeof receipt.sourceRecordedAt !== "string" || !Number.isFinite(Date.parse(receipt.sourceRecordedAt))) || receipt.requestedLines !== void 0 && (!Array.isArray(receipt.requestedLines) || receipt.requestedLines.some((line) => typeof line !== "string")) || receipt.basis !== void 0 && !["direct_instruction", "continuation", "explicit_approval"].includes(receipt.basis)) {
     throw new Error("signed user request source or task binding is invalid");
   }
 }
 async function readReceipts(data) {
   let names;
   try {
-    names = await readdir4(path8.join(data, bucket));
+    names = await readdir5(path8.join(data, bucket));
   } catch (error2) {
     if (error2.code === "ENOENT") return [];
     throw error2;
@@ -8453,7 +8564,7 @@ async function recordUserRequest(data, input) {
     throw new Error("User request source timestamp is invalid");
   const scope = await repositoryScope2(input.projectRoot);
   if (input.targetBranch !== void 0) await git(["check-ref-format", "--branch", input.targetBranch], scope.projectRoot);
-  const inputSha256 = hash2({
+  const inputSha256 = hash3({
     ...sourceIdentity(input),
     commonGitDir: pathKey2(scope.commonGitDir),
     intentId: input.intentId,
@@ -8463,7 +8574,7 @@ async function recordUserRequest(data, input) {
     requestKind: input.requestKind ?? null,
     sourceRecordedAt: input.sourceRecordedAt ?? null
   });
-  const id = hash2(sourceIdentity(input));
+  const id = hash3(sourceIdentity(input));
   return serialized(pathKey2(data) + "\0" + pathKey2(scope.commonGitDir) + "\0" + input.intentId, async () => {
     const all = await readReceipts(data), existing = all.find((receipt2) => receipt2.id === id);
     if (existing) {
@@ -8537,7 +8648,7 @@ async function userRequestStatus(data, query) {
   if (current.decision === "unclear") result.reason = "The source wording does not establish clear expressed consent for this objective";
   return result;
 }
-var bucket, guidance2, hash2, pathKey2, scopeHash, sourceIdentity, queues, sourceTime, action, direct, conditionalAction, continuation, explicitApproval, revocation, operationRestriction, explicitAgain, baseOperation, discussion, cleanLine;
+var bucket, guidance2, hash3, pathKey2, scopeHash, sourceIdentity, queues, sourceTime, action, direct, conditionalAction, continuation, explicitApproval, revocation, operationRestriction, explicitAgain, baseOperation, discussion, cleanLine;
 var init_user_request = __esm({
   "src/user-request.ts"() {
     "use strict";
@@ -8545,9 +8656,9 @@ var init_user_request = __esm({
     init_workspace();
     bucket = "user-requests";
     guidance2 = "Use the original objective and expressed consent to continue the same task without asking again. Clarify only unclear consent, changed scope or target, or revocation. Time and session changes alone do not expire approval. Commit, merge, push, and HITL acceptance retain the scope of the actual requested action; task consent is not a blanket operation grant. Missing parser receipts do not negate authorization already present in the conversation or a legacy handoff. This evidence is advisory, never a new permission gate.";
-    hash2 = (value) => createHash6("sha256").update(JSON.stringify(value)).digest("hex");
+    hash3 = (value) => createHash6("sha256").update(JSON.stringify(value)).digest("hex");
     pathKey2 = (value) => process.platform === "win32" ? path8.resolve(value).toLowerCase() : path8.resolve(value);
-    scopeHash = (lines2, targetBranch) => hash2({ objectiveLines: lines2, targetBranch: targetBranch ?? null });
+    scopeHash = (lines2, targetBranch) => hash3({ objectiveLines: lines2, targetBranch: targetBranch ?? null });
     sourceIdentity = (value) => ({ source: value.source, sourceIntentId: value.sourceIntentId, sessionId: value.sessionId, turnId: value.turnId });
     queues = /* @__PURE__ */ new Map();
     sourceTime = (receipt) => Date.parse(receipt.sourceRecordedAt ?? receipt.recordedAt);
@@ -8577,7 +8688,7 @@ async function sourceBinding(input) {
   assertSelectors(input);
   await git(["rev-parse", "--show-toplevel"], input.projectRoot);
   const commonGitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], input.projectRoot));
-  const id = hash3({ commonGitDir: pathKey3(commonGitDir), source: "UserPromptSubmit", sessionId: input.sessionId, turnId: input.turnId });
+  const id = hash4({ commonGitDir: pathKey3(commonGitDir), source: "UserPromptSubmit", sessionId: input.sessionId, turnId: input.turnId });
   return { id, commonGitDir, source: "UserPromptSubmit", sessionId: input.sessionId, turnId: input.turnId };
 }
 function validateReceipt(receipt, binding) {
@@ -8597,7 +8708,7 @@ async function readUserRequestSource(data, query) {
   }
   return validateReceipt(await readAuthorizedReadOnly(data, bucket2, binding.id), binding);
 }
-var bucket2, pathKey3, hash3;
+var bucket2, pathKey3, hash4;
 var init_user_request_source = __esm({
   "src/user-request-source.ts"() {
     "use strict";
@@ -8605,12 +8716,12 @@ var init_user_request_source = __esm({
     init_workspace();
     bucket2 = "user-request-sources";
     pathKey3 = (value) => process.platform === "win32" ? path9.resolve(value).toLowerCase() : path9.resolve(value);
-    hash3 = (value) => createHash7("sha256").update(JSON.stringify(value)).digest("hex");
+    hash4 = (value) => createHash7("sha256").update(JSON.stringify(value)).digest("hex");
   }
 });
 
 // src/output-retention.ts
-import { lstat as lstat2, mkdir as mkdir2, readdir as readdir5, realpath as realpath3, rm, rmdir } from "node:fs/promises";
+import { lstat as lstat2, mkdir as mkdir2, readdir as readdir6, realpath as realpath3, rm, rmdir } from "node:fs/promises";
 import path10 from "node:path";
 function outputRoot(value) {
   if (typeof value !== "string" || !value || path10.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error("output retention root must use a safe repository-relative path");
@@ -8753,7 +8864,7 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
       if (info.isDirectory()) {
         if (target === absolute2) fileRoot = false;
         directories.push(target);
-        for (const entry of await readdir5(target, { withFileTypes: true })) {
+        for (const entry of await readdir6(target, { withFileTypes: true })) {
           if (entry.name.toLowerCase() === ".git" || entry.name.toLowerCase() === ".captain-sdlc") throw new Error("output retention tree contains a nested repository or Captain metadata");
           await scan(path10.join(target, entry.name));
         }
@@ -9135,7 +9246,7 @@ var init_worktree_storage = __esm({
 
 // src/lifecycle.ts
 import { createHash as createHash10, randomUUID } from "node:crypto";
-import { lstat as lstat5, readFile as readFile5, readdir as readdir6, writeFile as writeFile2 } from "node:fs/promises";
+import { lstat as lstat5, readFile as readFile5, readdir as readdir7, writeFile as writeFile2 } from "node:fs/promises";
 import path13 from "node:path";
 function approvedPlanDigest(content) {
   return digest5(content.replaceAll("\r\n", "\n"));
@@ -9224,7 +9335,7 @@ async function hashPath(target) {
   const info = await lstat5(target);
   if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
   if (info.isFile()) return createHash10("sha256").update(await readFile5(target)).digest("hex");
-  const entries2 = await readdir6(target, { withFileTypes: true });
+  const entries2 = await readdir7(target, { withFileTypes: true });
   const lines2 = [];
   for (const entry of entries2.sort((a, b) => a.name.localeCompare(b.name))) {
     const child = path13.join(target, entry.name);
@@ -9909,7 +10020,7 @@ var init_lifecycle = __esm({
       async handoffs() {
         let names = [];
         try {
-          names = await readdir6(path13.join(this.dataRoot, "pause-handoffs"));
+          names = await readdir7(path13.join(this.dataRoot, "pause-handoffs"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9927,7 +10038,7 @@ var init_lifecycle = __esm({
         const handoffs = await this.handoffs();
         let names = [];
         try {
-          names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
+          names = await readdir7(path13.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -10426,10 +10537,18 @@ ${result.stderr}`) }] });
         for (const scope of scopes) {
           const command = run.policy.commands[scope];
           await prepareScopeOutputs(run.worktreePath, run.policy, scope);
-          if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
-          const result = scope === "release-intent" ? await runReleaseIntentChecker(run.policy.releaseIntentChecker, run.worktreePath, [run.worktreePath, run.projectRoot]) : await this.runner(command, run.worktreePath);
-          if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
-          proof.push({ scope, commandSha256: digest5(command), exitCode: result.exitCode, ...scope === "release-intent" ? { checkerSha256: run.policy.releaseIntentChecker.sha256, outputSha256: digest5(result.stdout + "\n" + result.stderr) } : {} });
+          const checker = run.policy.releaseIntentChecker;
+          const result = scope === "release-intent" ? checker?.kind === "native" ? await this.nativeReleaseIntent(run) : await runReleaseIntentChecker(checker, run.worktreePath, [run.worktreePath, run.projectRoot]) : await this.runner(command, run.worktreePath);
+          proof.push({
+            scope,
+            commandSha256: digest5(command),
+            exitCode: result.exitCode,
+            ...scope === "release-intent" ? {
+              checkerSha256: checker.sha256,
+              outputSha256: digest5(result.stdout + "\n" + result.stderr),
+              ..."summary" in result && result.summary ? { releaseIntent: result.summary } : {}
+            } : {}
+          });
           if (result.exitCode !== 0) {
             await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
             throw new Error(`${scope} proof failed; run returned to implement for repair`);
@@ -10437,9 +10556,7 @@ ${result.stderr}`) }] });
           await this.assertCommitted(run, repairFence);
           const role = bindings[scope];
           if (role) {
-            const relative = run.policy.artifactPaths[role];
-            const absolute2 = await safeArtifact(run.worktreePath, relative);
-            const after = await hashPath(absolute2);
+            const relative = run.policy.artifactPaths[role], absolute2 = await safeArtifact(run.worktreePath, relative), after = await hashPath(absolute2);
             if (role === "visual") await assertImage(absolute2);
             artifacts[role] = { path: relative, sha256: after, priorSha256: before[role], producedBy: scope };
           }
@@ -10453,6 +10570,67 @@ ${result.stderr}`) }] });
         if (awaitsReview) return completed;
         await this.hooks?.afterRunCompleted?.(completed);
         return this.finalizeCompletion(intentId);
+      }
+      async nativeReleaseIntent(run, decision) {
+        const checker = run.policy.releaseIntentChecker;
+        if (checker?.kind !== "native" || !run.committedState?.tree) throw new Error("native release intent requires its exact committed tree and trusted native checker");
+        return runAuthorizedNativeReleaseIntentChecker(
+          this.dataRoot,
+          checker,
+          run.worktreePath,
+          [run.worktreePath, run.projectRoot],
+          { base: run.baseHead, head: run.committedState.head, tree: run.committedState.tree, ...decision ? { decision } : {} }
+        );
+      }
+      async adjudicateCompatibility(intentId, input) {
+        const run = await this.run(intentId);
+        if (run.status === "paused") throw new Error("resume the owned run before recording compatibility feedback");
+        if (!run.committedState || !this.probe || run.policy.releaseIntentChecker?.kind !== "native") throw new Error("compatibility feedback requires an owned native release-intent run");
+        if (!["confirm-major", "reject-major", "revise"].includes(input.choice) || typeof input.actor !== "string" || !input.actor.trim() || input.actor.length > 200 || typeof input.humanFeedback !== "string" || !input.humanFeedback.trim() || input.humanFeedback.length > 12e3 || typeof input.allFindings !== "boolean" || input.choice === "reject-major" && !input.allFindings || !/^[0-9a-f]{64}$/i.test(input.reportDigest) || !/^[0-9a-f]{64}$/i.test(input.findingDigest) || input.reviewedRevision !== run.committedState.head || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(input.compatibilityBase)) throw new Error("compatibility adjudication requires actual human feedback for the exact reviewed revision and findings");
+        await this.assertCommitted(run);
+        const normalized2 = {
+          choice: input.choice,
+          actor: input.actor.trim(),
+          humanFeedback: input.humanFeedback.trim(),
+          allFindings: input.allFindings,
+          reportDigest: input.reportDigest.toLowerCase(),
+          findingDigest: input.findingDigest.toLowerCase(),
+          reviewedRevision: input.reviewedRevision,
+          compatibilityBase: input.compatibilityBase
+        };
+        const previous = run.evidence.filter((item) => item.kind === "compatibility_feedback").at(-1);
+        if (previous && JSON.stringify(previous.input) === JSON.stringify(normalized2)) return run;
+        if (run.phase === "complete") throw new Error("completed compatibility feedback is immutable");
+        await this.assertSessionLease(run);
+        const latest = run.evidence.filter((item) => item.scope === "release-intent").at(-1)?.releaseIntent;
+        if (!latest || latest.status !== "needs_human" || latest.bump !== "major" || (latest.policyBase ?? latest.base) !== run.baseHead || latest.base !== normalized2.compatibilityBase || latest.head !== run.committedState.head || latest.tree !== run.committedState.tree || latest.reportDigest !== normalized2.reportDigest || latest.findingDigest !== normalized2.findingDigest)
+          throw new Error("compatibility feedback does not match the latest exact needs_human report");
+        const result = await this.nativeReleaseIntent(run, {
+          report_digest: normalized2.reportDigest,
+          finding_digest: normalized2.findingDigest,
+          choice: normalized2.choice,
+          actor: normalized2.actor,
+          reason: normalized2.humanFeedback,
+          all_findings: normalized2.allFindings
+        });
+        await this.assertCommitted(run);
+        if (!result.summary || !["ready", "needs_revision"].includes(result.summary.status) || result.summary.base !== normalized2.compatibilityBase || result.summary.findingDigest !== normalized2.findingDigest) throw new Error("native compatibility adjudication did not accept the exact human feedback");
+        const accepted = result.summary.status === "ready";
+        return this.update({ ...run, phase: accepted ? "prove" : "implement", status: accepted ? "running" : "red", evidence: [
+          ...run.evidence,
+          {
+            kind: "compatibility_feedback",
+            ...normalized2,
+            input: normalized2,
+            base: normalized2.compatibilityBase,
+            policyBase: run.baseHead,
+            head: run.committedState.head,
+            tree: run.committedState.tree,
+            recordedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            source: "captain_adjudicate_compatibility",
+            releaseIntent: result.summary
+          }
+        ] });
       }
       isFrozenPlan(run, relative) {
         return (run.policy.approvedPlans ?? []).some((plan) => plan.path.toLowerCase() === relative.replaceAll("\\", "/").toLowerCase());
@@ -10549,8 +10727,8 @@ ${result.stderr}`) }] });
       safePlanPath(run, relative) {
         const normalized2 = relative.replaceAll("\\", "/");
         if (!normalized2.endsWith(".md") || normalized2.startsWith("/") || normalized2.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
-        const file = path13.resolve(run.worktreePath, normalized2), inside = path13.relative(run.worktreePath, file);
-        if (inside.startsWith("..") || path13.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
+        const file = path13.resolve(run.worktreePath, normalized2), inside2 = path13.relative(run.worktreePath, file);
+        if (inside2.startsWith("..") || path13.isAbsolute(inside2)) throw new Error(`plan path escapes owned worktree: ${relative}`);
         return normalized2;
       }
       async projectPlanState(run, relative, state) {
@@ -10584,7 +10762,7 @@ ${result.stderr}`) }] });
         const safe2 = safeId2(id), prefix = `${safe2}-`;
         let names = [];
         try {
-          names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
+          names = await readdir7(path13.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -10607,7 +10785,7 @@ ${result.stderr}`) }] });
         }
         let watermarkNames = [];
         try {
-          watermarkNames = await readdir6(path13.join(this.dataRoot, "run-watermarks"));
+          watermarkNames = await readdir7(path13.join(this.dataRoot, "run-watermarks"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -10807,7 +10985,7 @@ ${result.stderr}`) }] });
       }
       async interruptionRunReadOnly(intentId) {
         const id = safeId2(intentId), prefix = `${id}-`;
-        const names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
+        const names = await readdir7(path13.join(this.dataRoot, "run-revisions"));
         const revisions = names.map((name) => name.startsWith(prefix) && /^(\d+)\.json$/.exec(name.slice(prefix.length))).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
         if (!revisions.length) throw new Error("legacy run has no authenticated revision chain for interruption recovery");
         let previous;
@@ -10819,7 +10997,7 @@ ${result.stderr}`) }] });
           assertRunRevisionTransition(previous, current);
           previous = current;
         }
-        const watermarks = await readdir6(path13.join(this.dataRoot, "run-watermarks"));
+        const watermarks = await readdir7(path13.join(this.dataRoot, "run-watermarks"));
         if (watermarks.some((name) => name.startsWith(prefix) && /^(\d+)\.json$/.test(name.slice(prefix.length)) && Number(name.slice(prefix.length, -5)) > previous.revision)) throw new Error("signed run revision tail regressed behind its watermark");
         return previous;
       }
@@ -10926,7 +11104,7 @@ __export(workspace_exports, {
 });
 import { execFile as execFile3 } from "node:child_process";
 import { createHash as createHash11 } from "node:crypto";
-import { cp, lstat as lstat6, mkdtemp, readFile as readFile6, readdir as readdir7, realpath as realpath5, writeFile as writeFile3 } from "node:fs/promises";
+import { cp, lstat as lstat6, mkdtemp, readFile as readFile6, readdir as readdir8, realpath as realpath5, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path14 from "node:path";
 import { promisify as promisify3 } from "node:util";
@@ -11024,7 +11202,7 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   if (parsed.commit?.mode === "branch_driven") {
     if (!raw.releaseIntentChecker) throw new Error("branch-driven policy requires a trusted release-intent checker");
     const checker = objectValue(raw.releaseIntentChecker, "release-intent checker");
-    parsed.releaseIntentChecker = { path: checker.path, sha256: checker.sha256, ...checker.args !== void 0 ? { args: checker.args } : {} };
+    parsed.releaseIntentChecker = checker.kind === "native" ? { kind: "native", path: checker.path, sha256: checker.sha256, executable: checker.executable, executableSha256: checker.executableSha256, dependencies: checker.dependencies, args: checker.args } : { ...checker.kind !== void 0 ? { kind: checker.kind } : {}, path: checker.path, sha256: checker.sha256, ...checker.args !== void 0 ? { args: checker.args } : {} };
     await assertReleaseIntentChecker(parsed.releaseIntentChecker, [projectRoot, await primaryRepositoryRoot(projectRoot)]);
     const command = releaseIntentCommand(parsed.releaseIntentChecker);
     if (parsed.commands["release-intent"] && parsed.commands["release-intent"] !== command) throw new Error("release-intent command must use the pinned installed checker");
@@ -11037,7 +11215,16 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     if (typeof value !== "string") throw new Error("source manifest exclusion must be a string");
     const relative = safeRepositoryPath(value, "source manifest exclusion");
     if (!approvedGeneratedPaths.has(relative.toLowerCase())) throw new Error(`${relative} is not an approved generated-output path`);
-    if (trackedBasePaths.some((candidate) => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`))) throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+    if (trackedBasePaths.some((candidate) => candidate.toLowerCase() === relative.toLowerCase() || candidate.toLowerCase().startsWith(`${relative.toLowerCase()}/`)))
+      throw new Error(`${relative} contains tracked base files and cannot be excluded`);
+    if (ignoredNativeGeneratedPaths.has(relative.toLowerCase())) {
+      try {
+        await git(["check-ignore", "--no-index", "--quiet", "--", relative + "/"], projectRoot);
+      } catch (error2) {
+        if (error2.code !== 1) throw error2;
+        throw new Error(`${relative} must be Git-ignored before generated-output exclusion`);
+      }
+    }
     parsed.sourceManifestExcludes.push(relative);
   }
   if (raw.sourceManifestRootFileExcludes !== void 0 && !Array.isArray(raw.sourceManifestRootFileExcludes)) throw new Error("source manifest root-file exclusions must be an array");
@@ -11076,7 +11263,7 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
     const sourceParent = path14.join(root, parent);
     let entries2;
     try {
-      entries2 = await readdir7(sourceParent, { withFileTypes: true });
+      entries2 = await readdir8(sourceParent, { withFileTypes: true });
     } catch (error2) {
       if (error2.code === "ENOENT") continue;
       throw error2;
@@ -11157,16 +11344,16 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${baseHead}..${head}`], worktree)), subject = await git(["show", "-s", "--format=%s", head], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", head], worktree), changed2 = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", baseHead, head], worktree));
   let phaseCommitsValid = true, preparedMergesValid = true, expectedParent = baseHead;
   const matchedPrepared = /* @__PURE__ */ new Set();
-  for (const hash8 of hashes) {
-    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash8], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash8], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash8], worktree));
+  for (const hash9 of hashes) {
+    const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash9], worktree))[0] ?? "").split(" "), parent = parents[1], phaseSubject = await git(["show", "-s", "--format=%s", hash9], worktree), phaseTrailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash9], worktree), phaseChanged = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash9], worktree));
     if (parents.length > 2) {
       const index = preparedMerges.findIndex((prepared2, candidate) => !matchedPrepared.has(candidate) && prepared2.preMergeHead === parent && prepared2.targetOid === parents[2]), prepared = index >= 0 ? preparedMerges[index] : void 0, bookkeeping2 = /* @__PURE__ */ new Set([commitPolicy.version_file, ...commitPolicy.changelog_files, ...(commitPolicy.version_surfaces ?? []).map((surface) => surface.path)]);
       if (!prepared || parents.length !== 3 || prepared.strategy === "ours" && phaseChanged.some((changedPath) => !bookkeeping2.has(changedPath))) preparedMergesValid = false;
       else matchedPrepared.add(index);
     }
-    const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash8, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && !await implementationCommitValid(worktree, parent, hash8, phaseSubject, phaseChanged, commitPolicy, parents.length === 3 ? parents[2] : void 0)) phaseCommitsValid = false;
-    expectedParent = hash8;
+    const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash9, phaseSubject, commitPolicy);
+    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && !await implementationCommitValid(worktree, parent, hash9, phaseSubject, phaseChanged, commitPolicy, parents.length === 3 ? parents[2] : void 0)) phaseCommitsValid = false;
+    expectedParent = hash9;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
   phaseCommitsValid &&= preparedMergesValid;
@@ -11176,10 +11363,11 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const taskTrailerPresent = hasTaskTrailer(trailers, taskId);
   return { head, tree, firstParent: headParent, changedPaths: changed2, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed2.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed2.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || (commitPolicy.mode === "branch_driven" ? phaseCommitsValid : await versionSurfacesMatch(worktree, head, subject, commitPolicy)), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
-async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority, breakingDescription) {
+async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority, breakingDescription, captainRunId) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths");
   if (/\r|\n/.test(subject)) throw new Error("commit subject must be a single line");
   if (breakingDescription !== void 0 && (typeof breakingDescription !== "string" || !breakingDescription.trim() || breakingDescription !== breakingDescription.trim() || breakingDescription.length > 2e3 || /[\r\n\x00-\x1f\x7f]/.test(breakingDescription))) throw new Error("breaking description must be a nonempty single line of at most 2000 characters");
+  if (captainRunId !== void 0 && (typeof captainRunId !== "string" || !/^[A-Za-z0-9._-]{1,200}$/.test(captainRunId))) throw new Error("Captain run trailer must be one trusted run identifier");
   const safePaths = paths.map((value) => safeRepositoryPath(value, "commit"));
   if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/"))) throw new Error("commit paths must be canonical safe repository-relative paths");
   if (!validSubject(subject, commitPolicy) && !(bookkeepingCaptured(commitPolicy) && bookkeepingSubjectAllowed(subject))) throw new Error("commit subject does not satisfy repository policy");
@@ -11198,7 +11386,8 @@ async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commi
   }
   candidateArgs.push("-m", subject);
   if (breakingDescription !== void 0) candidateArgs.push("-m", `BREAKING CHANGE: ${breakingDescription}`);
-  if (taskTrailer) candidateArgs.push("-m", taskTrailer);
+  const trailers = [taskTrailer, ...captainRunId ? [`Captain-Run: ${captainRunId}`] : []].filter(Boolean).join("\n");
+  if (trailers) candidateArgs.push("-m", trailers);
   const candidate = await git(candidateArgs, worktree);
   await assertSafeGitAttributesAtCommit(worktree, candidate);
   if (!await candidateCommitValid(worktree, candidate, head, commitPolicy, taskId, preparedMerges)) throw new Error("commit preflight rejected semantic version, changelog, trailer, or prepared merge evidence");
@@ -11403,7 +11592,7 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
       return;
     }
     if (!info.isDirectory()) return;
-    for (const entry of await readdir7(target, { withFileTypes: true })) {
+    for (const entry of await readdir8(target, { withFileTypes: true })) {
       if (entry.name.toLowerCase() === ".git") continue;
       const child = path14.join(target, entry.name);
       if (entry.name.toLowerCase() === ".gitattributes") files.add(child);
@@ -11518,19 +11707,19 @@ function validSubject(subject, policy) {
   const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null;
   return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned);
 }
-async function implementationCommitValid(worktree, parent, hash8, subject, changed2, policy, incomingParent) {
-  if (policy.mode !== "branch_driven") return validSubject(subject, policy) && changed2.includes(policy.version_file) && policy.changelog_files.some((value) => changed2.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) && await changelogAddsVersion(worktree, parent, hash8, subject, policy);
+async function implementationCommitValid(worktree, parent, hash9, subject, changed2, policy, incomingParent) {
+  if (policy.mode !== "branch_driven") return validSubject(subject, policy) && changed2.includes(policy.version_file) && policy.changelog_files.some((value) => changed2.includes(value)) && await versionSurfacesMatch(worktree, hash9, subject, policy) && await versionTransitionValid(worktree, parent, hash9, subject, policy, incomingParent) && await changelogAddsVersion(worktree, parent, hash9, subject, policy);
   if (!validSubject(subject, policy)) return false;
   if (incomingParent) {
     for (const file of policy.changelog_files) {
       try {
-        await git(["diff", "--no-ext-diff", "--no-textconv", "--quiet", incomingParent, hash8, "--", file], worktree);
+        await git(["diff", "--no-ext-diff", "--no-textconv", "--quiet", incomingParent, hash9, "--", file], worktree);
       } catch {
         return false;
       }
     }
   } else if (policy.changelog_files.some((value) => changed2.includes(value))) return false;
-  const message = await git(["show", "-s", "--format=%B", hash8], worktree);
+  const message = await git(["show", "-s", "--format=%B", hash9], worktree);
   if ((/^[^:\n]*!:/.test(subject) || /^BREAKING(?: CHANGE|-CHANGE):/m.test(message)) && !/^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(message)) return false;
   if (!policy.version_surfaces?.length) return false;
   for (const surface of policy.version_surfaces) {
@@ -11541,7 +11730,7 @@ async function implementationCommitValid(worktree, parent, hash8, subject, chang
         return matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
       };
       const beforeText = await boundedGitShow(worktree, parent + ":" + surface.path, "version surface");
-      const afterText = await boundedGitShow(worktree, hash8 + ":" + surface.path, "version surface");
+      const afterText = await boundedGitShow(worktree, hash9 + ":" + surface.path, "version surface");
       const incomingText = incomingParent ? await boundedGitShow(worktree, incomingParent + ":" + surface.path, "incoming version surface") : void 0;
       const before = capture(beforeText), after = capture(afterText), incoming = incomingText === void 0 ? void 0 : capture(incomingText);
       if (!before || !after || (incomingParent ? after !== incoming : before !== after)) return false;
@@ -11570,34 +11759,34 @@ function hasTaskTrailer(message, taskId) {
   const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
   return matches.length === 1 && matches[0] === taskId;
 }
-async function candidateCommitValid(worktree, hash8, expectedParent, policy, taskId, preparedMerges) {
-  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash8], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash8], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree), changed2 = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash8], worktree));
+async function candidateCommitValid(worktree, hash9, expectedParent, policy, taskId, preparedMerges) {
+  const parents = (splitLines(await git(["rev-list", "--parents", "-n", "1", hash9], worktree))[0] ?? "").split(" "), parent = parents[1], subject = await git(["show", "-s", "--format=%s", hash9], worktree), trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash9], worktree), changed2 = splitLines(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", parent, hash9], worktree));
   let mergeValid = parents.length === 2;
   if (parents.length === 3) {
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed2.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || await implementationCommitValid(worktree, parent, hash8, subject, changed2, policy, parents.length === 3 ? parents[2] : void 0));
+  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash9, subject, policy) || await implementationCommitValid(worktree, parent, hash9, subject, changed2, policy, parents.length === 3 ? parents[2] : void 0));
 }
 async function bookkeepingPathAllowed(relative, policy) {
   return bookkeepingPathAllowedCore(relative, policy, git);
 }
-async function bookkeepingBlobAllowed(worktree, oid) {
-  if (!/^[0-9a-f]{40,64}$/.test(oid) || /^0+$/.test(oid)) return false;
-  return Number(await git(["cat-file", "-s", oid], worktree)) <= maxPolicyInput && bookkeepingTextAllowed((await gitInvocation(["cat-file", "blob", oid], worktree)).stdout);
+async function bookkeepingBlobAllowed(worktree, oid2) {
+  if (!/^[0-9a-f]{40,64}$/.test(oid2) || /^0+$/.test(oid2)) return false;
+  return Number(await git(["cat-file", "-s", oid2], worktree)) <= maxPolicyInput && bookkeepingTextAllowed((await gitInvocation(["cat-file", "blob", oid2], worktree)).stdout);
 }
-async function bookkeepingCommitValid(worktree, parent, hash8, subject, policy) {
+async function bookkeepingCommitValid(worktree, parent, hash9, subject, policy) {
   if (!bookkeepingCaptured(policy) || !bookkeepingSubjectAllowed(subject)) return false;
-  const parents = (await git(["rev-list", "--parents", "-n", "1", hash8], worktree)).split(" ");
-  if (parents[1] !== parent || parents.length < 2 || parents.length > 3 || await git(["show", "-s", "--format=%s", hash8], worktree) !== subject) return false;
-  const raw = (await git(["diff-tree", "--no-commit-id", "--raw", "--no-renames", "--no-ext-diff", "--no-textconv", "-r", "-z", parent, hash8, "--"], worktree)).split("\0");
+  const parents = (await git(["rev-list", "--parents", "-n", "1", hash9], worktree)).split(" ");
+  if (parents[1] !== parent || parents.length < 2 || parents.length > 3 || await git(["show", "-s", "--format=%s", hash9], worktree) !== subject) return false;
+  const raw = (await git(["diff-tree", "--no-commit-id", "--raw", "--no-renames", "--no-ext-diff", "--no-textconv", "-r", "-z", parent, hash9, "--"], worktree)).split("\0");
   if (!raw[0]) return false;
   for (let index = 0; index < raw.length && raw[index]; index += 2) {
     const match = /^:(000000|100644) (000000|100644) ([0-9a-f]{40,64}) ([0-9a-f]{40,64}) ([AMD])$/.exec(raw[index]), relative = raw[index + 1];
     if (!match || !relative || !await bookkeepingPathAllowed(relative, policy)) return false;
-    for (const oid of [match[3], match[4]]) {
-      if (/^0+$/.test(oid)) continue;
-      if (!await bookkeepingBlobAllowed(worktree, oid)) return false;
+    for (const oid2 of [match[3], match[4]]) {
+      if (/^0+$/.test(oid2)) continue;
+      if (!await bookkeepingBlobAllowed(worktree, oid2)) return false;
     }
   }
   return true;
@@ -11607,15 +11796,15 @@ async function bookkeepingHistoryValid(worktree, base, head, policy) {
   const hashes = splitLines(await git(["rev-list", "--first-parent", "--reverse", `${base}..${head}`], worktree));
   if (!hashes.length || hashes.at(-1) !== head) return false;
   let parent = base;
-  for (const hash8 of hashes) {
-    const subject = await git(["show", "-s", "--format=%s", hash8], worktree);
-    if (!await bookkeepingCommitValid(worktree, parent, hash8, subject, policy)) return false;
+  for (const hash9 of hashes) {
+    const subject = await git(["show", "-s", "--format=%s", hash9], worktree);
+    if (!await bookkeepingCommitValid(worktree, parent, hash9, subject, policy)) return false;
     if (policy.require_task_trailer) {
-      const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree);
+      const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash9], worktree);
       const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._#-]+)(?:\r?\n|$)/g)];
       if (matches.length !== 1) return false;
     }
-    parent = hash8;
+    parent = hash9;
   }
   return true;
 }
@@ -11623,14 +11812,14 @@ function compilePattern(pattern) {
   const multiline = pattern.startsWith("(?m)"), body = multiline ? pattern.slice(4) : pattern;
   return compileSafeRegex(body, multiline ? "m" : "", "version surface pattern");
 }
-async function versionSurfacesMatch(worktree, hash8, subject, policy) {
+async function versionSurfacesMatch(worktree, hash9, subject, policy) {
   const surfaces = policy.version_surfaces ?? [];
   if (!surfaces.length) return !(policy.require_version_suffix ?? true);
   const expected = subjectVersion(subject);
   if (!expected) return false;
   for (const surface of surfaces) {
     try {
-      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
+      const content = await boundedGitShow(worktree, `${hash9}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))];
       if (matches.length !== 1 || (matches[0].groups?.version ?? matches[0][1]) !== expected) return false;
     } catch {
       return false;
@@ -11638,11 +11827,11 @@ async function versionSurfacesMatch(worktree, hash8, subject, policy) {
   }
   return true;
 }
-async function versionAt(worktree, hash8, policy) {
+async function versionAt(worktree, hash9, policy) {
   const values = [];
   for (const surface of policy.version_surfaces ?? []) {
     try {
-      const content = await boundedGitShow(worktree, `${hash8}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      const content = await boundedGitShow(worktree, `${hash9}:${surface.path}`, "version surface"), expression = compilePattern(surface.pattern), matches = [...content.matchAll(new RegExp(expression.source, `${expression.flags}g`))], value = matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
       if (!value || !parseStrictSemVer(value)) return null;
       values.push(value);
     } catch {
@@ -11665,12 +11854,12 @@ async function introducedVersionedComponent(worktree, parent, incoming, policy) 
     return false;
   }
 }
-async function versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) {
+async function versionTransitionValid(worktree, parent, hash9, subject, policy, incomingParent) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const parsedSubject = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(?:\([^)]+\))?(!)?: .+/.exec(subject), suffix = subjectVersion(subject);
   const canonical = policy.version_surfaces?.filter((surface) => surface.path === policy.version_file) ?? [];
   const beforeValue = canonical.length === 1 ? await versionAt(worktree, parent, { ...policy, version_surfaces: canonical }) : null;
-  const afterValue = await versionAt(worktree, hash8, policy);
+  const afterValue = await versionAt(worktree, hash9, policy);
   if (!parsedSubject || !suffix || !beforeValue || !afterValue || suffix !== afterValue) return false;
   let before = parseStrictSemVer(beforeValue);
   if (incomingParent) {
@@ -11682,22 +11871,22 @@ async function versionTransitionValid(worktree, parent, hash8, subject, policy, 
       if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
     }
   }
-  const breakingFooter = /^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(await git(["show", "-s", "--format=%B", hash8], worktree));
+  const breakingFooter = /^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(await git(["show", "-s", "--format=%B", hash9], worktree));
   if (parsedSubject[2] || breakingFooter) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }
-async function changelogAddsVersion(worktree, parent, hash8, subject, policy) {
+async function changelogAddsVersion(worktree, parent, hash9, subject, policy) {
   if (!(policy.require_version_suffix ?? true)) return true;
   const version2 = subjectVersion(subject);
   if (!version2) return false;
-  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash8, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
+  const diff = await git(["diff", "--no-ext-diff", "--no-textconv", "--unified=0", parent, hash9, "--", ...policy.changelog_files], worktree), marker = new RegExp(`(?:^|[^0-9])v?${version2.replaceAll(".", "\\.")}(?:[^0-9]|$)`, "i");
   return diff.split(/\r?\n/).some((line) => /^\+(?!\+\+)/.test(line) && marker.test(line.slice(1)));
 }
 async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookkeepingPolicy, policy) {
   const lines2 = [], productLines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map((item) => item.replaceAll("\\", "/")));
   async function walk(dir) {
-    for (const entry of (await readdir7(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const entry of (await readdir8(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
       const relative = path14.relative(root, path14.join(dir, entry.name)).replaceAll("\\", "/");
       if (policy && outputPathExcluded(relative, policy, tracked)) continue;
       if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative.toLowerCase().endsWith(".meta") && !tracked.has(relative) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
@@ -11719,7 +11908,7 @@ function rootFilePatternMatches(file, pattern) {
   const lower = file.toLowerCase(), expected = pattern.toLowerCase();
   return expected.startsWith("*.") ? lower.endsWith(expected.slice(1)) : lower === expected;
 }
-var exec2, maxGitBuffer, maxPolicyInput, defaultCommitPolicy, approvedGeneratedPaths, approvedGeneratedRootFilePatterns, isolatedGitControlRoot, gateRunner, pathKey4, sameDirectory, normalizeSourceStatus, digest6, splitLines;
+var exec2, maxGitBuffer, maxPolicyInput, defaultCommitPolicy, ignoredNativeGeneratedPaths, approvedGeneratedPaths, approvedGeneratedRootFilePatterns, isolatedGitControlRoot, gateRunner, pathKey4, sameDirectory, normalizeSourceStatus, digest6, splitLines;
 var init_workspace = __esm({
   "src/workspace.ts"() {
     "use strict";
@@ -11733,7 +11922,9 @@ var init_workspace = __esm({
     maxGitBuffer = 10 * 1024 * 1024;
     maxPolicyInput = 1024 * 1024;
     defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
+    ignoredNativeGeneratedPaths = /* @__PURE__ */ new Set(["saved", "binaries", "intermediate", "deriveddatacache", "scripts/__pycache__", "scripts/tests/__pycache__"]);
     approvedGeneratedPaths = /* @__PURE__ */ new Set([
+      ...ignoredNativeGeneratedPaths,
       "library",
       "temp",
       "logs",
@@ -11806,7 +11997,7 @@ function validateBookkeepingPolicy(input) {
 }
 function bookkeepingCaptured(policy) {
   const value = policy.bookkeeping;
-  return value?.path_file === ruleFile && typeof value.patterns === "string" && Buffer.byteLength(value.patterns) <= 1024 * 1024 && !value.patterns.includes("\0") && typeof value.sha256 === "string" && /^[0-9a-f]{64}$/.test(value.sha256) && hash4(value.patterns) === value.sha256;
+  return value?.path_file === ruleFile && typeof value.patterns === "string" && Buffer.byteLength(value.patterns) <= 1024 * 1024 && !value.patterns.includes("\0") && typeof value.sha256 === "string" && /^[0-9a-f]{64}$/.test(value.sha256) && hash5(value.patterns) === value.sha256;
 }
 function bookkeepingSubjectAllowed(subject) {
   return /^(?:docs|chore)\(captain\): \S[^\r\n]*$/.test(subject) && !/\(v[^()]*\)$/.test(subject);
@@ -11840,7 +12031,7 @@ async function matcherRoot(policy, git2) {
     });
   }
   const root = await pending;
-  if (hash4(await readFile7(path15.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
+  if (hash5(await readFile7(path15.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
   return root;
 }
 async function bookkeepingPathAllowedCore(relative, policy, git2) {
@@ -11858,14 +12049,14 @@ async function bookkeepingPathAllowed2(relative, policy) {
   const { git: git2 } = await Promise.resolve().then(() => (init_workspace(), workspace_exports));
   return bookkeepingPathAllowedCore(relative, policy, git2);
 }
-var ruleFile, matcherRoots, recordRoots, hash4;
+var ruleFile, matcherRoots, recordRoots, hash5;
 var init_bookkeeping = __esm({
   "src/bookkeeping.ts"() {
     "use strict";
     ruleFile = ".captain-sdlc/captain.ignore";
     matcherRoots = /* @__PURE__ */ new Map();
     recordRoots = [".captain-sdlc/notebook/", ".captain-sdlc/handoffs/", ".captain-sdlc/closeouts/", ".captain-sdlc/evidence/"];
-    hash4 = (value) => createHash12("sha256").update(value).digest("hex");
+    hash5 = (value) => createHash12("sha256").update(value).digest("hex");
   }
 });
 
@@ -26281,7 +26472,7 @@ init_bookkeeping();
 init_run_validation();
 init_workspace();
 import { createHash as createHash13, randomUUID as randomUUID2 } from "node:crypto";
-import { lstat as lstat7, readFile as readFile8, readdir as readdir8 } from "node:fs/promises";
+import { lstat as lstat7, readFile as readFile8, readdir as readdir9 } from "node:fs/promises";
 import os2 from "node:os";
 import path16 from "node:path";
 var BookkeepingFinalizationError = class extends Error {
@@ -26291,8 +26482,8 @@ var BookkeepingFinalizationError = class extends Error {
     this.name = "BookkeepingFinalizationError";
   }
 };
-var hash5 = (text2) => createHash13("sha256").update(text2).digest("hex");
-var digest7 = (value) => hash5(JSON.stringify(value));
+var hash6 = (text2) => createHash13("sha256").update(text2).digest("hex");
+var digest7 = (value) => hash6(JSON.stringify(value));
 var samePath7 = (left, right) => process.platform === "win32" ? path16.resolve(left).toLowerCase() === path16.resolve(right).toLowerCase() : path16.resolve(left) === path16.resolve(right);
 var idValue = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe finalization id");
@@ -26328,8 +26519,8 @@ var BookkeepingFinalizationStore = class {
           const snapshot = await captureSnapshot(before.topLevel, normalized2.paths), indexTree = await git(["write-tree"], before.topLevel);
           await assertWorktreeBinding(before.topLevel, before.branch, before.commonGitDir, before.head, false, before.gitDir);
           const leaseSpecs = [
-            { id: hash5(`${path16.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
-            { id: hash5(`bookkeeping-worktree\0${path16.resolve(before.commonGitDir)}\0${path16.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
+            { id: hash6(`${path16.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
+            { id: hash6(`bookkeeping-worktree\0${path16.resolve(before.commonGitDir)}\0${path16.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
           ].sort((a, b) => a.id.localeCompare(b.id));
           record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized2, state: "pending", request_sha256: digest7(normalized2), before, policy, policy_sha256: digest7(policy), snapshot, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID2()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
         }
@@ -26420,7 +26611,7 @@ var BookkeepingFinalizationStore = class {
     requiredText(args.session_id, "session");
     const record3 = await this.optionalRead(idValue(args.finalization_id));
     if (!record3) {
-      const operationId = hash5(`bookkeeping-operation\0${idValue(args.finalization_id)}`), expression = new RegExp(`^${operationId}-[0-9]+\\.json$`);
+      const operationId = hash6(`bookkeeping-operation\0${idValue(args.finalization_id)}`), expression = new RegExp(`^${operationId}-[0-9]+\\.json$`);
       const revisions = await directoryNames(path16.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path16.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path16.join(this.dataRoot, "leases"));
       if (!revisions.some((name) => expression.test(name)) && !marks.some((name) => expression.test(name)) && !legacy.includes(`${operationId}.json`)) return false;
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, operationId);
@@ -26449,7 +26640,7 @@ var BookkeepingFinalizationStore = class {
     if (options.policy && digest7(options.policy) !== record3.policy_sha256) throw new Error("bookkeeping finalization captured policy does not match signed request");
   }
   async attempt(id, session, action2) {
-    const leaseId = hash5(`bookkeeping-operation\0${id}`), key4 = `${path16.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
+    const leaseId = hash6(`bookkeeping-operation\0${id}`), key4 = `${path16.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
     if (attemptOperations.has(key4)) throw new Error("bookkeeping finalization operation is already active");
     attemptOperations.add(key4);
     try {
@@ -26527,7 +26718,7 @@ var BookkeepingFinalizationStore = class {
       if (!selected || selected.state !== "held" || selected.payload.intentId === ownId) continue;
       const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath7(value, binding.topLevel));
       const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath7(owner.commonGitDir, binding.commonGitDir);
-      if (matchesWorktree || matchesBranch || id === hash5(`${path16.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
+      if (matchesWorktree || matchesBranch || id === hash6(`${path16.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
     }
   }
   async initial(record3) {
@@ -26602,7 +26793,7 @@ function validateRequest(args) {
 }
 async function directoryNames(directory) {
   try {
-    return await readdir8(directory);
+    return await readdir9(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -26644,7 +26835,7 @@ async function captureSnapshot(worktree, selected) {
     }
     const headEntry = await git(["ls-tree", "HEAD", "--", relative], worktree) || null, indexEntry = await git(["ls-files", "--stage", "--", relative], worktree) || null;
     if (headEntry && !headEntry.startsWith("100644 blob ") || indexEntry && (!indexEntry.startsWith("100644 ") || !/^100644 [0-9a-f]+ 0\t/.test(indexEntry))) throw new Error(`bookkeeping snapshot refuses executable, symlink or conflicted index mode: ${relative}`);
-    for (const oid of [headEntry?.split(" ")[2]?.split("	")[0], indexEntry?.split(" ")[1]].filter((value) => Boolean(value))) if (!await bookkeepingBlobAllowed(worktree, oid)) throw new Error(`bookkeeping HEAD/index blob must be bounded text: ${relative}`);
+    for (const oid2 of [headEntry?.split(" ")[2]?.split("	")[0], indexEntry?.split(" ")[1]].filter((value) => Boolean(value))) if (!await bookkeepingBlobAllowed(worktree, oid2)) throw new Error(`bookkeeping HEAD/index blob must be bounded text: ${relative}`);
     let workingHash = null, workingBlob = null;
     try {
       const info = await lstat7(path16.join(worktree, relative));
@@ -26652,7 +26843,7 @@ async function captureSnapshot(worktree, selected) {
       const bytes = await readFile8(path16.join(worktree, relative));
       if (!bookkeepingTextAllowed(bytes)) throw new Error(`bookkeeping snapshot must contain bounded text: ${relative}`);
       new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      workingHash = hash5(bytes);
+      workingHash = hash6(bytes);
       workingBlob = await git(["hash-object", "--", relative], worktree);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -26675,23 +26866,23 @@ async function assertWorkingSnapshot(record3) {
 async function findStash(record3) {
   const values = (await git(["stash", "list", "--format=%H%x00%s"], record3.worktree)).split(/\r?\n/).filter(Boolean), found = [];
   for (const line of values) {
-    const delimiter = line.indexOf("\0"), oid = line.slice(0, delimiter), subject = line.slice(delimiter + 1);
-    if (delimiter >= 0 && subject.endsWith(`: ${record3.stash_marker}`)) found.push(oid);
+    const delimiter = line.indexOf("\0"), oid2 = line.slice(0, delimiter), subject = line.slice(delimiter + 1);
+    if (delimiter >= 0 && subject.endsWith(`: ${record3.stash_marker}`)) found.push(oid2);
   }
   if (found.length > 1) throw new Error("bookkeeping stash marker matched multiple objects");
   return found[0];
 }
-async function assertStash(record3, oid) {
-  if (await git(["rev-parse", `${oid}^1`], record3.worktree) !== record3.before.head || await git(["rev-parse", `${oid}^2^{tree}`], record3.worktree) !== record3.index_tree) throw new Error("bookkeeping parked stash parent/index differs from signed snapshot");
+async function assertStash(record3, oid2) {
+  if (await git(["rev-parse", `${oid2}^1`], record3.worktree) !== record3.before.head || await git(["rev-parse", `${oid2}^2^{tree}`], record3.worktree) !== record3.index_tree) throw new Error("bookkeeping parked stash parent/index differs from signed snapshot");
   let untrackedTree;
   try {
-    untrackedTree = await git(["rev-parse", `${oid}^3`], record3.worktree);
+    untrackedTree = await git(["rev-parse", `${oid2}^3`], record3.worktree);
   } catch {
   }
-  const changed2 = [.../* @__PURE__ */ new Set([...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, oid], record3.worktree)), ...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, `${oid}^2`], record3.worktree)), ...untrackedTree ? records(await git(["ls-tree", "-r", "--name-only", "-z", untrackedTree], record3.worktree)) : []])].sort();
+  const changed2 = [.../* @__PURE__ */ new Set([...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, oid2], record3.worktree)), ...records(await git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", "-z", record3.before.head, `${oid2}^2`], record3.worktree)), ...untrackedTree ? records(await git(["ls-tree", "-r", "--name-only", "-z", untrackedTree], record3.worktree)) : []])].sort();
   if (digest7(changed2) !== digest7(record3.paths)) throw new Error("bookkeeping parked stash contains an unexpected actual path delta");
   for (const selected of record3.snapshot) {
-    const tree = selected.head_entry || selected.index_entry ? oid : untrackedTree;
+    const tree = selected.head_entry || selected.index_entry ? oid2 : untrackedTree;
     const entry = tree ? await git(["ls-tree", tree, "--", selected.path], record3.worktree) : "";
     if (!selected.working_blob) {
       if (entry) throw new Error("bookkeeping parked stash lost a selected deletion");
@@ -26737,7 +26928,7 @@ async function assertExpectedBinding(worktree, expected) {
 init_authority();
 import { createHash as createHash15, randomUUID as randomUUID4 } from "node:crypto";
 import os4 from "node:os";
-import { lstat as lstat9, readFile as readFile10, readdir as readdir10, realpath as realpath7 } from "node:fs/promises";
+import { lstat as lstat9, readFile as readFile10, readdir as readdir11, realpath as realpath7 } from "node:fs/promises";
 import path18 from "node:path";
 init_lifecycle();
 init_workspace();
@@ -26749,7 +26940,7 @@ init_workspace();
 init_worktree_storage();
 init_output_retention();
 import { createHash as createHash14, randomUUID as randomUUID3 } from "node:crypto";
-import { lstat as lstat8, mkdir as mkdir3, readFile as readFile9, readdir as readdir9, realpath as realpath6, writeFile as writeFile5 } from "node:fs/promises";
+import { lstat as lstat8, mkdir as mkdir3, readFile as readFile9, readdir as readdir10, realpath as realpath6, writeFile as writeFile5 } from "node:fs/promises";
 import path17 from "node:path";
 import os3 from "node:os";
 var digest8 = (value) => createHash14("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
@@ -26815,7 +27006,7 @@ async function validateArchive(dataRoot, plan) {
 async function retainedWorktreeHead(dataRoot, registration) {
   let names;
   try {
-    names = await readdir9(path17.join(dataRoot, "worktree-cleanup-completions"));
+    names = await readdir10(path17.join(dataRoot, "worktree-cleanup-completions"));
   } catch (error2) {
     if (missing(error2)) return void 0;
     throw error2;
@@ -26836,7 +27027,7 @@ async function archiveEvidence(dataRoot, id, root, requested) {
     const info = await lstat8(full);
     if (info.isDirectory()) {
       if (++directories > 4096) throw new Error("required compact proof exceeds the directory retention budget");
-      for (const name of (await readdir9(full)).sort()) {
+      for (const name of (await readdir10(full)).sort()) {
         if (name.toLowerCase() === ".git") throw new Error("retained evidence contains a nested repository");
         await collect(relativeFile(relative + "/" + name));
       }
@@ -26874,7 +27065,7 @@ async function registeredTrees(root) {
   })).filter((item) => Boolean(item.path));
 }
 async function walkSafety(root, dir = root) {
-  for (const item of await readdir9(dir, { withFileTypes: true })) {
+  for (const item of await readdir10(dir, { withFileTypes: true })) {
     if (item.name.toLowerCase() === ".git") {
       if (!same(root, dir)) throw new Error("worktree contains a nested Git repository");
       continue;
@@ -26892,7 +27083,7 @@ async function sameContent(left, right) {
     if (a.isSymbolicLink() || b.isSymbolicLink()) return false;
     if (a.isFile() && b.isFile()) return a.size === b.size && digest8(await readFile9(left)) === digest8(await readFile9(right));
     if (!a.isDirectory() || !b.isDirectory()) return false;
-    const aa = (await readdir9(left)).sort(), bb = (await readdir9(right)).sort();
+    const aa = (await readdir10(left)).sort(), bb = (await readdir10(right)).sort();
     if (digest8(aa) !== digest8(bb)) return false;
     for (const name of aa) if (!await sameContent(path17.join(left, name), path17.join(right, name))) return false;
     return true;
@@ -26921,7 +27112,7 @@ async function assertIgnoredDataSafe(registration, evidence, outputRoots) {
     if (parts.some((part) => generated2.has(part)) || classified.some((item) => comparable === item || comparable.startsWith(item + "/")) || /^\.captain-sdlc\/(tasks|handoffs|closeouts|notebook)(\/|$)/i.test(relative)) return;
     const full = path17.join(registration.worktree_path, relative);
     if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat8(full)).isDirectory()) {
-      for (const name of await readdir9(full)) await check2(relative + "/" + name);
+      for (const name of await readdir10(full)) await check2(relative + "/" + name);
       return;
     }
     if (await sameContent(full, path17.join(registration.project_root, relative))) return;
@@ -26934,7 +27125,7 @@ async function completedOwners(dataRoot, root, intentId) {
   if ((await lifecycle.doctor()).activeRuns.some((owner) => same(owner.worktreePath, root))) throw new Error("worktree has an unfinished Captain task");
   let names;
   try {
-    names = await readdir9(path17.join(dataRoot, "run-revisions"));
+    names = await readdir10(path17.join(dataRoot, "run-revisions"));
   } catch (error2) {
     if (missing(error2)) names = [];
     else throw error2;
@@ -27093,8 +27284,8 @@ var MergeWorkflowError = class extends Error {
     this.name = "MergeWorkflowError";
   }
 };
-var hash6 = (text2) => createHash15("sha256").update(text2).digest("hex");
-var digest9 = (value) => hash6(JSON.stringify(value));
+var hash7 = (text2) => createHash15("sha256").update(text2).digest("hex");
+var digest9 = (value) => hash7(JSON.stringify(value));
 var samePath8 = (left, right) => process.platform === "win32" ? path18.resolve(left).toLowerCase() === path18.resolve(right).toLowerCase() : path18.resolve(left) === path18.resolve(right);
 var safeId3 = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe merge id");
@@ -27104,7 +27295,7 @@ var relativePath = (value) => {
   if (!value || value.includes("\0") || path18.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
   return value.replaceAll("\\", "/");
 };
-var resourceId = (common, branch) => hash6(`${path18.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var resourceId = (common, branch) => hash7(`${path18.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
 var MergeWorkflowStore = class {
   constructor(dataRoot, runner = gateRunner) {
     this.dataRoot = dataRoot;
@@ -27285,7 +27476,7 @@ var MergeWorkflowStore = class {
               await this.assertInputs(record3, inputs);
               await prepareScopeOutputs(record3.source_worktree, record3.captured_policy, scope);
               const command = record3.captured_policy.commands[scope], result = await this.runner(command, record3.source_worktree);
-              record3 = await this.update({ ...record3, gates: [...record3.gates, { scope, commandSha256: hash6(command), exitCode: result.exitCode, stdoutSha256: hash6(result.stdout), stderrSha256: hash6(result.stderr) }] });
+              record3 = await this.update({ ...record3, gates: [...record3.gates, { scope, commandSha256: hash7(command), exitCode: result.exitCode, stdoutSha256: hash7(result.stdout), stderrSha256: hash7(result.stderr) }] });
               if (result.exitCode !== 0) throw new Error(`${scope} merge prep gate failed (exit ${result.exitCode})`);
               await assertAuthority();
               await this.bindings(record3, false);
@@ -27420,7 +27611,7 @@ var MergeWorkflowStore = class {
   }
   async assertHistoricalMerge(record3) {
     const source = this.deliveryInputs(record3)?.source;
-    if (!source || record3.integrated_head !== source.head || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope])))
+    if (!source || record3.integrated_head !== source.head || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash7(record3.captured_policy.commands[gate.scope])))
       throw new Error("signed merged operation has no complete integration proof");
     const lookup = await this.historicalRepository(record3);
     const targetHead = await git(["rev-parse", "--verify", `refs/heads/${record3.target_branch}^{commit}`], lookup);
@@ -27520,7 +27711,7 @@ var MergeWorkflowStore = class {
     return this.output(record3, true);
   }
   async operationLeaseStatus(record3) {
-    const leaseId = hash6(`merge-operation\0${record3.merge_id}`), operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);
+    const leaseId = hash7(`merge-operation\0${record3.merge_id}`), operation = await readAuthorizedLeaseState(this.dataRoot, leaseId);
     if (!operation) return { state: "absent" };
     const lease = operation.payload;
     this.assertMergeLease(lease, record3.merge_id, record3.session_id, "integration");
@@ -27541,7 +27732,7 @@ var MergeWorkflowStore = class {
   async recoverStaleLease(args) {
     this.session(args.session_id);
     safeId3(args.merge_id);
-    const leaseId = hash6(`merge-operation\0${args.merge_id}`);
+    const leaseId = hash7(`merge-operation\0${args.merge_id}`);
     if (this.activeOperations.has(leaseId)) throw new Error("merge operation is active in this process and cannot be recovered");
     const record3 = await this.read(args.merge_id);
     this.match(record3, args);
@@ -27563,7 +27754,7 @@ var MergeWorkflowStore = class {
     for (const owner of sourceOwners) {
       const current = await lifecycle.status(owner.intentId);
       if (current.status !== "paused" || current.branch !== record3.source_binding.branch || !samePath8(current.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(current.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner must be paused and match the signed merge binding before stale integration resources can be recovered");
-      const id = hash6(`worktree-mutation\0${current.runId}`), fence = await this.readHeldLease(id);
+      const id = hash7(`worktree-mutation\0${current.runId}`), fence = await this.readHeldLease(id);
       if (fence) {
         this.assertMergeLease(fence, args.merge_id, args.session_id, "integration-worktree");
         this.assertLeaseOwnerStopped(fence, args.confirm_owner_stopped);
@@ -27641,7 +27832,7 @@ var MergeWorkflowStore = class {
     if (digest9(await captureInputs(record3.source_worktree, record3.captured_policy)) !== digest9(expected)) throw new Error("merge prep source or dependency inputs changed; readiness is stale");
   }
   async assertReady(record3, targetIntegrated = false) {
-    if (!record3.ready_inputs || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash6(record3.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
+    if (!record3.ready_inputs || record3.gates.length !== record3.scopes.length || record3.gates.some((gate, index) => gate.exitCode !== 0 || gate.scope !== record3.scopes[index] || gate.commandSha256 !== hash7(record3.captured_policy.commands[gate.scope]))) throw new Error("signed Merge Prep has no complete ready gate receipt");
     await this.bindings(record3, targetIntegrated);
     await assertNoOperation2(record3.source_worktree);
     await assertNoOperation2(record3.target_worktree);
@@ -27772,7 +27963,7 @@ var MergeWorkflowStore = class {
     }
   }
   async lock(id, session, action2) {
-    const leaseId = hash6(`merge-operation\0${id}`), leaseToken = randomUUID4(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os4.hostname() };
+    const leaseId = hash7(`merge-operation\0${id}`), leaseToken = randomUUID4(), payload = { intentId: id, leaseToken, sessionId: session, operation: "integration", ownerPid: process.pid, ownerHost: os4.hostname() };
     if (this.activeOperations.has(leaseId)) throw new Error("merge operation is already active in this process");
     this.activeOperations.add(leaseId);
     try {
@@ -27798,7 +27989,7 @@ var MergeWorkflowStore = class {
       const reserveFence = async (owner) => {
         if (owner.sessionId !== record3.session_id) throw new Error("source Captain session ownership changed before its mutation fence");
         if (owner.branch !== record3.source_binding.branch || !samePath8(owner.commonGitDir, record3.source_binding.commonGitDir) || !samePath8(owner.gitDir, record3.source_binding.gitDir)) throw new Error("source Captain owner Git binding diverged");
-        const fenceId = hash6(`worktree-mutation\0${owner.runId}`);
+        const fenceId = hash7(`worktree-mutation\0${owner.runId}`);
         if (held.some((lease) => lease.id === fenceId)) return;
         const fence = { intentId: record3.merge_id, leaseToken: randomUUID4(), sessionId: record3.session_id, operation: "integration-worktree", ownerPid: process.pid, ownerHost: os4.hostname() };
         await acquireAuthorizedLease(this.dataRoot, fenceId, fence);
@@ -27876,7 +28067,7 @@ var MergeWorkflowStore = class {
   }
   async read(id) {
     safeId3(id);
-    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir10(path18.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir11(path18.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) throw new Error("signed merge workflow was not found");
     let previous;
     for (let index = 0; index < revisions.length; index++) {
@@ -27887,7 +28078,7 @@ var MergeWorkflowStore = class {
       await this.watermark(current);
       previous = current;
     }
-    const watermarkNames = await readdir10(path18.join(this.dataRoot, "merge-watermarks"));
+    const watermarkNames = await readdir11(path18.join(this.dataRoot, "merge-watermarks"));
     if (watermarkNames.some((name) => {
       const match = expression.exec(name);
       return match && Number(match[1]) > previous.revision;
@@ -27898,7 +28089,7 @@ var MergeWorkflowStore = class {
 var lines = (value) => value.split(/\r?\n/).filter(Boolean);
 async function directoryNames2(directory) {
   try {
-    return await readdir10(directory);
+    return await readdir11(directory);
   } catch (error2) {
     if (error2.code === "ENOENT") return [];
     throw error2;
@@ -27963,7 +28154,7 @@ async function metadataInputs(cwd, policy, volatilePaths) {
   for (const relative of files) {
     const info = await lstat9(path18.join(cwd, relative));
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
-    values.push(`${relative}:${hash6(await readFile10(path18.join(cwd, relative)))}`);
+    values.push(`${relative}:${hash7(await readFile10(path18.join(cwd, relative)))}`);
   }
   return digest9(values);
 }
@@ -27975,11 +28166,11 @@ async function contentDigest(root, volatile = [], sharedPackage = false) {
     if (info.isSymbolicLink()) throw new Error(`dependency input crosses a reparse point: ${full}`);
     if (volatile.includes(relative)) return;
     if (info.isDirectory()) {
-      for (const entry of (await readdir10(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      for (const entry of (await readdir11(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
         if (entry.name === ".git" || sharedPackage && !relative && generated3.has(entry.name.toLowerCase())) continue;
         await walk(path18.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
       }
-    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile10(full))}`);
+    } else if (info.isFile()) values.push(`${relative}:${hash7(await readFile10(full))}`);
     else throw new Error(`dependency input is not a regular file or directory: ${full}`);
   }
   await walk(root, "");
@@ -28022,7 +28213,7 @@ async function captureInputs(cwd, policy) {
       if (ownGit) {
         if (!samePath8(await git(["rev-parse", "--show-toplevel"], full), full)) throw new Error(`local package Git identity diverged: ${name}`);
         const head = await git(["rev-parse", "HEAD"], full);
-        gitState = { head, tree: await git(["rev-parse", "HEAD^{tree}"], full), status: await git(["status", "--porcelain"], full), indexSha256: hash6(await git(["ls-files", "--stage", "-z"], full)) };
+        gitState = { head, tree: await git(["rev-parse", "HEAD^{tree}"], full), status: await git(["status", "--porcelain"], full), indexSha256: hash7(await git(["ls-files", "--stage", "-z"], full)) };
         if (expected && expected.source_commit !== head) throw new Error(`Pinned shared local-package revision diverged: ${name}`);
       } else if (expected) throw new Error(`cannot verify pinned local-package revision without its Git identity: ${name}`);
       dependencies.push({ kind: info.isDirectory() ? "local-package" : "local-archive", name, path: full, ...gitState ? { git: gitState } : {}, ...await contentDigest(full, [], info.isDirectory()) });
@@ -28068,7 +28259,7 @@ init_workspace();
 init_lifecycle();
 init_run_validation();
 import { createHash as createHash16, randomUUID as randomUUID5 } from "node:crypto";
-import { lstat as lstat10, readdir as readdir11, realpath as realpath8 } from "node:fs/promises";
+import { lstat as lstat10, readdir as readdir12, realpath as realpath8 } from "node:fs/promises";
 import os5 from "node:os";
 import path19 from "node:path";
 init_begin_diagnostic_adapter();
@@ -28078,16 +28269,16 @@ var FailedBeginVerificationError = class extends Error {
     this.details = details;
   }
 };
-var hash7 = (value) => createHash16("sha256").update(value).digest("hex");
-var digest10 = (value) => hash7(JSON.stringify(value));
+var hash8 = (value) => createHash16("sha256").update(value).digest("hex");
+var digest10 = (value) => hash8(JSON.stringify(value));
 var samePath9 = (a, b) => path19.resolve(a).toLowerCase() === path19.resolve(b).toLowerCase();
 var safeId4 = (id) => {
   if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("unsafe lease recovery id");
   return id;
 };
-var resourceId2 = (binding) => hash7(`${path19.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
+var resourceId2 = (binding) => hash8(`${path19.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
 var generation2 = (id, revision, payload) => digest10({ leaseId: id, revision, state: "held", payload });
-var gateId = (intent) => `begin-attempt-${hash7(intent)}`;
+var gateId = (intent) => `begin-attempt-${hash8(intent)}`;
 var signedBuckets = [
   "intents",
   "intent-issuance",
@@ -28304,7 +28495,7 @@ var BranchLeaseRecoveryStore = class {
   async sessionActivity(binding, evidence) {
     const original = evidence.intent, operation = evidence.operation;
     const projection = await optionalRead(this.dataRoot, "active", original.sessionId);
-    const sessionId = hash7(`session-active\0${original.sessionId}`), sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionId);
+    const sessionId = hash8(`session-active\0${original.sessionId}`), sessionLease = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, sessionId);
     const owner = sessionLease?.payload;
     const entries2 = await inventory(this.dataRoot);
     const run = owner && typeof owner.runId === "string" ? entries2.find((entry) => !entry.historical && ["runs", "run-revisions"].includes(entry.bucket) && entry.value.intentId === owner.intentId && entry.value.runId === owner.runId) : void 0;
@@ -28373,20 +28564,20 @@ var BranchLeaseRecoveryStore = class {
         owner_state: owner
       };
     };
-    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path19.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
+    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash8(`${path19.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
     const [sourceBinding2, targetBinding, operationLease, sourceResource, targetResource] = await Promise.all([
       savedMergeBindingDiagnostic(v.source_worktree, v.source_binding, binding),
       savedMergeBindingDiagnostic(v.target_worktree, v.target_binding, binding),
-      leaseSummary(shape ? hash7(`merge-operation\0${v.merge_id}`) : void 0, "integration"),
+      leaseSummary(shape ? hash8(`merge-operation\0${v.merge_id}`) : void 0, "integration"),
       leaseSummary(resource(v.source_binding), "integration-branch", v.source_binding),
       leaseSummary(resource(v.target_binding), "integration-branch", v.target_binding)
     ]);
     const sourceOwners = entries2.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && typeof candidate.value.runId === "string" && typeof candidate.value.worktreePath === "string" && typeof v.source_worktree === "string" && samePath9(candidate.value.worktreePath, v.source_worktree));
-    const worktreeResources = await Promise.all(sourceOwners.map((owner) => leaseSummary(hash7(`worktree-mutation\0${owner.value.runId}`), "integration-worktree")));
+    const worktreeResources = await Promise.all(sourceOwners.map((owner) => leaseSummary(hash8(`worktree-mutation\0${owner.value.runId}`), "integration-worktree")));
     let staticBindings = Boolean(shape && sourceBinding2.schema_recognized && targetBinding.schema_recognized && samePath9(v.source_binding.topLevel, v.source_worktree) && samePath9(v.target_binding.topLevel, v.target_worktree) && !samePath9(v.source_worktree, v.target_worktree) && v.source_binding.branch !== v.target_binding.branch && v.target_branch === v.target_binding.branch && v.target_branch === binding.branch && samePath9(v.source_binding.commonGitDir, binding.commonGitDir) && samePath9(v.target_binding.commonGitDir, binding.commonGitDir));
     if (staticBindings) {
       try {
-        staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async (oid) => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid}^{commit}`]) === oid))).every(Boolean);
+        staticBindings = (await Promise.all([v.source_binding.head, v.target_binding.head].map(async (oid2) => await readGit(binding.topLevel, ["rev-parse", "--verify", `${oid2}^{commit}`]) === oid2))).every(Boolean);
       } catch {
         staticBindings = false;
       }
@@ -28437,7 +28628,7 @@ var BranchLeaseRecoveryStore = class {
         const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
         if (digest10(item) !== digest10(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest10(request2(receipt)) || receipt.policy_sha256 !== digest10(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key4) => samePath9(receipt.before[key4], saved[key4])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
         receipts.set(receipt.finalization_id, receipt);
-        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path19.resolve(saved.commonGitDir) + "\0" + path19.resolve(saved.gitDir)).toLowerCase()));
+        worktreeIds.add(hash8(("bookkeeping-worktree\0" + path19.resolve(saved.commonGitDir) + "\0" + path19.resolve(saved.gitDir)).toLowerCase()));
       }
       const currentIds = /* @__PURE__ */ new Set();
       for (const [side, pending] of Object.entries(requests)) {
@@ -28446,7 +28637,7 @@ var BranchLeaseRecoveryStore = class {
         currentIds.add(selection.finalization_id);
       }
       const ids = [...receipts.keys()];
-      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some((id) => lease.id === hash7("bookkeeping-operation\0" + id) || contains2(lease.snapshot.payload, id))));
+      const held = leases.some((lease) => lease.snapshot.state === "held" && (worktreeIds.has(lease.id) || ids.some((id) => lease.id === hash8("bookkeeping-operation\0" + id) || contains2(lease.snapshot.payload, id))));
       return { finalization_requests_terminal_verified: true, held_finalization_resource: held };
     } catch {
       return refused;
@@ -28687,7 +28878,7 @@ async function readBinding(args) {
 }
 async function directoryNames3(directory) {
   try {
-    return await readdir11(directory);
+    return await readdir12(directory);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
     return [];
@@ -29040,7 +29231,7 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
     await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, (prepared) => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final, ...breaking_description !== void 0 ? { breakingDescription: breaking_description } : {} }, operation).then(() => void 0), (prepared) => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => void 0), void 0, async (prepared) => {
       await store.assertWorktreeMutation(intent_id, mutation);
       await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request2));
-    }, breaking_description);
+    }, breaking_description, run.policy.commit?.mode === "branch_driven" ? run.runId : void 0);
     const committed = await store.recordCommit(intent_id, await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head), final);
     await store.releaseWorktreeMutation(intent_id, mutation);
     return committed;
@@ -29099,7 +29290,7 @@ async function startCaptainMcp() {
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.11.3" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.12.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -29318,6 +29509,23 @@ async function startCaptainMcp() {
     return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head));
   }));
   server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), breaking_description: external_exports.string().min(1).max(2e3).regex(/^[^\r\n\x00-\x1f\x7f]+$/).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainReconcileAuthorizedCommit(store, args)));
+  server.registerTool("captain_adjudicate_compatibility", {
+    description: "Record actual human compatibility feedback for the latest exact needs_human release report. Reuse the pinned native host and existing signed decision authority; never infer human acceptance from tests. Repeated unchanged feedback is idempotent and stale revisions are rejected.",
+    inputSchema: {
+      intent_id: external_exports.string(),
+      choice: external_exports.enum(["confirm-major", "reject-major", "revise"]),
+      actor: external_exports.string().trim().min(1).max(200),
+      human_feedback: external_exports.string().trim().min(1).max(12e3),
+      all_findings: external_exports.boolean(),
+      report_digest: external_exports.string().regex(/^[0-9a-f]{64}$/i),
+      finding_digest: external_exports.string().regex(/^[0-9a-f]{64}$/i),
+      reviewed_revision: external_exports.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i),
+      compatibility_base: external_exports.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i)
+    }
+  }, async ({ intent_id, choice, actor, human_feedback, all_findings, report_digest, finding_digest, reviewed_revision, compatibility_base }) => guarded(async () => {
+    const run = await store.adjudicateCompatibility(intent_id, { choice, actor, humanFeedback: human_feedback, allFindings: all_findings, reportDigest: report_digest, findingDigest: finding_digest, reviewedRevision: reviewed_revision, compatibilityBase: compatibility_base });
+    return { ...run, effective_gates: effectiveGateDisclosure(run) };
+  }));
   server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
   server.registerTool("captain_record_hitl_feedback", { description: "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.", inputSchema: { intent_id: external_exports.string(), decision: external_exports.enum(["accept", "needs_changes"]), human_feedback: external_exports.string().min(1).max(12e3), check_ids: external_exports.array(external_exports.string()).min(1).max(50), evidence_references: external_exports.array(external_exports.string().min(1).max(2e3)).max(50), reviewed_revision: external_exports.string().regex(/^[0-9a-f]{40,64}$/i).optional() } }, async ({ intent_id, decision, human_feedback, check_ids, evidence_references, reviewed_revision }) => guarded(async () => {
     const run = await store.recordHitlFeedback(intent_id, { decision, humanFeedback: human_feedback, checkIds: check_ids, evidenceReferences: evidence_references, ...reviewed_revision ? { reviewedRevision: reviewed_revision } : {} });

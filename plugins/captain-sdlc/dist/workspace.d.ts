@@ -54,7 +54,7 @@ export declare function commitEvidence(worktree: string, baseHead: string, polic
     taskTrailerPresent: boolean;
     versionSurfacesValid: boolean;
 }>;
-export declare function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy?: CommitPolicy, preparedMerges?: PreparedMerge[], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>, breakingDescription?: string): Promise<{
+export declare function commitAtomic(worktree: string, paths: string[], subject: string, taskOutcome?: "Implements" | "Completes" | "Needs-QA", taskId?: string, commitPolicy?: CommitPolicy, preparedMerges?: PreparedMerge[], expectedBranch?: string, expectedCommonGitDir?: string, expectedHead?: string, expectedGitDir?: string, authorize?: (prepared: PreparedCommitCore) => Promise<void>, revoke?: (prepared: PreparedCommitCore) => Promise<void>, afterRefUpdate?: () => Promise<void>, validateAuthority?: (prepared: PreparedCommitCore) => Promise<void>, breakingDescription?: string, captainRunId?: string): Promise<{
     mergeHead?: string | undefined;
     preCommitHead: string;
     candidate: string;

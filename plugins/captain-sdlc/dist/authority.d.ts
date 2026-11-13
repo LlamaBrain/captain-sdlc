@@ -1,3 +1,4 @@
+import { type NativeReleaseIntentChecker, type NativeReleaseIntentContext } from "./release-intent.js";
 type LeasePayload = {
     intentId: string;
     leaseToken: string;
@@ -41,4 +42,11 @@ export declare function readAuthorizedLegacyLeaseMigrationReadOnly<T extends Lea
 }>;
 /** A repossessed intent can never publish a new Begin, even after projection replay. */
 export declare function assertIntentNotRepossessed(root: string, intentId: string): Promise<void>;
+/** Keep the existing SDK authority inside the trusted native invocation. */
+export declare function runAuthorizedNativeReleaseIntentChecker(root: string, checker: NativeReleaseIntentChecker, cwd: string, forbiddenRoots: string[], context: NativeReleaseIntentContext): Promise<{
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+    summary?: import("./release-intent.js").NativeReleaseIntentSummary;
+}>;
 export {};

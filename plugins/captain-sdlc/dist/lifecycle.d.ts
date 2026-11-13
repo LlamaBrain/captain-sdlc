@@ -51,6 +51,16 @@ export type HitlCheck = {
     expected: string;
     evidence: string;
 };
+export type CompatibilityFeedbackInput = {
+    choice: "confirm-major" | "reject-major" | "revise";
+    actor: string;
+    humanFeedback: string;
+    allFindings: boolean;
+    reportDigest: string;
+    findingDigest: string;
+    reviewedRevision: string;
+    compatibilityBase: string;
+};
 export type HitlFeedbackInput = {
     decision: "accept" | "needs_changes";
     humanFeedback: string;
@@ -657,6 +667,8 @@ export declare class LifecycleStore {
     runCheck(intentId: string, scope: string, ticketFilter?: string): Promise<Run>;
     prove(intentId: string): Promise<Run>;
     private proveAttempt;
+    private nativeReleaseIntent;
+    adjudicateCompatibility(intentId: string, input: CompatibilityFeedbackInput): Promise<Run>;
     private isFrozenPlan;
     assertFrozenScope(intentId: string): Promise<void>;
     recordPlanReview(intentId: string, input: {
