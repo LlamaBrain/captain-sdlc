@@ -1,15 +1,15 @@
 # Branch-driven SemVer implementation handoff
 
-Status: implemented and locally verified; user authorized commit and push on 2026-11-12. Bootstrap metadata is being finalized under the captured legacy contract; committed-revision proof and remote review publication are in progress. Updated 2026-11-12 (Pacific). This is a continuation record, not a completed release or a frozen plan.
+Status: implemented and locally verified; user authorized commit and push on 2026-11-12. Bootstrap metadata and implementation commits are pushed. Captain exact-commit proof is complete/green on 2ed831d; signed upstream ancestry reconciliation and Captain hosted CI are being finalized. All three draft review PRs and implementation worktrees are retained. Updated 2026-11-12 (Pacific). This is a continuation record, not a completed release or a frozen plan.
 
 ## Ownership and captured authority
 
 - Captain SDLC: base `3d575d7e3c227ba919aeeacd91de65f1fe2389b9`; branch `captain/intent-5a89c0ee-9d47-4afd-a74a-dceb576336f3`; worktree `E:/Personal/captain-sdlc/.captain-sdlc/worktrees/intent-5a89c0ee-9d47-4afd-a74a-dceb576336f3`.
-- Signed Captain intent `intent-5a89c0ee-9d47-4afd-a74a-dceb576336f3`, run `codex-9257f09c-6a15-4ce6-b567-c7d0ae4f5e77`. It is explicitly unbound: no committed plan was frozen. Original user criteria remain the scope. Status revision 7 records successful ticket, feature-smoke and affected-regression iterations; final committed-revision proof has not run.
+- Signed Captain intent `intent-5a89c0ee-9d47-4afd-a74a-dceb576336f3`, run `codex-9257f09c-6a15-4ce6-b567-c7d0ae4f5e77`. It is explicitly unbound: no committed plan was frozen. Original user criteria remain the scope. Authoritative status revision 18 is complete/green on implementation commit 2ed831d00a36058ca121ecd4743d0e6b41fcc6a4, with build, ticket, feature-smoke and affected-regression gates passing. Later reconciliation readiness is separate evidence.
 - Orchestrator: registered branch `captain/branch-driven-semver`, base `94570b3659436f4b0df1a754281ad01cd11f302c`, worktree `E:/Personal/captain-orchestrator/.captain-sdlc/worktrees/branch-driven-semver`.
 - claude-release: registered branch `captain/branch-driven-semver`, base `afb61dec7d816c35fcd1a5f5454b52c3e2946d27`, worktree `E:/Personal/claude-release/.captain-sdlc/worktrees/branch-driven-semver`.
 
-Finalization update: the user explicitly instructed, "You need to commit and push and provide worktree for review." Orchestrator commit `26158015cdd0494a3fa4b837983e776303be6c7e` is pushed on `captain/branch-driven-semver`; its retained worktree is clean. Captain and claude-release finalization is in progress; consult signed status and remote refs for subsequent results. No real protected branch was merged, production release published, or real tag created. Fixture tags exist only in disposable demonstration repositories. Hosted CI has not run.
+Finalization update: the user explicitly instructed, "You need to commit and push and provide worktree for review." Implementation commits and necessary CI repairs are pushed. Draft review PRs are Captain SDLC #11, Orchestrator #4 and claude-release #1. The exact current refs and CI evidence are listed below; no branch has been integrated into a protected target. No real protected branch was merged, production release published, or real tag created. Fixture tags exist only in disposable demonstration repositories. Orchestrator and claude-release hosted CI passed on their current PR heads. Captain hosted CI awaits the ancestry reconciliation below.
 
 ## Audit and reuse
 
@@ -66,7 +66,7 @@ npm.cmd --prefix plugins/captain-sdlc run smoke
 npm.cmd --prefix plugins/captain-sdlc run typecheck
 ```
 
-Trusted TDD red: 830 pass, 3 expected failures, 1 skip. Final captured ticket: **857 pass, 0 fail, 1 skip**, duration 991737 ms. Final five public MCP smoke checks and type checking passed through Captain iteration scopes. TAP evidence: `plugins/captain-sdlc/Temp/automation-scratch/package-test.tap`. Compiled server SHA-256: `A789F010C798F0ED0897FC6EE0AC8FFFD97E4A985FB7E0EDEC9787F2E88CF4DD`. This is green iteration evidence; signed complete/green exact-commit proof remains pending. Long MCP test calls time out at 300 seconds while the underlying process continues: inspect final TAP and signed status, never start overlapping ticket runs.
+Trusted TDD red: 830 pass, 3 expected failures, 1 skip. Pre-bootstrap captured ticket: **857 pass, 0 fail, 1 skip**, duration 991737 ms. Final committed-revision ticket also passed **857/0/1**, duration 1185015 ms. Final five public MCP smoke checks and type checking passed through Captain iteration scopes. TAP evidence: `plugins/captain-sdlc/Temp/automation-scratch/package-test.tap`. Final 0.11.0 compiled server SHA-256: `6DF1B0DD686672FB3DAEC652AF6BC91A5253A62300D4202340E075395F8A01D4`. Captain signed exact-commit proof is complete/green at status revision 18 on 2ed831d, including all five public MCP smokes and type checking. Long MCP test calls time out at 300 seconds while the underlying process continues: inspect final TAP and signed status, never start overlapping ticket runs.
 
 Orchestrator (owned worktree):
 
@@ -85,7 +85,7 @@ node scripts/verify-release-readiness.mjs
 Get-ChildItem tests/test-*.js | Where-Object Name -ne 'test-production-host-demo.js' | ForEach-Object { node $_.FullName; if ($LASTEXITCODE -ne 0) { throw $_.Name } }
 ```
 
-All **19 non-host test scripts** exited zero. Existing smoke coverage includes 56 gate assertions, 52 API-pair assertions, 18 smell scenarios and Roslyn 6 added/2 removed API detection. Readiness passed with six synchronized plugin surfaces and eight self-contained bundles. Final manifest bundle SHA-256: `624BE99B649509C826AD2CF2F2D159F1DC593E3C9BF464BF6C36C8DFD6774591`; finalizer: `DDA0419E7F8F1586FD66012AC1E795814B98C92EF9C09360AB17630BA75F129B`. Outputs are retained in session tool results. All three implementation worktrees passed `git diff --check` (Windows line-ending conversion warnings only).
+All **19 non-host test scripts** exited zero. Existing smoke coverage includes 56 gate assertions, 52 API-pair assertions, 18 smell scenarios and Roslyn 6 added/2 removed API detection. Readiness passed with six synchronized plugin surfaces and eight self-contained bundles. Final manifest bundle SHA-256: `04CEB53E9C70D0C73A6AF2CBAE481C032D53EC026E618B8507B3BC1F4E073583`; finalizer: `7E627CC6D4100191FCA7211AD441ECD66CE693821064D551780493434ECD98C8`. Outputs are retained in session tool results. All three implementation worktrees passed `git diff --check` (Windows line-ending conversion warnings only).
 
 ## End-to-end demonstration and original criteria
 
@@ -99,7 +99,7 @@ $env:CAPTAIN_FIXTURE_REJECT_MAJOR = '1'
 node tests/test-production-host-demo.js
 ```
 
-Both final mirror-build fixture modes exited **0**. Retained evidence:
+The initial mirror-build fixture modes exited **0**; they predate the later bundle-label-only CI repair. Their retained historical evidence:
 
 - Normal log: `E:/Personal/captain-sdlc/Temp/automation-scratch/branch-release-demo/final-normal.log`; fixture `C:/Users/metag/AppData/Local/Temp/captain-production-host-uOEmgZ/repo`. Candidate `5912d13ae3e5cd4b9d63400f199eab9461b0b1c8` contains 1.1.0-rc.0; final verified landing `f2e85746134341a906077b194e160a3ad8291115` contains 1.1.0. Annotated tag object `91383eef8cb2c7fa5bdede3d600576977a2b47dd` (v1.1.0) peels to that exact landing commit.
 - Breaking log: `E:/Personal/captain-sdlc/Temp/automation-scratch/branch-release-demo/final-breaking.log`; fixture `C:/Users/metag/AppData/Local/Temp/captain-production-host-ORkTLX/repo`. Candidate `ba92f76d37ec79d671f6d3cb91521651a47052e4`; final verified landing `016bee463b1f728b7ae0a3b97c5eb5c58a88d0a7`. Annotated tag object `03b50432d8f02b11207d3a031e0bfa92ec182acc` (v1.1.0) peels to that landing commit. Exactly one simulated compatibility decision is asserted.
@@ -120,7 +120,7 @@ Captain local base is ahead of/diverged from hosted dev; adoption must reconcile
 
 ## Remaining limits and genuine decisions
 
-- This is source-ready local functionality, not installed/adopted runtime or hosted rollout. Local commits and pushes are now explicitly authorized; final exact-commit Captain proof and remote CI are being finalized.
+- This is source-ready local functionality, not installed/adopted runtime or hosted rollout. Local commits and pushes are explicitly authorized. Captain exact-commit implementation proof is complete/green; Orchestrator and claude-release hosted CI are green. Captain ancestry reconciliation and hosted CI remain in progress in this record.
 - Unity serialization, save schemas, mod APIs and content identity analyzers are not implemented. Missing coverage is explicit and blocks required evidence; not_applicable requires trusted project posture/reason. C# fingerprints cover only the existing analyzer's selected committed sources. Exhaustive-C# decision reuse is opt-in and unsuitable for Dirigible's additional contracts.
 - Compatibility actor is a signed operator label under existing Captain HMAC authority, not a new external identity service. Preserve the authority key for durable verification; do not expose it to workers.
 - Changelog manufacture supports a configured selected milestone destination. Automatic arbitrary multi-milestone allocation is not claimed.
@@ -138,6 +138,25 @@ Concrete review-only patches, both rechecked with `git apply --check`:
 - `E:/Personal/captain-sdlc/Temp/automation-scratch/branch-release-demo/captain-bootstrap-metadata-proposed.patch`: Captain 0.10.13 -> 0.11.0 across package/lock/plugin/server plus a development Unreleased entry.
 - `E:/Personal/captain-sdlc/Temp/automation-scratch/branch-release-demo/orchestrator-bootstrap-metadata-proposed.patch`: Orchestrator 0.6.3 -> 0.7.0 plus a development Unreleased entry.
 
-Versions were computed by actual claude-release applyBump, not model arithmetic. The user's subsequent commit-and-push instruction resolves the prior concrete bootstrap proposal. Both metadata patches are now applied; Captain rebuilt at 0.11.0 and Orchestrator committed/pushed at 0.7.0. They do not tag or publish releases. This is a one-time bootstrap exception for these metadata changes and their atomic local migration commits. It does not authorize routine worker version mutation under the new contract, protected merges, tag pushes or publication.
+Versions were computed by actual claude-release applyBump, not model arithmetic. The user's subsequent commit-and-push instruction resolves the prior concrete bootstrap proposal. Both metadata patches are applied; Captain is 0.11.0, and Orchestrator bootstrapped at 0.7.0 then advanced to 0.7.2 for two required Linux CI repair commits. They do not tag or publish releases. This is a one-time bootstrap exception for these metadata changes and their atomic local migration commits. It does not authorize routine worker version mutation under the new contract, protected merges, tag pushes or publication.
 
-Continuation: this same Captain intent/worktree has resumed (revision 9), reviewed metadata is applied and affected output rebuilt. Create scoped atomic implementation/migration commits with retained task/run relationships; run Captain exact-commit proof until complete/green; present reviewable PR contents and follow existing authorized hosting permissions. Select/adopt repository policies only after installed runtime and baseline decisions are ready. Preserve all dirty unmerged worktrees and evidence.
+Completed continuation: the same Captain intent/worktree resumed, bootstrap metadata was applied, scoped implementation commits were created and pushed, and Captain exact-commit proof reached complete/green at revision 18. Review PRs are open; source-only upstream reconciliation and its hosted CI are the remaining publication checks in this record. Select/adopt repository policies only after installed runtime and baseline decisions are ready. Preserve all dirty unmerged worktrees and evidence.
+
+
+## Review publication and signed upstream reconciliation
+
+The current user instruction authorizes the local migration/repair commits and review-branch pushes. All PRs remain drafts; no protected merge, release publication or tag push is authorized or performed.
+
+| Repository | Review | Pushed implementation/repair head | Retained worktree |
+|---|---|---|---|
+| Captain SDLC | https://github.com/LlamaBrain/captain-sdlc/pull/11 | implementation 2ed831d00a36058ca121ecd4743d0e6b41fcc6a4; subsequent signed ancestry reconciliation described below | E:/Personal/captain-sdlc/.captain-sdlc/worktrees/intent-5a89c0ee-9d47-4afd-a74a-dceb576336f3 |
+| Orchestrator | https://github.com/LlamaBrain/captain-orchestrator/pull/4 | 2f701d41af7fd0b45fc32e76ba68d499cac6d42c | E:/Personal/captain-orchestrator/.captain-sdlc/worktrees/branch-driven-semver |
+| claude-release | https://github.com/LlamaBrain/claude-release/pull/1 | 341d1c402770d644840a5160fa633da9f123580b | E:/Personal/claude-release/.captain-sdlc/worktrees/branch-driven-semver |
+
+Orchestrator's first hosted run exposed a mismatched build output directory and a Linux backslash in a sequence fixture. A second run exposed the scrubbed benchmark process's missing DOTNET_CLI_HOME. Focused patch commits align CI to artifacts/active, use a portable path and provide an isolated CLI home without restoring inherited credentials. The final local 81+276 tests and both [Ubuntu/Windows CI jobs](https://github.com/LlamaBrain/captain-orchestrator/actions/runs/43353953262) passed on 2f701d4. claude-release's first CI run exposed dependency-path labels from primary-checkout bundles; rebuilding with worktree-local lockfile dependencies fixed freshness without a semantic source change. All 19 scripts and [hosted CI](https://github.com/LlamaBrain/claude-release/actions/runs/43353602400) passed on 341d1c4.
+
+Both final production-host demos were rerun after those repairs and exited zero against release head 341d1c4 and final CLI SHA-256 `8CDC5D0EBAB755AA98B12E2AC7BEBFAA79461A5D181BC9A2E85CBE27137188AB`. Final logs are `E:/Personal/captain-sdlc/Temp/automation-scratch/branch-release-demo/current-normal.log` and `current-breaking.log`; retained fixture roots are `C:/Users/metag/AppData/Local/Temp/captain-production-host-bX87dY` and `captain-production-host-QXReqU` respectively. These supersede the initial fixture runs for current-build claims. They preserve all original criteria, including exactly one simulated decision in the breaking run.
+
+Captain PR #11 initially could not schedule CI because hosted dev 0c7750d and the existing local stack have divergent squash ancestry. Read-only verification proved `0c7750d58c7683a7f904f54a857bebe02c4d188f^{tree}` equals `28a1de5^{tree}` (`14d4e485655e8deca23f92c9933596768648b6dc`), and 28a1de5 is an ancestor of the source implementation 2ed831d. No hosted content is missing. After implementation proof completed green, signed Merge Prep `merge-39fbbe75-4ebb-4cf7-8f2a-874232bfc915` pinned that exact upstream object through the clean local target checkout `E:/Personal/captain-sdlc/.captain-sdlc/worktrees/branch-driven-semver-upstream`, branch `captain/branch-driven-semver-upstream`. That checkout is a retained read-only upstream reference, not a new implementation run, dev readiness claim or authorized Merge Back target.
+
+The 12 conflicts are resolved to the exact already-tested source tree. The only first-parent change in the reconciliation is this factual Captain closeout update, under the committed captain.ignore bookkeeping contract; no new version, shared changelog, product or control edit is required. Merge Prep will issue its separate captured build readiness on that merge revision; implementation proof remains attached to 2ed831d. Hosted CI will evaluate the actual PR against dev after this ancestry is pushed. Retain the source/target bindings and do not perform Merge Back into the snapshot alias.
