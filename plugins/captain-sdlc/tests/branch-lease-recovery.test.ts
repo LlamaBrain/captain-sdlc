@@ -254,12 +254,21 @@ test("historical workspace and permit checkpoints follow a completed run's owner
   assert.equal((await f.store.diagnose(f.args)).eligible, true);
 });
 
-test("pre-marker hard-crash guard replays only its signed selection after local owner stopped", async t => {
+test("synthetic interrupted guard replays only its signed selection for a stopped local PID", async t => {
   const f = await fixture(t), args = await recovery(f);
   const failing = new f.BranchLeaseRecoveryStore(f.data, { afterGuard: async () => { throw new Error("pre-marker interruption"); } });
   await assert.rejects(failing.repossess(args), /pre-marker interruption/);
   const journal = await readAuthorizedReadOnly<any>(f.data, "branch-lease-repossession-selections", oldIntent);
-  const child = spawn(process.execPath, ["-e", "process.exit(0)"], { windowsHide: true, stdio: "ignore" }); const pid = child.pid; await once(child, "exit"); assert.ok(pid);
+  // On Windows an exited child PID can be reused by the Git subprocesses invoked
+  // during diagnosis/recovery. Use an explicitly verified absent high PID there;
+  // live/foreign guards remain independently exercised below.
+  let pid: number;
+  if (process.platform === "win32") pid = 0x7fffffff;
+  else {
+    const child = spawn(process.execPath, ["-e", "process.exit(0)"], { windowsHide: true, stdio: "ignore" });
+    assert.ok(child.pid); pid = child.pid; await once(child, "exit");
+  }
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
   const gate = `begin-attempt-${createHash("sha256").update(oldIntent).digest("hex")}`;
   const payload = { intentId: oldIntent, leaseToken: "synthetic-interrupted-guard", operation: "branch-repossession-attempt", sessionId: args.session_id, recoveryId: journal.recovery_id, resourceGeneration: args.resource_generation, ownerHost: hostname(), ownerPid: pid };
   await acquireAuthorizedLease(f.data, gate, payload);

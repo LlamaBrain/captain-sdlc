@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Verify a deterministic absent PID in the synthetic Windows stopped-owner recovery fixture while preserving live and foreign-owner rejection checks (v0.11.3).
+
 - Retain consumer policy proposals in their owning private repository or local review artifacts (v0.11.2).
 
 - Normalize migration sources and patch context formatting so hardened Git merge verification passes consistently across platforms (v0.11.1).
