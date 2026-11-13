@@ -1,3 +1,4 @@
+import { type ReleaseIntentChecker } from "./release-intent.js";
 import { type SessionOwner, type SessionOwnerProbe } from "./session-interruption.js";
 import type { BeginDiagnosticArgs } from "./begin-diagnostics.js";
 import type { PreparedCommitCore, PreparedMerge } from "./workspace.js";
@@ -28,6 +29,8 @@ export type SourceState = {
 };
 export type StateProbe = (cwd: string, policy?: ProjectPolicy) => Promise<SourceState>;
 export type CommitPolicy = {
+    mode?: "per_commit" | "branch_driven";
+    type_impacts?: Record<string, "none" | "patch" | "minor">;
     conventional?: boolean;
     require_version_suffix?: boolean;
     require_task_trailer?: boolean;
@@ -35,6 +38,7 @@ export type CommitPolicy = {
     version_surfaces?: Array<{
         path: string;
         pattern: string;
+        json_pointers?: string[];
     }>;
     changelog_files: string[];
     bookkeeping?: BookkeepingPolicy;
@@ -60,6 +64,7 @@ export type HitlFeedback = HitlFeedbackInput & {
     recordedSource: SourceState;
 };
 export type ProjectPolicy = {
+    releaseIntentChecker?: ReleaseIntentChecker;
     hitlChecks?: HitlCheck[];
     approvedPlans?: Array<{
         path: string;
@@ -205,6 +210,7 @@ export type CommitOperationRequest = {
     subject: string;
     taskOutcome?: "Implements" | "Completes" | "Needs-QA";
     final: boolean;
+    breakingDescription?: string;
 };
 export type CommitOperation = {
     leaseId: string;
@@ -225,6 +231,7 @@ export type PreparedCommit = PreparedCommitCore & {
     subject: string;
     taskOutcome?: "Implements" | "Completes" | "Needs-QA";
     final: boolean;
+    breakingDescription?: string;
 };
 export type TerminalCommit = {
     requestSha256: string;
@@ -331,7 +338,9 @@ export type LifecycleHooks = {
     afterRunRevision?: (run: Run) => Promise<void>;
 };
 export declare function approvedPlanDigest(content: string): string;
-export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired">): string[];
+export declare function proofScopes(run: Pick<Run, "profile" | "visualRequired"> & {
+    policy?: ProjectPolicy;
+}): string[];
 export { executionHead } from "./run-validation.js";
 export declare function isPendingPlanReview(run: Run): boolean;
 export declare function effectiveGateDisclosure(run: Run): {

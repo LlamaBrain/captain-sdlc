@@ -16,9 +16,9 @@ var __export = (target, all) => {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key3 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key3) && key3 !== except)
-        __defProp(to, key3, { get: () => from[key3], enumerable: !(desc = __getOwnPropDesc(from, key3)) || desc.enumerable });
+    for (let key4 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key4) && key4 !== except)
+        __defProp(to, key4, { get: () => from[key4], enumerable: !(desc = __getOwnPropDesc(from, key4)) || desc.enumerable });
   }
   return to;
 };
@@ -167,15 +167,15 @@ var require_code = __commonJS({
       return JSON.stringify(x).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
     }
     exports.safeStringify = safeStringify;
-    function getProperty(key3) {
-      return typeof key3 == "string" && exports.IDENTIFIER.test(key3) ? new _Code(`.${key3}`) : _`[${key3}]`;
+    function getProperty(key4) {
+      return typeof key4 == "string" && exports.IDENTIFIER.test(key4) ? new _Code(`.${key4}`) : _`[${key4}]`;
     }
     exports.getProperty = getProperty;
-    function getEsmExportName(key3) {
-      if (typeof key3 == "string" && exports.IDENTIFIER.test(key3)) {
-        return new _Code(`${key3}`);
+    function getEsmExportName(key4) {
+      if (typeof key4 == "string" && exports.IDENTIFIER.test(key4)) {
+        return new _Code(`${key4}`);
       }
-      throw new Error(`CodeGen: invalid export name: ${key3}, use explicit $id name mapping`);
+      throw new Error(`CodeGen: invalid export name: ${key4}, use explicit $id name mapping`);
     }
     exports.getEsmExportName = getEsmExportName;
     function regexpCode(rx) {
@@ -802,11 +802,11 @@ var require_codegen = __commonJS({
       // returns code for object literal for the passed argument list of key-value pairs
       object(...keyValues) {
         const code = ["{"];
-        for (const [key3, value] of keyValues) {
+        for (const [key4, value] of keyValues) {
           if (code.length > 1)
             code.push(",");
-          code.push(key3);
-          if (key3 !== value || this.opts.es5) {
+          code.push(key4);
+          if (key4 !== value || this.opts.es5) {
             code.push(":");
             (0, code_1.addCodeArg)(code, value);
           }
@@ -1081,17 +1081,17 @@ var require_util = __commonJS({
       if (typeof schema === "boolean")
         return;
       const rules = self.RULES.keywords;
-      for (const key3 in schema) {
-        if (!rules[key3])
-          checkStrictMode(it, `unknown keyword: "${key3}"`);
+      for (const key4 in schema) {
+        if (!rules[key4])
+          checkStrictMode(it, `unknown keyword: "${key4}"`);
       }
     }
     exports.checkUnknownRules = checkUnknownRules;
     function schemaHasRules(schema, rules) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (rules[key3])
+      for (const key4 in schema)
+        if (rules[key4])
           return true;
       return false;
     }
@@ -1099,8 +1099,8 @@ var require_util = __commonJS({
     function schemaHasRulesButRef(schema, RULES) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (key3 !== "$ref" && RULES.all[key3])
+      for (const key4 in schema)
+        if (key4 !== "$ref" && RULES.all[key4])
           return true;
       return false;
     }
@@ -1678,8 +1678,8 @@ var require_defaults = __commonJS({
     function assignDefaults(it, ty) {
       const { properties, items } = it.schema;
       if (ty === "object" && properties) {
-        for (const key3 in properties) {
-          assignDefault(it, key3, properties[key3].default);
+        for (const key4 in properties) {
+          assignDefault(it, key4, properties[key4].default);
         }
       } else if (ty === "array" && Array.isArray(items)) {
         items.forEach((sch, i) => assignDefault(it, i, sch.default));
@@ -2063,8 +2063,8 @@ var require_fast_deep_equal = __commonJS({
         for (i = length; i-- !== 0; )
           if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
         for (i = length; i-- !== 0; ) {
-          var key3 = keys[i];
-          if (!equal(a[key3], b[key3])) return false;
+          var key4 = keys[i];
+          if (!equal(a[key4], b[key4])) return false;
         }
         return true;
       }
@@ -2136,20 +2136,20 @@ var require_json_schema_traverse = __commonJS({
     function _traverse(opts, pre, post, schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex) {
       if (schema && typeof schema == "object" && !Array.isArray(schema)) {
         pre(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
-        for (var key3 in schema) {
-          var sch = schema[key3];
+        for (var key4 in schema) {
+          var sch = schema[key4];
           if (Array.isArray(sch)) {
-            if (key3 in traverse.arrayKeywords) {
+            if (key4 in traverse.arrayKeywords) {
               for (var i = 0; i < sch.length; i++)
-                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key3 + "/" + i, rootSchema, jsonPtr, key3, schema, i);
+                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key4 + "/" + i, rootSchema, jsonPtr, key4, schema, i);
             }
-          } else if (key3 in traverse.propsKeywords) {
+          } else if (key4 in traverse.propsKeywords) {
             if (sch && typeof sch == "object") {
               for (var prop in sch)
-                _traverse(opts, pre, post, sch[prop], jsonPtr + "/" + key3 + "/" + escapeJsonPtr(prop), rootSchema, jsonPtr, key3, schema, prop);
+                _traverse(opts, pre, post, sch[prop], jsonPtr + "/" + key4 + "/" + escapeJsonPtr(prop), rootSchema, jsonPtr, key4, schema, prop);
             }
-          } else if (key3 in traverse.keywords || opts.allKeys && !(key3 in traverse.skipKeywords)) {
-            _traverse(opts, pre, post, sch, jsonPtr + "/" + key3, rootSchema, jsonPtr, key3, schema);
+          } else if (key4 in traverse.keywords || opts.allKeys && !(key4 in traverse.skipKeywords)) {
+            _traverse(opts, pre, post, sch, jsonPtr + "/" + key4, rootSchema, jsonPtr, key4, schema);
           }
         }
         post(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
@@ -2206,10 +2206,10 @@ var require_resolve = __commonJS({
       "$dynamicAnchor"
     ]);
     function hasRef(schema) {
-      for (const key3 in schema) {
-        if (REF_KEYWORDS.has(key3))
+      for (const key4 in schema) {
+        if (REF_KEYWORDS.has(key4))
           return true;
-        const sch = schema[key3];
+        const sch = schema[key4];
         if (Array.isArray(sch) && sch.some(hasRef))
           return true;
         if (typeof sch == "object" && hasRef(sch))
@@ -2219,14 +2219,14 @@ var require_resolve = __commonJS({
     }
     function countKeys(schema) {
       let count = 0;
-      for (const key3 in schema) {
-        if (key3 === "$ref")
+      for (const key4 in schema) {
+        if (key4 === "$ref")
           return Infinity;
         count++;
-        if (SIMPLE_INLINED.has(key3))
+        if (SIMPLE_INLINED.has(key4))
           continue;
-        if (typeof schema[key3] == "object") {
-          (0, util_1.eachItem)(schema[key3], (sch) => count += countKeys(sch));
+        if (typeof schema[key4] == "object") {
+          (0, util_1.eachItem)(schema[key4], (sch) => count += countKeys(sch));
         }
         if (count === Infinity)
           return Infinity;
@@ -2415,8 +2415,8 @@ var require_validate = __commonJS({
     function schemaCxtHasRules({ schema, self }) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (self.RULES.all[key3])
+      for (const key4 in schema)
+        if (self.RULES.all[key4])
           return true;
       return false;
     }
@@ -3259,8 +3259,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path20) {
-      let input = path20;
+    function removeDotSegments(path21) {
+      let input = path21;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3665,8 +3665,8 @@ var require_schemes = __commonJS({
       }
       if (wsComponent.resourceName) {
         const queryIndex = wsComponent.resourceName.indexOf("?");
-        const path20 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-        wsComponent.path = path20 && path20 !== "/" ? path20 : void 0;
+        const path21 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+        wsComponent.path = path21 && path21 !== "/" ? path21 : void 0;
         wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
         wsComponent.resourceName = void 0;
       }
@@ -4443,7 +4443,7 @@ var require_core = __commonJS({
         }
       }
       // Adds schema to the instance
-      addSchema(schema, key3, _meta, _validateSchema = this.opts.validateSchema) {
+      addSchema(schema, key4, _meta, _validateSchema = this.opts.validateSchema) {
         if (Array.isArray(schema)) {
           for (const sch of schema)
             this.addSchema(sch, void 0, _meta, _validateSchema);
@@ -4457,15 +4457,15 @@ var require_core = __commonJS({
             throw new Error(`schema ${schemaId} must be string`);
           }
         }
-        key3 = (0, resolve_1.normalizeId)(key3 || id);
-        this._checkUnique(key3);
-        this.schemas[key3] = this._addSchema(schema, _meta, key3, _validateSchema, true);
+        key4 = (0, resolve_1.normalizeId)(key4 || id);
+        this._checkUnique(key4);
+        this.schemas[key4] = this._addSchema(schema, _meta, key4, _validateSchema, true);
         return this;
       }
       // Add schema that will be used to validate other schemas
       // options in META_IGNORE_OPTIONS are alway set to false
-      addMetaSchema(schema, key3, _validateSchema = this.opts.validateSchema) {
-        this.addSchema(schema, key3, true, _validateSchema);
+      addMetaSchema(schema, key4, _validateSchema = this.opts.validateSchema) {
+        this.addSchema(schema, key4, true, _validateSchema);
         return this;
       }
       //  Validate schema against its meta-schema
@@ -4621,14 +4621,14 @@ var require_core = __commonJS({
           let keywords = metaSchema;
           for (const seg of segments)
             keywords = keywords[seg];
-          for (const key3 in rules) {
-            const rule = rules[key3];
+          for (const key4 in rules) {
+            const rule = rules[key4];
             if (typeof rule != "object")
               continue;
             const { $data } = rule.definition;
-            const schema = keywords[key3];
+            const schema = keywords[key4];
             if ($data && schema)
-              keywords[key3] = schemaOrData(schema);
+              keywords[key4] = schemaOrData(schema);
           }
         }
         return metaSchema;
@@ -4701,10 +4701,10 @@ var require_core = __commonJS({
     Ajv2.MissingRefError = ref_error_1.default;
     exports.default = Ajv2;
     function checkOptions(checkOpts, options, msg, log = "error") {
-      for (const key3 in checkOpts) {
-        const opt = key3;
+      for (const key4 in checkOpts) {
+        const opt = key4;
         if (opt in options)
-          this.logger[log](`${msg}: option ${key3}. ${checkOpts[opt]}`);
+          this.logger[log](`${msg}: option ${key4}. ${checkOpts[opt]}`);
       }
     }
     function getSchEnv(keyRef) {
@@ -4718,8 +4718,8 @@ var require_core = __commonJS({
       if (Array.isArray(optsSchemas))
         this.addSchema(optsSchemas);
       else
-        for (const key3 in optsSchemas)
-          this.addSchema(optsSchemas[key3], key3);
+        for (const key4 in optsSchemas)
+          this.addSchema(optsSchemas[key4], key4);
     }
     function addInitialFormats() {
       for (const name in this.opts.formats) {
@@ -5767,11 +5767,11 @@ var require_dependencies = __commonJS({
     function splitDependencies({ schema }) {
       const propertyDeps = {};
       const schemaDeps = {};
-      for (const key3 in schema) {
-        if (key3 === "__proto__")
+      for (const key4 in schema) {
+        if (key4 === "__proto__")
           continue;
-        const deps = Array.isArray(schema[key3]) ? propertyDeps : schemaDeps;
-        deps[key3] = schema[key3];
+        const deps = Array.isArray(schema[key4]) ? propertyDeps : schemaDeps;
+        deps[key4] = schema[key4];
       }
       return [propertyDeps, schemaDeps];
     }
@@ -5848,13 +5848,13 @@ var require_propertyNames = __commonJS({
         if ((0, util_1.alwaysValidSchema)(it, schema))
           return;
         const valid = gen.name("valid");
-        gen.forIn("key", data, (key3) => {
-          cxt.setParams({ propertyName: key3 });
+        gen.forIn("key", data, (key4) => {
+          cxt.setParams({ propertyName: key4 });
           cxt.subschema({
             keyword: "propertyNames",
-            data: key3,
+            data: key4,
             dataTypes: ["string"],
-            propertyName: key3,
+            propertyName: key4,
             compositeRule: true
           }, valid);
           gen.if((0, codegen_1.not)(valid), () => {
@@ -5903,38 +5903,38 @@ var require_additionalProperties = __commonJS({
         checkAdditionalProperties();
         cxt.ok((0, codegen_1._)`${errsCount} === ${names_1.default.errors}`);
         function checkAdditionalProperties() {
-          gen.forIn("key", data, (key3) => {
+          gen.forIn("key", data, (key4) => {
             if (!props.length && !patProps.length)
-              additionalPropertyCode(key3);
+              additionalPropertyCode(key4);
             else
-              gen.if(isAdditional(key3), () => additionalPropertyCode(key3));
+              gen.if(isAdditional(key4), () => additionalPropertyCode(key4));
           });
         }
-        function isAdditional(key3) {
+        function isAdditional(key4) {
           let definedProp;
           if (props.length > 8) {
             const propsSchema = (0, util_1.schemaRefOrVal)(it, parentSchema.properties, "properties");
-            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key3);
+            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key4);
           } else if (props.length) {
-            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key3} === ${p}`));
+            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key4} === ${p}`));
           } else {
             definedProp = codegen_1.nil;
           }
           if (patProps.length) {
-            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key3})`));
+            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key4})`));
           }
           return (0, codegen_1.not)(definedProp);
         }
-        function deleteAdditional(key3) {
-          gen.code((0, codegen_1._)`delete ${data}[${key3}]`);
+        function deleteAdditional(key4) {
+          gen.code((0, codegen_1._)`delete ${data}[${key4}]`);
         }
-        function additionalPropertyCode(key3) {
+        function additionalPropertyCode(key4) {
           if (opts.removeAdditional === "all" || opts.removeAdditional && schema === false) {
-            deleteAdditional(key3);
+            deleteAdditional(key4);
             return;
           }
           if (schema === false) {
-            cxt.setParams({ additionalProperty: key3 });
+            cxt.setParams({ additionalProperty: key4 });
             cxt.error();
             if (!allErrors)
               gen.break();
@@ -5943,22 +5943,22 @@ var require_additionalProperties = __commonJS({
           if (typeof schema == "object" && !(0, util_1.alwaysValidSchema)(it, schema)) {
             const valid = gen.name("valid");
             if (opts.removeAdditional === "failing") {
-              applyAdditionalSchema(key3, valid, false);
+              applyAdditionalSchema(key4, valid, false);
               gen.if((0, codegen_1.not)(valid), () => {
                 cxt.reset();
-                deleteAdditional(key3);
+                deleteAdditional(key4);
               });
             } else {
-              applyAdditionalSchema(key3, valid);
+              applyAdditionalSchema(key4, valid);
               if (!allErrors)
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
             }
           }
         }
-        function applyAdditionalSchema(key3, valid, errors) {
+        function applyAdditionalSchema(key4, valid, errors) {
           const subschema = {
             keyword: "additionalProperties",
-            dataProp: key3,
+            dataProp: key4,
             dataPropType: util_1.Type.Str
           };
           if (errors === false) {
@@ -6083,19 +6083,19 @@ var require_patternProperties = __commonJS({
           }
         }
         function validateProperties(pat) {
-          gen.forIn("key", data, (key3) => {
-            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key3})`, () => {
+          gen.forIn("key", data, (key4) => {
+            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key4})`, () => {
               const alwaysValid = alwaysValidPatterns.includes(pat);
               if (!alwaysValid) {
                 cxt.subschema({
                   keyword: "patternProperties",
                   schemaProp: pat,
-                  dataProp: key3,
+                  dataProp: key4,
                   dataPropType: util_2.Type.Str
                 }, valid);
               }
               if (it.opts.unevaluated && props !== true) {
-                gen.assign((0, codegen_1._)`${props}[${key3}]`, true);
+                gen.assign((0, codegen_1._)`${props}[${key4}]`, true);
               } else if (!alwaysValid && !it.allErrors) {
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
               }
@@ -7519,9 +7519,56 @@ var init_authority = __esm({
   }
 });
 
-// src/run-validation.ts
+// src/release-intent.ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createHash as createHash2 } from "node:crypto";
+import { lstat, readFile as readFile2, realpath } from "node:fs/promises";
 import path3 from "node:path";
+async function assertReleaseIntentChecker(checker, forbiddenRoots) {
+  if (!checker || !path3.isAbsolute(checker.path) || !/^[A-Za-z0-9:/\\._ -]+$/.test(checker.path) || !/^[0-9a-f]{64}$/.test(checker.sha256)) throw new Error("release-intent requires an absolute installed checker path and SHA-256");
+  const absolute2 = path3.resolve(checker.path), info = await lstat(absolute2);
+  if (!info.isFile() || info.isSymbolicLink() || key2(await realpath(absolute2)) !== key2(absolute2))
+    throw new Error("release-intent checker must be a canonical regular file");
+  for (const root of forbiddenRoots) {
+    const relative = path3.relative(path3.resolve(root), absolute2);
+    if (!relative || !relative.startsWith(".." + path3.sep) && relative !== ".." && !path3.isAbsolute(relative))
+      throw new Error("release-intent checker must be installed outside the repository");
+  }
+  if (createHash2("sha256").update(await readFile2(absolute2)).digest("hex") !== checker.sha256)
+    throw new Error("release-intent checker digest changed from trusted base");
+  if (checker.args && (!Array.isArray(checker.args) || checker.args.some((arg) => typeof arg !== "string" || !/^[A-Za-z0-9:/\\._ =#-]+$/.test(arg))))
+    throw new Error("release-intent checker arguments must be literal bounded tokens");
+}
+function releaseIntentCommand(checker) {
+  return [process.execPath, checker.path, ...checker.args ?? []].map((value) => '"' + value + '"').join(" ");
+}
+async function runReleaseIntentChecker(checker, cwd, forbiddenRoots) {
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  const environment = { ...process.env };
+  for (const name of Object.keys(environment)) if (/^GIT_/i.test(name) || ["CAPTAIN_SEQUENCE_AUTH_KEY", "PLUGIN_DATA", "CAPTAIN_PLUGIN_DATA", "NODE_OPTIONS", "NODE_PATH"].includes(name)) delete environment[name];
+  Object.assign(environment, { GIT_TERMINAL_PROMPT: "0", GIT_NO_REPLACE_OBJECTS: "1", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null" });
+  let result;
+  try {
+    const output = await promisify(execFile)(process.execPath, [checker.path, ...checker.args ?? []], { cwd, windowsHide: true, env: environment, maxBuffer: 10 * 1024 * 1024 });
+    result = { exitCode: 0, stdout: output.stdout, stderr: output.stderr };
+  } catch (error2) {
+    result = { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
+  }
+  await assertReleaseIntentChecker(checker, forbiddenRoots);
+  return result;
+}
+var key2;
+var init_release_intent = __esm({
+  "src/release-intent.ts"() {
+    "use strict";
+    key2 = (value) => process.platform === "win32" ? path3.resolve(value).toLowerCase() : path3.resolve(value);
+  }
+});
+
+// src/run-validation.ts
+import { createHash as createHash3 } from "node:crypto";
+import path4 from "node:path";
 function executionHead(run) {
   return run.continuityState?.head ?? run.committedState?.head ?? run.baseHead;
 }
@@ -7545,13 +7592,13 @@ function assertRunRevisionTransition(previous, current) {
     intentId: run.intentId,
     taskId: run.taskId,
     objective: run.objective,
-    projectRoot: path3.resolve(run.projectRoot),
-    worktreePath: path3.resolve(run.worktreePath),
+    projectRoot: path4.resolve(run.projectRoot),
+    worktreePath: path4.resolve(run.worktreePath),
     baseHead: run.baseHead,
     branch: run.branch,
     targetBranch: run.targetBranch,
-    commonGitDir: path3.resolve(run.commonGitDir),
-    gitDir: path3.resolve(run.gitDir),
+    commonGitDir: path4.resolve(run.commonGitDir),
+    gitDir: path4.resolve(run.gitDir),
     profile: run.profile,
     visualRequired: run.visualRequired,
     startedAt: run.startedAt,
@@ -7565,13 +7612,13 @@ var digest2;
 var init_run_validation = __esm({
   "src/run-validation.ts"() {
     "use strict";
-    digest2 = (value) => createHash2("sha256").update(value).digest("hex");
+    digest2 = (value) => createHash3("sha256").update(value).digest("hex");
   }
 });
 
 // src/begin-diagnostics.ts
-import { createHash as createHash3 } from "node:crypto";
-import path4 from "node:path";
+import { createHash as createHash4 } from "node:crypto";
+import path5 from "node:path";
 function classifyOwner(payload, intent, operation, deps) {
   const ownerFields = [
     payload.ownerHost,
@@ -7718,7 +7765,7 @@ async function diagnoseBeginTargetLease(args, deps) {
       };
     }
     const issuanceId = digestText(JSON.stringify([
-      path4.resolve(intent.projectRoot),
+      path5.resolve(intent.projectRoot),
       intent.sessionId,
       intent.turnId
     ]));
@@ -7745,8 +7792,8 @@ async function diagnoseBeginTargetLease(args, deps) {
       targetWorktree: intent.projectRoot,
       targetBranch: signedTargetBranch,
       targetOid: oid,
-      canonicalProposedPath: path4.join(
-        path4.resolve(intent.projectRoot),
+      canonicalProposedPath: path5.join(
+        path5.resolve(intent.projectRoot),
         ".captain-sdlc",
         "worktrees",
         args.intent_id.replace(/[^A-Za-z0-9_-]/g, "")
@@ -7781,11 +7828,11 @@ async function diagnoseBeginTargetLease(args, deps) {
       const leaseCheckpoint = await maybeRead(deps, "begin-leases", operation.operationToken);
       leaseCheckpointPresent = leaseCheckpoint.present;
       if (leaseCheckpoint.present) {
-        leaseCheckpointMatches = leaseCheckpoint.value.schemaVersion === 1 && leaseCheckpoint.value.operationToken === operation.operationToken && leaseCheckpoint.value.leaseToken === operation.leaseToken && typeof leaseCheckpoint.value.leaseId === "string" && leaseCheckpoint.value.leaseId === digestText((path4.resolve(git2.commonGitDir) + "\0refs/heads/" + intent.targetBranch).toLowerCase()) && typeof leaseCheckpoint.value.commonGitDir === "string" && samePath2(leaseCheckpoint.value.commonGitDir, git2.commonGitDir) && leaseCheckpoint.value.targetBranch === intent.targetBranch && leaseCheckpoint.value.targetOid === intent.targetOid;
+        leaseCheckpointMatches = leaseCheckpoint.value.schemaVersion === 1 && leaseCheckpoint.value.operationToken === operation.operationToken && leaseCheckpoint.value.leaseToken === operation.leaseToken && typeof leaseCheckpoint.value.leaseId === "string" && leaseCheckpoint.value.leaseId === digestText((path5.resolve(git2.commonGitDir) + "\0refs/heads/" + intent.targetBranch).toLowerCase()) && typeof leaseCheckpoint.value.commonGitDir === "string" && samePath2(leaseCheckpoint.value.commonGitDir, git2.commonGitDir) && leaseCheckpoint.value.targetBranch === intent.targetBranch && leaseCheckpoint.value.targetOid === intent.targetOid;
         if (!leaseCheckpointMatches) throw new Error("lease_checkpoint_invalid");
       }
-      const canonicalRunWorktreePath = path4.join(
-        path4.resolve(intent.projectRoot),
+      const canonicalRunWorktreePath = path5.join(
+        path5.resolve(intent.projectRoot),
         ".captain-sdlc",
         "worktrees",
         args.intent_id.replace(/[^A-Za-z0-9_-]/g, "")
@@ -7821,7 +7868,7 @@ async function diagnoseBeginTargetLease(args, deps) {
         throw new Error("session_lease_generation_invalid");
       }
     }
-    const leaseId = digestText((path4.resolve(commonGitDir) + "\0refs/heads/" + args.target_branch).toLowerCase());
+    const leaseId = digestText((path5.resolve(commonGitDir) + "\0refs/heads/" + args.target_branch).toLowerCase());
     const lease = await deps.readLease(leaseId);
     let leaseGeneration;
     if (lease) {
@@ -7844,13 +7891,13 @@ async function diagnoseBeginTargetLease(args, deps) {
     const stage = !operation ? "no_reservation" : !operationMatches ? "reservation_mismatch" : permitPresent ? "permit_published" : activatedPresent ? "activated" : activePresent ? "active_checkpointed" : runPresent ? "run_checkpointed" : workspacePresent ? "workspace_checkpointed" : leaseState2 === "held" && !leaseCheckpointPresent ? "lease_acquired_before_checkpoint" : leaseCheckpointPresent ? "lease_checkpointed" : repositoryPresent ? "repository_checkpointed" : "reserved";
     const hasLaterEvidence = workspacePresent || runPresent || activePresent || activatedPresent || permitPresent || sessionLeaseHeld || projectionActivePresent || projectionPermitPresent || git2.canonicalProposedPathExists || git2.canonicalWorktreeRegistered || git2.pendingGitOperation !== false;
     const expectedTargetCheckout = !!git2.targetBranchWorktreePath && samePath2(git2.targetBranchWorktreePath, args.target_worktree) && git2.targetBranchWorktreeHead?.toLowerCase() === git2.targetRefOid.toLowerCase();
-    const canonicalContainer = path4.join(
-      path4.resolve(intent.projectRoot),
+    const canonicalContainer = path5.join(
+      path5.resolve(intent.projectRoot),
       ".captain-sdlc",
       "worktrees"
     );
-    const targetCheckoutOutsideCanonical = !!git2.targetBranchWorktreePath && !samePath2(git2.targetBranchWorktreePath, canonicalContainer) && !path4.resolve(git2.targetBranchWorktreePath).toLowerCase().startsWith(
-      (canonicalContainer + path4.sep).toLowerCase()
+    const targetCheckoutOutsideCanonical = !!git2.targetBranchWorktreePath && !samePath2(git2.targetBranchWorktreePath, canonicalContainer) && !path5.resolve(git2.targetBranchWorktreePath).toLowerCase().startsWith(
+      (canonicalContainer + path5.sep).toLowerCase()
     );
     const eligibleBindings = projectRootMatches && branchMatches && issuedIntentMatches && operationMatches && repositoryMatches && leaseBindingsMatch && consumedMarkerPresent && leaseGenerationRevisioned && leaseState2 === "held" && gitBindingMatches && expectedTargetCheckout;
     const recoveryDisposition = !targetWorktreeMatches ? "refused_request_binding_mismatch" : !eligibleBindings ? "refused_binding_or_lease_mismatch" : hasLaterEvidence ? "refused_later_or_ambiguous_state" : leaseOwner === "stopped" ? "requires_begin_recovery_fence" : leaseOwner === "legacy" ? "refused_legacy_owner_unproven" : "refused_owner_not_proven_stopped";
@@ -7903,10 +7950,10 @@ var init_begin_diagnostics = __esm({
   "src/begin-diagnostics.ts"() {
     "use strict";
     init_run_validation();
-    digest3 = (value) => createHash3("sha256").update(JSON.stringify(value)).digest("hex");
-    digestText = (value) => createHash3("sha256").update(value).digest("hex");
+    digest3 = (value) => createHash4("sha256").update(JSON.stringify(value)).digest("hex");
+    digestText = (value) => createHash4("sha256").update(value).digest("hex");
     record2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-    samePath2 = (left, right) => path4.resolve(left).replace(/[\\/]+$/, "").toLowerCase() === path4.resolve(right).replace(/[\\/]+$/, "").toLowerCase();
+    samePath2 = (left, right) => path5.resolve(left).replace(/[\\/]+$/, "").toLowerCase() === path5.resolve(right).replace(/[\\/]+$/, "").toLowerCase();
     safeId = (value) => /^[A-Za-z0-9_-]+$/.test(value);
     isMissing = (error2) => record2(error2) && error2.code === "ENOENT";
     withoutConsumed = (value) => {
@@ -7919,8 +7966,8 @@ var init_begin_diagnostics = __esm({
 
 // src/begin-diagnostic-adapter.ts
 import { execFileSync } from "node:child_process";
-import { access, readdir as readdir2, realpath } from "node:fs/promises";
-import path5 from "node:path";
+import { access, readdir as readdir2, realpath as realpath2 } from "node:fs/promises";
+import path6 from "node:path";
 function gitRead(cwd, ...args) {
   return execFileSync("git", ["--no-optional-locks", "-C", cwd, ...args], {
     encoding: "utf8",
@@ -7938,13 +7985,13 @@ function parseWorktrees(value) {
     }
     const separator = line.indexOf(" ");
     if (separator < 0) continue;
-    const key3 = line.slice(0, separator);
+    const key4 = line.slice(0, separator);
     const field = line.slice(separator + 1);
-    if (key3 === "worktree") {
+    if (key4 === "worktree") {
       current = { path: field };
       result.push(current);
-    } else if (current && key3 === "HEAD") current.head = field;
-    else if (current && key3 === "branch") current.branch = field;
+    } else if (current && key4 === "HEAD") current.head = field;
+    else if (current && key4 === "branch") current.branch = field;
   }
   return result;
 }
@@ -7966,7 +8013,7 @@ async function pendingOperation(projectRoot) {
   return false;
 }
 function samePath3(left, right) {
-  return path5.resolve(left).replace(/[\\/]+$/, "").toLowerCase() === path5.resolve(right).replace(/[\\/]+$/, "").toLowerCase();
+  return path6.resolve(left).replace(/[\\/]+$/, "").toLowerCase() === path6.resolve(right).replace(/[\\/]+$/, "").toLowerCase();
 }
 function createBeginDiagnosticAdapter(dataRoot) {
   const deps = {
@@ -7975,7 +8022,7 @@ function createBeginDiagnosticAdapter(dataRoot) {
     },
     async listSigned(bucket3) {
       try {
-        return await readdir2(path5.join(dataRoot, bucket3));
+        return await readdir2(path6.join(dataRoot, bucket3));
       } catch (error2) {
         if (error2.code === "ENOENT") return [];
         throw error2;
@@ -7986,14 +8033,14 @@ function createBeginDiagnosticAdapter(dataRoot) {
       return snapshot && { ...snapshot, integrity: "verified" };
     },
     async inspectGit(input) {
-      const projectRoot = path5.resolve(gitRead(input.projectRoot, "rev-parse", "--show-toplevel"));
-      const commonGitDir = path5.resolve(gitRead(projectRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"));
+      const projectRoot = path6.resolve(gitRead(input.projectRoot, "rev-parse", "--show-toplevel"));
+      const commonGitDir = path6.resolve(gitRead(projectRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"));
       const targetRefOid = gitRead(projectRoot, "rev-parse", "--verify", `refs/heads/${input.targetBranch}^{commit}`);
       const worktrees = parseWorktrees(gitRead(projectRoot, "worktree", "list", "--porcelain"));
       const target = worktrees.find((item) => item.branch === `refs/heads/${input.targetBranch}`);
       const canonicalWorktrees = worktrees.filter((item) => typeof item.path === "string" && samePath3(item.path, input.canonicalProposedPath));
-      const targetWorktree = path5.resolve(target?.path ?? projectRoot);
-      if (!samePath3(await realpath(targetWorktree), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--show-toplevel"), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--path-format=absolute", "--git-common-dir"), commonGitDir) || gitRead(targetWorktree, "symbolic-ref", "--quiet", "--short", "HEAD") !== input.targetBranch || gitRead(targetWorktree, "rev-parse", "HEAD").toLowerCase() !== targetRefOid.toLowerCase()) {
+      const targetWorktree = path6.resolve(target?.path ?? projectRoot);
+      if (!samePath3(await realpath2(targetWorktree), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--show-toplevel"), targetWorktree) || !samePath3(gitRead(targetWorktree, "rev-parse", "--path-format=absolute", "--git-common-dir"), commonGitDir) || gitRead(targetWorktree, "symbolic-ref", "--quiet", "--short", "HEAD") !== input.targetBranch || gitRead(targetWorktree, "rev-parse", "HEAD").toLowerCase() !== targetRefOid.toLowerCase()) {
         throw new Error("registered target worktree binding does not match its signed branch");
       }
       const pendingGitOperation = await pendingOperation(projectRoot) || !samePath3(targetWorktree, projectRoot) && await pendingOperation(targetWorktree);
@@ -8015,7 +8062,7 @@ function createBeginDiagnosticAdapter(dataRoot) {
   };
   return async (args) => {
     try {
-      await access(path5.join(dataRoot, "authority.key"));
+      await access(path6.join(dataRoot, "authority.key"));
     } catch (error2) {
       if (error2.code === "ENOENT") {
         const untrusted = new Error("Captain authority key is unavailable; refusing to classify signed evidence");
@@ -8036,10 +8083,10 @@ var init_begin_diagnostic_adapter = __esm({
 });
 
 // src/session-interruption.ts
-import { execFile } from "node:child_process";
-import { readFile as readFile2 } from "node:fs/promises";
+import { execFile as execFile2 } from "node:child_process";
+import { readFile as readFile3 } from "node:fs/promises";
 import os from "node:os";
-import { promisify } from "node:util";
+import { promisify as promisify2 } from "node:util";
 function validateSessionOwner(owner) {
   if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid <= 0 || typeof owner.host !== "string" || !owner.host.trim() || typeof owner.startedAt !== "string" || !owner.startedAt.trim() || owner.closeTokenHash !== void 0 && !/^[0-9a-f]{64}$/.test(owner.closeTokenHash)) {
     throw new Error("client session owner identity is invalid");
@@ -8063,14 +8110,14 @@ async function processStart(pid) {
   }
   if (process.platform === "linux") {
     try {
-      const [stat3, boot] = await Promise.all([readFile2(`/proc/${pid}/stat`, "utf8"), readFile2("/proc/sys/kernel/random/boot_id", "utf8")]);
+      const [stat3, boot] = await Promise.all([readFile3(`/proc/${pid}/stat`, "utf8"), readFile3("/proc/sys/kernel/random/boot_id", "utf8")]);
       const fields = stat3.slice(stat3.lastIndexOf(")") + 2).trim().split(/\s+/);
       if (!/^\d+$/.test(fields[19] ?? "") || !boot.trim()) throw new Error("client process start identity unavailable");
       return `linux:${boot.trim()}:${fields[19]}`;
     } catch (error2) {
       if (error2.code === "ENOENT") {
         try {
-          await readFile2(`/proc/${pid}/stat`, "utf8");
+          await readFile3(`/proc/${pid}/stat`, "utf8");
         } catch (probe) {
           if (probe.code === "ENOENT") return void 0;
           throw probe;
@@ -8111,7 +8158,7 @@ var exec;
 var init_session_interruption = __esm({
   "src/session-interruption.ts"() {
     "use strict";
-    exec = promisify(execFile);
+    exec = promisify2(execFile2);
   }
 });
 
@@ -8146,9 +8193,9 @@ var init_validation = __esm({
 });
 
 // src/user-authorization.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 import { readdir as readdir3 } from "node:fs/promises";
-import path6 from "node:path";
+import path7 from "node:path";
 function parseUserAuthorizations(prompt) {
   const result = [];
   let fence;
@@ -8189,7 +8236,7 @@ async function repositoryScope(root) {
     git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root),
     git(["branch", "--show-current"], root)
   ]);
-  return { projectRoot: path6.resolve(projectRoot), commonGitDir: path6.resolve(commonGitDir), sourceBranch };
+  return { projectRoot: path7.resolve(projectRoot), commonGitDir: path7.resolve(commonGitDir), sourceBranch };
 }
 async function recordUserAuthorizations(data, input) {
   const events = parseUserAuthorizations(input.prompt);
@@ -8222,7 +8269,7 @@ async function userAuthorizationStatus(data, query) {
   if (!query.sessionId && !query.intentId) throw new Error("Select a source session or governed intent for authorization lookup");
   let names;
   try {
-    names = await readdir3(path6.join(data, "user-authorizations"));
+    names = await readdir3(path7.join(data, "user-authorizations"));
   } catch (error2) {
     if (error2.code === "ENOENT") return { receipts: [], guidance };
     throw error2;
@@ -8246,28 +8293,28 @@ var init_user_authorization = __esm({
     init_authority();
     init_workspace();
     guidance = "Receipts preserve the user's original authorization for the same task. Honor later revocations and the recorded operation/target; a commit receipt does not authorize push, merge, or disabling controls. Check Git hygiene, then act without asking again. Missing parser receipts do not negate authorization already present in the conversation.";
-    hash = (value) => createHash4("sha256").update(JSON.stringify(value)).digest("hex");
-    pathKey = (value) => process.platform === "win32" ? path6.resolve(value).toLowerCase() : path6.resolve(value);
+    hash = (value) => createHash5("sha256").update(JSON.stringify(value)).digest("hex");
+    pathKey = (value) => process.platform === "win32" ? path7.resolve(value).toLowerCase() : path7.resolve(value);
   }
 });
 
 // src/user-request.ts
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { readdir as readdir4 } from "node:fs/promises";
-import path7 from "node:path";
-async function serialized(key3, action2) {
-  const previous = queues.get(key3) ?? Promise.resolve();
+import path8 from "node:path";
+async function serialized(key4, action2) {
+  const previous = queues.get(key4) ?? Promise.resolve();
   let release;
   const current = new Promise((resolve) => {
     release = resolve;
   });
-  queues.set(key3, current);
+  queues.set(key4, current);
   await previous;
   try {
     return await action2();
   } finally {
     release();
-    if (queues.get(key3) === current) queues.delete(key3);
+    if (queues.get(key4) === current) queues.delete(key4);
   }
 }
 async function repositoryScope2(projectRoot) {
@@ -8275,7 +8322,7 @@ async function repositoryScope2(projectRoot) {
     git(["rev-parse", "--show-toplevel"], projectRoot),
     git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot)
   ]);
-  return { projectRoot: path7.resolve(topLevel), commonGitDir: path7.resolve(commonGitDir) };
+  return { projectRoot: path8.resolve(topLevel), commonGitDir: path8.resolve(commonGitDir) };
 }
 function objectiveCandidates(prompt) {
   const lines2 = [];
@@ -8383,7 +8430,7 @@ function assertReceipt(receipt, id) {
 async function readReceipts(data) {
   let names;
   try {
-    names = await readdir4(path7.join(data, bucket));
+    names = await readdir4(path8.join(data, bucket));
   } catch (error2) {
     if (error2.code === "ENOENT") return [];
     throw error2;
@@ -8498,8 +8545,8 @@ var init_user_request = __esm({
     init_workspace();
     bucket = "user-requests";
     guidance2 = "Use the original objective and expressed consent to continue the same task without asking again. Clarify only unclear consent, changed scope or target, or revocation. Time and session changes alone do not expire approval. Commit, merge, push, and HITL acceptance retain the scope of the actual requested action; task consent is not a blanket operation grant. Missing parser receipts do not negate authorization already present in the conversation or a legacy handoff. This evidence is advisory, never a new permission gate.";
-    hash2 = (value) => createHash5("sha256").update(JSON.stringify(value)).digest("hex");
-    pathKey2 = (value) => process.platform === "win32" ? path7.resolve(value).toLowerCase() : path7.resolve(value);
+    hash2 = (value) => createHash6("sha256").update(JSON.stringify(value)).digest("hex");
+    pathKey2 = (value) => process.platform === "win32" ? path8.resolve(value).toLowerCase() : path8.resolve(value);
     scopeHash = (lines2, targetBranch) => hash2({ objectiveLines: lines2, targetBranch: targetBranch ?? null });
     sourceIdentity = (value) => ({ source: value.source, sourceIntentId: value.sourceIntentId, sessionId: value.sessionId, turnId: value.turnId });
     queues = /* @__PURE__ */ new Map();
@@ -8519,8 +8566,8 @@ var init_user_request = __esm({
 });
 
 // src/user-request-source.ts
-import { createHash as createHash6 } from "node:crypto";
-import path8 from "node:path";
+import { createHash as createHash7 } from "node:crypto";
+import path9 from "node:path";
 import { stat } from "node:fs/promises";
 function assertSelectors(input) {
   if (![input.projectRoot, input.sessionId, input.turnId].every((value) => typeof value === "string" && value.trim()))
@@ -8529,7 +8576,7 @@ function assertSelectors(input) {
 async function sourceBinding(input) {
   assertSelectors(input);
   await git(["rev-parse", "--show-toplevel"], input.projectRoot);
-  const commonGitDir = path8.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], input.projectRoot));
+  const commonGitDir = path9.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], input.projectRoot));
   const id = hash3({ commonGitDir: pathKey3(commonGitDir), source: "UserPromptSubmit", sessionId: input.sessionId, turnId: input.turnId });
   return { id, commonGitDir, source: "UserPromptSubmit", sessionId: input.sessionId, turnId: input.turnId };
 }
@@ -8543,7 +8590,7 @@ async function readUserRequestSource(data, query) {
   if (query.sourceId !== void 0 && query.sourceId !== binding.id)
     throw new Error("User request source id does not match the exact repository, session and turn");
   try {
-    await stat(path8.join(data, bucket2, binding.id + ".json"));
+    await stat(path9.join(data, bucket2, binding.id + ".json"));
   } catch (error2) {
     if (error2.code === "ENOENT") return void 0;
     throw error2;
@@ -8557,16 +8604,16 @@ var init_user_request_source = __esm({
     init_authority();
     init_workspace();
     bucket2 = "user-request-sources";
-    pathKey3 = (value) => process.platform === "win32" ? path8.resolve(value).toLowerCase() : path8.resolve(value);
-    hash3 = (value) => createHash6("sha256").update(JSON.stringify(value)).digest("hex");
+    pathKey3 = (value) => process.platform === "win32" ? path9.resolve(value).toLowerCase() : path9.resolve(value);
+    hash3 = (value) => createHash7("sha256").update(JSON.stringify(value)).digest("hex");
   }
 });
 
 // src/output-retention.ts
-import { lstat, mkdir as mkdir2, readdir as readdir5, realpath as realpath2, rm, rmdir } from "node:fs/promises";
-import path9 from "node:path";
+import { lstat as lstat2, mkdir as mkdir2, readdir as readdir5, realpath as realpath3, rm, rmdir } from "node:fs/promises";
+import path10 from "node:path";
 function outputRoot(value) {
-  if (typeof value !== "string" || !value || path9.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error("output retention root must use a safe repository-relative path");
+  if (typeof value !== "string" || !value || path10.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error("output retention root must use a safe repository-relative path");
   const relative = normalized(value), segments = relative.split("/"), lower = segments.map((segment) => segment.toLowerCase());
   if (segments.some((segment) => !segment || segment === "." || segment === ".." || /[. ]$/.test(segment)) || lower.some((segment) => protectedSegments.has(segment))) throw new Error("output retention root overlaps a protected metadata or worktree path");
   if (lower.includes(".captain-sdlc") && !(lower[0] === ".captain-sdlc" && lower[1] === "output" && lower.length >= 3)) throw new Error("output retention root overlaps protected Captain metadata");
@@ -8653,17 +8700,17 @@ function outputPathExcluded(relative, policy, tracked) {
   return ![...tracked].some((file) => contains(relative, file) || contains(file, relative));
 }
 async function ancestors(root, target) {
-  const relative = path9.relative(root, target);
-  if (!relative || relative.startsWith("..") || path9.isAbsolute(relative)) throw new Error("output retention target escapes the worktree");
-  for (let cursor = target; ; cursor = path9.dirname(cursor)) {
+  const relative = path10.relative(root, target);
+  if (!relative || relative.startsWith("..") || path10.isAbsolute(relative)) throw new Error("output retention target escapes the worktree");
+  for (let cursor = target; ; cursor = path10.dirname(cursor)) {
     try {
-      if ((await lstat(cursor)).isSymbolicLink()) throw new Error("output retention crosses a reparse point or symlink");
+      if ((await lstat2(cursor)).isSymbolicLink()) throw new Error("output retention crosses a reparse point or symlink");
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
     if (!samePath4(cursor, root)) {
       try {
-        await lstat(path9.join(cursor, ".git"));
+        await lstat2(path10.join(cursor, ".git"));
         throw new Error("output retention crosses a nested repository");
       } catch (error2) {
         if (!["ENOENT", "ENOTDIR"].includes(error2.code)) throw error2;
@@ -8674,7 +8721,7 @@ async function ancestors(root, target) {
 }
 async function trackedSnapshot(root) {
   const head = await git(["rev-parse", "HEAD"], root), index = await git(["ls-files", "--stage", "-z"], root);
-  const files = new Set([...index.split("\0").filter(Boolean).map((entry) => entry.slice(entry.indexOf("	") + 1)), ...(await git(["ls-tree", "-r", "--name-only", "-z", head], root)).split("\0")].filter(Boolean).map(key2));
+  const files = new Set([...index.split("\0").filter(Boolean).map((entry) => entry.slice(entry.indexOf("	") + 1)), ...(await git(["ls-tree", "-r", "--name-only", "-z", head], root)).split("\0")].filter(Boolean).map(key3));
   return { head, index, files };
 }
 async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
@@ -8682,14 +8729,14 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
   if (!policy.outputRetention) return summary;
   const retention = parseRetention(policy.outputRetention), roots = retention.roots[scope] ?? [];
   if (!roots.length) return summary;
-  const root = path9.resolve(worktree), actual = path9.resolve(await git(["rev-parse", "--show-toplevel"], root));
-  if (!samePath4(root, actual) || !samePath4(root, await realpath2(root))) throw new Error("output retention requires the real Git worktree root");
-  const registered = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path9.resolve(entry.slice(9)));
+  const root = path10.resolve(worktree), actual = path10.resolve(await git(["rev-parse", "--show-toplevel"], root));
+  if (!samePath4(root, actual) || !samePath4(root, await realpath3(root))) throw new Error("output retention requires the real Git worktree root");
+  const registered = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path10.resolve(entry.slice(9)));
   const snapshot = await trackedSnapshot(root), tracked = snapshot.files;
   const isTracked = (relative) => [...tracked].some((file) => contains(file, relative));
   const plans = [];
   for (const relative of roots) {
-    const absolute2 = path9.resolve(root, relative);
+    const absolute2 = path10.resolve(root, relative);
     await ancestors(root, absolute2);
     if (registered.some((other) => contains(absolute2, other))) throw new Error(`output retention root contains a registered worktree: ${relative}`);
     const files = [], directories = [];
@@ -8697,7 +8744,7 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
     async function scan(target) {
       let info;
       try {
-        info = await lstat(target);
+        info = await lstat2(target);
       } catch (error2) {
         if (error2.code === "ENOENT") return;
         throw error2;
@@ -8708,7 +8755,7 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
         directories.push(target);
         for (const entry of await readdir5(target, { withFileTypes: true })) {
           if (entry.name.toLowerCase() === ".git" || entry.name.toLowerCase() === ".captain-sdlc") throw new Error("output retention tree contains a nested repository or Captain metadata");
-          await scan(path9.join(target, entry.name));
+          await scan(path10.join(target, entry.name));
         }
       } else if (info.isFile()) {
         if (target === absolute2) fileRoot = true;
@@ -8724,17 +8771,17 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
   for (const plan of plans) {
     const current = await trackedSnapshot(root);
     if (current.head !== snapshot.head || current.index !== snapshot.index) throw new Error("output retention HEAD or index changed during preflight; preserve the new tracked state and retry under its owner");
-    const currentWorktrees = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path9.resolve(entry.slice(9)));
+    const currentWorktrees = (await git(["worktree", "list", "--porcelain", "-z"], root)).split("\0").filter((entry) => entry.startsWith("worktree ")).map((entry) => path10.resolve(entry.slice(9)));
     if (currentWorktrees.some((other) => contains(plan.absolute, other))) throw new Error("output retention root acquired a registered worktree during preflight");
     for (const file of plan.files) {
-      const relative = normalized(path9.relative(root, file));
+      const relative = normalized(path10.relative(root, file));
       if (isTracked(relative)) {
         summary.retainedTrackedFiles++;
         continue;
       }
       await ancestors(root, file);
       try {
-        if ((await lstat(file)).isSymbolicLink()) throw new Error("output retention target changed to a reparse point");
+        if ((await lstat2(file)).isSymbolicLink()) throw new Error("output retention target changed to a reparse point");
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
       }
@@ -8750,12 +8797,12 @@ async function prepareScopeOutputs(worktree, policy, scope, options = {}) {
       }
     }
     await ancestors(root, plan.absolute);
-    await mkdir2(plan.fileRoot ? path9.dirname(plan.absolute) : plan.absolute, { recursive: true });
+    await mkdir2(plan.fileRoot ? path10.dirname(plan.absolute) : plan.absolute, { recursive: true });
     summary.roots.push(plan.relative);
   }
   return summary;
 }
-var generated, payloadDirectories, protectedSegments, reportExtension, payloadExtension, mediaFileExtension, outputFile, normalized, key2, contains, samePath4;
+var generated, payloadDirectories, protectedSegments, reportExtension, payloadExtension, mediaFileExtension, outputFile, normalized, key3, contains, samePath4;
 var init_output_retention = __esm({
   "src/output-retention.ts"() {
     "use strict";
@@ -8768,21 +8815,21 @@ var init_output_retention = __esm({
     mediaFileExtension = /\.(?:png|apng|jpe?g|webp|gif|bmp|tiff?|tga|ico|svg|avif|heic|heif|exr|hdr|mp4|m4v|webm|mov|avi|mkv|mpe?g|ogv)$/i;
     outputFile = (relative) => reportExtension.test(relative) || payloadExtension.test(relative) || mediaFileExtension.test(relative);
     normalized = (value) => value.replaceAll("\\", "/");
-    key2 = (value) => normalized(value).toLowerCase();
-    contains = (parent, child) => key2(child) === key2(parent) || key2(child).startsWith(key2(parent).replace(/\/$/, "") + "/");
-    samePath4 = (left, right) => process.platform === "win32" ? path9.resolve(left).toLowerCase() === path9.resolve(right).toLowerCase() : path9.resolve(left) === path9.resolve(right);
+    key3 = (value) => normalized(value).toLowerCase();
+    contains = (parent, child) => key3(child) === key3(parent) || key3(child).startsWith(key3(parent).replace(/\/$/, "") + "/");
+    samePath4 = (left, right) => process.platform === "win32" ? path10.resolve(left).toLowerCase() === path10.resolve(right).toLowerCase() : path10.resolve(left) === path10.resolve(right);
   }
 });
 
 // src/documentation-scope.ts
-import { createHash as createHash7 } from "node:crypto";
-import { lstat as lstat2, readFile as readFile3 } from "node:fs/promises";
-import path10 from "node:path";
+import { createHash as createHash8 } from "node:crypto";
+import { lstat as lstat3, readFile as readFile4 } from "node:fs/promises";
+import path11 from "node:path";
 function fail2(reason) {
   throw new Error(`documentation scope: ${reason}`);
 }
 function safePath(value) {
-  if (typeof value !== "string" || !value || value.length > 2e3 || !/^[A-Za-z0-9_./ -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === ".." || /[. ]$/.test(part)) || path10.isAbsolute(value)) fail2("paths must be canonical repository-relative files");
+  if (typeof value !== "string" || !value || value.length > 2e3 || !/^[A-Za-z0-9_./ -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === ".." || /[. ]$/.test(part)) || path11.isAbsolute(value)) fail2("paths must be canonical repository-relative files");
   return value;
 }
 function documentationPath(relative) {
@@ -8813,10 +8860,10 @@ async function regularFile(root, relative, allowAbsent) {
   let missing2 = false;
   const parts = relative.split("/");
   for (let index = 0; index <= parts.length; index++) {
-    const target = path10.join(root, ...parts.slice(0, index));
+    const target = path11.join(root, ...parts.slice(0, index));
     let info;
     try {
-      info = await lstat2(target);
+      info = await lstat3(target);
     } catch (error2) {
       if (error2.code === "ENOENT" && allowAbsent) {
         missing2 = true;
@@ -8827,7 +8874,7 @@ async function regularFile(root, relative, allowAbsent) {
     if (missing2 || info.isSymbolicLink() || (index < parts.length ? !info.isDirectory() : !info.isFile())) fail2(`${relative} crosses a link or is not a regular file`);
     if (index === parts.length && ((info.mode & 73) !== 0 || info.size > maxText)) fail2(`${relative} has executable mode or exceeds the text limit`);
   }
-  return missing2 ? null : text(await readFile3(path10.join(root, relative), "utf8"), relative);
+  return missing2 ? null : text(await readFile4(path11.join(root, relative), "utf8"), relative);
 }
 function list(raw) {
   const result = raw.split("\0").filter(Boolean);
@@ -8847,7 +8894,7 @@ async function entries(root, revision) {
 function regularMode(relative, ...maps) {
   for (const map of maps) {
     if (map.get(relative)?.mode && map.get(relative).mode !== "100644") fail2(`${relative} has non-document Git mode`);
-    for (const key3 of map.keys()) if (key3.toLowerCase() === relative.toLowerCase() && key3 !== relative) fail2(`${relative} is a case alias`);
+    for (const key4 of map.keys()) if (key4.toLowerCase() === relative.toLowerCase() && key4 !== relative) fail2(`${relative} is a case alias`);
   }
 }
 async function changed(root, base, candidate) {
@@ -8859,7 +8906,7 @@ async function ignoredInputs(run) {
   const excludes = [...run.policy.sourceManifestExcludes ?? [], ...run.policy.outputRetention?.roots.build ?? [], ".captain-proof", ".captain-sdlc/trace"];
   for (const relative of list(await gitRaw(["ls-files", "--others", "--ignored", "--exclude-standard", "-z"], run.worktreePath))) {
     if (relative.split("/").some((part) => part.toLowerCase() === "node_modules") || excludes.some((root) => under(relative, root))) continue;
-    const base = path10.posix.basename(relative);
+    const base = path11.posix.basename(relative);
     if (/\.(?:[cm]?[jt]sx?|cs|[ch](?:pp)?|java|py|rb|go|rs|ps1|sh|cmd|bat|exe|dll|so|dylib|csproj|props|targets|sln|ya?ml)$/i.test(base) || /^(?:\.[^/]+|package(?:-lock)?\.json|tsconfig[^/]*\.json|agents\.md|claude\.md|skill\.md)$/i.test(base)) fail2(`ignored executable or control input is not authorized: ${relative}`);
   }
 }
@@ -8887,7 +8934,7 @@ function versionOnly(relative, previous, current, pattern, oldVersion, nextVersi
     }
     if (left.version !== oldVersion || right.version !== nextVersion) fail2(`${relative} root version is not canonical`);
     left.version = right.version = "<captain-version>";
-    if (path10.posix.basename(relative) === "package-lock.json" && (left.packages?.[""] || right.packages?.[""])) {
+    if (path11.posix.basename(relative) === "package-lock.json" && (left.packages?.[""] || right.packages?.[""])) {
       if (left.packages?.[""]?.version !== oldVersion || right.packages?.[""]?.version !== nextVersion) fail2("package-lock own-package version is not canonical");
       left.packages[""].version = right.packages[""].version = "<captain-version>";
     }
@@ -8959,7 +9006,7 @@ async function assertDocumentationScope(run, candidate) {
       continue;
     }
     if (commit2?.changelog_files.includes(relative)) {
-      if (!/\.(?:md|txt|rst)$/i.test(relative) || /^(?:agents|claude|skill)\.md$/i.test(path10.posix.basename(relative)) || relative.split("/").some((part) => part.startsWith(".") || ["src", "scripts", "tools", "tests", "skills", "hooks", "node_modules"].includes(part.toLowerCase()))) fail2(`${relative} is not a non-executable changelog document`);
+      if (!/\.(?:md|txt|rst)$/i.test(relative) || /^(?:agents|claude|skill)\.md$/i.test(path11.posix.basename(relative)) || relative.split("/").some((part) => part.startsWith(".") || ["src", "scripts", "tools", "tests", "skills", "hooks", "node_modules"].includes(part.toLowerCase()))) fail2(`${relative} is not a non-executable changelog document`);
       documentText(value, relative);
       continue;
     }
@@ -8984,7 +9031,7 @@ var init_documentation_scope = __esm({
     init_workspace();
     maxText = 4 * 1024 * 1024;
     maxPaths = 1e4;
-    digest4 = (value) => createHash7("sha256").update(value).digest("hex");
+    digest4 = (value) => createHash8("sha256").update(value).digest("hex");
     under = (file, root) => file.toLowerCase() === root.toLowerCase() || file.toLowerCase().startsWith(root.toLowerCase().replace(/\/$/, "") + "/");
   }
 });
@@ -8998,21 +9045,21 @@ __export(worktree_storage_exports, {
   reserveWorktreeCreation: () => reserveWorktreeCreation,
   storageRegistrationId: () => storageRegistrationId
 });
-import { createHash as createHash8 } from "node:crypto";
-import { lstat as lstat3, realpath as realpath3 } from "node:fs/promises";
-import path11 from "node:path";
+import { createHash as createHash9 } from "node:crypto";
+import { lstat as lstat4, realpath as realpath4 } from "node:fs/promises";
+import path12 from "node:path";
 function storageRegistrationId(commonGitDir, worktreePath) {
-  return createHash8("sha256").update(`${keyPath(commonGitDir)}\0${keyPath(worktreePath)}`).digest("hex");
+  return createHash9("sha256").update(`${keyPath(commonGitDir)}\0${keyPath(worktreePath)}`).digest("hex");
 }
 function absolute(value, label) {
-  if (typeof value !== "string" || !path11.isAbsolute(value) || value.includes("\0")) throw new Error(`worktree registration ${label} must be absolute`);
-  return path11.resolve(value);
+  if (typeof value !== "string" || !path12.isAbsolute(value) || value.includes("\0")) throw new Error(`worktree registration ${label} must be absolute`);
+  return path12.resolve(value);
 }
 function creation(value) {
   if (!value || value.schema_version !== 1 || typeof value.intent_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(value.intent_id) || typeof value.branch !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value.branch) || !commit(value.base_head))
     throw new Error("worktree creation registration identity is invalid");
   const project_root = absolute(value.project_root, "project root"), common_git_dir = absolute(value.common_git_dir, "common Git directory"), worktree_path = absolute(value.worktree_path, "worktree path");
-  if (!samePath5(path11.dirname(worktree_path), path11.join(project_root, ".captain-sdlc", "worktrees")) || path11.basename(worktree_path) !== value.intent_id)
+  if (!samePath5(path12.dirname(worktree_path), path12.join(project_root, ".captain-sdlc", "worktrees")) || path12.basename(worktree_path) !== value.intent_id)
     throw new Error("worktree registration must name its exact canonical primary container child");
   const result = { schema_version: 1, intent_id: value.intent_id, project_root, common_git_dir, worktree_path, branch: value.branch, base_head: value.base_head };
   if (value.parent_worktree !== void 0) {
@@ -9020,16 +9067,16 @@ function creation(value) {
     if (!parent || typeof parent.registration_id !== "string" || !/^[0-9a-f]{64}$/.test(parent.registration_id) || typeof parent.branch !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(parent.branch) || !commit(parent.head) || parent.head !== result.base_head)
       throw new Error("worktree parent registration binding is invalid");
     const parentPath = absolute(parent.worktree_path, "parent path"), gitDir = absolute(parent.git_dir, "parent Git directory");
-    if (samePath5(parentPath, worktree_path) || !samePath5(path11.dirname(parentPath), path11.join(project_root, ".captain-sdlc", "worktrees")) || parent.registration_id !== storageRegistrationId(common_git_dir, parentPath) || !samePath5(path11.dirname(gitDir), path11.join(common_git_dir, "worktrees")))
+    if (samePath5(parentPath, worktree_path) || !samePath5(path12.dirname(parentPath), path12.join(project_root, ".captain-sdlc", "worktrees")) || parent.registration_id !== storageRegistrationId(common_git_dir, parentPath) || !samePath5(path12.dirname(gitDir), path12.join(common_git_dir, "worktrees")))
       throw new Error("worktree parent registration identity diverged");
     result.parent_worktree = { registration_id: parent.registration_id, worktree_path: parentPath, branch: parent.branch, git_dir: gitDir, head: parent.head };
   }
   return result;
 }
 async function optionalSigned(dataRoot, bucket3, id) {
-  const file = path11.join(dataRoot, bucket3, id + ".json");
+  const file = path12.join(dataRoot, bucket3, id + ".json");
   try {
-    const info = await lstat3(file);
+    const info = await lstat4(file);
     if (!info.isFile() || info.isSymbolicLink()) throw new Error("worktree registration must be a regular signed file");
   } catch (error2) {
     if (error2.code === "ENOENT") return void 0;
@@ -9050,11 +9097,11 @@ async function reserveWorktreeCreation(dataRoot, input) {
     if (!sameValue(prior, value)) throw new Error("worktree creation checkpoint differs from its original identity");
     return prior;
   }
-  const dataRelative = path11.relative(value.worktree_path, path11.resolve(dataRoot));
-  if (!dataRelative || dataRelative !== ".." && !dataRelative.startsWith(`..${path11.sep}`) && !path11.isAbsolute(dataRelative)) throw new Error("worktree registration authority must survive outside the checkout");
-  if (!samePath5(await realpath3(value.project_root), value.project_root) || !samePath5(await realpath3(value.common_git_dir), value.common_git_dir)) throw new Error("worktree registration crosses a reparse point");
+  const dataRelative = path12.relative(value.worktree_path, path12.resolve(dataRoot));
+  if (!dataRelative || dataRelative !== ".." && !dataRelative.startsWith(`..${path12.sep}`) && !path12.isAbsolute(dataRelative)) throw new Error("worktree registration authority must survive outside the checkout");
+  if (!samePath5(await realpath4(value.project_root), value.project_root) || !samePath5(await realpath4(value.common_git_dir), value.common_git_dir)) throw new Error("worktree registration crosses a reparse point");
   try {
-    await lstat3(value.worktree_path);
+    await lstat4(value.worktree_path);
     throw new Error("worktree creation registration refuses an existing path");
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -9063,7 +9110,7 @@ async function reserveWorktreeCreation(dataRoot, input) {
 }
 async function completeWorktreeCreation(dataRoot, input, gitDir) {
   const value = creation(input), prior = await readWorktreeCreation(dataRoot, value.common_git_dir, value.worktree_path), git_dir = absolute(gitDir, "linked Git directory");
-  if (!prior || !sameValue(prior, value) || !samePath5(path11.dirname(git_dir), path11.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration does not match its signed creation journal");
+  if (!prior || !sameValue(prior, value) || !samePath5(path12.dirname(git_dir), path12.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration does not match its signed creation journal");
   const registration = { ...value, git_dir };
   return putAuthorizedOnceExact(dataRoot, "worktree-registrations", storageRegistrationId(value.common_git_dir, value.worktree_path), registration);
 }
@@ -9071,7 +9118,7 @@ async function readWorktreeRegistration(dataRoot, commonGitDir, worktreePath) {
   const stored = await optionalSigned(dataRoot, "worktree-registrations", storageRegistrationId(commonGitDir, worktreePath));
   if (!stored) return void 0;
   const value = creation(stored), prior = await readWorktreeCreation(dataRoot, commonGitDir, worktreePath), git_dir = absolute(stored.git_dir, "linked Git directory");
-  if (!samePath5(value.common_git_dir, commonGitDir) || !samePath5(value.worktree_path, worktreePath) || !prior || !sameValue(prior, value) || !samePath5(path11.dirname(git_dir), path11.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration binding diverged from its signed creation");
+  if (!samePath5(value.common_git_dir, commonGitDir) || !samePath5(value.worktree_path, worktreePath) || !prior || !sameValue(prior, value) || !samePath5(path12.dirname(git_dir), path12.join(value.common_git_dir, "worktrees"))) throw new Error("worktree registration binding diverged from its signed creation");
   return { ...value, git_dir };
 }
 var keyPath, samePath5, sameValue, commit;
@@ -9079,7 +9126,7 @@ var init_worktree_storage = __esm({
   "src/worktree-storage.ts"() {
     "use strict";
     init_authority();
-    keyPath = (value) => process.platform === "win32" ? path11.resolve(value).toLowerCase() : path11.resolve(value);
+    keyPath = (value) => process.platform === "win32" ? path12.resolve(value).toLowerCase() : path12.resolve(value);
     samePath5 = (left, right) => keyPath(left) === keyPath(right);
     sameValue = (left, right) => JSON.stringify(left) === JSON.stringify(right);
     commit = (value) => typeof value === "string" && /^[0-9a-f]{40,64}$/i.test(value) && !/^0+$/.test(value);
@@ -9087,14 +9134,14 @@ var init_worktree_storage = __esm({
 });
 
 // src/lifecycle.ts
-import { createHash as createHash9, randomUUID } from "node:crypto";
-import { lstat as lstat4, readFile as readFile4, readdir as readdir6, writeFile as writeFile2 } from "node:fs/promises";
-import path12 from "node:path";
+import { createHash as createHash10, randomUUID } from "node:crypto";
+import { lstat as lstat5, readFile as readFile5, readdir as readdir6, writeFile as writeFile2 } from "node:fs/promises";
+import path13 from "node:path";
 function approvedPlanDigest(content) {
   return digest5(content.replaceAll("\r\n", "\n"));
 }
 function proofScopes(run) {
-  return [...run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...run.profile === "pre-release" ? ["super-smoke"] : []], ...run.visualRequired ? ["visual"] : []];
+  return [...run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...run.profile === "pre-release" ? ["super-smoke"] : []], ...run.visualRequired ? ["visual"] : [], ...run.policy?.commit?.mode === "branch_driven" ? ["release-intent"] : []];
 }
 function isPendingPlanReview(run) {
   if (run.phase === "hitl") return true;
@@ -9163,24 +9210,24 @@ function taskTicketCommand(run, scope, requestedFilter) {
   return { command, binding };
 }
 async function safeArtifact(root, relative) {
-  if (path12.isAbsolute(relative)) throw new Error("artifact must be relative");
-  const full = path12.resolve(root, relative), prefix = path12.resolve(root) + path12.sep;
+  if (path13.isAbsolute(relative)) throw new Error("artifact must be relative");
+  const full = path13.resolve(root, relative), prefix = path13.resolve(root) + path13.sep;
   if (!full.startsWith(prefix)) throw new Error("artifact escapes worktree");
-  for (let cursor = full; cursor.startsWith(path12.resolve(root)); cursor = path12.dirname(cursor)) {
-    const info = await lstat4(cursor);
+  for (let cursor = full; cursor.startsWith(path13.resolve(root)); cursor = path13.dirname(cursor)) {
+    const info = await lstat5(cursor);
     if (info.isSymbolicLink()) throw new Error("artifact crosses a reparse point");
-    if (cursor === path12.resolve(root)) break;
+    if (cursor === path13.resolve(root)) break;
   }
   return full;
 }
 async function hashPath(target) {
-  const info = await lstat4(target);
+  const info = await lstat5(target);
   if (info.isSymbolicLink()) throw new Error("artifact tree contains a reparse point");
-  if (info.isFile()) return createHash9("sha256").update(await readFile4(target)).digest("hex");
+  if (info.isFile()) return createHash10("sha256").update(await readFile5(target)).digest("hex");
   const entries2 = await readdir6(target, { withFileTypes: true });
   const lines2 = [];
   for (const entry of entries2.sort((a, b) => a.name.localeCompare(b.name))) {
-    const child = path12.join(target, entry.name);
+    const child = path13.join(target, entry.name);
     lines2.push(`${entry.name}:${await hashPath(child)}`);
   }
   return digest5(lines2.join("\n"));
@@ -9194,7 +9241,7 @@ async function optionalHash(root, relative) {
   }
 }
 async function assertImage(target) {
-  const bytes = await readFile4(target);
+  const bytes = await readFile5(target);
   let valid = false;
   if (bytes.length >= 45 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
     const ihdr = bytes.toString("ascii", 12, 16) === "IHDR", width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20), iend = bytes.includes(Buffer.from("IEND"));
@@ -9218,6 +9265,7 @@ var ProofSourceDivergenceError, beginAttemptQueues, LifecycleStore, safeId2, sam
 var init_lifecycle = __esm({
   "src/lifecycle.ts"() {
     "use strict";
+    init_release_intent();
     init_authority();
     init_begin_diagnostic_adapter();
     init_session_interruption();
@@ -9245,21 +9293,21 @@ var init_lifecycle = __esm({
         this.hooks = hooks;
       }
       async withSerializedBeginAttempt(intentId, action2) {
-        const resolvedRoot = path12.resolve(this.dataRoot);
+        const resolvedRoot = path13.resolve(this.dataRoot);
         const rootKey = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
-        const key3 = rootKey + "\0" + intentId;
-        const previous = beginAttemptQueues.get(key3) ?? Promise.resolve();
+        const key4 = rootKey + "\0" + intentId;
+        const previous = beginAttemptQueues.get(key4) ?? Promise.resolve();
         let release;
         const current = new Promise((resolve) => {
           release = resolve;
         });
-        beginAttemptQueues.set(key3, current);
+        beginAttemptQueues.set(key4, current);
         await previous;
         try {
           return await this.withBeginAttemptGate(intentId, action2);
         } finally {
           release();
-          if (beginAttemptQueues.get(key3) === current) beginAttemptQueues.delete(key3);
+          if (beginAttemptQueues.get(key4) === current) beginAttemptQueues.delete(key4);
         }
       }
       async withBeginAttemptGate(intentId, action2) {
@@ -9277,7 +9325,7 @@ var init_lifecycle = __esm({
         return { ...diagnosis, user_request: await this.userRequests({ projectRoot: args.project_root, intentId: args.intent_id, sessionId: args.session_id }) };
       }
       async beginCancellationFor(intentId) {
-        await readFile4(path12.join(this.dataRoot, "authority.key"), "utf8");
+        await readFile5(path13.join(this.dataRoot, "authority.key"), "utf8");
         try {
           return await readAuthorizedReadOnly(this.dataRoot, "begin-cancellations", safeId2(intentId));
         } catch (error2) {
@@ -9327,7 +9375,7 @@ var init_lifecycle = __esm({
             try {
               priorRun = await this.interruptionRunReadOnly(owner.intentId);
             } catch (error2) {
-              const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath6(error2.path, path12.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
+              const absentLegacyChain = error2.code === "ENOENT" && typeof error2.path === "string" && samePath6(error2.path, path13.join(this.dataRoot, "run-revisions")) || error2.message === "legacy run has no authenticated revision chain for interruption recovery";
               if (!absentLegacyChain) throw error2;
             }
             let pausedRun = priorRun;
@@ -9378,7 +9426,7 @@ var init_lifecycle = __esm({
         await this.save("intents", intent.intentId, intent);
       }
       async issueIdempotentIntent(request2, factory) {
-        const normalized2 = JSON.parse(JSON.stringify({ ...request2, projectRoot: path12.resolve(request2.projectRoot) }));
+        const normalized2 = JSON.parse(JSON.stringify({ ...request2, projectRoot: path13.resolve(request2.projectRoot) }));
         const id = digest5(JSON.stringify([normalized2.projectRoot, request2.sessionId, request2.turnId]));
         let receipt;
         try {
@@ -9427,7 +9475,7 @@ var init_lifecycle = __esm({
         await this.assertBeginNotCancelled(intentId);
         const intent = await this.load("intents", intentId);
         if (intent.consumed || intent.resumeOf) throw new Error("implementation intent is invalid or consumed");
-        if (path12.resolve(intent.projectRoot) !== path12.resolve(projectRoot)) throw new Error("intent project root mismatch");
+        if (path13.resolve(intent.projectRoot) !== path13.resolve(projectRoot)) throw new Error("intent project root mismatch");
         return intent;
       }
       async beginOperationFor(intentId) {
@@ -9468,7 +9516,7 @@ var init_lifecycle = __esm({
         }
         if (intent.consumed) throw new Error("implementation intent is consumed without a signed begin reservation");
         if (!samePath6(intent.projectRoot, input.projectRoot)) throw new Error("intent project root mismatch");
-        const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path12.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
+        const candidate = { schemaVersion: 1, intentId: intent.intentId, operationToken: randomUUID(), leaseToken: input.leaseToken ?? randomUUID(), runId: `codex-${randomUUID()}`, startedAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: intent.sessionId, turnId: intent.turnId, projectRoot: path13.resolve(intent.projectRoot), objective: input.objective, ...input.taskId ? { taskId: input.taskId } : {}, ...intent.targetBranch ? { targetBranch: intent.targetBranch, targetOid: intent.targetOid } : {} };
         let operation;
         try {
           operation = await putAuthorizedOnceExact(this.dataRoot, "begin-operations", safeId2(input.intentId), candidate);
@@ -9485,14 +9533,14 @@ var init_lifecycle = __esm({
       }
       async checkpointBeginRepository(operation, repository, policy) {
         await this.assertBeginOperation(operation);
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path12.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path12.resolve(repository.commonGitDir), policySha256: digest5(JSON.stringify(policy)) };
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, projectRoot: path13.resolve(repository.projectRoot), baseHead: repository.baseHead, commonGitDir: path13.resolve(repository.commonGitDir), policySha256: digest5(JSON.stringify(policy)) };
         if (!samePath6(value.projectRoot, operation.projectRoot) || !/^[0-9a-f]{40,64}$/i.test(value.baseHead) || operation.targetOid && operation.targetOid !== value.baseHead) throw new Error("repository checkpoint does not match the signed begin reservation");
         return putAuthorizedOnceExact(this.dataRoot, "begin-repositories", operation.operationToken, value);
       }
       async ensureBeginTargetLease(operation, repository) {
         await this.assertBeginOperation(operation);
         if (!operation.targetBranch || !operation.targetOid) return void 0;
-        const leaseId = digest5(`${path12.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path12.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
+        const leaseId = digest5(`${path13.resolve(repository.commonGitDir)}\0refs/heads/${operation.targetBranch}`.toLowerCase()), payload = { intentId: operation.intentId, leaseToken: operation.leaseToken, operationToken: operation.operationToken, commonGitDir: path13.resolve(repository.commonGitDir), targetBranch: operation.targetBranch, targetOid: operation.targetOid };
         try {
           await ensureAuthorizedLease(this.dataRoot, leaseId, payload);
         } catch (error2) {
@@ -9536,11 +9584,11 @@ var init_lifecycle = __esm({
       async checkpointBeginWorkspace(operation, workspace) {
         await this.assertBeginOperation(operation);
         const { primaryProjectRoot, ...ownedWorkspace } = workspace;
-        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...ownedWorkspace, projectRoot: path12.resolve(workspace.projectRoot), worktreePath: path12.resolve(workspace.worktreePath), commonGitDir: path12.resolve(workspace.commonGitDir), gitDir: path12.resolve(workspace.gitDir) };
+        const value = { schemaVersion: 1, operationToken: operation.operationToken, ...ownedWorkspace, projectRoot: path13.resolve(workspace.projectRoot), worktreePath: path13.resolve(workspace.worktreePath), commonGitDir: path13.resolve(workspace.commonGitDir), gitDir: path13.resolve(workspace.gitDir) };
         const primary = primaryProjectRoot === void 0 ? operation.projectRoot : await (await Promise.resolve().then(() => (init_workspace(), workspace_exports))).primaryRepositoryRoot(operation.projectRoot, value.commonGitDir);
         if (primaryProjectRoot !== void 0 && !samePath6(primary, primaryProjectRoot)) throw new Error("workspace primary root differs from the registered Git repository");
-        const canonical = path12.join(primary, ".captain-sdlc", "worktrees");
-        if (!samePath6(path12.dirname(value.worktreePath), canonical) || !samePath6(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
+        const canonical = path13.join(primary, ".captain-sdlc", "worktrees");
+        if (!samePath6(path13.dirname(value.worktreePath), canonical) || !samePath6(value.projectRoot, operation.projectRoot) || value.targetBranch !== operation.targetBranch || operation.targetBranch && value.branch !== operation.targetBranch) throw new Error("workspace checkpoint does not match the signed begin reservation");
         return putAuthorizedOnceExact(this.dataRoot, "begin-workspaces", operation.operationToken, value);
       }
       async checkpointBeginRun(operation, policy) {
@@ -9560,7 +9608,7 @@ var init_lifecycle = __esm({
         }
         const profile = (await this.load("intents", operation.intentId)).requestedProfile ?? policy.profile;
         if (!(policy.profiles ?? [policy.profile]).includes(profile)) throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
-        if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId))) throw new Error("trusted commit policy requires a safe task id");
+        if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._#-]+$/.test(operation.taskId))) throw new Error("trusted commit policy requires a safe task id");
         const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, ...operation.taskId ? { taskId: operation.taskId } : {}, objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...operation.targetBranch ? { targetBranch: operation.targetBranch } : {}, commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}, profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
         await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run);
         const authoritative = await this.run(operation.intentId);
@@ -9861,7 +9909,7 @@ var init_lifecycle = __esm({
       async handoffs() {
         let names = [];
         try {
-          names = await readdir6(path12.join(this.dataRoot, "pause-handoffs"));
+          names = await readdir6(path13.join(this.dataRoot, "pause-handoffs"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9879,7 +9927,7 @@ var init_lifecycle = __esm({
         const handoffs = await this.handoffs();
         let names = [];
         try {
-          names = await readdir6(path12.join(this.dataRoot, "run-revisions"));
+          names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -9895,8 +9943,8 @@ var init_lifecycle = __esm({
         for (const relative of planPaths) {
           const normalized2 = this.safePlanPath(run, relative);
           if (this.isFrozenPlan(run, normalized2)) throw new Error(`frozen approved plan cannot receive progress edits: ${relative}; use the signed handoff or a separate closure record`);
-          const file = path12.resolve(run.worktreePath, normalized2);
-          const original = await readFile4(file, "utf8");
+          const file = path13.resolve(run.worktreePath, normalized2);
+          const original = await readFile5(file, "utf8");
           if (/<!-- captain:work-state\r?\n[\s\S]*?-->/.test(original)) continue;
           const heading = /^# .+\r?\n/.exec(original);
           if (!heading) throw new Error(`plan requires a level-one title before migration: ${relative}`);
@@ -10130,7 +10178,7 @@ ${result.stderr}`) }] });
         await this.assertCommitOperation(run, operation);
         if (candidateVerification.tree !== prepared.tree || candidateVerification.subject !== prepared.subject) throw new Error("prepared candidate tree or subject diverged from signed authority");
         if (firstParent.at(-1) !== commit2.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length) throw new Error("prepared candidate is not retained in the advanced first-parent history");
-        if (!commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || (!commit2.versionChanged || !commit2.changelogChanged) && !(commit2.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit2.subject))) throw new Error("advanced commit history does not satisfy the signed commit policy");
+        if (!commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || run.policy.commit?.mode !== "branch_driven" && (!commit2.versionChanged || !commit2.changelogChanged) && !(commit2.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit2.subject))) throw new Error("advanced commit history does not satisfy the signed commit policy");
         if (!this.probe) throw new Error("source-state probe is required");
         const current = await this.probe(run.worktreePath, run.policy);
         this.assertWorktreeBinding(run, current);
@@ -10178,7 +10226,7 @@ ${result.stderr}`) }] });
           throw new Error("signed merge does not extend the preceding implementation phase head");
         const preparedMerges = [...run.preparedMerges ?? [], pending];
         const commit2 = await commitEvidence2(run.worktreePath, run.baseHead, run.policy, run.taskId, preparedMerges, run.committedState.head);
-        if (!commit2.clean || commit2.head !== prepared.candidate || commit2.tree !== prepared.tree || !commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || !commit2.taskTrailerValid || !commit2.versionSurfacesValid || !commit2.versionChanged || !commit2.changelogChanged)
+        if (!commit2.clean || commit2.head !== prepared.candidate || commit2.tree !== prepared.tree || !commit2.phaseCommitsValid || !commit2.preparedMergesValid || !commit2.previousPhaseRetained || !commit2.taskTrailerValid || !commit2.versionSurfacesValid || run.policy.commit?.mode !== "branch_driven" && (!commit2.versionChanged || !commit2.changelogChanged))
           throw new Error("signed merge commit does not satisfy captured implementation phase policy");
         await assertAuthority();
         await this.assertSessionLease(run);
@@ -10255,10 +10303,10 @@ ${result.stderr}`) }] });
         if (!commit2.clean || commit2.commitCount < 1 || !/^[0-9a-f]{40,64}$/i.test(commit2.head) || commit2.head === run.baseHead) throw new Error("commit gate requires at least one clean atomic phase commit after base");
         const bookkeeping = commit2.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit2.subject);
         if (commit2.bookkeepingOnly && !bookkeeping) throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
-        const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit2.subject);
+        const conventional = run.policy.commit?.mode === "branch_driven" ? commit2.phaseCommitsValid : /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit2.subject);
         if ((run.policy.commit?.conventional ?? true) && !conventional) throw new Error("commit must use a Conventional Commit subject");
         if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit2.subject)) throw new Error("commit must include a strict SemVer suffix");
-        if (!bookkeeping && (!commit2.versionChanged || !commit2.changelogChanged)) throw new Error("commit must update the configured version file and changelog");
+        if (!bookkeeping && (run.policy.commit?.mode !== "branch_driven" && (!commit2.versionChanged || !commit2.changelogChanged))) throw new Error("commit must update the configured version file and changelog");
         if (run.policy.commit?.require_task_trailer && !commit2.taskTrailerValid) throw new Error("commit must include a configured task trailer");
         if (!bookkeeping && run.policy.commit?.version_surfaces?.length && !commit2.versionSurfacesValid) throw new Error("commit version surfaces must match the subject SemVer suffix");
         if (!commit2.preparedMergesValid) throw new Error("commit parent vector does not match signed prepared merge state");
@@ -10378,8 +10426,10 @@ ${result.stderr}`) }] });
         for (const scope of scopes) {
           const command = run.policy.commands[scope];
           await prepareScopeOutputs(run.worktreePath, run.policy, scope);
-          const result = await this.runner(command, run.worktreePath);
-          proof.push({ scope, commandSha256: digest5(command), exitCode: result.exitCode });
+          if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
+          const result = scope === "release-intent" ? await runReleaseIntentChecker(run.policy.releaseIntentChecker, run.worktreePath, [run.worktreePath, run.projectRoot]) : await this.runner(command, run.worktreePath);
+          if (scope === "release-intent") await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
+          proof.push({ scope, commandSha256: digest5(command), exitCode: result.exitCode, ...scope === "release-intent" ? { checkerSha256: run.policy.releaseIntentChecker.sha256, outputSha256: digest5(result.stdout + "\n" + result.stderr) } : {} });
           if (result.exitCode !== 0) {
             await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
             throw new Error(`${scope} proof failed; run returned to implement for repair`);
@@ -10412,7 +10462,7 @@ ${result.stderr}`) }] });
         for (const plan of run.policy.approvedPlans ?? []) {
           try {
             const file = await safeArtifact(run.worktreePath, plan.path);
-            if (approvedPlanDigest(await readFile4(file, "utf8")) !== plan.sha256) throw new Error("content changed");
+            if (approvedPlanDigest(await readFile5(file, "utf8")) !== plan.sha256) throw new Error("content changed");
           } catch (error2) {
             throw new Error(`frozen approved plan changed or is unavailable: ${plan.path}; restore the approved plan and keep progress and human closeout followups separate (${error2.message})`);
           }
@@ -10460,7 +10510,7 @@ ${result.stderr}`) }] });
         if (run.phase === "complete" && run.status === "green") {
           let missing2 = false;
           try {
-            await lstat4(run.projectRoot);
+            await lstat5(run.projectRoot);
           } catch (error2) {
             if (error2.code !== "ENOENT") throw error2;
             missing2 = true;
@@ -10477,7 +10527,7 @@ ${result.stderr}`) }] });
         return { ...run, user_request: await this.userRequests({ projectRoot: lookupRoot, intentId: run.intentId }) };
       }
       async acquireTargetLease(intentId, commonGitDir, targetBranch, targetOid) {
-        const leaseId = digest5(`${path12.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path12.resolve(commonGitDir), targetBranch, targetOid };
+        const leaseId = digest5(`${path13.resolve(commonGitDir)}\0refs/heads/${targetBranch}`.toLowerCase()), leaseToken = randomUUID(), payload = { intentId, leaseToken, commonGitDir: path13.resolve(commonGitDir), targetBranch, targetOid };
         try {
           await acquireAuthorizedLease(this.dataRoot, leaseId, payload);
           return { leaseId, leaseToken };
@@ -10499,13 +10549,13 @@ ${result.stderr}`) }] });
       safePlanPath(run, relative) {
         const normalized2 = relative.replaceAll("\\", "/");
         if (!normalized2.endsWith(".md") || normalized2.startsWith("/") || normalized2.split("/").some((part) => !part || part === "." || part === "..")) throw new Error(`unsafe plan path: ${relative}`);
-        const file = path12.resolve(run.worktreePath, normalized2), inside = path12.relative(run.worktreePath, file);
-        if (inside.startsWith("..") || path12.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
+        const file = path13.resolve(run.worktreePath, normalized2), inside = path13.relative(run.worktreePath, file);
+        if (inside.startsWith("..") || path13.isAbsolute(inside)) throw new Error(`plan path escapes owned worktree: ${relative}`);
         return normalized2;
       }
       async projectPlanState(run, relative, state) {
         if (this.isFrozenPlan(run, relative)) return false;
-        const normalized2 = this.safePlanPath(run, relative), file = path12.resolve(run.worktreePath, normalized2), original = await readFile4(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
+        const normalized2 = this.safePlanPath(run, relative), file = path13.resolve(run.worktreePath, normalized2), original = await readFile5(file, "utf8"), match = /<!-- captain:work-state(\r?\n)[\s\S]*?-->/.exec(original);
         if (!match) return false;
         const line = match[1], single = (value) => value.replace(/[\r\n]+/g, " ").trim(), block = `<!-- captain:work-state${line}status: ${state.status}${line}phase: ${single(state.phase)}${line}updated: ${(/* @__PURE__ */ new Date()).toISOString()}${line}handoff: ${single(state.handoff)}${line}blocker: ${single(state.blocker)}${line}next: ${JSON.stringify(state.next.map(single))}${line}-->`;
         await writeFile2(file, `${original.slice(0, match.index)}${block}${original.slice(match.index + match[0].length)}`, "utf8");
@@ -10534,7 +10584,7 @@ ${result.stderr}`) }] });
         const safe2 = safeId2(id), prefix = `${safe2}-`;
         let names = [];
         try {
-          names = await readdir6(path12.join(this.dataRoot, "run-revisions"));
+          names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -10557,7 +10607,7 @@ ${result.stderr}`) }] });
         }
         let watermarkNames = [];
         try {
-          watermarkNames = await readdir6(path12.join(this.dataRoot, "run-watermarks"));
+          watermarkNames = await readdir6(path13.join(this.dataRoot, "run-watermarks"));
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
         }
@@ -10757,7 +10807,7 @@ ${result.stderr}`) }] });
       }
       async interruptionRunReadOnly(intentId) {
         const id = safeId2(intentId), prefix = `${id}-`;
-        const names = await readdir6(path12.join(this.dataRoot, "run-revisions"));
+        const names = await readdir6(path13.join(this.dataRoot, "run-revisions"));
         const revisions = names.map((name) => name.startsWith(prefix) && /^(\d+)\.json$/.exec(name.slice(prefix.length))).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
         if (!revisions.length) throw new Error("legacy run has no authenticated revision chain for interruption recovery");
         let previous;
@@ -10769,7 +10819,7 @@ ${result.stderr}`) }] });
           assertRunRevisionTransition(previous, current);
           previous = current;
         }
-        const watermarks = await readdir6(path12.join(this.dataRoot, "run-watermarks"));
+        const watermarks = await readdir6(path13.join(this.dataRoot, "run-watermarks"));
         if (watermarks.some((name) => name.startsWith(prefix) && /^(\d+)\.json$/.test(name.slice(prefix.length)) && Number(name.slice(prefix.length, -5)) > previous.revision)) throw new Error("signed run revision tail regressed behind its watermark");
         return previous;
       }
@@ -10828,7 +10878,7 @@ ${result.stderr}`) }] });
         return executionHead(run);
       }
       assertWorktreeBinding(run, current, expectedHead) {
-        const same2 = (left, right) => Boolean(left && right && path12.resolve(left).toLowerCase() === path12.resolve(right).toLowerCase());
+        const same2 = (left, right) => Boolean(left && right && path13.resolve(left).toLowerCase() === path13.resolve(right).toLowerCase());
         if (current.branch !== run.branch || current.branchHead !== current.head || !same2(current.commonGitDir, run.commonGitDir) || !same2(current.topLevel, run.worktreePath) || !same2(current.gitDir, run.gitDir) || expectedHead && current.head !== expectedHead) throw new Error("worktree branch binding diverged from the signed Captain run");
       }
       async load(bucket3, id) {
@@ -10842,9 +10892,9 @@ ${result.stderr}`) }] });
       if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe id");
       return id;
     };
-    samePath6 = (left, right) => path12.resolve(left).toLowerCase() === path12.resolve(right).toLowerCase();
-    digest5 = (text2) => createHash9("sha256").update(text2).digest("hex");
-    commitRequestSha256 = (request2) => digest5(JSON.stringify({ paths: request2.paths, subject: request2.subject, taskOutcome: request2.taskOutcome ?? null, final: request2.final }));
+    samePath6 = (left, right) => path13.resolve(left).toLowerCase() === path13.resolve(right).toLowerCase();
+    digest5 = (text2) => createHash10("sha256").update(text2).digest("hex");
+    commitRequestSha256 = (request2) => digest5(JSON.stringify({ paths: request2.paths, subject: request2.subject, taskOutcome: request2.taskOutcome ?? null, final: request2.final, ...request2.breakingDescription !== void 0 ? { breakingDescription: request2.breakingDescription } : {} }));
   }
 });
 
@@ -10874,12 +10924,12 @@ __export(workspace_exports, {
   repositoryIdentity: () => repositoryIdentity,
   sourceState: () => sourceState
 });
-import { execFile as execFile2 } from "node:child_process";
-import { createHash as createHash10 } from "node:crypto";
-import { cp, lstat as lstat5, mkdtemp, readFile as readFile5, readdir as readdir7, realpath as realpath4, writeFile as writeFile3 } from "node:fs/promises";
+import { execFile as execFile3 } from "node:child_process";
+import { createHash as createHash11 } from "node:crypto";
+import { cp, lstat as lstat6, mkdtemp, readFile as readFile6, readdir as readdir7, realpath as realpath5, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import path13 from "node:path";
-import { promisify as promisify2 } from "node:util";
+import path14 from "node:path";
+import { promisify as promisify3 } from "node:util";
 function scrubbedEnvironment() {
   const env = { ...process.env };
   for (const name of Object.keys(env)) if (/^(?:GIT_(?:DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|QUARANTINE_PATH|SHALLOW_FILE|NAMESPACE|EXEC_PATH|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|ATTR_SOURCE|CONFIG|CONFIG_GLOBAL|CONFIG_SYSTEM|CONFIG_NOSYSTEM|CONFIG_COUNT|CONFIG_PARAMETERS|EXTERNAL_DIFF|DIFF_OPTS)|GIT_CONFIG_(?:KEY|VALUE)_\d+)$/i.test(name) || name === "PLUGIN_DATA" || name === "CAPTAIN_PLUGIN_DATA") delete env[name];
@@ -10887,15 +10937,15 @@ function scrubbedEnvironment() {
 }
 async function gitControls() {
   isolatedGitControlRoot ??= (async () => {
-    const root = await mkdtemp(path13.join(tmpdir(), "captain-git-controls-"));
-    await writeFile3(path13.join(root, "attributes"), "");
+    const root = await mkdtemp(path14.join(tmpdir(), "captain-git-controls-"));
+    await writeFile3(path14.join(root, "attributes"), "");
     return root;
   })();
   return isolatedGitControlRoot;
 }
 async function gitInvocation(args, cwd) {
   const controls = await gitControls();
-  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path13.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
+  return exec2("git", ["-c", `core.hooksPath=${controls}`, "-c", `core.attributesFile=${path14.join(controls, "attributes")}`, "-c", "merge.default=text", "-c", "core.fsmonitor=false", "-c", "pager.diff=false", ...args], { cwd, windowsHide: true, env: scrubbedEnvironment(), maxBuffer: maxGitBuffer });
 }
 async function git(args, cwd) {
   return (await gitInvocation(args, cwd)).stdout.trim();
@@ -10971,6 +11021,15 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
     if (!bookkeepingTextAllowed(patterns)) throw new Error("bookkeeping rule file must be bounded text");
     parsed.commit.bookkeeping = { path_file: relative, patterns, sha256: digest6(patterns) };
   }
+  if (parsed.commit?.mode === "branch_driven") {
+    if (!raw.releaseIntentChecker) throw new Error("branch-driven policy requires a trusted release-intent checker");
+    const checker = objectValue(raw.releaseIntentChecker, "release-intent checker");
+    parsed.releaseIntentChecker = { path: checker.path, sha256: checker.sha256, ...checker.args !== void 0 ? { args: checker.args } : {} };
+    await assertReleaseIntentChecker(parsed.releaseIntentChecker, [projectRoot, await primaryRepositoryRoot(projectRoot)]);
+    const command = releaseIntentCommand(parsed.releaseIntentChecker);
+    if (parsed.commands["release-intent"] && parsed.commands["release-intent"] !== command) throw new Error("release-intent command must use the pinned installed checker");
+    parsed.commands["release-intent"] = command;
+  }
   const trackedBasePaths = splitLines(await git(["ls-tree", "-r", "--name-only", baseHead], projectRoot));
   if (raw.sourceManifestExcludes !== void 0 && !Array.isArray(raw.sourceManifestExcludes)) throw new Error("source manifest exclusions must be an array");
   parsed.sourceManifestExcludes = [];
@@ -10995,17 +11054,17 @@ async function loadPolicy(projectRoot, baseHead, planPaths, hitlChecks) {
   return parsed;
 }
 async function primaryRepositoryRoot(projectRoot, expectedCommonGitDir) {
-  const common = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
+  const common = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], projectRoot));
   if (expectedCommonGitDir && pathKey4(common) !== pathKey4(expectedCommonGitDir)) throw new Error("primary worktree common Git directory binding diverged");
   const primary = (await worktreeEntries(projectRoot))[0]?.worktree;
   if (!primary) throw new Error("primary worktree could not be resolved");
-  const root = path13.resolve(primary);
-  if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" || pathKey4(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey4(common) || pathKey4(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey4(root) || pathKey4(await realpath4(root)) !== pathKey4(root) || pathKey4(await realpath4(common)) !== pathKey4(common))
+  const root = path14.resolve(primary);
+  if (await git(["rev-parse", "--is-bare-repository"], root) !== "false" || pathKey4(await git(["rev-parse", "--absolute-git-dir"], root)) !== pathKey4(common) || pathKey4(await git(["rev-parse", "--show-toplevel"], root)) !== pathKey4(root) || pathKey4(await realpath5(root)) !== pathKey4(root) || pathKey4(await realpath5(common)) !== pathKey4(common))
     throw new Error("primary worktree must be a non-bare checkout with the exact common Git directory binding");
   return root;
 }
 async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
-  const root = path13.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
+  const root = path14.resolve(await git(["rev-parse", "--show-toplevel"], projectRoot)), commonGitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)), primaryProjectRoot = await primaryRepositoryRoot(root, commonGitDir);
   if (targetBranch) await validateTargetBranch(root, targetBranch);
   const baseHead = await git(["rev-parse", "--verify", targetBranch ? `refs/heads/${targetBranch}^{commit}` : "HEAD^{commit}"], root);
   if (targetBranch && (!targetOid || baseHead.toLowerCase() !== targetOid.toLowerCase())) throw new Error("signed target branch oid does not match the current ref");
@@ -11014,7 +11073,7 @@ async function repositoryIdentity(projectRoot, targetBranch, targetOid) {
 }
 async function hydrateIgnoredUnityPlugins(root, worktree) {
   for (const parent of ["Assets", "Packages"]) {
-    const sourceParent = path13.join(root, parent);
+    const sourceParent = path14.join(root, parent);
     let entries2;
     try {
       entries2 = await readdir7(sourceParent, { withFileTypes: true });
@@ -11026,11 +11085,11 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
       if (!entry.isDirectory()) continue;
       const relative = parent + "/" + entry.name;
       if (await optionalGit(["check-ignore", "--", relative], root) === null) continue;
-      await cp(path13.join(sourceParent, entry.name), path13.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
+      await cp(path14.join(sourceParent, entry.name), path14.join(worktree, relative), { recursive: true, force: false, errorOnExist: false });
       const siblingMeta = relative + ".meta";
       try {
-        const metadata = await lstat5(path13.join(root, siblingMeta));
-        if (metadata.isFile()) await cp(path13.join(root, siblingMeta), path13.join(worktree, siblingMeta), { force: false, errorOnExist: false });
+        const metadata = await lstat6(path14.join(root, siblingMeta));
+        if (metadata.isFile()) await cp(path14.join(root, siblingMeta), path14.join(worktree, siblingMeta), { force: false, errorOnExist: false });
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
       }
@@ -11038,8 +11097,8 @@ async function hydrateIgnoredUnityPlugins(root, worktree) {
   }
 }
 async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, expectedCommonGitDir, storageDataRoot, invocationWorktree) {
-  const invocationRoot = path13.resolve(projectRoot), commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
-  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path13.join(root, ".captain-sdlc", "worktrees"), proposedPath = path13.join(container, safe2);
+  const invocationRoot = path14.resolve(projectRoot), commonGitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], invocationRoot)), root = await primaryRepositoryRoot(invocationRoot, expectedCommonGitDir ?? commonGitDir);
+  const safe2 = intentId.replace(/[^a-zA-Z0-9_-]/g, ""), container = path14.join(root, ".captain-sdlc", "worktrees"), proposedPath = path14.join(container, safe2);
   if (!safe2 || storageDataRoot && safe2 !== intentId) throw new Error("intent id must produce an exact safe worktree name");
   await assertSafeGitAttributesAtCommit(invocationRoot, baseHead);
   await assertSafeGitMetadataAttributes(root);
@@ -11050,8 +11109,8 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
   }
   const branch = targetBranch ?? `captain/${safe2}`, branchRef = `refs/heads/${branch}`, entries2 = await worktreeEntries(root);
   const existing = entries2.find((value) => targetBranch ? value.branch === branchRef : pathKey4(value.worktree) === pathKey4(proposedPath));
-  const worktreePath = existing ? path13.resolve(existing.worktree) : proposedPath;
-  if (!sameDirectory(container, path13.dirname(worktreePath))) throw new Error("target branch is checked out outside the canonical worktree container");
+  const worktreePath = existing ? path14.resolve(existing.worktree) : proposedPath;
+  if (!sameDirectory(container, path14.dirname(worktreePath))) throw new Error("target branch is checked out outside the canonical worktree container");
   const expected = { schema_version: 1, intent_id: intentId, project_root: root, common_git_dir: commonGitDir, worktree_path: worktreePath, branch, base_head: baseHead };
   const assertCreationIdentity = (prior) => {
     if (prior.intent_id !== intentId || [prior.project_root, prior.common_git_dir, prior.worktree_path].some((value, index) => pathKey4(value) !== pathKey4([root, commonGitDir, worktreePath][index])) || prior.branch !== branch || prior.base_head !== baseHead) throw new Error("worktree creation retry changed its signed binding");
@@ -11070,7 +11129,7 @@ async function ensureWorktree(projectRoot, baseHead, intentId, targetBranch, exp
       const prior = await readWorktreeCreation(storageDataRoot, commonGitDir, worktreePath);
       if (prior) reserved = assertCreationIdentity(prior);
       else {
-        const parentPath = path13.resolve(invocationWorktree ?? invocationRoot);
+        const parentPath = path14.resolve(invocationWorktree ?? invocationRoot);
         if (pathKey4(parentPath) !== pathKey4(root)) {
           const parent = await readWorktreeRegistration(storageDataRoot, commonGitDir, parentPath);
           if (parent) {
@@ -11106,7 +11165,7 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
       else matchedPrepared.add(index);
     }
     const bookkeeping = await bookkeepingCommitValid(worktree, parent, hash8, phaseSubject, commitPolicy);
-    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && (!validSubject(phaseSubject, commitPolicy) || !phaseChanged.includes(commitPolicy.version_file) || !commitPolicy.changelog_files.some((value) => phaseChanged.includes(value)) || !await versionSurfacesMatch(worktree, hash8, phaseSubject, commitPolicy) || !await versionTransitionValid(worktree, parent, hash8, phaseSubject, commitPolicy, parents.length === 3 ? parents[2] : void 0) || !await changelogAddsVersion(worktree, parent, hash8, phaseSubject, commitPolicy))) phaseCommitsValid = false;
+    if (parent !== expectedParent || commitPolicy.require_task_trailer && !hasTaskTrailer(phaseTrailers, taskId) || !bookkeeping && !await implementationCommitValid(worktree, parent, hash8, phaseSubject, phaseChanged, commitPolicy, parents.length === 3 ? parents[2] : void 0)) phaseCommitsValid = false;
     expectedParent = hash8;
   }
   if (matchedPrepared.size !== preparedMerges.length) preparedMergesValid = false;
@@ -11115,11 +11174,12 @@ async function commitEvidence(worktree, baseHead, policy, taskId, preparedMerges
   const previousPhaseRetained = !previousPhaseHead || hashes.includes(previousPhaseHead);
   const headParent = splitLines(await git(["rev-list", "--parents", "-n", "1", head], worktree))[0]?.split(" ")[1], bookkeepingOnly = Boolean(headParent && await bookkeepingCommitValid(worktree, headParent, head, subject, commitPolicy));
   const taskTrailerPresent = hasTaskTrailer(trailers, taskId);
-  return { head, tree, firstParent: headParent, changedPaths: changed2, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed2.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed2.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || await versionSurfacesMatch(worktree, head, subject, commitPolicy), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
+  return { head, tree, firstParent: headParent, changedPaths: changed2, commitCount: hashes.length, clean: initialStatus === "" && finalStatus === "" && finalHead === head, subject, versionChanged: changed2.includes(commitPolicy.version_file), changelogChanged: commitPolicy.changelog_files.some((value) => changed2.includes(value)), taskTrailerValid: !commitPolicy.require_task_trailer || taskTrailerPresent, taskTrailerPresent, versionSurfacesValid: bookkeepingOnly || (commitPolicy.mode === "branch_driven" ? phaseCommitsValid : await versionSurfacesMatch(worktree, head, subject, commitPolicy)), ...commitPolicy.bookkeeping ? { bookkeepingOnly } : {}, preparedMergesValid, phaseCommitsValid, previousPhaseHead, previousPhaseRetained };
 }
-async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority) {
+async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commitPolicy = defaultCommitPolicy, preparedMerges = [], expectedBranch, expectedCommonGitDir, expectedHead, expectedGitDir, authorize, revoke, afterRefUpdate, validateAuthority, breakingDescription) {
   if (!paths.length) throw new Error("commit paths must be explicit safe repository-relative paths");
   if (/\r|\n/.test(subject)) throw new Error("commit subject must be a single line");
+  if (breakingDescription !== void 0 && (typeof breakingDescription !== "string" || !breakingDescription.trim() || breakingDescription !== breakingDescription.trim() || breakingDescription.length > 2e3 || /[\r\n\x00-\x1f\x7f]/.test(breakingDescription))) throw new Error("breaking description must be a nonempty single line of at most 2000 characters");
   const safePaths = paths.map((value) => safeRepositoryPath(value, "commit"));
   if (safePaths.some((value, index) => value !== paths[index].replaceAll("\\", "/"))) throw new Error("commit paths must be canonical safe repository-relative paths");
   if (!validSubject(subject, commitPolicy) && !(bookkeepingCaptured(commitPolicy) && bookkeepingSubjectAllowed(subject))) throw new Error("commit subject does not satisfy repository policy");
@@ -11137,6 +11197,7 @@ async function commitAtomic(worktree, paths, subject, taskOutcome, taskId, commi
     candidateArgs.push("-p", mergeHead);
   }
   candidateArgs.push("-m", subject);
+  if (breakingDescription !== void 0) candidateArgs.push("-m", `BREAKING CHANGE: ${breakingDescription}`);
   if (taskTrailer) candidateArgs.push("-m", taskTrailer);
   const candidate = await git(candidateArgs, worktree);
   await assertSafeGitAttributesAtCommit(worktree, candidate);
@@ -11245,21 +11306,21 @@ async function reconcilePreparedMerge(worktree, prepared) {
   if (await optionalGit(["rev-parse", "--verify", "MERGE_HEAD"], worktree) || await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree) !== prepared.preMergeHead || await git(["status", "--porcelain"], worktree)) throw new Error("stale merge authorization can be discarded only from its clean unchanged pre-merge state");
 }
 async function sourceState(worktree, policy) {
-  const topLevel = path13.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
+  const topLevel = path14.resolve(await git(["rev-parse", "--show-toplevel"], worktree)), gitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree)), head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree) ?? void 0, branchHead = branch ? await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree) : void 0, commonGitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), initialStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree)), tree = await git(["rev-parse", `${head}^{tree}`], worktree);
   const manifests = await sourceManifest(worktree, policy?.sourceManifestExcludes ?? [], policy?.sourceManifestRootFileExcludes ?? [], policy?.commit && bookkeepingCaptured(policy.commit) ? policy.commit : void 0, policy);
   const finalHead = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), finalStatus = normalizeSourceStatus(await git(["status", "--porcelain"], worktree));
   return { head, tree, status: initialStatus || finalStatus || (head === finalHead ? "" : "HEAD changed during source-state capture"), ...manifests, branch, branchHead, commonGitDir, topLevel, gitDir };
 }
 async function assertWorktreeBinding(worktree, expectedBranch, expectedCommonGitDir, expectedHead, requireClean = false, expectedGitDir) {
-  const real = await realpath4(worktree), owned = path13.resolve(worktree);
-  if (path13.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
-  const topLevel = path13.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
+  const real = await realpath5(worktree), owned = path14.resolve(worktree);
+  if (path14.resolve(real).toLowerCase() !== owned.toLowerCase()) throw new Error("worktree path resolves through a reparse point");
+  const topLevel = path14.resolve(await git(["rev-parse", "--show-toplevel"], worktree));
   if (topLevel.toLowerCase() !== owned.toLowerCase()) throw new Error("Git top-level does not match the owned worktree");
   const branch = await optionalGit(["symbolic-ref", "--quiet", "--short", "HEAD"], worktree);
   if (!branch || expectedBranch && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path13.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
-  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path13.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
-  if (expectedGitDir && gitDir.toLowerCase() !== path13.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
+  const commonGitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], worktree)), gitDir = path14.resolve(await git(["rev-parse", "--path-format=absolute", "--git-dir"], worktree));
+  if (expectedCommonGitDir && commonGitDir.toLowerCase() !== path14.resolve(expectedCommonGitDir).toLowerCase()) throw new Error("worktree common Git directory binding diverged");
+  if (expectedGitDir && gitDir.toLowerCase() !== path14.resolve(expectedGitDir).toLowerCase()) throw new Error("linked worktree Git directory binding diverged");
   const head = await git(["rev-parse", "--verify", "HEAD^{commit}"], worktree), branchHead = await git(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`], worktree);
   if (head !== branchHead || expectedHead && head !== expectedHead) throw new Error("worktree target branch ref binding diverged");
   if (requireClean && await git(["status", "--porcelain"], worktree)) throw new Error("target branch worktree must be clean before Captain uses it");
@@ -11294,7 +11355,7 @@ async function worktreeEntries(root) {
 }
 async function assertMissingWorktreePath(worktreePath) {
   try {
-    await lstat5(worktreePath);
+    await lstat6(worktreePath);
     throw new Error(`canonical worktree path already exists: ${worktreePath}`);
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -11312,11 +11373,11 @@ async function assertSafeGitAttributesAtCommit(cwd, commit2) {
   }
 }
 async function assertSafeGitMetadataAttributes(cwd) {
-  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path13.resolve(cwd, raw);
+  const raw = await git(["rev-parse", "--git-path", "info/attributes"], cwd), file = path14.resolve(cwd, raw);
   try {
-    const info = await lstat5(file);
+    const info = await lstat6(file);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("Git metadata attributes must be a regular file");
-    const content = await readFile5(file, "utf8");
+    const content = await readFile6(file, "utf8");
     if (Buffer.byteLength(content) > maxPolicyInput || hasExecutableGitAttributes(content)) throw new Error("Git metadata attributes may not configure clean filters or merge drivers");
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -11331,42 +11392,42 @@ async function assertSafeGitAttributesInWorktree(cwd, selectedPaths) {
   const collect = async (target) => {
     let info;
     try {
-      info = await lstat5(target);
+      info = await lstat6(target);
     } catch (error2) {
       if (error2.code === "ENOENT") return;
       throw error2;
     }
     if (info.isSymbolicLink()) return;
     if (info.isFile()) {
-      if (path13.basename(target).toLowerCase() === ".gitattributes") files.add(target);
+      if (path14.basename(target).toLowerCase() === ".gitattributes") files.add(target);
       return;
     }
     if (!info.isDirectory()) return;
     for (const entry of await readdir7(target, { withFileTypes: true })) {
       if (entry.name.toLowerCase() === ".git") continue;
-      const child = path13.join(target, entry.name);
+      const child = path14.join(target, entry.name);
       if (entry.name.toLowerCase() === ".gitattributes") files.add(child);
       else if (entry.isDirectory()) await collect(child);
     }
   };
   for (const selected of selectedPaths.length ? selectedPaths : ["."]) {
     const segments = selected.replaceAll("\\", "/").split("/").filter((value) => value && value !== ".");
-    files.add(path13.join(cwd, ".gitattributes"));
-    for (let index = 1; index < segments.length; index++) files.add(path13.join(cwd, ...segments.slice(0, index), ".gitattributes"));
-    const target = path13.resolve(cwd, selected);
+    files.add(path14.join(cwd, ".gitattributes"));
+    for (let index = 1; index < segments.length; index++) files.add(path14.join(cwd, ...segments.slice(0, index), ".gitattributes"));
+    const target = path14.resolve(cwd, selected);
     try {
-      if ((await lstat5(target)).isDirectory()) await collect(target);
+      if ((await lstat6(target)).isDirectory()) await collect(target);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
   for (const file of files) {
     try {
-      const info = await lstat5(file);
-      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path13.relative(cwd, file)}`);
-      const content = await readFile5(file, "utf8");
-      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path13.relative(cwd, file)}`);
-      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path13.relative(cwd, file)}`);
+      const info = await lstat6(file);
+      if (info.isSymbolicLink() || !info.isFile()) throw new Error(`Git attributes must be a regular file: ${path14.relative(cwd, file)}`);
+      const content = await readFile6(file, "utf8");
+      if (Buffer.byteLength(content) > maxPolicyInput) throw new Error(`Git attributes exceeds the bounded input limit: ${path14.relative(cwd, file)}`);
+      if (hasExecutableGitAttributes(content)) throw new Error(`Git attributes may not configure clean filters or merge drivers: ${path14.relative(cwd, file)}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
@@ -11379,18 +11440,18 @@ function hasExecutableGitAttributes(content) {
   });
 }
 async function rejectReparseAncestors(root, target) {
-  for (let cursor = path13.resolve(target); cursor.startsWith(path13.resolve(root)); cursor = path13.dirname(cursor)) {
+  for (let cursor = path14.resolve(target); cursor.startsWith(path14.resolve(root)); cursor = path14.dirname(cursor)) {
     try {
-      if ((await lstat5(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
+      if ((await lstat6(cursor)).isSymbolicLink()) throw new Error(`canonical worktree container crosses a reparse point: ${cursor}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
-    if (cursor === path13.resolve(root)) break;
+    if (cursor === path14.resolve(root)) break;
   }
 }
 function safeRepositoryPath(value, label) {
   const normalized2 = value.replaceAll("\\", "/"), segments = normalized2.split("/");
-  if (path13.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
+  if (path14.isAbsolute(value) || segments.some((segment) => segment === "" || segment === "." || segment === "..") || !/^[A-Za-z0-9._/& -]+$/.test(value)) throw new Error(`${label} path must be a safe repository-relative path`);
   return normalized2;
 }
 function objectValue(value, label) {
@@ -11407,41 +11468,105 @@ function parseObject(text2, label) {
 }
 function stringRecord(value, label) {
   const record3 = objectValue(value, label), result = {};
-  for (const [key3, item] of Object.entries(record3)) {
+  for (const [key4, item] of Object.entries(record3)) {
     if (typeof item !== "string" || !item.trim()) throw new Error(`${label} must contain nonempty strings`);
-    result[key3] = item;
+    result[key4] = item;
   }
   return result;
 }
 function validateCommitPolicy(input) {
   const value = objectValue(input, "trusted repository commit policy");
-  for (const key3 of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key3] !== void 0 && typeof value[key3] !== "boolean") throw new Error(`${key3} must be boolean`);
-  const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? true;
+  for (const key4 of ["conventional", "require_version_suffix", "require_task_trailer"]) if (value[key4] !== void 0 && typeof value[key4] !== "boolean") throw new Error(`${key4} must be boolean`);
+  const mode = value.mode ?? "per_commit";
+  if (!["per_commit", "branch_driven"].includes(mode)) throw new Error("unsupported commit policy mode");
+  const conventional = value.conventional ?? true, requireVersionSuffix = value.require_version_suffix ?? mode !== "branch_driven";
+  if (mode === "branch_driven" && (!conventional || requireVersionSuffix)) throw new Error("branch-driven policy requires Conventional Commits without version suffixes");
   if (!conventional && requireVersionSuffix) throw new Error("unsupported commit policy: deterministic version suffixes require Conventional Commit types");
   if (typeof value.version_file !== "string") throw new Error("trusted repository commit policy must configure version_file");
   const versionFile = safeRepositoryPath(value.version_file, "version file");
   if (!Array.isArray(value.changelog_files) || value.changelog_files.length === 0 || value.changelog_files.some((item) => typeof item !== "string")) throw new Error("trusted repository commit policy must configure changelog files");
   const changelogFiles = value.changelog_files.map((item) => safeRepositoryPath(item, "changelog"));
   if (new Set(changelogFiles).size !== changelogFiles.length) throw new Error("trusted changelog paths must be unique");
-  if (!Array.isArray(value.version_surfaces) || requireVersionSuffix && value.version_surfaces.length === 0 || !requireVersionSuffix && value.version_surfaces.length > 0) throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required");
+  if (!Array.isArray(value.version_surfaces) || (requireVersionSuffix || mode === "branch_driven") && value.version_surfaces.length === 0 || !requireVersionSuffix && mode !== "branch_driven" && value.version_surfaces.length > 0) throw new Error("unsupported commit policy: version surfaces must be nonempty exactly when version suffixes are required");
   const versionSurfaces = value.version_surfaces.map((inputSurface) => {
     const surface = objectValue(inputSurface, "version surface");
     if (typeof surface.path !== "string" || typeof surface.pattern !== "string") throw new Error("version surface path and pattern are required");
     const surfacePath = safeRepositoryPath(surface.path, "version surface");
     compilePattern(surface.pattern);
     if (!surface.pattern.includes("?<version>") && !/(^|[^\\])\((?!\?)/.test(surface.pattern.replace(/^\(\?m\)/, ""))) throw new Error("version surface pattern must capture the version");
-    return { path: surfacePath, pattern: surface.pattern };
+    if (surface.json_pointers !== void 0 && (mode !== "branch_driven" || !Array.isArray(surface.json_pointers) || !surface.json_pointers.length || surface.json_pointers.some((pointer) => typeof pointer !== "string" || !pointer.startsWith("/") || pointer.length > 512 || /~(?![01])/.test(pointer)))) throw new Error("invalid branch version JSON pointers");
+    return { path: surfacePath, pattern: surface.pattern, ...surface.json_pointers !== void 0 ? { json_pointers: [...surface.json_pointers] } : {} };
   });
   if (new Set(versionSurfaces.map((surface) => surface.path)).size !== versionSurfaces.length) throw new Error("version surface paths must be unique");
-  if (requireVersionSuffix && !versionSurfaces.some((surface) => surface.path === versionFile)) throw new Error("version surfaces must include version_file");
-  return { conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles, ...value.bookkeeping !== void 0 ? { bookkeeping: validateBookkeepingPolicy(value.bookkeeping) } : {} };
+  if ((requireVersionSuffix || mode === "branch_driven") && !versionSurfaces.some((surface) => surface.path === versionFile)) throw new Error("version surfaces must include version_file");
+  let typeImpacts;
+  if (value.type_impacts !== void 0) {
+    const impacts = objectValue(value.type_impacts, "commit type impacts");
+    typeImpacts = {};
+    for (const [name, impact] of Object.entries(impacts)) {
+      if (!/^[a-z][a-z0-9-]*$/.test(name) || !["none", "patch", "minor"].includes(String(impact))) throw new Error("invalid nonbreaking commit type impact");
+      typeImpacts[name] = impact;
+    }
+  }
+  return { ...value.mode !== void 0 ? { mode } : {}, ...typeImpacts ? { type_impacts: typeImpacts } : {}, conventional, require_version_suffix: requireVersionSuffix, require_task_trailer: value.require_task_trailer ?? false, version_file: versionFile, version_surfaces: versionSurfaces, changelog_files: changelogFiles, ...value.bookkeeping !== void 0 ? { bookkeeping: validateBookkeepingPolicy(value.bookkeeping) } : {} };
 }
 function validSubject(subject, policy) {
+  if (policy.mode === "branch_driven") {
+    const match = /^([a-z][a-z0-9-]*)(?:\([A-Za-z0-9][A-Za-z0-9._/-]*\))?!?: \S[^\r\n]*$/.exec(subject);
+    return Boolean(match && (["feat", "fix", "perf", "docs", "refactor", "test", "chore", "ci", "build"].includes(match[1]) || Object.hasOwn(policy.type_impacts ?? {}, match[1])));
+  }
   const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(subject), versioned = subjectVersion(subject) !== null;
   return (!(policy.conventional ?? true) || conventional) && (!(policy.require_version_suffix ?? true) || versioned);
 }
+async function implementationCommitValid(worktree, parent, hash8, subject, changed2, policy, incomingParent) {
+  if (policy.mode !== "branch_driven") return validSubject(subject, policy) && changed2.includes(policy.version_file) && policy.changelog_files.some((value) => changed2.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy, incomingParent) && await changelogAddsVersion(worktree, parent, hash8, subject, policy);
+  if (!validSubject(subject, policy)) return false;
+  if (incomingParent) {
+    for (const file of policy.changelog_files) {
+      try {
+        await git(["diff", "--no-ext-diff", "--no-textconv", "--quiet", incomingParent, hash8, "--", file], worktree);
+      } catch {
+        return false;
+      }
+    }
+  } else if (policy.changelog_files.some((value) => changed2.includes(value))) return false;
+  const message = await git(["show", "-s", "--format=%B", hash8], worktree);
+  if ((/^[^:\n]*!:/.test(subject) || /^BREAKING(?: CHANGE|-CHANGE):/m.test(message)) && !/^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(message)) return false;
+  if (!policy.version_surfaces?.length) return false;
+  for (const surface of policy.version_surfaces) {
+    try {
+      const capture = (text2) => {
+        const pattern = compilePattern(surface.pattern);
+        const matches = [...text2.matchAll(new RegExp(pattern.source, pattern.flags + "g"))];
+        return matches.length === 1 ? matches[0].groups?.version ?? matches[0][1] : void 0;
+      };
+      const beforeText = await boundedGitShow(worktree, parent + ":" + surface.path, "version surface");
+      const afterText = await boundedGitShow(worktree, hash8 + ":" + surface.path, "version surface");
+      const incomingText = incomingParent ? await boundedGitShow(worktree, incomingParent + ":" + surface.path, "incoming version surface") : void 0;
+      const before = capture(beforeText), after = capture(afterText), incoming = incomingText === void 0 ? void 0 : capture(incomingText);
+      if (!before || !after || (incomingParent ? after !== incoming : before !== after)) return false;
+      if (surface.json_pointers) {
+        const pointerValue = (content, pointer) => {
+          let node = JSON.parse(content);
+          for (const token of pointer.slice(1).split("/").map((value) => value.replaceAll("~1", "/").replaceAll("~0", "~"))) {
+            if (!node || typeof node !== "object" || !Object.hasOwn(node, token)) return void 0;
+            node = node[token];
+          }
+          return node;
+        };
+        for (const pointer of surface.json_pointers) {
+          const oldValue = pointerValue(beforeText, pointer), newValue = pointerValue(afterText, pointer), incomingValue = incomingText === void 0 ? void 0 : pointerValue(incomingText, pointer);
+          if (typeof oldValue !== "string" || typeof newValue !== "string" || (incomingParent ? newValue !== incomingValue : oldValue !== newValue)) return false;
+        }
+      }
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 function hasTaskTrailer(message, taskId) {
-  if (!taskId || !/^[A-Za-z0-9._-]+$/.test(taskId)) return false;
+  if (!taskId || !/^[A-Za-z0-9._#-]+$/.test(taskId)) return false;
   const matches = [...message.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([^\r\n]+)(?:\r?\n|$)/g)].map((match) => match[1].trim());
   return matches.length === 1 && matches[0] === taskId;
 }
@@ -11452,7 +11577,7 @@ async function candidateCommitValid(worktree, hash8, expectedParent, policy, tas
     const prepared = preparedMerges.find((value) => value.preMergeHead === parent && value.targetOid === parents[2]), bookkeeping = /* @__PURE__ */ new Set([policy.version_file, ...policy.changelog_files, ...(policy.version_surfaces ?? []).map((surface) => surface.path)]);
     mergeValid = Boolean(prepared) && (prepared.strategy !== "ours" || changed2.every((changedPath) => bookkeeping.has(changedPath)));
   }
-  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || validSubject(subject, policy) && changed2.includes(policy.version_file) && policy.changelog_files.some((value) => changed2.includes(value)) && await versionSurfacesMatch(worktree, hash8, subject, policy) && await versionTransitionValid(worktree, parent, hash8, subject, policy, parents.length === 3 ? parents[2] : void 0) && await changelogAddsVersion(worktree, parent, hash8, subject, policy));
+  return parent === expectedParent && mergeValid && (!policy.require_task_trailer || hasTaskTrailer(trailers, taskId)) && (await bookkeepingCommitValid(worktree, parent, hash8, subject, policy) || await implementationCommitValid(worktree, parent, hash8, subject, changed2, policy, parents.length === 3 ? parents[2] : void 0));
 }
 async function bookkeepingPathAllowed(relative, policy) {
   return bookkeepingPathAllowedCore(relative, policy, git);
@@ -11487,7 +11612,7 @@ async function bookkeepingHistoryValid(worktree, base, head, policy) {
     if (!await bookkeepingCommitValid(worktree, parent, hash8, subject, policy)) return false;
     if (policy.require_task_trailer) {
       const trailers = await git(["show", "-s", "--format=%(trailers:only,unfold)", hash8], worktree);
-      const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._-]+)(?:\r?\n|$)/g)];
+      const matches = [...trailers.matchAll(/(?:^|\r?\n)(?:Implements|Completes|Needs-QA):[ \t]+([A-Za-z0-9._#-]+)(?:\r?\n|$)/g)];
       if (matches.length !== 1) return false;
     }
     parent = hash8;
@@ -11557,7 +11682,8 @@ async function versionTransitionValid(worktree, parent, hash8, subject, policy, 
       if (incoming.major > before.major || incoming.major === before.major && (incoming.minor > before.minor || incoming.minor === before.minor && incoming.patch > before.patch)) before = incoming;
     }
   }
-  if (parsedSubject[2]) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
+  const breakingFooter = /^BREAKING(?: CHANGE|-CHANGE):[ \t]*\S[^\r\n]*$/m.test(await git(["show", "-s", "--format=%B", hash8], worktree));
+  if (parsedSubject[2] || breakingFooter) return before.major < Number.MAX_SAFE_INTEGER && afterValue === `${before.major + 1}.0.0`;
   if (parsedSubject[1] === "feat") return before.minor < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor + 1}.0`;
   return before.patch < Number.MAX_SAFE_INTEGER && afterValue === `${before.major}.${before.minor}.${before.patch + 1}`;
 }
@@ -11572,14 +11698,14 @@ async function sourceManifest(root, configuredExcludes, rootFileExcludes, bookke
   const lines2 = [], productLines = [], excludes = configuredExcludes.map((item) => safeRepositoryPath(item, "source manifest exclusion").replace(/\/$/, "")), tracked = new Set((await git(["ls-files", "--cached", "-z"], root)).split("\0").filter(Boolean).map((item) => item.replaceAll("\\", "/")));
   async function walk(dir) {
     for (const entry of (await readdir7(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const relative = path13.relative(root, path13.join(dir, entry.name)).replaceAll("\\", "/");
+      const relative = path14.relative(root, path14.join(dir, entry.name)).replaceAll("\\", "/");
       if (policy && outputPathExcluded(relative, policy, tracked)) continue;
       if (excludes.some((item) => relative.toLowerCase() === item.toLowerCase() || relative.toLowerCase().startsWith(`${item.toLowerCase()}/`)) || !relative.includes("/") && rootFileExcludes.some((pattern) => rootFilePatternMatches(relative, pattern)) || relative.toLowerCase().endsWith(".meta") && !tracked.has(relative) || relative === ".git" || relative.startsWith(".captain-sdlc/trace/") || relative.startsWith(".captain-proof/") || relative === "node_modules" || relative.includes("/node_modules/")) continue;
-      const full = path13.join(dir, entry.name), info = await lstat5(full);
+      const full = path14.join(dir, entry.name), info = await lstat6(full);
       if (info.isSymbolicLink()) throw new Error(`source manifest crosses reparse point: ${relative}`);
       if (info.isDirectory()) await walk(full);
       else if (info.isFile()) {
-        const content = await readFile5(full), value = `${relative}:${createHash10("sha256").update(content).digest("hex")}`;
+        const content = await readFile6(full), value = `${relative}:${createHash11("sha256").update(content).digest("hex")}`;
         lines2.push(value);
         if (bookkeepingPolicy && (info.mode & 73) === 0 && bookkeepingTextAllowed(content) && await bookkeepingPathAllowed(relative, bookkeepingPolicy)) continue;
         productLines.push(value);
@@ -11597,12 +11723,13 @@ var exec2, maxGitBuffer, maxPolicyInput, defaultCommitPolicy, approvedGeneratedP
 var init_workspace = __esm({
   "src/workspace.ts"() {
     "use strict";
+    init_release_intent();
     init_lifecycle();
     init_validation();
     init_bookkeeping();
     init_output_retention();
     init_worktree_storage();
-    exec2 = promisify2(execFile2);
+    exec2 = promisify3(execFile3);
     maxGitBuffer = 10 * 1024 * 1024;
     maxPolicyInput = 1024 * 1024;
     defaultCommitPolicy = { conventional: true, require_version_suffix: true, version_file: "VERSION", version_surfaces: [{ path: "VERSION", pattern: "(?m)^(?<version>[0-9]+\\.[0-9]+\\.[0-9]+)\\s*$" }], changelog_files: ["CHANGELOG.md"] };
@@ -11657,23 +11784,23 @@ var init_workspace = __esm({
         return { exitCode: Number(error2.code) || 1, stdout: error2.stdout ?? "", stderr: error2.stderr ?? error2.message };
       }
     };
-    pathKey4 = (value) => process.platform === "win32" ? path13.resolve(value).toLowerCase() : path13.resolve(value);
+    pathKey4 = (value) => process.platform === "win32" ? path14.resolve(value).toLowerCase() : path14.resolve(value);
     sameDirectory = (left, right) => pathKey4(left) === pathKey4(right);
     normalizeSourceStatus = (status) => status.split(/\r?\n/).filter((line) => line && !(line.startsWith("?? ") && line.slice(3).trim().toLowerCase().endsWith(".meta"))).join("\n");
-    digest6 = (text2) => createHash10("sha256").update(text2).digest("hex");
+    digest6 = (text2) => createHash11("sha256").update(text2).digest("hex");
     splitLines = (value) => value.split(/\r?\n/).filter(Boolean);
   }
 });
 
 // src/bookkeeping.ts
-import { createHash as createHash11 } from "node:crypto";
-import { mkdtemp as mkdtemp2, readFile as readFile6, writeFile as writeFile4 } from "node:fs/promises";
+import { createHash as createHash12 } from "node:crypto";
+import { mkdtemp as mkdtemp2, readFile as readFile7, writeFile as writeFile4 } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
-import path14 from "node:path";
+import path15 from "node:path";
 function validateBookkeepingPolicy(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("bookkeeping policy must declare a committed path_file");
   const value = input;
-  if (Object.keys(value).some((key3) => key3 !== "path_file")) throw new Error("bookkeeping captured patterns and hash cannot be supplied by repository policy");
+  if (Object.keys(value).some((key4) => key4 !== "path_file")) throw new Error("bookkeeping captured patterns and hash cannot be supplied by repository policy");
   if (value.path_file !== ruleFile) throw new Error(`bookkeeping path_file must be ${ruleFile}`);
   return { path_file: ruleFile };
 }
@@ -11701,10 +11828,10 @@ async function matcherRoot(policy, git2) {
   let pending = matcherRoots.get(config2.sha256);
   if (!pending) {
     pending = (async () => {
-      const root2 = await mkdtemp2(path14.join(tmpdir2(), "captain-bookkeeping-rules-"));
+      const root2 = await mkdtemp2(path15.join(tmpdir2(), "captain-bookkeeping-rules-"));
       await git2(["init", "--template="], root2);
-      await writeFile4(path14.join(root2, ".gitignore"), config2.patterns, "utf8");
-      await writeFile4(path14.join(root2, "empty-excludes"), "", "utf8");
+      await writeFile4(path15.join(root2, ".gitignore"), config2.patterns, "utf8");
+      await writeFile4(path15.join(root2, "empty-excludes"), "", "utf8");
       return root2;
     })();
     matcherRoots.set(config2.sha256, pending);
@@ -11713,14 +11840,14 @@ async function matcherRoot(policy, git2) {
     });
   }
   const root = await pending;
-  if (hash4(await readFile6(path14.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
+  if (hash4(await readFile7(path15.join(root, ".gitignore"), "utf8")) !== config2.sha256) throw new Error("isolated bookkeeping matcher rules changed");
   return root;
 }
 async function bookkeepingPathAllowedCore(relative, policy, git2) {
   if (!bookkeepingCaptured(policy) || !safeRecordPath(relative, policy)) return false;
   const root = await matcherRoot(policy, git2);
   try {
-    await git2(["-c", `core.excludesFile=${path14.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
+    await git2(["-c", `core.excludesFile=${path15.join(root, "empty-excludes")}`, "check-ignore", "--no-index", "--", relative], root);
     return true;
   } catch (error2) {
     if (Number(error2.code) === 1) return false;
@@ -11738,7 +11865,7 @@ var init_bookkeeping = __esm({
     ruleFile = ".captain-sdlc/captain.ignore";
     matcherRoots = /* @__PURE__ */ new Map();
     recordRoots = [".captain-sdlc/notebook/", ".captain-sdlc/handoffs/", ".captain-sdlc/closeouts/", ".captain-sdlc/evidence/"];
-    hash4 = (value) => createHash11("sha256").update(value).digest("hex");
+    hash4 = (value) => createHash12("sha256").update(value).digest("hex");
   }
 });
 
@@ -12051,9 +12178,9 @@ var util;
   };
   util2.objectKeys = typeof Object.keys === "function" ? (obj) => Object.keys(obj) : (object3) => {
     const keys = [];
-    for (const key3 in object3) {
-      if (Object.prototype.hasOwnProperty.call(object3, key3)) {
-        keys.push(key3);
+    for (const key4 in object3) {
+      if (Object.prototype.hasOwnProperty.call(object3, key4)) {
+        keys.push(key4);
       }
     }
     return keys;
@@ -12383,8 +12510,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path20, errorMaps, issueData } = params;
-  const fullPath = [...path20, ...issueData.path || []];
+  const { data, path: path21, errorMaps, issueData } = params;
+  const fullPath = [...path21, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -12453,10 +12580,10 @@ var ParseStatus = class _ParseStatus {
   static async mergeObjectAsync(status, pairs) {
     const syncPairs = [];
     for (const pair of pairs) {
-      const key3 = await pair.key;
+      const key4 = await pair.key;
       const value = await pair.value;
       syncPairs.push({
-        key: key3,
+        key: key4,
         value
       });
     }
@@ -12465,17 +12592,17 @@ var ParseStatus = class _ParseStatus {
   static mergeObjectSync(status, pairs) {
     const finalObject = {};
     for (const pair of pairs) {
-      const { key: key3, value } = pair;
-      if (key3.status === "aborted")
+      const { key: key4, value } = pair;
+      if (key4.status === "aborted")
         return INVALID;
       if (value.status === "aborted")
         return INVALID;
-      if (key3.status === "dirty")
+      if (key4.status === "dirty")
         status.dirty();
       if (value.status === "dirty")
         status.dirty();
-      if (key3.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
-        finalObject[key3.value] = value.value;
+      if (key4.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
+        finalObject[key4.value] = value.value;
       }
     }
     return { status: status.value, value: finalObject };
@@ -12500,12 +12627,12 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path20, key3) {
+  constructor(parent, value, path21, key4) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path20;
-    this._key = key3;
+    this._path = path21;
+    this._key = key4;
   }
   get path() {
     if (!this._cachedPath.length) {
@@ -14250,9 +14377,9 @@ ZodArray.create = (schema, params) => {
 function deepPartialify(schema) {
   if (schema instanceof ZodObject) {
     const newShape = {};
-    for (const key3 in schema.shape) {
-      const fieldSchema = schema.shape[key3];
-      newShape[key3] = ZodOptional.create(deepPartialify(fieldSchema));
+    for (const key4 in schema.shape) {
+      const fieldSchema = schema.shape[key4];
+      newShape[key4] = ZodOptional.create(deepPartialify(fieldSchema));
     }
     return new ZodObject({
       ...schema._def,
@@ -14303,29 +14430,29 @@ var ZodObject = class _ZodObject extends ZodType {
     const { shape, keys: shapeKeys } = this._getCached();
     const extraKeys = [];
     if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
-      for (const key3 in ctx.data) {
-        if (!shapeKeys.includes(key3)) {
-          extraKeys.push(key3);
+      for (const key4 in ctx.data) {
+        if (!shapeKeys.includes(key4)) {
+          extraKeys.push(key4);
         }
       }
     }
     const pairs = [];
-    for (const key3 of shapeKeys) {
-      const keyValidator = shape[key3];
-      const value = ctx.data[key3];
+    for (const key4 of shapeKeys) {
+      const keyValidator = shape[key4];
+      const value = ctx.data[key4];
       pairs.push({
-        key: { status: "valid", value: key3 },
-        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key3)),
-        alwaysSet: key3 in ctx.data
+        key: { status: "valid", value: key4 },
+        value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key4)),
+        alwaysSet: key4 in ctx.data
       });
     }
     if (this._def.catchall instanceof ZodNever) {
       const unknownKeys = this._def.unknownKeys;
       if (unknownKeys === "passthrough") {
-        for (const key3 of extraKeys) {
+        for (const key4 of extraKeys) {
           pairs.push({
-            key: { status: "valid", value: key3 },
-            value: { status: "valid", value: ctx.data[key3] }
+            key: { status: "valid", value: key4 },
+            value: { status: "valid", value: ctx.data[key4] }
           });
         }
       } else if (unknownKeys === "strict") {
@@ -14342,15 +14469,15 @@ var ZodObject = class _ZodObject extends ZodType {
       }
     } else {
       const catchall = this._def.catchall;
-      for (const key3 of extraKeys) {
-        const value = ctx.data[key3];
+      for (const key4 of extraKeys) {
+        const value = ctx.data[key4];
         pairs.push({
-          key: { status: "valid", value: key3 },
+          key: { status: "valid", value: key4 },
           value: catchall._parse(
-            new ParseInputLazyPath(ctx, value, ctx.path, key3)
+            new ParseInputLazyPath(ctx, value, ctx.path, key4)
             //, ctx.child(key), value, getParsedType(value)
           ),
-          alwaysSet: key3 in ctx.data
+          alwaysSet: key4 in ctx.data
         });
       }
     }
@@ -14358,10 +14485,10 @@ var ZodObject = class _ZodObject extends ZodType {
       return Promise.resolve().then(async () => {
         const syncPairs = [];
         for (const pair of pairs) {
-          const key3 = await pair.key;
+          const key4 = await pair.key;
           const value = await pair.value;
           syncPairs.push({
-            key: key3,
+            key: key4,
             value,
             alwaysSet: pair.alwaysSet
           });
@@ -14486,8 +14613,8 @@ var ZodObject = class _ZodObject extends ZodType {
   //   }) as any;
   //   return merged;
   // }
-  setKey(key3, schema) {
-    return this.augment({ [key3]: schema });
+  setKey(key4, schema) {
+    return this.augment({ [key4]: schema });
   }
   // merge<Incoming extends AnyZodObject>(
   //   merging: Incoming
@@ -14518,9 +14645,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   pick(mask) {
     const shape = {};
-    for (const key3 of util.objectKeys(mask)) {
-      if (mask[key3] && this.shape[key3]) {
-        shape[key3] = this.shape[key3];
+    for (const key4 of util.objectKeys(mask)) {
+      if (mask[key4] && this.shape[key4]) {
+        shape[key4] = this.shape[key4];
       }
     }
     return new _ZodObject({
@@ -14530,9 +14657,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   omit(mask) {
     const shape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      if (!mask[key3]) {
-        shape[key3] = this.shape[key3];
+    for (const key4 of util.objectKeys(this.shape)) {
+      if (!mask[key4]) {
+        shape[key4] = this.shape[key4];
       }
     }
     return new _ZodObject({
@@ -14548,12 +14675,12 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   partial(mask) {
     const newShape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      const fieldSchema = this.shape[key3];
-      if (mask && !mask[key3]) {
-        newShape[key3] = fieldSchema;
+    for (const key4 of util.objectKeys(this.shape)) {
+      const fieldSchema = this.shape[key4];
+      if (mask && !mask[key4]) {
+        newShape[key4] = fieldSchema;
       } else {
-        newShape[key3] = fieldSchema.optional();
+        newShape[key4] = fieldSchema.optional();
       }
     }
     return new _ZodObject({
@@ -14563,16 +14690,16 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   required(mask) {
     const newShape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      if (mask && !mask[key3]) {
-        newShape[key3] = this.shape[key3];
+    for (const key4 of util.objectKeys(this.shape)) {
+      if (mask && !mask[key4]) {
+        newShape[key4] = this.shape[key4];
       } else {
-        const fieldSchema = this.shape[key3];
+        const fieldSchema = this.shape[key4];
         let newField = fieldSchema;
         while (newField instanceof ZodOptional) {
           newField = newField._def.innerType;
         }
-        newShape[key3] = newField;
+        newShape[key4] = newField;
       }
     }
     return new _ZodObject({
@@ -14816,14 +14943,14 @@ function mergeValues(a, b) {
     return { valid: true, data: a };
   } else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
     const bKeys = util.objectKeys(b);
-    const sharedKeys = util.objectKeys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
+    const sharedKeys = util.objectKeys(a).filter((key4) => bKeys.indexOf(key4) !== -1);
     const newObj = { ...a, ...b };
-    for (const key3 of sharedKeys) {
-      const sharedValue = mergeValues(a[key3], b[key3]);
+    for (const key4 of sharedKeys) {
+      const sharedValue = mergeValues(a[key4], b[key4]);
       if (!sharedValue.valid) {
         return { valid: false };
       }
-      newObj[key3] = sharedValue.data;
+      newObj[key4] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   } else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
@@ -14987,11 +15114,11 @@ var ZodRecord = class _ZodRecord extends ZodType {
     const pairs = [];
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    for (const key3 in ctx.data) {
+    for (const key4 in ctx.data) {
       pairs.push({
-        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, key3)),
-        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key3], ctx.path, key3)),
-        alwaysSet: key3 in ctx.data
+        key: keyType._parse(new ParseInputLazyPath(ctx, key4, ctx.path, key4)),
+        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key4], ctx.path, key4)),
+        alwaysSet: key4 in ctx.data
       });
     }
     if (ctx.common.async) {
@@ -15039,9 +15166,9 @@ var ZodMap = class extends ZodType {
     }
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    const pairs = [...ctx.data.entries()].map(([key3, value], index) => {
+    const pairs = [...ctx.data.entries()].map(([key4, value], index) => {
       return {
-        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, [index, "key"])),
+        key: keyType._parse(new ParseInputLazyPath(ctx, key4, ctx.path, [index, "key"])),
         value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index, "value"]))
       };
     });
@@ -15049,30 +15176,30 @@ var ZodMap = class extends ZodType {
       const finalMap = /* @__PURE__ */ new Map();
       return Promise.resolve().then(async () => {
         for (const pair of pairs) {
-          const key3 = await pair.key;
+          const key4 = await pair.key;
           const value = await pair.value;
-          if (key3.status === "aborted" || value.status === "aborted") {
+          if (key4.status === "aborted" || value.status === "aborted") {
             return INVALID;
           }
-          if (key3.status === "dirty" || value.status === "dirty") {
+          if (key4.status === "dirty" || value.status === "dirty") {
             status.dirty();
           }
-          finalMap.set(key3.value, value.value);
+          finalMap.set(key4.value, value.value);
         }
         return { status: status.value, value: finalMap };
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
       for (const pair of pairs) {
-        const key3 = pair.key;
+        const key4 = pair.key;
         const value = pair.value;
-        if (key3.status === "aborted" || value.status === "aborted") {
+        if (key4.status === "aborted" || value.status === "aborted") {
           return INVALID;
         }
-        if (key3.status === "dirty" || value.status === "dirty") {
+        if (key4.status === "dirty" || value.status === "dirty") {
           status.dirty();
         }
-        finalMap.set(key3.value, value.value);
+        finalMap.set(key4.value, value.value);
       }
       return { status: status.value, value: finalMap };
     }
@@ -16114,19 +16241,19 @@ function floatSafeRemainder2(val, step) {
   const stepInt = Number.parseInt(step.toFixed(decCount).replace(".", ""));
   return valInt % stepInt / 10 ** decCount;
 }
-function defineLazy(object3, key3, getter) {
+function defineLazy(object3, key4, getter) {
   const set = false;
-  Object.defineProperty(object3, key3, {
+  Object.defineProperty(object3, key4, {
     get() {
       if (!set) {
         const value = getter();
-        object3[key3] = value;
+        object3[key4] = value;
         return value;
       }
       throw new Error("cached value already set");
     },
     set(v) {
-      Object.defineProperty(object3, key3, {
+      Object.defineProperty(object3, key4, {
         value: v
         // configurable: true,
       });
@@ -16142,14 +16269,14 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path20) {
-  if (!path20)
+function getElementAtPath(obj, path21) {
+  if (!path21)
     return obj;
-  return path20.reduce((acc, key3) => acc?.[key3], obj);
+  return path21.reduce((acc, key4) => acc?.[key4], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
-  const promises = keys.map((key3) => promisesObj[key3]);
+  const promises = keys.map((key4) => promisesObj[key4]);
   return Promise.all(promises).then((results) => {
     const resolvedObj = {};
     for (let i = 0; i < keys.length; i++) {
@@ -16202,8 +16329,8 @@ function isPlainObject(o) {
 }
 function numKeys(data) {
   let keyCount = 0;
-  for (const key3 in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key3)) {
+  for (const key4 in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key4)) {
       keyCount++;
     }
   }
@@ -16339,13 +16466,13 @@ var BIGINT_FORMAT_RANGES = {
 function pick(schema, mask) {
   const newShape = {};
   const currDef = schema._zod.def;
-  for (const key3 in mask) {
-    if (!(key3 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key3}"`);
+  for (const key4 in mask) {
+    if (!(key4 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key4}"`);
     }
-    if (!mask[key3])
+    if (!mask[key4])
       continue;
-    newShape[key3] = currDef.shape[key3];
+    newShape[key4] = currDef.shape[key4];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -16356,13 +16483,13 @@ function pick(schema, mask) {
 function omit(schema, mask) {
   const newShape = { ...schema._zod.def.shape };
   const currDef = schema._zod.def;
-  for (const key3 in mask) {
-    if (!(key3 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key3}"`);
+  for (const key4 in mask) {
+    if (!(key4 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key4}"`);
     }
-    if (!mask[key3])
+    if (!mask[key4])
       continue;
-    delete newShape[key3];
+    delete newShape[key4];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -16403,23 +16530,23 @@ function partial(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key3 in mask) {
-      if (!(key3 in oldShape)) {
-        throw new Error(`Unrecognized key: "${key3}"`);
+    for (const key4 in mask) {
+      if (!(key4 in oldShape)) {
+        throw new Error(`Unrecognized key: "${key4}"`);
       }
-      if (!mask[key3])
+      if (!mask[key4])
         continue;
-      shape[key3] = Class2 ? new Class2({
+      shape[key4] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key3]
-      }) : oldShape[key3];
+        innerType: oldShape[key4]
+      }) : oldShape[key4];
     }
   } else {
-    for (const key3 in oldShape) {
-      shape[key3] = Class2 ? new Class2({
+    for (const key4 in oldShape) {
+      shape[key4] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key3]
-      }) : oldShape[key3];
+        innerType: oldShape[key4]
+      }) : oldShape[key4];
     }
   }
   return clone(schema, {
@@ -16432,22 +16559,22 @@ function required(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key3 in mask) {
-      if (!(key3 in shape)) {
-        throw new Error(`Unrecognized key: "${key3}"`);
+    for (const key4 in mask) {
+      if (!(key4 in shape)) {
+        throw new Error(`Unrecognized key: "${key4}"`);
       }
-      if (!mask[key3])
+      if (!mask[key4])
         continue;
-      shape[key3] = new Class2({
+      shape[key4] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key3]
+        innerType: oldShape[key4]
       });
     }
   } else {
-    for (const key3 in oldShape) {
-      shape[key3] = new Class2({
+    for (const key4 in oldShape) {
+      shape[key4] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key3]
+        innerType: oldShape[key4]
       });
     }
   }
@@ -16465,11 +16592,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path20, issues) {
+function prefixIssues(path21, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path20);
+    iss.path.unshift(path21);
     return iss;
   });
 }
@@ -17645,28 +17772,28 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     return payload;
   };
 });
-function handleObjectResult(result, final, key3) {
+function handleObjectResult(result, final, key4) {
   if (result.issues.length) {
-    final.issues.push(...prefixIssues(key3, result.issues));
+    final.issues.push(...prefixIssues(key4, result.issues));
   }
-  final.value[key3] = result.value;
+  final.value[key4] = result.value;
 }
-function handleOptionalObjectResult(result, final, key3, input) {
+function handleOptionalObjectResult(result, final, key4, input) {
   if (result.issues.length) {
-    if (input[key3] === void 0) {
-      if (key3 in input) {
-        final.value[key3] = void 0;
+    if (input[key4] === void 0) {
+      if (key4 in input) {
+        final.value[key4] = void 0;
       } else {
-        final.value[key3] = result.value;
+        final.value[key4] = result.value;
       }
     } else {
-      final.issues.push(...prefixIssues(key3, result.issues));
+      final.issues.push(...prefixIssues(key4, result.issues));
     }
   } else if (result.value === void 0) {
-    if (key3 in input)
-      final.value[key3] = void 0;
+    if (key4 in input)
+      final.value[key4] = void 0;
   } else {
-    final.value[key3] = result.value;
+    final.value[key4] = result.value;
   }
 }
 var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
@@ -17690,12 +17817,12 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   defineLazy(inst._zod, "propValues", () => {
     const shape = def.shape;
     const propValues = {};
-    for (const key3 in shape) {
-      const field = shape[key3]._zod;
+    for (const key4 in shape) {
+      const field = shape[key4]._zod;
       if (field.values) {
-        propValues[key3] ?? (propValues[key3] = /* @__PURE__ */ new Set());
+        propValues[key4] ?? (propValues[key4] = /* @__PURE__ */ new Set());
         for (const v of field.values)
-          propValues[key3].add(v);
+          propValues[key4].add(v);
       }
     }
     return propValues;
@@ -17703,22 +17830,22 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   const generateFastpass = (shape) => {
     const doc = new Doc(["shape", "payload", "ctx"]);
     const normalized2 = _normalized.value;
-    const parseStr = (key3) => {
-      const k = esc(key3);
+    const parseStr = (key4) => {
+      const k = esc(key4);
       return `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
     };
     doc.write(`const input = payload.value;`);
     const ids = /* @__PURE__ */ Object.create(null);
     let counter = 0;
-    for (const key3 of normalized2.keys) {
-      ids[key3] = `key_${counter++}`;
+    for (const key4 of normalized2.keys) {
+      ids[key4] = `key_${counter++}`;
     }
     doc.write(`const newResult = {}`);
-    for (const key3 of normalized2.keys) {
-      if (normalized2.optionalKeys.has(key3)) {
-        const id = ids[key3];
-        doc.write(`const ${id} = ${parseStr(key3)};`);
-        const k = esc(key3);
+    for (const key4 of normalized2.keys) {
+      if (normalized2.optionalKeys.has(key4)) {
+        const id = ids[key4];
+        doc.write(`const ${id} = ${parseStr(key4)};`);
+        const k = esc(key4);
         doc.write(`
         if (${id}.issues.length) {
           if (input[${k}] === undefined) {
@@ -17740,14 +17867,14 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
         }
         `);
       } else {
-        const id = ids[key3];
-        doc.write(`const ${id} = ${parseStr(key3)};`);
+        const id = ids[key4];
+        doc.write(`const ${id} = ${parseStr(key4)};`);
         doc.write(`
           if (${id}.issues.length) payload.issues = payload.issues.concat(${id}.issues.map(iss => ({
             ...iss,
-            path: iss.path ? [${esc(key3)}, ...iss.path] : [${esc(key3)}]
+            path: iss.path ? [${esc(key4)}, ...iss.path] : [${esc(key4)}]
           })));`);
-        doc.write(`newResult[${esc(key3)}] = ${id}.value`);
+        doc.write(`newResult[${esc(key4)}] = ${id}.value`);
       }
     }
     doc.write(`payload.value = newResult;`);
@@ -17782,16 +17909,16 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     } else {
       payload.value = {};
       const shape = value.shape;
-      for (const key3 of value.keys) {
-        const el = shape[key3];
-        const r = el._zod.run({ value: input[key3], issues: [] }, ctx);
+      for (const key4 of value.keys) {
+        const el = shape[key4];
+        const r = el._zod.run({ value: input[key4], issues: [] }, ctx);
         const isOptional = el._zod.optin === "optional" && el._zod.optout === "optional";
         if (r instanceof Promise) {
-          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key3, input) : handleObjectResult(r2, payload, key3)));
+          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key4, input) : handleObjectResult(r2, payload, key4)));
         } else if (isOptional) {
-          handleOptionalObjectResult(r, payload, key3, input);
+          handleOptionalObjectResult(r, payload, key4, input);
         } else {
-          handleObjectResult(r, payload, key3);
+          handleObjectResult(r, payload, key4);
         }
       }
     }
@@ -17802,18 +17929,18 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     const keySet = value.keySet;
     const _catchall = catchall._zod;
     const t = _catchall.def.type;
-    for (const key3 of Object.keys(input)) {
-      if (keySet.has(key3))
+    for (const key4 of Object.keys(input)) {
+      if (keySet.has(key4))
         continue;
       if (t === "never") {
-        unrecognized.push(key3);
+        unrecognized.push(key4);
         continue;
       }
-      const r = _catchall.run({ value: input[key3], issues: [] }, ctx);
+      const r = _catchall.run({ value: input[key4], issues: [] }, ctx);
       if (r instanceof Promise) {
-        proms.push(r.then((r2) => handleObjectResult(r2, payload, key3)));
+        proms.push(r.then((r2) => handleObjectResult(r2, payload, key4)));
       } else {
-        handleObjectResult(r, payload, key3);
+        handleObjectResult(r, payload, key4);
       }
     }
     if (unrecognized.length) {
@@ -17975,17 +18102,17 @@ function mergeValues2(a, b) {
   }
   if (isPlainObject(a) && isPlainObject(b)) {
     const bKeys = Object.keys(b);
-    const sharedKeys = Object.keys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
+    const sharedKeys = Object.keys(a).filter((key4) => bKeys.indexOf(key4) !== -1);
     const newObj = { ...a, ...b };
-    for (const key3 of sharedKeys) {
-      const sharedValue = mergeValues2(a[key3], b[key3]);
+    for (const key4 of sharedKeys) {
+      const sharedValue = mergeValues2(a[key4], b[key4]);
       if (!sharedValue.valid) {
         return {
           valid: false,
-          mergeErrorPath: [key3, ...sharedValue.mergeErrorPath]
+          mergeErrorPath: [key4, ...sharedValue.mergeErrorPath]
         };
       }
-      newObj[key3] = sharedValue.data;
+      newObj[key4] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   }
@@ -18043,29 +18170,29 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     if (def.keyType._zod.values) {
       const values = def.keyType._zod.values;
       payload.value = {};
-      for (const key3 of values) {
-        if (typeof key3 === "string" || typeof key3 === "number" || typeof key3 === "symbol") {
-          const result = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
+      for (const key4 of values) {
+        if (typeof key4 === "string" || typeof key4 === "number" || typeof key4 === "symbol") {
+          const result = def.valueType._zod.run({ value: input[key4], issues: [] }, ctx);
           if (result instanceof Promise) {
             proms.push(result.then((result2) => {
               if (result2.issues.length) {
-                payload.issues.push(...prefixIssues(key3, result2.issues));
+                payload.issues.push(...prefixIssues(key4, result2.issues));
               }
-              payload.value[key3] = result2.value;
+              payload.value[key4] = result2.value;
             }));
           } else {
             if (result.issues.length) {
-              payload.issues.push(...prefixIssues(key3, result.issues));
+              payload.issues.push(...prefixIssues(key4, result.issues));
             }
-            payload.value[key3] = result.value;
+            payload.value[key4] = result.value;
           }
         }
       }
       let unrecognized;
-      for (const key3 in input) {
-        if (!values.has(key3)) {
+      for (const key4 in input) {
+        if (!values.has(key4)) {
           unrecognized = unrecognized ?? [];
-          unrecognized.push(key3);
+          unrecognized.push(key4);
         }
       }
       if (unrecognized && unrecognized.length > 0) {
@@ -18078,10 +18205,10 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       }
     } else {
       payload.value = {};
-      for (const key3 of Reflect.ownKeys(input)) {
-        if (key3 === "__proto__")
+      for (const key4 of Reflect.ownKeys(input)) {
+        if (key4 === "__proto__")
           continue;
-        const keyResult = def.keyType._zod.run({ value: key3, issues: [] }, ctx);
+        const keyResult = def.keyType._zod.run({ value: key4, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
@@ -18090,24 +18217,24 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
             origin: "record",
             code: "invalid_key",
             issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
-            input: key3,
-            path: [key3],
+            input: key4,
+            path: [key4],
             inst
           });
           payload.value[keyResult.value] = keyResult.value;
           continue;
         }
-        const result = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
+        const result = def.valueType._zod.run({ value: input[key4], issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((result2) => {
             if (result2.issues.length) {
-              payload.issues.push(...prefixIssues(key3, result2.issues));
+              payload.issues.push(...prefixIssues(key4, result2.issues));
             }
             payload.value[keyResult.value] = result2.value;
           }));
         } else {
           if (result.issues.length) {
-            payload.issues.push(...prefixIssues(key3, result.issues));
+            payload.issues.push(...prefixIssues(key4, result.issues));
           }
           payload.value[keyResult.value] = result.value;
         }
@@ -19164,15 +19291,15 @@ var JSONSchemaGenerator = class {
             json.type = "object";
             json.properties = {};
             const shape = def.shape;
-            for (const key3 in shape) {
-              json.properties[key3] = this.process(shape[key3], {
+            for (const key4 in shape) {
+              json.properties[key4] = this.process(shape[key4], {
                 ...params,
-                path: [...params.path, "properties", key3]
+                path: [...params.path, "properties", key4]
               });
             }
             const allKeys = new Set(Object.keys(shape));
-            const requiredKeys = new Set([...allKeys].filter((key3) => {
-              const v = def.shape[key3]._zod;
+            const requiredKeys = new Set([...allKeys].filter((key4) => {
+              const v = def.shape[key4]._zod;
               if (this.io === "input") {
                 return v.optin === void 0;
               } else {
@@ -19506,8 +19633,8 @@ var JSONSchemaGenerator = class {
       if (defId)
         seen.defId = defId;
       const schema2 = seen.schema;
-      for (const key3 in schema2) {
-        delete schema2[key3];
+      for (const key4 in schema2) {
+        delete schema2[key4];
       }
       schema2.$ref = ref;
     };
@@ -19634,8 +19761,8 @@ function toJSONSchema(input, _params) {
       defs
     };
     for (const entry of input._idmap.entries()) {
-      const [key3, schema] = entry;
-      schemas[key3] = gen2.emit(schema, {
+      const [key4, schema] = entry;
+      schemas[key4] = gen2.emit(schema, {
         ..._params,
         external
       });
@@ -19682,8 +19809,8 @@ function isTransforming(_schema, _ctx) {
       return isTransforming(def.element, ctx);
     }
     case "object": {
-      for (const key3 in def.shape) {
-        if (isTransforming(def.shape[key3], ctx))
+      for (const key4 in def.shape) {
+        if (isTransforming(def.shape[key4], ctx))
           return true;
       }
       return false;
@@ -19882,11 +20009,11 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getDotPath(path20) {
-  if (path20.length === 0) {
+function getDotPath(path21) {
+  if (path21.length === 0) {
     return "object root";
   }
-  return path20.reduce((acc, seg, index) => {
+  return path21.reduce((acc, seg, index) => {
     if (index === 0) {
       return String(seg);
     }
@@ -22245,19 +22372,19 @@ var getRefs = (options) => {
 };
 
 // node_modules/zod-to-json-schema/dist/esm/errorMessages.js
-function addErrorMessage(res, key3, errorMessage, refs) {
+function addErrorMessage(res, key4, errorMessage, refs) {
   if (!refs?.errorMessages)
     return;
   if (errorMessage) {
     res.errorMessage = {
       ...res.errorMessage,
-      [key3]: errorMessage
+      [key4]: errorMessage
     };
   }
 }
-function setResponseValueAndErrors(res, key3, value, errorMessage, refs) {
-  res[key3] = value;
-  addErrorMessage(res, key3, errorMessage, refs);
+function setResponseValueAndErrors(res, key4, value, errorMessage, refs) {
+  res[key4] = value;
+  addErrorMessage(res, key4, errorMessage, refs);
 }
 
 // node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
@@ -22849,11 +22976,11 @@ function parseRecordDef(def, refs) {
     return {
       type: "object",
       required: def.keyType._def.values,
-      properties: def.keyType._def.values.reduce((acc, key3) => ({
+      properties: def.keyType._def.values.reduce((acc, key4) => ({
         ...acc,
-        [key3]: parseDef(def.valueType._def, {
+        [key4]: parseDef(def.valueType._def, {
           ...refs,
-          currentPath: [...refs.currentPath, "properties", key3]
+          currentPath: [...refs.currentPath, "properties", key4]
         }) ?? parseAnyDef(refs)
       }), {}),
       additionalProperties: refs.rejectedAdditionalProperties
@@ -22920,10 +23047,10 @@ function parseMapDef(def, refs) {
 // node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
 function parseNativeEnumDef(def) {
   const object3 = def.values;
-  const actualKeys = Object.keys(def.values).filter((key3) => {
-    return typeof object3[object3[key3]] !== "number";
+  const actualKeys = Object.keys(def.values).filter((key4) => {
+    return typeof object3[object3[key4]] !== "number";
   });
-  const actualValues = actualKeys.map((key3) => object3[key3]);
+  const actualValues = actualKeys.map((key4) => object3[key4]);
   const parsedTypes = Array.from(new Set(actualValues.map((values) => typeof values)));
   return {
     type: parsedTypes.length === 1 ? parsedTypes[0] === "string" ? "string" : "number" : ["string", "number"],
@@ -24454,8 +24581,8 @@ function isPlainObject2(value) {
 }
 function mergeCapabilities(base, additional) {
   const result = { ...base };
-  for (const key3 in additional) {
-    const k = key3;
+  for (const key4 in additional) {
+    const k = key4;
     const addValue = additional[k];
     if (addValue === void 0)
       continue;
@@ -26145,7 +26272,7 @@ var StdioServerTransport = class {
 // src/server.ts
 import { fileURLToPath } from "node:url";
 import os6 from "node:os";
-import path19 from "node:path";
+import path20 from "node:path";
 import { randomUUID as randomUUID6 } from "node:crypto";
 
 // src/bookkeeping-finalization.ts
@@ -26153,10 +26280,10 @@ init_authority();
 init_bookkeeping();
 init_run_validation();
 init_workspace();
-import { createHash as createHash12, randomUUID as randomUUID2 } from "node:crypto";
-import { lstat as lstat6, readFile as readFile7, readdir as readdir8 } from "node:fs/promises";
+import { createHash as createHash13, randomUUID as randomUUID2 } from "node:crypto";
+import { lstat as lstat7, readFile as readFile8, readdir as readdir8 } from "node:fs/promises";
 import os2 from "node:os";
-import path15 from "node:path";
+import path16 from "node:path";
 var BookkeepingFinalizationError = class extends Error {
   constructor(finalization_id, cause) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
@@ -26164,9 +26291,9 @@ var BookkeepingFinalizationError = class extends Error {
     this.name = "BookkeepingFinalizationError";
   }
 };
-var hash5 = (text2) => createHash12("sha256").update(text2).digest("hex");
+var hash5 = (text2) => createHash13("sha256").update(text2).digest("hex");
 var digest7 = (value) => hash5(JSON.stringify(value));
-var samePath7 = (left, right) => process.platform === "win32" ? path15.resolve(left).toLowerCase() === path15.resolve(right).toLowerCase() : path15.resolve(left) === path15.resolve(right);
+var samePath7 = (left, right) => process.platform === "win32" ? path16.resolve(left).toLowerCase() === path16.resolve(right).toLowerCase() : path16.resolve(left) === path16.resolve(right);
 var idValue = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe finalization id");
   return id;
@@ -26201,8 +26328,8 @@ var BookkeepingFinalizationStore = class {
           const snapshot = await captureSnapshot(before.topLevel, normalized2.paths), indexTree = await git(["write-tree"], before.topLevel);
           await assertWorktreeBinding(before.topLevel, before.branch, before.commonGitDir, before.head, false, before.gitDir);
           const leaseSpecs = [
-            { id: hash5(`${path15.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
-            { id: hash5(`bookkeeping-worktree\0${path15.resolve(before.commonGitDir)}\0${path15.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
+            { id: hash5(`${path16.resolve(before.commonGitDir)}\0refs/heads/${before.branch}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-branch" },
+            { id: hash5(`bookkeeping-worktree\0${path16.resolve(before.commonGitDir)}\0${path16.resolve(before.gitDir)}`.toLowerCase()), token: randomUUID2(), operation: "bookkeeping-worktree" }
           ].sort((a, b) => a.id.localeCompare(b.id));
           record3 = await this.initial({ schema_version: 1, finalization_id: id, revision: 0, ...normalized2, state: "pending", request_sha256: digest7(normalized2), before, policy, policy_sha256: digest7(policy), snapshot, index_tree: indexTree, lease_specs: leaseSpecs, stash_marker: `Captain bookkeeping ${id} ${randomUUID2()}`, evidence: [{ kind: "snapshot_captured", at: (/* @__PURE__ */ new Date()).toISOString() }] });
         }
@@ -26294,7 +26421,7 @@ var BookkeepingFinalizationStore = class {
     const record3 = await this.optionalRead(idValue(args.finalization_id));
     if (!record3) {
       const operationId = hash5(`bookkeeping-operation\0${idValue(args.finalization_id)}`), expression = new RegExp(`^${operationId}-[0-9]+\\.json$`);
-      const revisions = await directoryNames(path15.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path15.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path15.join(this.dataRoot, "leases"));
+      const revisions = await directoryNames(path16.join(this.dataRoot, "lease-revisions")), marks = await directoryNames(path16.join(this.dataRoot, "lease-watermarks")), legacy = await directoryNames(path16.join(this.dataRoot, "leases"));
       if (!revisions.some((name) => expression.test(name)) && !marks.some((name) => expression.test(name)) && !legacy.includes(`${operationId}.json`)) return false;
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, operationId);
       if (!selected || selected.state === "released") return false;
@@ -26322,9 +26449,9 @@ var BookkeepingFinalizationStore = class {
     if (options.policy && digest7(options.policy) !== record3.policy_sha256) throw new Error("bookkeeping finalization captured policy does not match signed request");
   }
   async attempt(id, session, action2) {
-    const leaseId = hash5(`bookkeeping-operation\0${id}`), key3 = `${path15.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
-    if (attemptOperations.has(key3)) throw new Error("bookkeeping finalization operation is already active");
-    attemptOperations.add(key3);
+    const leaseId = hash5(`bookkeeping-operation\0${id}`), key4 = `${path16.resolve(this.dataRoot)}\0${leaseId}`, token = randomUUID2();
+    if (attemptOperations.has(key4)) throw new Error("bookkeeping finalization operation is already active");
+    attemptOperations.add(key4);
     try {
       let existing;
       try {
@@ -26356,7 +26483,7 @@ var BookkeepingFinalizationStore = class {
         await releaseAuthorizedLeaseAtGeneration(this.dataRoot, leaseId, id, token, selected.revision, generation(leaseId, selected));
       }
     } finally {
-      attemptOperations.delete(key3);
+      attemptOperations.delete(key4);
     }
   }
   leasePayload(record3, spec) {
@@ -26393,14 +26520,14 @@ var BookkeepingFinalizationStore = class {
       const pendingReview = run.phase === "hitl" || Boolean(run.policy?.hitlChecks?.length && run.evidence?.filter((item) => item.kind === "plan_review").at(-1)?.decision !== "accept");
       if (applies2 && (run.phase !== "complete" || run.status !== "green" || pendingReview)) throw new Error("worktree has an active Captain lifecycle owner; use its normal captain_commit path");
     }
-    const revisionNames = await directoryNames(path15.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path15.join(this.dataRoot, "leases"));
+    const revisionNames = await directoryNames(path16.join(this.dataRoot, "lease-revisions")), legacyNames = await directoryNames(path16.join(this.dataRoot, "leases"));
     const leaseIds = [...new Set([...revisionNames.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]), ...legacyNames.map((name) => /^(.+)\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))];
     for (const id of leaseIds) {
       const selected = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, id);
       if (!selected || selected.state !== "held" || selected.payload.intentId === ownId) continue;
       const owner = selected.payload, matchesWorktree = [owner.worktree, owner.worktreePath, owner.source_worktree, owner.target_worktree].some((value) => typeof value === "string" && samePath7(value, binding.topLevel));
       const matchesBranch = owner.targetBranch === binding.branch && typeof owner.commonGitDir === "string" && samePath7(owner.commonGitDir, binding.commonGitDir);
-      if (matchesWorktree || matchesBranch || id === hash5(`${path15.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
+      if (matchesWorktree || matchesBranch || id === hash5(`${path16.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase())) throw new Error("worktree or branch has an active foreign Captain lease owner");
     }
   }
   async initial(record3) {
@@ -26427,11 +26554,11 @@ var BookkeepingFinalizationStore = class {
   }
   async optionalRead(id) {
     const expression = new RegExp(`^${idValue(id)}-[0-9]+\\.json$`);
-    const names = [...await directoryNames(path15.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path15.join(this.dataRoot, "bookkeeping-watermarks"))];
+    const names = [...await directoryNames(path16.join(this.dataRoot, "bookkeeping-revisions")), ...await directoryNames(path16.join(this.dataRoot, "bookkeeping-watermarks"))];
     return names.some((name) => expression.test(name)) ? this.read(id) : void 0;
   }
   async read(id) {
-    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path15.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path15.join(this.dataRoot, "bookkeeping-watermarks"));
+    const safe2 = idValue(id), expression = new RegExp(`^${safe2}-([0-9]+)\\.json$`), names = await directoryNames(path16.join(this.dataRoot, "bookkeeping-revisions")), marks = await directoryNames(path16.join(this.dataRoot, "bookkeeping-watermarks"));
     const revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) {
       if (marks.some((name) => expression.test(name))) throw new Error("bookkeeping signed revision tail regressed behind watermark");
@@ -26467,11 +26594,11 @@ function validateRequest(args) {
   if (args.disposition !== "commit" && args.disposition !== "stash") throw new Error("bookkeeping disposition must be commit or stash");
   if (!Array.isArray(args.paths) || !args.paths.length) throw new Error("bookkeeping paths must be explicit selected files");
   const paths = args.paths.map((value) => {
-    if (typeof value !== "string" || value.includes("\\") || path15.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
+    if (typeof value !== "string" || value.includes("\\") || path16.isAbsolute(value) || !/^[A-Za-z0-9._/& -]+$/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("bookkeeping paths must be canonical safe repository-relative files");
     return value;
   }).sort();
   if (new Set(paths).size !== paths.length) throw new Error("bookkeeping selected paths must be unique");
-  return { worktree: path15.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
+  return { worktree: path16.resolve(args.worktree), session_id: args.session_id, task_id: args.task_id, paths, subject: args.subject, disposition: args.disposition };
 }
 async function directoryNames(directory) {
   try {
@@ -26488,7 +26615,7 @@ async function assertNoOperation(worktree) {
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer"]) {
     const file = await git(["rev-parse", "--git-path", name], worktree);
     try {
-      await lstat6(path15.resolve(worktree, file));
+      await lstat7(path16.resolve(worktree, file));
       throw new Error(`bookkeeping finalization refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -26509,7 +26636,7 @@ async function captureSnapshot(worktree, selected) {
     const segments = relative.split("/");
     for (let n = 1; n < segments.length; n++) {
       try {
-        const parent = await lstat6(path15.join(worktree, ...segments.slice(0, n)));
+        const parent = await lstat7(path16.join(worktree, ...segments.slice(0, n)));
         if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error(`bookkeeping path crosses a symlink or non-directory: ${relative}`);
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -26520,9 +26647,9 @@ async function captureSnapshot(worktree, selected) {
     for (const oid of [headEntry?.split(" ")[2]?.split("	")[0], indexEntry?.split(" ")[1]].filter((value) => Boolean(value))) if (!await bookkeepingBlobAllowed(worktree, oid)) throw new Error(`bookkeeping HEAD/index blob must be bounded text: ${relative}`);
     let workingHash = null, workingBlob = null;
     try {
-      const info = await lstat6(path15.join(worktree, relative));
+      const info = await lstat7(path16.join(worktree, relative));
       if (!info.isFile() || info.isSymbolicLink() || process.platform !== "win32" && info.mode & 73) throw new Error(`bookkeeping selected path must be a non-executable regular file: ${relative}`);
-      const bytes = await readFile7(path15.join(worktree, relative));
+      const bytes = await readFile8(path16.join(worktree, relative));
       if (!bookkeepingTextAllowed(bytes)) throw new Error(`bookkeeping snapshot must contain bounded text: ${relative}`);
       new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       workingHash = hash5(bytes);
@@ -26572,7 +26699,7 @@ async function assertStash(record3, oid) {
   }
 }
 async function signedRunsReadOnly(dataRoot) {
-  const names = await directoryNames(path15.join(dataRoot, "run-revisions")), legacy = await directoryNames(path15.join(dataRoot, "runs")), marks = await directoryNames(path15.join(dataRoot, "run-watermarks"));
+  const names = await directoryNames(path16.join(dataRoot, "run-revisions")), legacy = await directoryNames(path16.join(dataRoot, "runs")), marks = await directoryNames(path16.join(dataRoot, "run-watermarks"));
   const ids = [...new Set([...names.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1]), ...legacy.map((name) => /^(.*)\.json$/.exec(name)?.[1]), ...marks.map((name) => /^(.*)-[0-9]+\.json$/.exec(name)?.[1])].filter((id) => Boolean(id)))], runs = [];
   for (const id of ids) {
     idValue(id);
@@ -26608,10 +26735,10 @@ async function assertExpectedBinding(worktree, expected) {
 
 // src/merge-workflow.ts
 init_authority();
-import { createHash as createHash14, randomUUID as randomUUID4 } from "node:crypto";
+import { createHash as createHash15, randomUUID as randomUUID4 } from "node:crypto";
 import os4 from "node:os";
-import { lstat as lstat8, readFile as readFile9, readdir as readdir10, realpath as realpath6 } from "node:fs/promises";
-import path17 from "node:path";
+import { lstat as lstat9, readFile as readFile10, readdir as readdir10, realpath as realpath7 } from "node:fs/promises";
+import path18 from "node:path";
 init_lifecycle();
 init_workspace();
 
@@ -26621,25 +26748,25 @@ init_lifecycle();
 init_workspace();
 init_worktree_storage();
 init_output_retention();
-import { createHash as createHash13, randomUUID as randomUUID3 } from "node:crypto";
-import { lstat as lstat7, mkdir as mkdir3, readFile as readFile8, readdir as readdir9, realpath as realpath5, writeFile as writeFile5 } from "node:fs/promises";
-import path16 from "node:path";
+import { createHash as createHash14, randomUUID as randomUUID3 } from "node:crypto";
+import { lstat as lstat8, mkdir as mkdir3, readFile as readFile9, readdir as readdir9, realpath as realpath6, writeFile as writeFile5 } from "node:fs/promises";
+import path17 from "node:path";
 import os3 from "node:os";
-var digest8 = (value) => createHash13("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
-var same = (a, b) => process.platform === "win32" ? path16.resolve(a).toLowerCase() === path16.resolve(b).toLowerCase() : path16.resolve(a) === path16.resolve(b);
+var digest8 = (value) => createHash14("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
+var same = (a, b) => process.platform === "win32" ? path17.resolve(a).toLowerCase() === path17.resolve(b).toLowerCase() : path17.resolve(a) === path17.resolve(b);
 var within = (root, child) => {
-  const relative = path16.relative(path16.resolve(root), path16.resolve(child));
-  return relative === "" || !relative.startsWith(".." + path16.sep) && relative !== ".." && !path16.isAbsolute(relative);
+  const relative = path17.relative(path17.resolve(root), path17.resolve(child));
+  return relative === "" || !relative.startsWith(".." + path17.sep) && relative !== ".." && !path17.isAbsolute(relative);
 };
 var missing = (error2) => error2?.code === "ENOENT";
 var cleanupId = (registration, head) => digest8(`${storageRegistrationId(registration.common_git_dir, registration.worktree_path)}\0${head}`);
-var branchLeaseId = (common, branch) => digest8(`${path16.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
-var evidenceDirectory = (dataRoot, id) => path16.join(dataRoot, "worktree-evidence", id);
+var branchLeaseId = (common, branch) => digest8(`${path17.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var evidenceDirectory = (dataRoot, id) => path17.join(dataRoot, "worktree-evidence", id);
 var budget = 16 * 1024 * 1024;
 var generated2 = /* @__PURE__ */ new Set(["library", "temp", "logs", "build", "builds", "dist", "artifacts", "node_modules", "bin", "obj", "coverage", ".captain-proof"]);
 async function exists2(file) {
   try {
-    await lstat7(file);
+    await lstat8(file);
     return true;
   } catch (error2) {
     if (missing(error2)) return false;
@@ -26647,18 +26774,18 @@ async function exists2(file) {
   }
 }
 async function safeAncestors(file) {
-  for (let cursor = path16.resolve(file); ; cursor = path16.dirname(cursor)) {
+  for (let cursor = path17.resolve(file); ; cursor = path17.dirname(cursor)) {
     try {
-      if ((await lstat7(cursor)).isSymbolicLink()) throw new Error("cleanup path crosses a reparse point");
+      if ((await lstat8(cursor)).isSymbolicLink()) throw new Error("cleanup path crosses a reparse point");
     } catch (error2) {
       if (!missing(error2)) throw error2;
     }
-    if (cursor === path16.dirname(cursor)) break;
+    if (cursor === path17.dirname(cursor)) break;
   }
 }
 function relativeFile(value) {
   const normalized2 = value.replaceAll("\\", "/");
-  if (!normalized2 || path16.isAbsolute(value) || /^[A-Za-z]:/.test(value) || normalized2.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git") || value.includes("\0")) throw new Error("retained evidence requires a safe relative path");
+  if (!normalized2 || path17.isAbsolute(value) || /^[A-Za-z]:/.test(value) || normalized2.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git") || value.includes("\0")) throw new Error("retained evidence requires a safe relative path");
   return normalized2;
 }
 async function readOptional(root, bucket3, id) {
@@ -26679,16 +26806,16 @@ async function readWorktreeCleanupCompletion(dataRoot, registration, head) {
 }
 async function validateArchive(dataRoot, plan) {
   for (const item of plan.evidence) {
-    const file = path16.join(evidenceDirectory(dataRoot, plan.cleanup_id), relativeFile(item.relative));
+    const file = path17.join(evidenceDirectory(dataRoot, plan.cleanup_id), relativeFile(item.relative));
     await safeAncestors(file);
-    const content = await readFile8(file);
+    const content = await readFile9(file);
     if (content.length !== item.bytes || digest8(content) !== item.sha256) throw new Error("retained worktree proof archive changed");
   }
 }
 async function retainedWorktreeHead(dataRoot, registration) {
   let names;
   try {
-    names = await readdir9(path16.join(dataRoot, "worktree-cleanup-completions"));
+    names = await readdir9(path17.join(dataRoot, "worktree-cleanup-completions"));
   } catch (error2) {
     if (missing(error2)) return void 0;
     throw error2;
@@ -26704,9 +26831,9 @@ async function archiveEvidence(dataRoot, id, root, requested) {
   const files = /* @__PURE__ */ new Map();
   let bytes = 0, directories = 0;
   async function collect(relative) {
-    const full = path16.join(root, relative);
+    const full = path17.join(root, relative);
     await safeAncestors(full);
-    const info = await lstat7(full);
+    const info = await lstat8(full);
     if (info.isDirectory()) {
       if (++directories > 4096) throw new Error("required compact proof exceeds the directory retention budget");
       for (const name of (await readdir9(full)).sort()) {
@@ -26717,7 +26844,7 @@ async function archiveEvidence(dataRoot, id, root, requested) {
       if (files.has(relative)) return;
       if (files.size >= 2048) throw new Error("required compact proof exceeds the 2048-file retention budget");
       if (bytes + info.size > budget) throw new Error("required compact proof exceeds the 16 MiB retention budget; preserve it explicitly before cleanup");
-      const content = await readFile8(full);
+      const content = await readFile9(full);
       bytes += content.length;
       if (bytes > budget) throw new Error("required proof changed beyond the retention budget");
       files.set(relative, content);
@@ -26727,14 +26854,14 @@ async function archiveEvidence(dataRoot, id, root, requested) {
     const relative = relativeFile(raw.replace(/\/$/, ""));
     await collect(relative);
   }
-  for (const relative of [".captain-sdlc/tasks", ".captain-sdlc/handoffs", ".captain-sdlc/closeouts", ".captain-sdlc/notebook"]) if (await exists2(path16.join(root, relative))) await collect(relative);
+  for (const relative of [".captain-sdlc/tasks", ".captain-sdlc/handoffs", ".captain-sdlc/closeouts", ".captain-sdlc/notebook"]) if (await exists2(path17.join(root, relative))) await collect(relative);
   const manifest = [];
   for (const [relative, content] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
-    const full = path16.join(evidenceDirectory(dataRoot, id), relative);
+    const full = path17.join(evidenceDirectory(dataRoot, id), relative);
     await safeAncestors(full);
-    await mkdir3(path16.dirname(full), { recursive: true });
+    await mkdir3(path17.dirname(full), { recursive: true });
     if (await exists2(full)) {
-      if (!(await readFile8(full)).equals(content)) throw new Error("retained proof conflicts with an existing cleanup attempt");
+      if (!(await readFile9(full)).equals(content)) throw new Error("retained proof conflicts with an existing cleanup attempt");
     } else await writeFile5(full, content, { flag: "wx", mode: 384 });
     manifest.push({ relative, sha256: digest8(content), bytes: content.length });
   }
@@ -26752,22 +26879,22 @@ async function walkSafety(root, dir = root) {
       if (!same(root, dir)) throw new Error("worktree contains a nested Git repository");
       continue;
     }
-    const full = path16.join(dir, item.name), info = await lstat7(full);
+    const full = path17.join(dir, item.name), info = await lstat8(full);
     if (info.isSymbolicLink()) {
-      const destination = await realpath5(full);
+      const destination = await realpath6(full);
       if (!within(root, destination)) throw new Error("worktree contains an external reparse point");
     } else if (info.isDirectory()) await walkSafety(root, full);
   }
 }
 async function sameContent(left, right) {
   try {
-    const a = await lstat7(left), b = await lstat7(right);
+    const a = await lstat8(left), b = await lstat8(right);
     if (a.isSymbolicLink() || b.isSymbolicLink()) return false;
-    if (a.isFile() && b.isFile()) return a.size === b.size && digest8(await readFile8(left)) === digest8(await readFile8(right));
+    if (a.isFile() && b.isFile()) return a.size === b.size && digest8(await readFile9(left)) === digest8(await readFile9(right));
     if (!a.isDirectory() || !b.isDirectory()) return false;
     const aa = (await readdir9(left)).sort(), bb = (await readdir9(right)).sort();
     if (digest8(aa) !== digest8(bb)) return false;
-    for (const name of aa) if (!await sameContent(path16.join(left, name), path16.join(right, name))) return false;
+    for (const name of aa) if (!await sameContent(path17.join(left, name), path17.join(right, name))) return false;
     return true;
   } catch (error2) {
     if (missing(error2)) return false;
@@ -26792,12 +26919,12 @@ async function assertIgnoredDataSafe(registration, evidence, outputRoots) {
   async function check2(relative) {
     const parts = relative.toLowerCase().split("/"), comparable = comparison(relative);
     if (parts.some((part) => generated2.has(part)) || classified.some((item) => comparable === item || comparable.startsWith(item + "/")) || /^\.captain-sdlc\/(tasks|handoffs|closeouts|notebook)(\/|$)/i.test(relative)) return;
-    const full = path16.join(registration.worktree_path, relative);
-    if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat7(full)).isDirectory()) {
+    const full = path17.join(registration.worktree_path, relative);
+    if (classified.some((item) => item.startsWith(comparable + "/")) && (await lstat8(full)).isDirectory()) {
       for (const name of await readdir9(full)) await check2(relative + "/" + name);
       return;
     }
-    if (await sameContent(full, path16.join(registration.project_root, relative))) return;
+    if (await sameContent(full, path17.join(registration.project_root, relative))) return;
     throw new Error(`unclassified ignored content requires preservation before cleanup: ${relative}`);
   }
   for (const raw of ignored2) await check2(raw.replaceAll("\\", "/").replace(/\/$/, ""));
@@ -26807,7 +26934,7 @@ async function completedOwners(dataRoot, root, intentId) {
   if ((await lifecycle.doctor()).activeRuns.some((owner) => same(owner.worktreePath, root))) throw new Error("worktree has an unfinished Captain task");
   let names;
   try {
-    names = await readdir9(path16.join(dataRoot, "run-revisions"));
+    names = await readdir9(path17.join(dataRoot, "run-revisions"));
   } catch (error2) {
     if (missing(error2)) names = [];
     else throw error2;
@@ -26844,7 +26971,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       if (!/^[0-9a-f]{40,64}$/i.test(head)) throw new Error("cleanup requires an exact integrated commit");
       const verified = await readWorktreeRegistration(dataRoot, registration.common_git_dir, root);
       if (!verified || digest8(verified) !== digest8(registration)) throw new Error("worktree has no matching future creation registration");
-      if (!same(target.commonGitDir, registration.common_git_dir) || same(root, registration.project_root) || within(root, targetWorktree) || within(root, dataRoot) || !same(path16.dirname(root), path16.join(registration.project_root, ".captain-sdlc", "worktrees"))) throw new Error("cleanup path is outside its exact canonical task checkout");
+      if (!same(target.commonGitDir, registration.common_git_dir) || same(root, registration.project_root) || within(root, targetWorktree) || within(root, dataRoot) || !same(path17.dirname(root), path17.join(registration.project_root, ".captain-sdlc", "worktrees"))) throw new Error("cleanup path is outside its exact canonical task checkout");
       if (!same(await primaryRepositoryRoot(targetWorktree, registration.common_git_dir), registration.project_root)) throw new Error("cleanup primary repository binding diverged");
       await safeAncestors(root);
       await safeAncestors(dataRoot);
@@ -26881,7 +27008,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
         if (await exists2(root) || (await registeredTrees(targetWorktree)).some((tree) => same(tree.path, root))) throw new Error("a checkout reappeared after cleanup; preserve its replacement identity");
         result.removed_worktrees.push(root);
         (result.removed_heads ??= {})[root] = head;
-        result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+        result.evidence_root = path17.join(dataRoot, "worktree-evidence");
         continue;
       }
       const plan = await readOptional(dataRoot, "worktree-cleanup-plans", id);
@@ -26893,7 +27020,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
         await readWorktreeCleanupCompletion(dataRoot, registration, head);
         result.removed_worktrees.push(root);
         (result.removed_heads ??= {})[root] = head;
-        result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+        result.evidence_root = path17.join(dataRoot, "worktree-evidence");
         continue;
       }
       const validate = async () => {
@@ -26905,7 +27032,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
         await completedOwners(dataRoot, root, registration.intent_id);
         await assertWorktreeBinding(root, registration.branch, registration.common_git_dir, head, true, registration.git_dir);
         for (const marker of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_LOG", "BISECT_START", "rebase-merge", "rebase-apply", "sequencer", "index.lock"]) {
-          if (await exists2(path16.join(registration.git_dir, marker))) throw new Error(`worktree has an unfinished Git operation or lock: ${marker}`);
+          if (await exists2(path17.join(registration.git_dir, marker))) throw new Error(`worktree has an unfinished Git operation or lock: ${marker}`);
         }
         const entries2 = await registeredTrees(targetWorktree), selected = entries2.find((tree) => same(tree.path, root));
         if (!selected || selected.locked) throw new Error("worktree is missing or locked");
@@ -26921,7 +27048,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       let removal = plan;
       if (removal) {
         if (digest8(removal.registration) !== digest8(registration) || removal.head !== head || !same(removal.target_worktree, targetWorktree)) throw new Error("cleanup retry cannot adopt a replacement worktree");
-        for (const evidence of removal.evidence) if (digest8(await readFile8(path16.join(root, evidence.relative))) !== evidence.sha256) throw new Error("source proof changed after the cleanup journal");
+        for (const evidence of removal.evidence) if (digest8(await readFile9(path17.join(root, evidence.relative))) !== evidence.sha256) throw new Error("source proof changed after the cleanup journal");
         await validateArchive(dataRoot, removal);
       } else {
         const evidence = await archiveEvidence(dataRoot, id, root, evidencePaths);
@@ -26930,7 +27057,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
           cleanup_id: id,
           registration,
           head,
-          target_worktree: path16.resolve(targetWorktree),
+          target_worktree: path17.resolve(targetWorktree),
           target_branch: target.branch,
           target_common_git_dir: target.commonGitDir,
           target_head: target.head,
@@ -26945,7 +27072,7 @@ async function cleanupRegisteredWorktrees(dataRoot, targetWorktree, candidates, 
       await readWorktreeCleanupCompletion(dataRoot, registration, head);
       result.removed_worktrees.push(root);
       (result.removed_heads ??= {})[root] = head;
-      result.evidence_root = path16.join(dataRoot, "worktree-evidence");
+      result.evidence_root = path17.join(dataRoot, "worktree-evidence");
     } catch (error2) {
       result.retained_worktrees.push({ worktree: root, reason: error2.message });
     } finally {
@@ -26966,18 +27093,18 @@ var MergeWorkflowError = class extends Error {
     this.name = "MergeWorkflowError";
   }
 };
-var hash6 = (text2) => createHash14("sha256").update(text2).digest("hex");
+var hash6 = (text2) => createHash15("sha256").update(text2).digest("hex");
 var digest9 = (value) => hash6(JSON.stringify(value));
-var samePath8 = (left, right) => process.platform === "win32" ? path17.resolve(left).toLowerCase() === path17.resolve(right).toLowerCase() : path17.resolve(left) === path17.resolve(right);
+var samePath8 = (left, right) => process.platform === "win32" ? path18.resolve(left).toLowerCase() === path18.resolve(right).toLowerCase() : path18.resolve(left) === path18.resolve(right);
 var safeId3 = (id) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("unsafe merge id");
   return id;
 };
 var relativePath = (value) => {
-  if (!value || value.includes("\0") || path17.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
+  if (!value || value.includes("\0") || path18.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value)) throw new Error("dependency input must use a safe repository-relative path");
   return value.replaceAll("\\", "/");
 };
-var resourceId = (common, branch) => hash6(`${path17.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
+var resourceId = (common, branch) => hash6(`${path18.resolve(common)}\0refs/heads/${branch}`.toLowerCase());
 var MergeWorkflowStore = class {
   constructor(dataRoot, runner = gateRunner) {
     this.dataRoot = dataRoot;
@@ -26988,7 +27115,7 @@ var MergeWorkflowStore = class {
     this.session(args.session_id);
     const source = await readOnlyBinding(args.source_worktree), target = await readOnlyBinding(args.target_worktree, args.target_branch, source.commonGitDir);
     if (samePath8(source.topLevel, target.topLevel) || source.branch === target.branch) throw new Error("merge diagnosis requires distinct source and target worktree/branch bindings");
-    const revisions = await directoryNames2(path17.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path17.join(this.dataRoot, "merge-watermarks"));
+    const revisions = await directoryNames2(path18.join(this.dataRoot, "merge-revisions")), watermarks = await directoryNames2(path18.join(this.dataRoot, "merge-watermarks"));
     const ids = [...new Set([...revisions, ...watermarks].map((name) => /^([A-Za-z0-9_-]+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))].sort();
     const operations = [];
     for (const id of ids) {
@@ -27019,7 +27146,7 @@ var MergeWorkflowStore = class {
           record3 = await this.read(mergeId);
           this.match(record3, args);
         } else {
-          const sourceRoot = path17.resolve(args.source_worktree), targetRoot = path17.resolve(args.target_worktree);
+          const sourceRoot = path18.resolve(args.source_worktree), targetRoot = path18.resolve(args.target_worktree);
           if (samePath8(sourceRoot, targetRoot)) throw new Error("Merge Prep needs distinct source and target worktrees");
           const source = await assertWorktreeBinding(sourceRoot, void 0, void 0, void 0, !args.finalization?.source), target = await assertWorktreeBinding(targetRoot, args.target_branch, source.commonGitDir, void 0, !args.finalization?.target);
           if (source.branch === target.branch) throw new Error("source and target branches must differ");
@@ -27307,7 +27434,7 @@ var MergeWorkflowStore = class {
   }
   async historicalRepository(record3) {
     try {
-      await lstat8(record3.target_worktree);
+      await lstat9(record3.target_worktree);
       await assertWorktreeBinding(record3.target_worktree, record3.target_branch, record3.target_binding.commonGitDir, void 0, false, record3.target_binding.gitDir);
       return record3.target_worktree;
     } catch (error2) {
@@ -27337,7 +27464,7 @@ var MergeWorkflowStore = class {
       if (required2) selected.push(relative);
       else {
         try {
-          await lstat8(path17.join(record3.source_worktree, relative));
+          await lstat9(path18.join(record3.source_worktree, relative));
           selected.push(relative);
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
@@ -27351,13 +27478,13 @@ var MergeWorkflowStore = class {
     const add = async (root, head, evidencePaths = [], outputRoots = []) => {
       const registration = await readWorktreeRegistration(this.dataRoot, common, root);
       if (!registration) return;
-      const key3 = storageRegistrationId(common, root), existing = candidates.get(key3);
+      const key4 = storageRegistrationId(common, root), existing = candidates.get(key4);
       if (existing && existing.head !== head && !samePath8(root, record3.source_worktree)) existing.retentionReason = "predecessor has conflicting completed heads; preserve its ambiguous checkout";
-      if (!existing) candidates.set(key3, { registration, head, evidencePaths, outputRoots });
+      if (!existing) candidates.set(key4, { registration, head, evidencePaths, outputRoots });
     };
     await add(record3.source_worktree, this.deliveryInputs(record3).source.head, await this.compactEvidence(record3), Object.values(record3.captured_policy.outputRetention?.roots ?? {}).flat());
     if (!candidates.size) return [];
-    const names = await directoryNames2(path17.join(this.dataRoot, "merge-revisions"));
+    const names = await directoryNames2(path18.join(this.dataRoot, "merge-revisions"));
     const ids = [...new Set(names.map((name) => /^(.*)-0\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)))];
     const merged = [];
     for (const id of ids) {
@@ -27749,7 +27876,7 @@ var MergeWorkflowStore = class {
   }
   async read(id) {
     safeId3(id);
-    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir10(path17.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
+    const expression = new RegExp(`^${id}-([0-9]+)\\.json$`), names = await readdir10(path18.join(this.dataRoot, "merge-revisions")), revisions = names.map((name) => expression.exec(name)).filter(Boolean).map((match) => Number(match[1])).sort((a, b) => a - b);
     if (!revisions.length) throw new Error("signed merge workflow was not found");
     let previous;
     for (let index = 0; index < revisions.length; index++) {
@@ -27760,7 +27887,7 @@ var MergeWorkflowStore = class {
       await this.watermark(current);
       previous = current;
     }
-    const watermarkNames = await readdir10(path17.join(this.dataRoot, "merge-watermarks"));
+    const watermarkNames = await readdir10(path18.join(this.dataRoot, "merge-watermarks"));
     if (watermarkNames.some((name) => {
       const match = expression.exec(name);
       return match && Number(match[1]) > previous.revision;
@@ -27778,14 +27905,14 @@ async function directoryNames2(directory) {
   }
 }
 async function readOnlyBinding(worktree, expectedBranch, expectedCommonGitDir) {
-  const owned = path17.resolve(worktree), real = await realpath6(owned);
+  const owned = path18.resolve(worktree), real = await realpath7(owned);
   if (!samePath8(real, owned)) throw new Error("worktree path resolves through a reparse point");
   const readGit2 = (args) => git(["--no-optional-locks", ...args], owned);
-  const topLevel = path17.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
+  const topLevel = path18.resolve(await readGit2(["rev-parse", "--show-toplevel"]));
   if (!samePath8(topLevel, owned)) throw new Error("Git top-level does not match the requested worktree");
   const branch = await readGit2(["symbolic-ref", "--quiet", "--short", "HEAD"]);
   if (!branch || expectedBranch !== void 0 && branch !== expectedBranch) throw new Error("worktree symbolic target branch binding diverged");
-  const commonGitDir = path17.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path17.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
+  const commonGitDir = path18.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path18.resolve(await readGit2(["rev-parse", "--path-format=absolute", "--git-dir"]));
   if (expectedCommonGitDir && !samePath8(commonGitDir, expectedCommonGitDir)) throw new Error("worktree common Git repository binding diverged");
   const head = await readGit2(["rev-parse", "--verify", "HEAD^{commit}"]);
   if (head !== await readGit2(["rev-parse", "--verify", `refs/heads/${branch}^{commit}`])) throw new Error("worktree branch ref binding diverged");
@@ -27812,7 +27939,7 @@ async function assertNoOperation2(cwd, allowMerge = false) {
     if (name === "MERGE_HEAD" && allowMerge) continue;
     const file = await git(["rev-parse", "--path-format=absolute", "--git-path", name], cwd);
     try {
-      await lstat8(file);
+      await lstat9(file);
       throw new Error(`preexisting Git operation ${name} must be resolved by its owner`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
@@ -27834,9 +27961,9 @@ function excluded(relative, policy) {
 async function metadataInputs(cwd, policy, volatilePaths) {
   const files = (await git(["ls-files", "--others", "-z"], cwd)).split("\0").filter((relative) => relative.toLowerCase().endsWith(".meta") && !excluded(relative, policy) && !volatilePaths.has(relative.toLowerCase())).sort(), values = [];
   for (const relative of files) {
-    const info = await lstat8(path17.join(cwd, relative));
+    const info = await lstat9(path18.join(cwd, relative));
     if (info.isSymbolicLink() || !info.isFile()) throw new Error(`dependency metadata must be a regular file: ${relative}`);
-    values.push(`${relative}:${hash6(await readFile9(path17.join(cwd, relative)))}`);
+    values.push(`${relative}:${hash6(await readFile10(path18.join(cwd, relative)))}`);
   }
   return digest9(values);
 }
@@ -27844,15 +27971,15 @@ async function contentDigest(root, volatile = [], sharedPackage = false) {
   const values = [];
   const generated3 = /* @__PURE__ */ new Set(["library", "temp", "logs", "artifacts", "obj", "bin", "node_modules"]);
   async function walk(full, relative) {
-    const info = await lstat8(full);
+    const info = await lstat9(full);
     if (info.isSymbolicLink()) throw new Error(`dependency input crosses a reparse point: ${full}`);
     if (volatile.includes(relative)) return;
     if (info.isDirectory()) {
       for (const entry of (await readdir10(full, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
         if (entry.name === ".git" || sharedPackage && !relative && generated3.has(entry.name.toLowerCase())) continue;
-        await walk(path17.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
+        await walk(path18.join(full, entry.name), relative ? `${relative}/${entry.name}` : entry.name);
       }
-    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile9(full))}`);
+    } else if (info.isFile()) values.push(`${relative}:${hash6(await readFile10(full))}`);
     else throw new Error(`dependency input is not a regular file or directory: ${full}`);
   }
   await walk(root, "");
@@ -27864,10 +27991,10 @@ async function captureInputs(cwd, policy) {
   const dependencies = [], volatilePaths = /* @__PURE__ */ new Set(), lockText = await committedFile(cwd, source.head, ".captain-sdlc/dependency-lock.json"), lock = lockText ? JSON.parse(lockText) : void 0;
   if (lock?.inputs !== void 0 && !Array.isArray(lock.inputs)) throw new Error("dependency lock inputs must be an array");
   for (const input of lock?.inputs ?? []) {
-    const relative = relativePath(input.path), full = path17.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
+    const relative = relativePath(input.path), full = path18.resolve(cwd, relative), volatile = (input.volatile_paths ?? []).map((item) => relativePath(item));
     for (const item of volatile) volatilePaths.add(`${relative}/${item}`.toLowerCase());
-    if (!samePath8(full, path17.join(cwd, relative)) || path17.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
-    if (!samePath8(full, await realpath6(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
+    if (!samePath8(full, path18.join(cwd, relative)) || path18.relative(cwd, full).startsWith("..")) throw new Error("locked dependency escapes source worktree");
+    if (!samePath8(full, await realpath7(full))) throw new Error(`locked dependency crosses a reparse point: ${relative}`);
     dependencies.push({ kind: "locked-input", path: relative, ...await contentDigest(full, volatile) });
   }
   const manifestText = await committedFile(cwd, source.head, "Packages/manifest.json");
@@ -27877,16 +28004,16 @@ async function captureInputs(cwd, policy) {
       if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
       const supplied = spec.slice(5);
       if (!supplied || supplied.includes("\0")) throw new Error(`local dependency path is invalid: ${name}`);
-      const full = path17.resolve(path17.join(cwd, "Packages"), supplied), canonical = await realpath6(full);
+      const full = path18.resolve(path18.join(cwd, "Packages"), supplied), canonical = await realpath7(full);
       if (!samePath8(full, canonical)) throw new Error(`local dependency path crosses a reparse point: ${name}`);
-      const info = await lstat8(full);
+      const info = await lstat9(full);
       let gitState;
       const normalize = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
       const expected = (lock?.local_packages ?? []).find((entry) => normalize(name).endsWith(normalize(entry.name)));
       let ownGit = false;
       if (info.isDirectory()) {
         try {
-          await lstat8(path17.join(full, ".git"));
+          await lstat9(path18.join(full, ".git"));
           ownGit = true;
         } catch (error2) {
           if (error2.code !== "ENOENT") throw error2;
@@ -27940,10 +28067,10 @@ init_authority();
 init_workspace();
 init_lifecycle();
 init_run_validation();
-import { createHash as createHash15, randomUUID as randomUUID5 } from "node:crypto";
-import { lstat as lstat9, readdir as readdir11, realpath as realpath7 } from "node:fs/promises";
+import { createHash as createHash16, randomUUID as randomUUID5 } from "node:crypto";
+import { lstat as lstat10, readdir as readdir11, realpath as realpath8 } from "node:fs/promises";
 import os5 from "node:os";
-import path18 from "node:path";
+import path19 from "node:path";
 init_begin_diagnostic_adapter();
 var FailedBeginVerificationError = class extends Error {
   constructor(details) {
@@ -27951,14 +28078,14 @@ var FailedBeginVerificationError = class extends Error {
     this.details = details;
   }
 };
-var hash7 = (value) => createHash15("sha256").update(value).digest("hex");
+var hash7 = (value) => createHash16("sha256").update(value).digest("hex");
 var digest10 = (value) => hash7(JSON.stringify(value));
-var samePath9 = (a, b) => path18.resolve(a).toLowerCase() === path18.resolve(b).toLowerCase();
+var samePath9 = (a, b) => path19.resolve(a).toLowerCase() === path19.resolve(b).toLowerCase();
 var safeId4 = (id) => {
   if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error("unsafe lease recovery id");
   return id;
 };
-var resourceId2 = (binding) => hash7(`${path18.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
+var resourceId2 = (binding) => hash7(`${path19.resolve(binding.commonGitDir)}\0refs/heads/${binding.branch}`.toLowerCase());
 var generation2 = (id, revision, payload) => digest10({ leaseId: id, revision, state: "held", payload });
 var gateId = (intent) => `begin-attempt-${hash7(intent)}`;
 var signedBuckets = [
@@ -28096,7 +28223,7 @@ var BranchLeaseRecoveryStore = class {
     try {
       evidence = await lifecycle.readBeginCancellationEvidence(selection.old_intent_id);
     } catch (error2) {
-      const bucket3 = typeof error2.path === "string" ? path18.basename(path18.dirname(error2.path)) : void 0;
+      const bucket3 = typeof error2.path === "string" ? path19.basename(path19.dirname(error2.path)) : void 0;
       throw new FailedBeginVerificationError({ refusal_code: "original_checkpoint_read_failed", error_class: error2.code === "ENOENT" ? "missing_checkpoint" : "untrusted_checkpoint", ...bucket3 && signedBuckets.includes(bucket3) ? { checkpoint_bucket: bucket3 } : {} });
     }
     const intent = evidence.intent, operation = evidence.operation;
@@ -28118,7 +28245,7 @@ var BranchLeaseRecoveryStore = class {
       original_lease_id_matches: evidence.lease.leaseId === id,
       original_lease_token_matches: evidence.lease.leaseToken === lease.payload.leaseToken
     };
-    if (Object.entries(resourceFlags).some(([key3, value]) => key3 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
+    if (Object.entries(resourceFlags).some(([key4, value]) => key4 !== "original_oid_matches_current_head" && !value) || typeof intent.sessionId !== "string" || typeof intent.projectRoot !== "string") throw new FailedBeginVerificationError({ refusal_code: "original_resource_binding_mismatch", original_session_match: relation, resource_binding_matches: false, ...resourceFlags });
     const original = { intent_id: selection.old_intent_id, session_id: intent.sessionId, project_root: intent.projectRoot, target_worktree: binding.topLevel, target_branch: binding.branch, expected_lease_revision: selection.expected_lease_revision, resource_generation: selection.resource_generation };
     const diagnosis = await createBeginDiagnosticAdapter(this.dataRoot)(original);
     const later = diagnosis.later_state;
@@ -28221,7 +28348,7 @@ var BranchLeaseRecoveryStore = class {
       let owner = "unknown";
       if (p) owner = p.ownerPid === void 0 && p.ownerHost === void 0 ? "legacy" : typeof p.ownerHost !== "string" || !Number.isSafeInteger(p.ownerPid) || p.ownerPid <= 0 ? "unknown" : p.ownerHost.toLowerCase() !== os5.hostname().toLowerCase() ? "foreign_host" : stopped(p.ownerPid) ? "stopped" : "live";
       const mergeOwner = p?.intentId === v.merge_id, originalOwner = p?.intentId === evidence.intent.intentId, integration = ["integration", "integration-branch", "integration-worktree"].includes(String(p?.operation));
-      const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key3) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key3)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
+      const legacyShape = Boolean(p && expected && owner === "legacy" && Object.keys(p).every((key4) => ["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key4)) && typeof p.intentId === "string" && /^[A-Za-z0-9_-]+$/.test(p.intentId) && typeof p.leaseToken === "string" && p.leaseToken && (p.operationToken === void 0 || typeof p.operationToken === "string" && /^[A-Za-z0-9_-]+$/.test(p.operationToken)) && typeof p.commonGitDir === "string" && typeof p.targetBranch === "string" && typeof p.targetOid === "string" && /^[0-9a-f]{40,64}$/i.test(p.targetOid));
       let legacyBinding = Boolean(legacyShape && typeof expected.commonGitDir === "string" && typeof expected.branch === "string" && samePath9(p.commonGitDir, expected.commonGitDir) && p.targetBranch === expected.branch);
       if (legacyBinding) {
         try {
@@ -28246,7 +28373,7 @@ var BranchLeaseRecoveryStore = class {
         owner_state: owner
       };
     };
-    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path18.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
+    const resource = (saved) => saved && typeof saved.commonGitDir === "string" && typeof saved.branch === "string" ? hash7(`${path19.resolve(saved.commonGitDir)}\0refs/heads/${saved.branch}`.toLowerCase()) : void 0;
     const [sourceBinding2, targetBinding, operationLease, sourceResource, targetResource] = await Promise.all([
       savedMergeBindingDiagnostic(v.source_worktree, v.source_binding, binding),
       savedMergeBindingDiagnostic(v.target_worktree, v.target_binding, binding),
@@ -28300,7 +28427,7 @@ var BranchLeaseRecoveryStore = class {
     const embedded = v.finalizations === void 0 ? [] : v.finalizations;
     if (!requests || typeof requests !== "object" || Array.isArray(requests) || !Array.isArray(embedded) || Object.keys(requests).some((side) => !["source", "target"].includes(side))) return refused;
     const receipts = /* @__PURE__ */ new Map(), worktreeIds = /* @__PURE__ */ new Set();
-    const request2 = (value) => ({ worktree: path18.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
+    const request2 = (value) => ({ worktree: path19.resolve(value.worktree), session_id: value.session_id, task_id: value.task_id, paths: [...value.paths].sort(), subject: value.subject, disposition: value.disposition });
     try {
       for (const item of embedded) {
         if (!item || typeof item.finalization_id !== "string" || !/^[A-Za-z0-9_-]+$/.test(item.finalization_id) || receipts.has(item.finalization_id) || typeof item.worktree !== "string") return refused;
@@ -28308,9 +28435,9 @@ var BranchLeaseRecoveryStore = class {
         if (sides.length !== 1) return refused;
         const saved = v[sides[0] + "_binding"];
         const receipt = await new BookkeepingFinalizationStore(this.dataRoot).status({ finalization_id: item.finalization_id, session_id: v.session_id, worktree: item.worktree });
-        if (digest10(item) !== digest10(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest10(request2(receipt)) || receipt.policy_sha256 !== digest10(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key3) => samePath9(receipt.before[key3], saved[key3])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
+        if (digest10(item) !== digest10(receipt) || !Array.isArray(receipt.paths) || !receipt.paths.length || receipt.paths.some((p) => typeof p !== "string") || new Set(receipt.paths).size !== receipt.paths.length || !["commit", "stash"].includes(receipt.disposition) || receipt.request_sha256 !== digest10(request2(receipt)) || receipt.policy_sha256 !== digest10(v.captured_policy) || receipt.before.branch !== saved.branch || !["topLevel", "commonGitDir", "gitDir"].every((key4) => samePath9(receipt.before[key4], saved[key4])) || receipt.state !== (receipt.disposition === "stash" ? "stashed" : "committed")) return refused;
         receipts.set(receipt.finalization_id, receipt);
-        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path18.resolve(saved.commonGitDir) + "\0" + path18.resolve(saved.gitDir)).toLowerCase()));
+        worktreeIds.add(hash7(("bookkeeping-worktree\0" + path19.resolve(saved.commonGitDir) + "\0" + path19.resolve(saved.gitDir)).toLowerCase()));
       }
       const currentIds = /* @__PURE__ */ new Set();
       for (const [side, pending] of Object.entries(requests)) {
@@ -28334,7 +28461,7 @@ var BranchLeaseRecoveryStore = class {
       intent_id: safeId4(lease.payload.intentId),
       revision: lease.revision,
       legacy_storage: lease.legacy,
-      payload_fields: Object.keys(lease.payload).filter((key3) => !["intentId", "leaseToken"].includes(key3) && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key3)).sort()
+      payload_fields: Object.keys(lease.payload).filter((key4) => !["intentId", "leaseToken"].includes(key4) && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(key4)).sort()
     };
     const marker = await this.marker(lease.payload.intentId);
     const pending = marker ?? await this.journal(lease.payload.intentId);
@@ -28429,7 +28556,7 @@ var BranchLeaseRecoveryStore = class {
     let recordedRootMatches = false;
     if (typeof intent?.projectRoot === "string") {
       try {
-        recordedRootMatches = samePath9(await realpath7(intent.projectRoot), intent.projectRoot) && samePath9(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
+        recordedRootMatches = samePath9(await realpath8(intent.projectRoot), intent.projectRoot) && samePath9(await readGit(intent.projectRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), binding.commonGitDir);
       } catch {
       }
     }
@@ -28440,7 +28567,7 @@ var BranchLeaseRecoveryStore = class {
       operation_reference: matching.some(operationMatches),
       session_match: sessionMatch,
       recorded_root_matches_repository: recordedRootMatches,
-      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path18.resolve(intent.projectRoot), target_worktree: path18.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
+      ...exactCaller ? { next_tool: "captain_begin_diagnose", args: { intent_id: owner.intentId, session_id: args.session_id, project_root: path19.resolve(intent.projectRoot), target_worktree: path19.resolve(intent.projectRoot), target_branch: binding.branch } } : {}
     };
   }
   async marker(intent) {
@@ -28457,7 +28584,7 @@ var BranchLeaseRecoveryStore = class {
   async inspect(binding, selectedId, lease, marker, ownGuard) {
     const owner = lease.payload;
     if (!/^intent-[A-Za-z0-9_-]+$/.test(owner.intentId)) return "nonlegacy_resource_owner";
-    if (Object.keys(owner).some((key3) => !["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key3))) return "owner_metadata_present";
+    if (Object.keys(owner).some((key4) => !["intentId", "leaseToken", "operationToken", "commonGitDir", "targetBranch", "targetOid"].includes(key4))) return "owner_metadata_present";
     if (typeof owner.leaseToken !== "string" || !owner.leaseToken) throw new Error("signed branch lease token is invalid");
     if (owner.operationToken !== void 0 && (typeof owner.operationToken !== "string" || owner.operationToken.length > 256 || !/^[A-Za-z0-9_-]+$/.test(owner.operationToken))) return "lease_binding_mismatch";
     if (lease.legacy && (typeof owner.commonGitDir !== "string" || typeof owner.targetBranch !== "string" || typeof owner.targetOid !== "string")) return "unbound_legacy_storage";
@@ -28475,9 +28602,9 @@ var BranchLeaseRecoveryStore = class {
     const selectors = [owner.intentId, ...typeof owner.operationToken === "string" ? [owner.operationToken] : []];
     if (entries2.some((entry) => selectors.some((selector) => entry.id === selector || contains2(entry.value, selector)))) return "surviving_authority";
     if (entries2.some((entry) => ownerApplies(entry, binding) && isActive(entry))) return "active_worktree_owner";
-    const names = [...await directoryNames3(path18.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path18.join(this.dataRoot, "lease-watermarks"))];
+    const names = [...await directoryNames3(path19.join(this.dataRoot, "lease-revisions")), ...await directoryNames3(path19.join(this.dataRoot, "lease-watermarks"))];
     const ids = new Set(names.map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
-    for (const name of await directoryNames3(path18.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
+    for (const name of await directoryNames3(path19.join(this.dataRoot, "leases"))) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
     for (const id of ids) {
       if (id === selectedId) continue;
       const current = await readAuthorizedLeaseSnapshotReadOnly(this.dataRoot, safeId4(id));
@@ -28523,7 +28650,7 @@ function request(args) {
 }
 function normalizeDiagnostic(args) {
   for (const [name, value] of Object.entries(args)) if (typeof value !== "string" || !value.trim() || value.length > 4096) throw new Error(`lease recovery ${name} is invalid`);
-  return { project_root: path18.resolve(args.project_root), target_worktree: path18.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
+  return { project_root: path19.resolve(args.project_root), target_worktree: path19.resolve(args.target_worktree), target_branch: args.target_branch, session_id: args.session_id };
 }
 function normalizeRequest(args) {
   const base = normalizeDiagnostic({ project_root: args.project_root, target_worktree: args.target_worktree, target_branch: args.target_branch, session_id: args.session_id });
@@ -28540,9 +28667,9 @@ function selectionMatches(binding, id, lease, args, allowReleased) {
 }
 var readGit = (cwd, args) => git(["--no-optional-locks", ...args], cwd);
 async function readBinding(args) {
-  const root = path18.resolve(args.project_root), target = path18.resolve(args.target_worktree);
-  for (const location of [root, target]) if (!samePath9(await realpath7(location), location) || !samePath9(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
-  const commonGitDir = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+  const root = path19.resolve(args.project_root), target = path19.resolve(args.target_worktree);
+  for (const location of [root, target]) if (!samePath9(await realpath8(location), location) || !samePath9(await readGit(location, ["rev-parse", "--show-toplevel"]), location)) throw new Error("lease recovery worktree path binding is invalid");
+  const commonGitDir = path19.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
   if (!samePath9(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]), commonGitDir)) throw new Error("lease recovery project_root must be the primary repository checkout");
   if (!samePath9(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-common-dir"]), commonGitDir)) throw new Error("lease recovery target belongs to another Git repository");
   const branch = await readGit(target, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(target, ["rev-parse", "--verify", "HEAD^{commit}"]);
@@ -28550,13 +28677,13 @@ async function readBinding(args) {
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
     const file = await readGit(target, ["rev-parse", "--path-format=absolute", "--git-path", name]);
     try {
-      await lstat9(file);
+      await lstat10(file);
       throw new Error(`lease recovery refuses unfinished Git operation ${name}`);
     } catch (error2) {
       if (error2.code !== "ENOENT") throw error2;
     }
   }
-  return { projectRoot: root, branch, head, commonGitDir, gitDir: path18.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
+  return { projectRoot: root, branch, head, commonGitDir, gitDir: path19.resolve(await readGit(target, ["rev-parse", "--path-format=absolute", "--git-dir"])), topLevel: target };
 }
 async function directoryNames3(directory) {
   try {
@@ -28570,9 +28697,9 @@ async function hasTaskWorkspaceFootprint(binding, intentId) {
   const refs = (await readGit(binding.topLevel, ["for-each-ref", "--format=%(refname)"])).split(/\r?\n/);
   if (refs.includes(`refs/heads/captain/${safeId4(intentId)}`)) return true;
   const worktrees = await readGit(binding.topLevel, ["worktree", "list", "--porcelain"]);
-  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path18.basename(line.slice(9)) === intentId)) return true;
+  if (worktrees.split(/\r?\n/).some((line) => line.startsWith("worktree ") && path19.basename(line.slice(9)) === intentId)) return true;
   try {
-    await lstat9(path18.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
+    await lstat10(path19.join(binding.projectRoot, ".captain-sdlc", "worktrees", intentId));
     return true;
   } catch (error2) {
     if (error2.code !== "ENOENT") throw error2;
@@ -28606,8 +28733,8 @@ function ownerApplies(entry, binding) {
 function targetOwnerDiagnostic(entry, entries2, binding, evidence) {
   const v = entry.value;
   const references = ["intentId", "runId", "operationToken"];
-  const supplied = references.filter((key3) => typeof v[key3] === "string");
-  const correlated = entries2.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && isSupportedRunSchema(candidate.value) && supplied.length && supplied.every((key3) => key3 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key3]) : candidate.value[key3] === v[key3]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
+  const supplied = references.filter((key4) => typeof v[key4] === "string");
+  const correlated = entries2.filter((candidate) => !candidate.historical && ["runs", "run-revisions"].includes(candidate.bucket) && isSupportedRunSchema(candidate.value) && supplied.length && supplied.every((key4) => key4 === "operationToken" ? [candidate.value.operationToken, candidate.value.activationToken].includes(v[key4]) : candidate.value[key4] === v[key4]) && (typeof v.sessionId !== "string" || candidate.value.sessionId === v.sessionId));
   const run = correlated.length === 1 ? correlated[0] : void 0;
   const verified = Boolean(run && ["tdd_red", "implement", "prove", "hitl", "complete"].includes(run.value.phase) && ["running", "paused", "green", "red"].includes(run.value.status));
   const commonMatches = typeof v.commonGitDir === "string" && samePath9(v.commonGitDir, binding.commonGitDir);
@@ -28629,7 +28756,7 @@ function targetOwnerDiagnostic(entry, entries2, binding, evidence) {
   };
 }
 async function savedMergeBindingDiagnostic(location, saved, selected) {
-  const shape = typeof location === "string" && saved && ["topLevel", "branch", "commonGitDir", "gitDir", "head"].every((key3) => typeof saved[key3] === "string" && saved[key3]) && /^[0-9a-f]{40,64}$/i.test(saved.head);
+  const shape = typeof location === "string" && saved && ["topLevel", "branch", "commonGitDir", "gitDir", "head"].every((key4) => typeof saved[key4] === "string" && saved[key4]) && /^[0-9a-f]{40,64}$/i.test(saved.head);
   const basic = {
     read_verified: false,
     schema_recognized: Boolean(shape),
@@ -28642,14 +28769,14 @@ async function savedMergeBindingDiagnostic(location, saved, selected) {
   };
   if (!shape) return basic;
   try {
-    const root = await realpath7(location), top = path18.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path18.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
+    const root = await realpath8(location), top = path19.resolve(await readGit(root, ["rev-parse", "--show-toplevel"])), common = path19.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])), gitDir = path19.resolve(await readGit(root, ["rev-parse", "--path-format=absolute", "--git-dir"]));
     const branch = await readGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]), head = await readGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]);
     const exists3 = await readGit(root, ["rev-parse", "--verify", `${saved.head}^{commit}`]) === saved.head;
     let pending = false;
     for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
       const file = await readGit(root, ["rev-parse", "--path-format=absolute", "--git-path", name]);
       try {
-        await lstat9(file);
+        await lstat10(file);
         pending = true;
       } catch (error2) {
         if (error2.code !== "ENOENT") throw error2;
@@ -28698,7 +28825,7 @@ function stopped(pid) {
   }
 }
 async function leaseInventory(root) {
-  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path18.join(root, bucket3))));
+  const [revisions, watermarks, projections] = await Promise.all(["lease-revisions", "lease-watermarks", "leases"].map((bucket3) => directoryNames3(path19.join(root, bucket3))));
   const ids = new Set([...revisions, ...watermarks].map((name) => /^(.+)-[0-9]+\.json$/.exec(name)?.[1]).filter((id) => Boolean(id)));
   for (const name of projections) if (name.endsWith(".json")) ids.add(name.slice(0, -5));
   const snapshots = await Promise.all([...ids].map(async (id) => ({ id: safeId4(id), snapshot: await readAuthorizedLeaseSnapshotReadOnly(root, safeId4(id)) })));
@@ -28709,7 +28836,7 @@ async function inventory(root) {
   for (const bucket3 of signedBuckets) {
     const map = /* @__PURE__ */ new Map();
     byBucket.set(bucket3, map);
-    for (const name of await directoryNames3(path18.join(root, bucket3))) {
+    for (const name of await directoryNames3(path19.join(root, bucket3))) {
       if (!name.endsWith(".json")) continue;
       const id = safeId4(name.slice(0, -5)), value = await readAuthorizedReadOnly(root, bucket3, id);
       if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("signed lease recovery authority record is invalid");
@@ -28755,6 +28882,7 @@ async function inventory(root) {
 }
 
 // src/server.ts
+var taskIdSchema = external_exports.string().regex(/^[A-Za-z0-9._#-]+$/);
 var beginDependencies = { repositoryIdentity, loadPolicy, ensureWorktree };
 async function captainBegin(store, { intent_id, objective, project_root, task_id, plan_paths, hitl_checks, client_pid, close_token_hash }, dependencies = beginDependencies) {
   if (close_token_hash && client_pid === void 0) throw new Error("client close capability requires a real client PID");
@@ -28817,16 +28945,16 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
   if (action2 === "start" && resume_of) throw new Error("start action conflicts with resume selector");
   const issued = await store.issueIdempotentIntent({ sessionId: session_id, turnId: turn_id, projectRoot: project_root, prompt, taskId: task_id, resumeOf: resume_of, targetBranch: target_branch, action: action2, requestKind: request_kind, sourceRequestId: source_request_id, ...source ? { adapterPrompt } : {} }, async () => {
     if (!resume_of && task_id && action2 !== "start") {
-      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path19.resolve(run.projectRoot) === path19.resolve(project_root));
+      const selected = (await store.doctor()).activeRuns.filter((run) => run.taskId === task_id && path20.resolve(run.projectRoot) === path20.resolve(project_root));
       const candidates = await Promise.all(selected.map((run) => store.status(run.intentId)));
-      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path19.resolve(run.projectRoot) === path19.resolve(project_root));
+      const matching = candidates.filter((run) => (run.status !== "green" || isPendingPlanReview(run)) && run.taskId === task_id && path20.resolve(run.projectRoot) === path20.resolve(project_root));
       if (matching.length > 1) throw new Error("task resume is ambiguous; supply resume_of for the intended run");
       resume_of = matching[0]?.intentId;
     }
     if (action2 === "resume" && !resume_of) throw new Error("no unfinished run found; supply task_id or resume_of");
     if (resume_of) {
       const run = await store.status(resume_of);
-      if (run.status === "green" && !isPendingPlanReview(run) || path19.resolve(run.projectRoot) !== path19.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
+      if (run.status === "green" && !isPendingPlanReview(run) || path20.resolve(run.projectRoot) !== path20.resolve(project_root)) throw new Error("resume target is completed or belongs to a different project");
       if (task_id && run.taskId !== task_id) throw new Error("resume task_id conflicts with the existing run");
       if (target_branch && run.branch !== target_branch) throw new Error("resume target branch conflicts with the existing worktree");
       if (run.status !== "paused" && run.status !== "green" && run.sessionId !== session_id) {
@@ -28845,7 +28973,7 @@ async function captainIssueIntent(store, { session_id, turn_id, project_root, pr
       await repositoryIdentity(project_root, target_branch, targetOid);
     }
     const intentId2 = `intent-${randomUUID6()}`;
-    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path19.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
+    return { intentId: intentId2, issuedAt: source?.recordedAt ?? (/* @__PURE__ */ new Date()).toISOString(), sessionId: session_id, turnId: turn_id, projectRoot: path20.resolve(project_root), prompt, ...task_id ? { taskId: task_id } : {}, ...resume_of ? { resumeOf: resume_of } : {}, ...targetOid ? { targetBranch: target_branch, targetOid } : {} };
   });
   const intentId = issued.intentId;
   resume_of = issued.resumeOf;
@@ -28866,7 +28994,7 @@ async function captainResume(store, resumeIntentId, dependencies = resumeDepende
   if (client.close_token_hash && client.client_pid === void 0) throw new Error("client close capability requires a real client PID");
   const run = await store.resumeTarget(resumeIntentId), prepared = run.preparedCommit;
   if (run.terminalCommit && prepared) {
-    await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final });
+    await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final, ...prepared.breakingDescription !== void 0 ? { breakingDescription: prepared.breakingDescription } : {} });
   } else if (prepared) {
     const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, false, run.gitDir);
     if (binding.head !== prepared.preCommitHead && binding.head !== prepared.candidate) {
@@ -28885,16 +29013,16 @@ async function captainResume(store, resumeIntentId, dependencies = resumeDepende
   return store.status(resumed.intentId);
 }
 var commitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
-async function captainCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
+async function captainCommit(store, { intent_id, paths, subject, task_outcome, final, breaking_description }, dependencies = commitDependencies) {
   if (!final && task_outcome === "Completes") throw new Error("an intermediate phase commit cannot complete the governed task");
-  const request2 = { paths, subject, taskOutcome: task_outcome, final }, completed = await store.completedCommitFor(intent_id, request2);
+  const request2 = { paths, subject, taskOutcome: task_outcome, final, ...breaking_description !== void 0 ? { breakingDescription: breaking_description } : {} }, completed = await store.completedCommitFor(intent_id, request2);
   if (completed) return completed;
   const mutation = await store.acquireWorktreeMutation(intent_id, "commit", request2);
   let run = await store.status(intent_id);
   try {
     if (run.preparedCommit) {
       const prepared = run.preparedCommit, operation2 = await store.commitOperationFor(intent_id, request2);
-      if (JSON.stringify(prepared.paths) !== JSON.stringify(paths) || prepared.subject !== subject || prepared.taskOutcome !== task_outcome || prepared.final !== final) throw new Error("prepared commit recovery requires the exact approved commit request");
+      if (JSON.stringify(prepared.paths) !== JSON.stringify(paths) || prepared.subject !== subject || prepared.taskOutcome !== task_outcome || prepared.final !== final || prepared.breakingDescription !== breaking_description) throw new Error("prepared commit recovery requires the exact approved commit request");
       const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, false, run.gitDir);
       if (binding.head === prepared.preCommitHead) await dependencies.applyPreparedCommit(run.worktreePath, prepared, run.branch, run.commonGitDir, run.gitDir, async (value) => {
         await store.assertWorktreeMutation(intent_id, mutation);
@@ -28909,10 +29037,10 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
     const operation = await store.acquireCommitOperation(intent_id, request2);
     run = await store.status(intent_id);
     const expectedHead = executionHead(run);
-    await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, (prepared) => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final }, operation).then(() => void 0), (prepared) => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => void 0), void 0, async (prepared) => {
+    await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, (prepared) => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final, ...breaking_description !== void 0 ? { breakingDescription: breaking_description } : {} }, operation).then(() => void 0), (prepared) => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => void 0), void 0, async (prepared) => {
       await store.assertWorktreeMutation(intent_id, mutation);
       await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request2));
-    });
+    }, breaking_description);
     const committed = await store.recordCommit(intent_id, await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head), final);
     await store.releaseWorktreeMutation(intent_id, mutation);
     return committed;
@@ -28925,11 +29053,16 @@ async function captainCommit(store, { intent_id, paths, subject, task_outcome, f
   }
 }
 var mergeDependencies = { prepareMerge, abortMerge, preparedMergeState, assertWorktreeBinding, reconcilePreparedMerge };
-async function captainReconcileAuthorizedCommit(store, { intent_id, paths, subject, task_outcome, final }, dependencies = commitDependencies) {
+async function captainReconcileAuthorizedCommit(store, { intent_id, paths, subject, task_outcome, final, breaking_description }, dependencies = commitDependencies) {
   const run = await store.status(intent_id);
   await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, true, run.gitDir);
-  const request2 = { paths, subject, taskOutcome: task_outcome, final };
+  const request2 = { paths, subject, taskOutcome: task_outcome, final, ...breaking_description !== void 0 ? { breakingDescription: breaking_description } : {} };
   const evidence = await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head);
+  if (run.policy.commit?.mode === "branch_driven" || breaking_description !== void 0) {
+    const message = await (dependencies.git ?? git)(["show", "-s", "--format=%B", evidence.head], run.worktreePath);
+    const descriptions = [...message.matchAll(/^BREAKING(?: CHANGE|-CHANGE):[ \t]*(.+)$/gm)].map((match) => match[1].trim());
+    if (descriptions.length !== (breaking_description === void 0 ? 0 : 1) || breaking_description !== void 0 && descriptions[0] !== breaking_description) throw new Error("reconciled commit breaking description differs from signed request");
+  }
   return store.reconcileAuthorizedCommit(intent_id, request2, evidence);
 }
 async function captainPrepareMerge(store, { intent_id, commit_oid, strategy }, dependencies = mergeDependencies) {
@@ -28961,12 +29094,12 @@ async function captainAbortMerge(store, { intent_id }, dependencies = mergeDepen
   return discarded;
 }
 async function startCaptainMcp() {
-  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path19.join(process.env.CODEX_HOME || path19.join(os6.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
+  const dataRoot = process.env.CAPTAIN_PLUGIN_DATA || process.env.CODEX_PLUGIN_DATA || process.env.PLUGIN_DATA || path20.join(process.env.CODEX_HOME || path20.join(os6.homedir(), ".codex"), "plugins", "data", "captain-sdlc-personal");
   const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessionOwner });
   const merges = new MergeWorkflowStore(dataRoot, gateRunner);
   const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
   const finalizations = new BookkeepingFinalizationStore(dataRoot);
-  const server = new McpServer({ name: "captain-sdlc", version: "0.10.13" });
+  const server = new McpServer({ name: "captain-sdlc", version: "0.11.0" });
   const reply = (value) => ({ content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value });
   const guarded = (operation) => operation().then(reply).catch((error2) => ({ isError: true, content: [{ type: "text", text: error2.message }] }));
   const guardedFinalization = (operation, args) => operation().then(reply).catch((error2) => {
@@ -28991,11 +29124,11 @@ async function startCaptainMcp() {
     } : void 0;
     return { isError: true, content: [{ type: "text", text: error2.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error2.message, ...merge_id ? { merge_id } : {}, ...next_step ? { next_step } : {} } };
   });
-  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), client_pid: external_exports.number().int().positive().optional(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
+  server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: external_exports.string(), objective: external_exports.string(), project_root: external_exports.string(), client_pid: external_exports.number().int().positive().optional(), close_token_hash: external_exports.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: taskIdSchema.optional(), plan_paths: external_exports.array(external_exports.string().min(1)).optional(), hitl_checks: external_exports.array(external_exports.object({ id: external_exports.string().trim().min(1), criterionId: external_exports.string().trim().min(1), setup: external_exports.string().trim().min(1), action: external_exports.string().trim().min(1), expected: external_exports.string().trim().min(1), evidence: external_exports.string().trim().min(1) })).optional() } }, async (args) => guarded(async () => {
     const run = await captainBegin(store, args, { ...beginDependencies, storageDataRoot: dataRoot });
     return { ...run, effective_gates: effectiveGateDisclosure(run) };
   }));
-  server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional(), request_kind: external_exports.enum(["instruction", "goal"]).optional(), source_request_id: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
+  server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: external_exports.string().min(1).max(256), turn_id: external_exports.string().min(1).max(256), project_root: external_exports.string().min(1), prompt: external_exports.string().min(1).max(12e3), task_id: taskIdSchema.optional(), resume_of: external_exports.string().optional(), target_branch: external_exports.string().min(1).optional(), action: external_exports.enum(["start", "resume"]).optional(), request_kind: external_exports.enum(["instruction", "goal"]).optional(), source_request_id: external_exports.string().regex(/^[a-f0-9]{64}$/).optional() } }, async (args) => guarded(() => captainIssueIntent(store, args)));
   const interruptionSchema = {
     intent_id: external_exports.string(),
     session_id: external_exports.string().min(1).max(256),
@@ -29119,7 +29252,7 @@ async function startCaptainMcp() {
   const finalizationSelectionSchema = external_exports.object({
     paths: external_exports.array(external_exports.string().min(1)).min(1),
     subject: external_exports.string().min(1),
-    task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/),
+    task_id: taskIdSchema,
     disposition: external_exports.enum(["commit", "stash"]),
     finalization_id: external_exports.string().regex(/^[A-Za-z0-9_-]+$/).optional()
   }).strict();
@@ -29141,7 +29274,7 @@ async function startCaptainMcp() {
       target_branch: external_exports.string().min(1),
       merge_id: external_exports.string().optional(),
       finalization: mergeFinalizationSchema,
-      commit: external_exports.object({ paths: external_exports.array(external_exports.string().min(1)).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: external_exports.string().regex(/^[A-Za-z0-9._-]+$/).optional() }).optional()
+      commit: external_exports.object({ paths: external_exports.array(external_exports.string().min(1)).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: taskIdSchema.optional() }).optional()
     }
   };
   for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
@@ -29177,14 +29310,14 @@ async function startCaptainMcp() {
   }, async (args) => guardedMerge(() => merges.recoverStaleLease(args), args));
   server.registerTool("captain_prepare_merge", { description: "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.", inputSchema: { intent_id: external_exports.string(), commit_oid: external_exports.string().regex(/^[0-9a-f]{40,64}$/i), strategy: external_exports.enum(["ort", "ours"]).default("ort") } }, async (args) => guarded(() => captainPrepareMerge(store, args)));
   server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => captainAbortMerge(store, args)));
-  server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string(), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainCommit(store, args)));
+  server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string(), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), breaking_description: external_exports.string().min(1).max(2e3).regex(/^[^\r\n\x00-\x1f\x7f]+$/).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainCommit(store, args)));
   server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, changelog, task-trailer, and first-parent phase boundary.", inputSchema: { intent_id: external_exports.string() } }, async ({ intent_id }) => guarded(async () => {
     const run = await store.status(intent_id);
     if (run.targetBranch) throw new Error("governed target integrations must create commits through captain_commit");
     await assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, void 0, true, run.gitDir);
     return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head));
   }));
-  server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainReconcileAuthorizedCommit(store, args)));
+  server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: external_exports.string(), paths: external_exports.array(external_exports.string()).min(1), subject: external_exports.string().min(1), task_outcome: external_exports.enum(["Implements", "Completes", "Needs-QA"]).optional(), breaking_description: external_exports.string().min(1).max(2e3).regex(/^[^\r\n\x00-\x1f\x7f]+$/).optional(), final: external_exports.boolean().default(true) } }, async (args) => guarded(() => captainReconcileAuthorizedCommit(store, args)));
   server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: external_exports.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
   server.registerTool("captain_record_hitl_feedback", { description: "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.", inputSchema: { intent_id: external_exports.string(), decision: external_exports.enum(["accept", "needs_changes"]), human_feedback: external_exports.string().min(1).max(12e3), check_ids: external_exports.array(external_exports.string()).min(1).max(50), evidence_references: external_exports.array(external_exports.string().min(1).max(2e3)).max(50), reviewed_revision: external_exports.string().regex(/^[0-9a-f]{40,64}$/i).optional() } }, async ({ intent_id, decision, human_feedback, check_ids, evidence_references, reviewed_revision }) => guarded(async () => {
     const run = await store.recordHitlFeedback(intent_id, { decision, humanFeedback: human_feedback, checkIds: check_ids, evidenceReferences: evidence_references, ...reviewed_revision ? { reviewedRevision: reviewed_revision } : {} });
@@ -29200,7 +29333,7 @@ async function startCaptainMcp() {
   }));
   await server.connect(new StdioServerTransport());
 }
-if (process.argv[1] && path19.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
+if (process.argv[1] && path20.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await startCaptainMcp();
 export {
   captainAbortMerge,
   captainBegin,
@@ -29211,5 +29344,6 @@ export {
   captainPrepareMerge,
   captainReconcileAuthorizedCommit,
   captainResume,
-  startCaptainMcp
+  startCaptainMcp,
+  taskIdSchema
 };

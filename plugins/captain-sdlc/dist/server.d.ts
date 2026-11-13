@@ -1,7 +1,9 @@
 import { captainCancelFailedBegin } from "./failed-begin-cancellation.js";
+import { z } from "zod";
 import { LifecycleStore, type HitlCheck } from "./lifecycle.js";
 import { git } from "./workspace.js";
 import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, ensureWorktree, loadPolicy, prepareMerge, preparedMergeState, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity } from "./workspace.js";
+export declare const taskIdSchema: z.ZodString;
 export type CaptainBeginStage = "reservation" | "lease-acquired" | "worktree-created" | "run" | "permit" | "active";
 export type ClientOwnerArgs = {
     client_pid?: number;
@@ -85,6 +87,7 @@ export type CaptainCommitArgs = {
     subject: string;
     task_outcome?: "Implements" | "Completes" | "Needs-QA";
     final: boolean;
+    breaking_description?: string;
 };
 export type CaptainResumeDependencies = {
     assertWorktreeBinding: typeof assertWorktreeBinding;
@@ -99,7 +102,7 @@ export type CaptainCommitDependencies = {
     commitEvidence: typeof commitEvidence;
     reconcilePreparedCommit: typeof reconcilePreparedCommit;
 };
-export declare function captainCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final }: CaptainCommitArgs, dependencies?: CaptainCommitDependencies): Promise<import("./lifecycle.js").Run>;
+export declare function captainCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final, breaking_description }: CaptainCommitArgs, dependencies?: CaptainCommitDependencies): Promise<import("./lifecycle.js").Run>;
 export type CaptainMergeDependencies = {
     prepareMerge: typeof prepareMerge;
     abortMerge: typeof abortMerge;
@@ -107,7 +110,9 @@ export type CaptainMergeDependencies = {
     assertWorktreeBinding: typeof assertWorktreeBinding;
     reconcilePreparedMerge: typeof reconcilePreparedMerge;
 };
-export declare function captainReconcileAuthorizedCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final }: CaptainCommitArgs, dependencies?: Pick<CaptainCommitDependencies, "assertWorktreeBinding" | "commitEvidence">): Promise<import("./lifecycle.js").Run>;
+export declare function captainReconcileAuthorizedCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final, breaking_description }: CaptainCommitArgs, dependencies?: Pick<CaptainCommitDependencies, "assertWorktreeBinding" | "commitEvidence"> & {
+    git?: typeof git;
+}): Promise<import("./lifecycle.js").Run>;
 export declare function captainPrepareMerge(store: LifecycleStore, { intent_id, commit_oid, strategy }: {
     intent_id: string;
     commit_oid: string;

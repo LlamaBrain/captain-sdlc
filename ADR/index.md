@@ -26,3 +26,5 @@
 
 - [ADR-0023: Independent review and Core authority](0023-independent-review-core-authority.md)
 - [ADR-0024: Revision-bound PR review lifecycle](0024-pr-review-lifecycle-authority.md)
+
+- [ADR-0025: Branch-driven release manufacturing](0025-branch-driven-release-manufacturing.md)

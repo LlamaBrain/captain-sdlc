@@ -14,6 +14,7 @@ import { extractAuthorizedTargetBranch, extractCaptainResumeIntent } from "./int
 import { git } from "./workspace.js";
 import { abortMerge, applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, ensureWorktree, gateRunner, loadPolicy, prepareMerge, preparedMergeState, reconcilePreparedCommit, reconcilePreparedMerge, repositoryIdentity, sourceState } from "./workspace.js";
 import { BranchLeaseRecoveryStore } from "./branch-lease-recovery.js";
+export const taskIdSchema = z.string().regex(/^[A-Za-z0-9._#-]+$/);
 export type CaptainBeginStage = "reservation" | "lease-acquired" | "worktree-created" | "run" | "permit" | "active";
 export type ClientOwnerArgs = { client_pid?: number; close_token_hash?: string };
 export type CaptainBeginArgs = ClientOwnerArgs & { intent_id: string; objective: string; project_root: string; task_id?: string; plan_paths?: string[]; hitl_checks?: HitlCheck[] };
@@ -103,14 +104,14 @@ async function bindClientOwner(store: LifecycleStore, run: { intentId: string; s
     await store.bindSessionOwner(run.intentId, run.sessionId, owner);
   }
 }
-export type CaptainCommitArgs = { intent_id: string; paths: string[]; subject: string; task_outcome?: "Implements" | "Completes" | "Needs-QA"; final: boolean };
+export type CaptainCommitArgs = { intent_id: string; paths: string[]; subject: string; task_outcome?: "Implements" | "Completes" | "Needs-QA"; final: boolean; breaking_description?: string };
 export type CaptainResumeDependencies = { assertWorktreeBinding: typeof assertWorktreeBinding; git: typeof git; commitEvidence: typeof commitEvidence };
 const resumeDependencies: CaptainResumeDependencies = { assertWorktreeBinding, git, commitEvidence };
 export async function captainResume(store: LifecycleStore, resumeIntentId: string, dependencies: CaptainResumeDependencies = resumeDependencies, client: ClientOwnerArgs = {}) {
   if (client.close_token_hash && client.client_pid === undefined) throw new Error("client close capability requires a real client PID");
   const run = await store.resumeTarget(resumeIntentId), prepared = run.preparedCommit;
   if (run.terminalCommit && prepared) {
-    await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final });
+    await store.completedCommitFor(run.intentId, { paths: prepared.paths, subject: prepared.subject, taskOutcome: prepared.taskOutcome, final: prepared.final, ...(prepared.breakingDescription !== undefined ? { breakingDescription: prepared.breakingDescription } : {}) });
   } else if (prepared) {
     const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, undefined, false, run.gitDir);
     if (binding.head !== prepared.preCommitHead && binding.head !== prepared.candidate) {
@@ -130,13 +131,13 @@ export async function captainResume(store: LifecycleStore, resumeIntentId: strin
 }
 export type CaptainCommitDependencies = { applyPreparedCommit: typeof applyPreparedCommit; assertWorktreeBinding: typeof assertWorktreeBinding; commitAtomic: typeof commitAtomic; commitEvidence: typeof commitEvidence; reconcilePreparedCommit: typeof reconcilePreparedCommit };
 const commitDependencies: CaptainCommitDependencies = { applyPreparedCommit, assertWorktreeBinding, commitAtomic, commitEvidence, reconcilePreparedCommit };
-export async function captainCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final }: CaptainCommitArgs, dependencies: CaptainCommitDependencies = commitDependencies) {
+export async function captainCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final, breaking_description }: CaptainCommitArgs, dependencies: CaptainCommitDependencies = commitDependencies) {
   if (!final && task_outcome === "Completes") throw new Error("an intermediate phase commit cannot complete the governed task");
-  const request = { paths, subject, taskOutcome: task_outcome, final }, completed = await store.completedCommitFor(intent_id, request); if (completed) return completed; const mutation = await store.acquireWorktreeMutation(intent_id, "commit", request); let run = await store.status(intent_id);
+  const request = { paths, subject, taskOutcome: task_outcome, final, ...(breaking_description !== undefined ? { breakingDescription: breaking_description } : {}) }, completed = await store.completedCommitFor(intent_id, request); if (completed) return completed; const mutation = await store.acquireWorktreeMutation(intent_id, "commit", request); let run = await store.status(intent_id);
   try {
     if (run.preparedCommit) {
       const prepared = run.preparedCommit, operation = await store.commitOperationFor(intent_id, request);
-      if (JSON.stringify(prepared.paths) !== JSON.stringify(paths) || prepared.subject !== subject || prepared.taskOutcome !== task_outcome || prepared.final !== final) throw new Error("prepared commit recovery requires the exact approved commit request");
+      if (JSON.stringify(prepared.paths) !== JSON.stringify(paths) || prepared.subject !== subject || prepared.taskOutcome !== task_outcome || prepared.final !== final || prepared.breakingDescription !== breaking_description) throw new Error("prepared commit recovery requires the exact approved commit request");
       const binding = await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, undefined, false, run.gitDir);
       if (binding.head === prepared.preCommitHead) await dependencies.applyPreparedCommit(run.worktreePath, prepared, run.branch, run.commonGitDir, run.gitDir, async value => { await store.assertWorktreeMutation(intent_id, mutation); await store.assertPreparedCommitAuthority(intent_id, value, operation); });
       else if (binding.head === prepared.candidate) await dependencies.reconcilePreparedCommit(run.worktreePath, prepared, run.branch, run.commonGitDir, run.gitDir);
@@ -145,7 +146,7 @@ export async function captainCommit(store: LifecycleStore, { intent_id, paths, s
     }
     const operation = await store.acquireCommitOperation(intent_id, request);
     run = await store.status(intent_id); const expectedHead = executionHead(run);
-    await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, prepared => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final }, operation).then(() => undefined), prepared => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => undefined), undefined, async prepared => { await store.assertWorktreeMutation(intent_id, mutation); await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request)); });
+    await dependencies.commitAtomic(run.worktreePath, paths, subject, task_outcome, run.taskId, run.policy.commit, run.preparedMerges, run.branch, run.commonGitDir, expectedHead, run.gitDir, prepared => store.recordPreparedCommit(intent_id, { ...prepared, paths, subject, taskOutcome: task_outcome, final, ...(breaking_description !== undefined ? { breakingDescription: breaking_description } : {}) }, operation).then(() => undefined), prepared => store.discardPreparedCommit(intent_id, prepared.candidate).then(() => undefined), undefined, async prepared => { await store.assertWorktreeMutation(intent_id, mutation); await store.assertPreparedCommitAuthority(intent_id, prepared, await store.commitOperationFor(intent_id, request)); }, breaking_description);
     const committed = await store.recordCommit(intent_id, await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head), final); await store.releaseWorktreeMutation(intent_id, mutation); return committed;
   } catch (error) {
     const latest = await store.status(intent_id);
@@ -156,11 +157,16 @@ export async function captainCommit(store: LifecycleStore, { intent_id, paths, s
 }
 export type CaptainMergeDependencies = { prepareMerge: typeof prepareMerge; abortMerge: typeof abortMerge; preparedMergeState: typeof preparedMergeState; assertWorktreeBinding: typeof assertWorktreeBinding; reconcilePreparedMerge: typeof reconcilePreparedMerge };
 const mergeDependencies: CaptainMergeDependencies = { prepareMerge, abortMerge, preparedMergeState, assertWorktreeBinding, reconcilePreparedMerge };
-export async function captainReconcileAuthorizedCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final }: CaptainCommitArgs, dependencies: Pick<CaptainCommitDependencies, "assertWorktreeBinding" | "commitEvidence"> = commitDependencies) {
+export async function captainReconcileAuthorizedCommit(store: LifecycleStore, { intent_id, paths, subject, task_outcome, final, breaking_description }: CaptainCommitArgs, dependencies: Pick<CaptainCommitDependencies, "assertWorktreeBinding" | "commitEvidence"> & { git?: typeof git } = commitDependencies) {
   const run = await store.status(intent_id);
   await dependencies.assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, undefined, true, run.gitDir);
-  const request = { paths, subject, taskOutcome: task_outcome, final };
+  const request = { paths, subject, taskOutcome: task_outcome, final, ...(breaking_description !== undefined ? { breakingDescription: breaking_description } : {}) };
   const evidence = await dependencies.commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head);
+  if (run.policy.commit?.mode === "branch_driven" || breaking_description !== undefined) {
+    const message = await (dependencies.git ?? git)(["show", "-s", "--format=%B", evidence.head], run.worktreePath);
+    const descriptions = [...message.matchAll(/^BREAKING(?: CHANGE|-CHANGE):[ \t]*(.+)$/gm)].map(match => match[1].trim());
+    if (descriptions.length !== (breaking_description === undefined ? 0 : 1) || (breaking_description !== undefined && descriptions[0] !== breaking_description)) throw new Error("reconciled commit breaking description differs from signed request");
+  }
   return store.reconcileAuthorizedCommit(intent_id, request, evidence);
 }
 export async function captainPrepareMerge(store: LifecycleStore, { intent_id, commit_oid, strategy }: { intent_id: string; commit_oid: string; strategy: "ort" | "ours" }, dependencies: CaptainMergeDependencies = mergeDependencies) {
@@ -184,7 +190,7 @@ const store = new LifecycleStore(dataRoot, gateRunner, sourceState, { probeSessi
 const merges = new MergeWorkflowStore(dataRoot, gateRunner);
 const branchLeases = new BranchLeaseRecoveryStore(dataRoot);
 const finalizations = new BookkeepingFinalizationStore(dataRoot);
-const server = new McpServer({ name: "captain-sdlc", version: "0.10.13" });
+const server = new McpServer({ name: "captain-sdlc", version: "0.11.0" });
 const reply = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }], structuredContent: value as Record<string, unknown> });
 const guarded = <T>(operation: () => Promise<T>) => operation().then(reply).catch((error: Error) => ({ isError: true, content: [{ type: "text" as const, text: error.message }] }));
 const guardedFinalization = <T>(operation: () => Promise<T>, args: { finalization_id?: string; session_id: string; worktree: string }) => operation().then(reply).catch((error: Error) => {
@@ -203,8 +209,8 @@ const guardedMerge = <T>(operation: () => Promise<T>, args: { merge_id?: string;
   } : undefined;
   return { isError: true, content: [{ type: "text" as const, text: error.message + (next_step ? "\nInspect captain_merge_status with this same merge_id and session_id." : "") }], structuredContent: { error: error.message, ...(merge_id ? { merge_id } : {}), ...(next_step ? { next_step } : {}) } };
 });
-server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string(), client_pid: z.number().int().positive().optional(), close_token_hash: z.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), plan_paths: z.array(z.string().min(1)).optional(), hitl_checks: z.array(z.object({ id: z.string().trim().min(1), criterionId: z.string().trim().min(1), setup: z.string().trim().min(1), action: z.string().trim().min(1), expected: z.string().trim().min(1), evidence: z.string().trim().min(1) })).optional() } }, async args => guarded(async () => { const run = await captainBegin(store, args, { ...beginDependencies, storageDataRoot: dataRoot }); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
-server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional(), request_kind: z.enum(["instruction", "goal"]).optional(), source_request_id: z.string().regex(/^[a-f0-9]{64}$/).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
+server.registerTool("captain_begin_implementation", { description: "Mandatory first action for implementation requests. Consumes the hook-issued intent and creates or adopts its signed canonical target worktree.", inputSchema: { intent_id: z.string(), objective: z.string(), project_root: z.string(), client_pid: z.number().int().positive().optional(), close_token_hash: z.string().regex(/^[0-9a-f]{64}$/i).optional(), task_id: taskIdSchema.optional(), plan_paths: z.array(z.string().min(1)).optional(), hitl_checks: z.array(z.object({ id: z.string().trim().min(1), criterionId: z.string().trim().min(1), setup: z.string().trim().min(1), action: z.string().trim().min(1), expected: z.string().trim().min(1), evidence: z.string().trim().min(1) })).optional() } }, async args => guarded(async () => { const run = await captainBegin(store, args, { ...beginDependencies, storageDataRoot: dataRoot }); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
+server.registerTool("captain_issue_intent", { description: "Direct client-neutral fallback when a host command or hook cannot issue an intent after explicit user direction. Issues one signed start or resume intent for the supplied client session and turn; use task_id or resume_of to resume the existing run without allocating another worktree.", inputSchema: { session_id: z.string().min(1).max(256), turn_id: z.string().min(1).max(256), project_root: z.string().min(1), prompt: z.string().min(1).max(12000), task_id: taskIdSchema.optional(), resume_of: z.string().optional(), target_branch: z.string().min(1).optional(), action: z.enum(["start", "resume"]).optional(), request_kind: z.enum(["instruction", "goal"]).optional(), source_request_id: z.string().regex(/^[a-f0-9]{64}$/).optional() } }, async args => guarded(() => captainIssueIntent(store, args)));
 const interruptionSchema = {
   intent_id: z.string(), session_id: z.string().min(1).max(256),
   expected_run_revision: z.number().int().nonnegative(),
@@ -313,7 +319,7 @@ server.registerTool("captain_merge_diagnose", {
   inputSchema: { session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1) }
 }, async args => guarded(() => merges.diagnose(args)));
 const finalizationSelectionSchema = z.object({
-  paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/),
+  paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_id: taskIdSchema,
   disposition: z.enum(["commit", "stash"]), finalization_id: z.string().regex(/^[A-Za-z0-9_-]+$/).optional()
 }).strict();
 const mergeFinalizationSchema = z.object({ source: finalizationSelectionSchema.optional(), target: finalizationSelectionSchema.optional() }).strict().optional();
@@ -329,7 +335,7 @@ const mergePrepConfig = {
   description: "Merge Prep: pin and pull the local target into the existing source worktree, retain conflicts for resolution, run captured merge-policy checks after an authorized source commit, and stop at signed readiness with the target unchanged. Reuse merge_id to continue; readiness is separate from implementation Captain green.",
   inputSchema: {
     session_id: z.string().min(1).max(256), source_worktree: z.string().min(1), target_worktree: z.string().min(1), target_branch: z.string().min(1), merge_id: z.string().optional(), finalization: mergeFinalizationSchema,
-    commit: z.object({ paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: z.string().regex(/^[A-Za-z0-9._-]+$/).optional() }).optional()
+    commit: z.object({ paths: z.array(z.string().min(1)).min(1), subject: z.string().min(1), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), task_id: taskIdSchema.optional() }).optional()
   }
 };
 for (const name of ["captain_merge_prep", "captain_merge_begin"]) {
@@ -359,9 +365,9 @@ server.registerTool("captain_recover_merge_lease", {
 }, async args => guardedMerge(() => merges.recoverStaleLease(args), args));
 server.registerTool("captain_prepare_merge", { description: "Low-level audited no-commit implementation merge from a pinned full commit object id. Use captain_merge_prep for the complete Merge Prep workflow; this tool does not certify readiness or perform Merge Back.", inputSchema: { intent_id: z.string(), commit_oid: z.string().regex(/^[0-9a-f]{40,64}$/i), strategy: z.enum(["ort", "ours"]).default("ort") } }, async args => guarded(() => captainPrepareMerge(store, args)));
 server.registerTool("captain_abort_merge", { description: "Abort the latest signed merge, or reconcile an authorization left before Git started, and restore its clean pre-merge state.", inputSchema: { intent_id: z.string() } }, async args => guarded(() => captainAbortMerge(store, args)));
-server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string(), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: z.boolean().default(true) } }, async args => guarded(() => captainCommit(store, args)));
+server.registerTool("captain_commit", { description: "After explicit user approval, preflight and create one atomic Conventional Commit. Set final=false to validate an intermediate phase commit while keeping a multi-commit implementation open.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string(), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), breaking_description: z.string().min(1).max(2000).regex(/^[^\r\n\x00-\x1f\x7f]+$/).optional(), final: z.boolean().default(true) } }, async args => guarded(() => captainCommit(store, args)));
 server.registerTool("captain_record_commit", { description: "Validate the exact clean atomic Conventional Commit, SemVer, changelog, task-trailer, and first-parent phase boundary.", inputSchema: { intent_id: z.string() } }, async ({ intent_id }) => guarded(async () => { const run = await store.status(intent_id); if (run.targetBranch) throw new Error("governed target integrations must create commits through captain_commit"); await assertWorktreeBinding(run.worktreePath, run.branch, run.commonGitDir, undefined, true, run.gitDir); return store.recordCommit(intent_id, await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, run.preparedMerges, run.committedState?.head)); }));
-server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string().min(1), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), final: z.boolean().default(true) } }, async args => guarded(() => captainReconcileAuthorizedCommit(store, args)));
+server.registerTool("captain_reconcile_authorized_commit", { description: "Reconcile one externally-created commit only when the same active task has a signed discarded Captain commit operation and matching expressed user request. Accepts only an exact clean single-parent task commit on its own task branch; unprepared merge-target commits remain forbidden.", inputSchema: { intent_id: z.string(), paths: z.array(z.string()).min(1), subject: z.string().min(1), task_outcome: z.enum(["Implements", "Completes", "Needs-QA"]).optional(), breaking_description: z.string().min(1).max(2000).regex(/^[^\r\n\x00-\x1f\x7f]+$/).optional(), final: z.boolean().default(true) } }, async args => guarded(() => captainReconcileAuthorizedCommit(store, args)));
 server.registerTool("captain_prove", { description: "Run trusted scoped proof commands and bind trusted-policy build, smoke, and optional visual artifacts.", inputSchema: { intent_id: z.string() } }, async (args) => guarded(() => store.prove(args.intent_id)));
 server.registerTool("captain_record_hitl_feedback", { description: "Retain actual human feedback for declared HITL checks independently of automated proof. Does not complete the run or waive failed gates; recorded_source is receipt-time provenance, not a claim about the earlier reviewed state.", inputSchema: { intent_id: z.string(), decision: z.enum(["accept", "needs_changes"]), human_feedback: z.string().min(1).max(12000), check_ids: z.array(z.string()).min(1).max(50), evidence_references: z.array(z.string().min(1).max(2000)).max(50), reviewed_revision: z.string().regex(/^[0-9a-f]{40,64}$/i).optional() } }, async ({ intent_id, decision, human_feedback, check_ids, evidence_references, reviewed_revision }) => guarded(async () => { const run = await store.recordHitlFeedback(intent_id, { decision, humanFeedback: human_feedback, checkIds: check_ids, evidenceReferences: evidence_references, ...(reviewed_revision ? { reviewedRevision: reviewed_revision } : {}) }); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));
 server.registerTool("captain_record_plan_review", { description: "Record actual human feedback after signed proof is green. Copy the human feedback faithfully; never infer acceptance from agent tests or demonstrations. needs_changes retains HITL and records a bounded repair handoff.", inputSchema: { intent_id: z.string(), decision: z.enum(["accept", "needs_changes"]), human_feedback: z.string().trim().min(1) } }, async ({ intent_id, decision, human_feedback }) => guarded(async () => { const run = await store.recordPlanReview(intent_id, { decision, humanFeedback: human_feedback }); return { ...run, effective_gates: effectiveGateDisclosure(run) }; }));

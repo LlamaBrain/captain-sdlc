@@ -1,4 +1,7 @@
 # Captain SDLC — Seam 3: Release Gates
+
+> Supersession: [ADR-0025](ADR/0025-branch-driven-release-manufacturing.md) replaces universal human release confirmation and per-implementation release metadata mutation for adopted branch-driven policies. Preserve existing protected-branch, review, release-permission and exact-commit gates. The historical design below remains for provenance.
+
 Updated: 2026-04-08
 Version: 0.1.5
 

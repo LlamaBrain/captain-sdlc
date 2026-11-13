@@ -1,26 +1,29 @@
 # Captain SDLC enforcement contract
 
-This contract turns agent guidance into repository policy. Captain Orchestrator is the executable owner; consuming repositories select their version and changelog surfaces in `.captain-sdlc/project-policy.json`.
+Captain Orchestrator owns lifecycle enforcement. claude-release owns release computation, changelog manufacturing and release tags. Repositories configure their contract in .captain-sdlc/project-policy.json. [ADR-0025](ADR/0025-branch-driven-release-manufacturing.md) defines branch-driven adoption and supersession.
 
-## Implementation success
+## Verification and task identity
 
-An implementation run cannot enter `success` without a configured verification command returning zero. Verification evidence records the exact Git `HEAD`; approval rejects evidence from any other commit.
+Implementation success requires the configured verification command to return zero at the recorded exact Git revision. Approval rejects stale evidence. Preserve Implements:, Completes:, Needs-QA: and Captain-Run: relationships and the existing task identity. Review, compatibility adjudication, Git merge permission, release verification and publication are separate authorities.
 
-## Atomic phase boundary
+## Atomic implementation history
 
-Approval requires a clean worktree, a `HEAD` descended from the captured base, and one or more atomic first-parent implementation commits in `base..HEAD`. Every first-parent commit must independently satisfy the project commit contract. Imported side history is grandfathered only through a merge whose target object, pre-merge `HEAD`, and strategy were recorded in signed run state before the merge; Captain verifies the resulting parent vector. Approval never stages files or manufactures an aggregate implementation commit.
+Approval requires a clean owned worktree descended from its pinned base. Each implementation commit must satisfy the captured contract; imported history requires existing prepared-merge authority. Preserve the executable runtime's atomic-commit and protected-branch constraints. Do not infer permission to rewrite history or bypass a required review.
 
-## Commit contract
+## Exclusive commit modes
 
-Captain validates the Conventional Commit subject and version suffix, deterministic type-derived SemVer, every configured version surface, a changed changelog containing the version marker, and an `Implements:`, `Completes:`, or `Needs-QA:` trailer naming the run task.
+An adopted branch_driven policy requires valid Conventional Commit intent, nonempty compatibility descriptions, unchanged configured version values in implementation history, and durable semantic/task traceability. Workers do not update a common changelog. Release-intent validation combines commit intent and supported-contract evidence; missing evidence is explicit. The Codex plugin requires a captured trusted release-intent proof command in this mode.
 
-## Worktree containment
+At configured candidate/stable boundaries, claude-release calculates the aggregate impact from an explicit baseline and target, compiles the selected changelog and synchronizes configured version surfaces. A MAJOR candidate requires revision-bound human compatibility adjudication. NONE/PATCH/MINOR classifications introduce no additional semantic approval ceremony once their checks pass.
 
-All worktrees owned by a repository live below `<primary-repo>/.captain-sdlc/worktrees/`. Git's common directory identifies the primary repository even when Captain runs from an existing linked worktree. Orchestrator constructs the destination and the shell lifecycle hook rejects manual destinations outside it.
+Legacy per_commit policies and already signed runs retain their captured version suffix, deterministic version-surface mutation and version-linked changelog requirements until explicitly migrated. This is migration compatibility, not an alternate rule to apply simultaneously to branch_driven work. Bootstrap/supplemental commits obey their own captured policy.
 
-## Enforcement layers
+## Protected promotion and squash history
 
-1. Captain Core validates configuration and identifiers.
-2. Captain Orchestrator blocks invalid run and approval transitions.
-3. Lifecycle hooks reject invalid manual Git operations before execution.
-4. CI reruns the same validators; local hooks are defense in depth, not merge authority.
+Branch roles and transitions are configurable. Preserve repository protections and squash-only production contracts. Promotion metadata reaches protected branches through an authorized PR. Captain derives durable Captain-Changes transport from Git, checks the actual destination payload/footers, and retains exact release verification. claude-release tags only the final verified release commit following successful integration. Caller-supplied manifest JSON is not permission or verification.
+
+## Containment and enforcement
+
+Owned worktrees remain under the primary repository's .captain-sdlc/worktrees container. Core validates policy, Orchestrator enforces lifecycle, hooks guard manual Git operations, and CI reruns the validators. Local hooks are defense in depth; host protections remain merge authority. New adopted policy does not rewrite old signed evidence.
+
+The Codex plugin pins releaseIntentChecker.path and sha256 from the trusted base, requires the bundled checker outside repository-controlled source, synthesizes its command, and validates its digest before and after proof. The checker must enforce exact revision, compatibility and human-decision requirements. A mutable in-repository checker or an always-successful manifest printer is insufficient. Configured commit.type_impacts extends nonbreaking types. Version surfaces can additionally protect JSON mirrors through json_pointers. The governed commit API uses breaking_description to retain a compatibility description in the signed request and Git message.

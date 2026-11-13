@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add opt-in branch-driven implementation commits, pinned external release-intent proof, signed breaking descriptions, JSON version-mirror preservation and content-derived task trailers; adopt release boundaries through an explicit successor contract (v0.11.0).
+
 ## [0.10.13] - 2026-10-29
 
 ### Changed

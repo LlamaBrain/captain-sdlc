@@ -1,3 +1,4 @@
+import { assertReleaseIntentChecker, runReleaseIntentChecker } from "./release-intent.js";
 import { createHash, randomUUID } from "node:crypto";
 import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +21,7 @@ class ProofSourceDivergenceError extends Error {
     }
 }
 export function approvedPlanDigest(content) { return digest(content.replaceAll("\r\n", "\n")); }
-export function proofScopes(run) { return [...(run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...(run.profile === "pre-release" ? ["super-smoke"] : [])]), ...(run.visualRequired ? ["visual"] : [])]; }
+export function proofScopes(run) { return [...(run.profile === "low" ? ["build"] : ["build", "ticket", "feature-smoke", "affected-regression", ...(run.profile === "pre-release" ? ["super-smoke"] : [])]), ...(run.visualRequired ? ["visual"] : []), ...(run.policy?.commit?.mode === "branch_driven" ? ["release-intent"] : [])]; }
 export { executionHead } from "./run-validation.js";
 export function isPendingPlanReview(run) {
     if (run.phase === "hitl")
@@ -505,7 +506,7 @@ export class LifecycleStore {
         const profile = (await this.load("intents", operation.intentId)).requestedProfile ?? policy.profile;
         if (!(policy.profiles ?? [policy.profile]).includes(profile))
             throw new Error(`requested ${profile} sequence is not allowed by trusted policy`);
-        if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._-]+$/.test(operation.taskId)))
+        if (policy.commit?.require_task_trailer && (!operation.taskId || !/^[A-Za-z0-9._#-]+$/.test(operation.taskId)))
             throw new Error("trusted commit policy requires a safe task id");
         const run = { schemaVersion: 1, revision: 0, runId: operation.runId, operationToken: operation.operationToken, intentId: operation.intentId, sessionId: operation.sessionId, turnId: operation.turnId, activationToken: operation.operationToken, ...(operation.taskId ? { taskId: operation.taskId } : {}), objective: operation.objective, projectRoot: workspace.projectRoot, worktreePath: workspace.worktreePath, baseHead: workspace.baseHead, branch: workspace.branch, ...(operation.targetBranch ? { targetBranch: operation.targetBranch } : {}), commonGitDir: workspace.commonGitDir, gitDir: workspace.gitDir, ...(lease.leaseId ? { leaseId: lease.leaseId, leaseToken: lease.leaseToken } : {}), profile, visualRequired: policy.visualRequired, startedAt: operation.startedAt, phase: "tdd_red", status: "running", policy, evidence: [] };
         await putAuthorizedOnceExact(this.dataRoot, "run-revisions", `${operation.intentId}-0`, run);
@@ -1093,7 +1094,7 @@ export class LifecycleStore {
             throw new Error("prepared candidate tree or subject diverged from signed authority");
         if (firstParent.at(-1) !== commit.head || !firstParent.includes(prepared.candidate) || firstParent.indexOf(prepared.candidate) === firstParent.length - 1 || new Set(firstParent).size !== firstParent.length)
             throw new Error("prepared candidate is not retained in the advanced first-parent history");
-        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || ((!commit.versionChanged || !commit.changelogChanged) && !(commit.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit.subject))))
+        if (!commit.phaseCommitsValid || !commit.preparedMergesValid || !commit.previousPhaseRetained || ((run.policy.commit?.mode !== "branch_driven" && (!commit.versionChanged || !commit.changelogChanged)) && !(commit.bookkeepingOnly && run.policy.commit && bookkeepingCaptured(run.policy.commit) && bookkeepingSubjectAllowed(commit.subject))))
             throw new Error("advanced commit history does not satisfy the signed commit policy");
         if (!this.probe)
             throw new Error("source-state probe is required");
@@ -1158,7 +1159,7 @@ export class LifecycleStore {
         const commit = await commitEvidence(run.worktreePath, run.baseHead, run.policy, run.taskId, preparedMerges, run.committedState.head);
         if (!commit.clean || commit.head !== prepared.candidate || commit.tree !== prepared.tree || !commit.phaseCommitsValid
             || !commit.preparedMergesValid || !commit.previousPhaseRetained || !commit.taskTrailerValid || !commit.versionSurfacesValid
-            || !commit.versionChanged || !commit.changelogChanged)
+            || (run.policy.commit?.mode !== "branch_driven" && (!commit.versionChanged || !commit.changelogChanged)))
             throw new Error("signed merge commit does not satisfy captured implementation phase policy");
         await assertAuthority();
         await this.assertSessionLease(run);
@@ -1238,12 +1239,12 @@ export class LifecycleStore {
         const bookkeeping = commit.bookkeepingOnly === true && Boolean(run.policy.commit && bookkeepingCaptured(run.policy.commit)) && bookkeepingSubjectAllowed(commit.subject);
         if (commit.bookkeepingOnly && !bookkeeping)
             throw new Error("bookkeeping commit requires captured trusted rules and a versionless Captain subject");
-        const conventional = /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
+        const conventional = run.policy.commit?.mode === "branch_driven" ? commit.phaseCommitsValid : /^(feat|fix|refactor|perf|test|docs|build|ci|chore)(\([^)]+\))?!?: .+/.test(commit.subject);
         if ((run.policy.commit?.conventional ?? true) && !conventional)
             throw new Error("commit must use a Conventional Commit subject");
         if (!bookkeeping && (run.policy.commit?.require_version_suffix ?? true) && !subjectVersion(commit.subject))
             throw new Error("commit must include a strict SemVer suffix");
-        if (!bookkeeping && (!commit.versionChanged || !commit.changelogChanged))
+        if (!bookkeeping && (run.policy.commit?.mode !== "branch_driven" && (!commit.versionChanged || !commit.changelogChanged)))
             throw new Error("commit must update the configured version file and changelog");
         if (run.policy.commit?.require_task_trailer && !commit.taskTrailerValid)
             throw new Error("commit must include a configured task trailer");
@@ -1394,8 +1395,12 @@ export class LifecycleStore {
         for (const scope of scopes) {
             const command = run.policy.commands[scope];
             await prepareScopeOutputs(run.worktreePath, run.policy, scope);
-            const result = await this.runner(command, run.worktreePath);
-            proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode });
+            if (scope === "release-intent")
+                await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
+            const result = scope === "release-intent" ? await runReleaseIntentChecker(run.policy.releaseIntentChecker, run.worktreePath, [run.worktreePath, run.projectRoot]) : await this.runner(command, run.worktreePath);
+            if (scope === "release-intent")
+                await assertReleaseIntentChecker(run.policy.releaseIntentChecker, [run.worktreePath, run.projectRoot]);
+            proof.push({ scope, commandSha256: digest(command), exitCode: result.exitCode, ...(scope === "release-intent" ? { checkerSha256: run.policy.releaseIntentChecker.sha256, outputSha256: digest(result.stdout + "\n" + result.stderr) } : {}) });
             if (result.exitCode !== 0) {
                 await this.update({ ...run, phase: "implement", status: "red", evidence: [...run.evidence, ...proof] });
                 throw new Error(`${scope} proof failed; run returned to implement for repair`);
@@ -1869,7 +1874,7 @@ const safeId = (id) => { if (!/^[a-zA-Z0-9_-]+$/.test(id))
     throw new Error("unsafe id"); return id; };
 const samePath = (left, right) => path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
 const digest = (text) => createHash("sha256").update(text).digest("hex");
-const commitRequestSha256 = (request) => digest(JSON.stringify({ paths: request.paths, subject: request.subject, taskOutcome: request.taskOutcome ?? null, final: request.final }));
+const commitRequestSha256 = (request) => digest(JSON.stringify({ paths: request.paths, subject: request.subject, taskOutcome: request.taskOutcome ?? null, final: request.final, ...(request.breakingDescription !== undefined ? { breakingDescription: request.breakingDescription } : {}) }));
 async function safeArtifact(root, relative) { if (path.isAbsolute(relative))
     throw new Error("artifact must be relative"); const full = path.resolve(root, relative), prefix = path.resolve(root) + path.sep; if (!full.startsWith(prefix))
     throw new Error("artifact escapes worktree"); for (let cursor = full; cursor.startsWith(path.resolve(root)); cursor = path.dirname(cursor)) {
